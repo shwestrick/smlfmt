@@ -1,8 +1,9 @@
 # parse-sml (work-in-progress)
 
-New users of ML-like languages are often presented with error messages that
-are incomprehensible, especially to a beginner. This initial barrier to entry
-is (in my opinion) a major reason why ML-like languages are not more popular.
+New users of Standard ML are often presented with error messages that
+are incomprehensible (especially for a beginner), and other ML-like languages
+are probably similar. In my opinion, this initial barrier to entry is a major
+reason why ML-like languages are not more popular.
 
 The goal of this project is to develop a custom lexer/parser for Standard ML
 which helps both beginners and experts solve syntax errors quickly. Perhaps
