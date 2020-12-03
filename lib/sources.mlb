@@ -1,0 +1,47 @@
+$(SML_LIB)/basis/basis.mlb
+
+compat/$(COMPAT).mlb
+
+CommandLineArgs.sml
+Util.sml
+SeqBasis.sml
+(* Seq.sml *)
+SEQUENCE.sml
+local
+  ArraySequence.sml
+in
+  structure Seq = ArraySequence
+  structure ArraySequence
+end
+FuncSequence.sml
+BinarySearch.sml
+Merge.sml
+Quicksort.sml
+Mergesort.sml
+TreeMatrix.sml
+
+SampleSort.sml
+CountingSort.sml
+RadixSort.sml
+
+Geometry2D.sml
+
+(* ReadFile.sml *)
+Tokenize.sml
+FindFirst.sml
+Parse.sml
+(* TabFilterTree.sml *)
+AdjacencyGraph.sml
+
+Color.sml
+PPM.sml
+ExtraBinIO.sml
+GIF.sml
+NewWaveIO.sml
+Signal.sml
+
+Benchmark.sml
+
+TreeSeq.sml
+
+TerminalColors.sml
