@@ -35,10 +35,10 @@ iTerm2 on macOS.
 
 I decided not to use mllex/mlyacc for a number of reasons.
   * Using mllex/mlyacc would overly restrict the behavior of lexing and parsing.
-  * The SML grammar is set in stone! This project doesn't at all intend to
-  specify or clarify the grammar itself---there are plenty of existing
-  references available for that.
+  * The SML grammar is set in stone! This project doesn't need to specify or
+  clarify the grammar itself---there are plenty of existing resources available
+  for that.
   * I've always wanted to write a lexer and parser from scratch. Implementing
-  finite state-machines (even large ones) with a bunch of mutually recursive
-  is pretty fun. Also, the invariants of each state are easy to write down, and
-  the code is fairly self-documenting.
+  finite state-machines (even large ones!) with a bunch of mutually recursive
+  functions is fairly straightforward and pretty fun. The invariants of each
+  state are easy to write down, and the code is somewhat self-documenting.
