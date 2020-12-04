@@ -113,7 +113,6 @@ val _ =
   let
     val infile = List.hd (CommandLine.arguments ())
     val toks = SeqLex.tokens (Source.loadFromFile (FilePath.fromUnixPath infile))
-    val _ = print ("done lexing\n")
   in
     loop [] (toks, 0) {line=1, col=1}
   end
