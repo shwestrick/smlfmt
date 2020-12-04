@@ -74,68 +74,14 @@ struct
   | SymbolicId
   | Other
 
-  type token = {start: int, stop: int, class: class}
+  type token = {source: Source.t, class: class}
   type t = token
 
-  fun comma pos =
-    {start = pos, stop = pos+1, class = Reserved Comma}
+  fun make src class =
+    {source = src, class = class}
 
-  fun underscore pos =
-    {start = pos, stop = pos+1, class = Reserved Underscore}
-
-  fun semicolon pos =
-    {start = pos, stop = pos+1, class = Reserved Semicolon}
-
-  fun colon pos =
-    {start = pos, stop = pos+1, class = Reserved Colon}
-
-  fun colonArrow pos =
-    {start = pos, stop = pos+1, class = Reserved ColonArrow}
-
-  fun openParen pos =
-    {start = pos, stop = pos+1, class = Reserved OpenParen}
-
-  fun closeParen pos =
-    {start = pos, stop = pos+1, class = Reserved CloseParen}
-
-  fun openSquareBracket pos =
-    {start = pos, stop = pos+1, class = Reserved OpenSquareBracket}
-
-  fun closeSquareBracket pos =
-    {start = pos, stop = pos+1, class = Reserved CloseSquareBracket}
-
-  fun openCurlyBracket pos =
-    {start = pos, stop = pos+1, class = Reserved OpenCurlyBracket}
-
-  fun closeCurlyBracket pos =
-    {start = pos, stop = pos+1, class = Reserved CloseCurlyBracket}
-
-  fun comment (start, stop) =
-    {start = start, stop = stop, class = Comment}
-
-  fun string (start, stop) =
-    {start = start, stop = stop, class = StringConstant}
-
-  fun symbolicId (start, stop) =
-    {start = start, stop = stop, class = SymbolicId}
-
-  fun alphanumId (start, stop) =
-    {start = start, stop = stop, class = AlphanumId}
-
-  fun integerConstant (start, stop) =
-    {start = start, stop = stop, class = IntegerConstant}
-
-  fun realConstant (start, stop) =
-    {start = start, stop = stop, class = RealConstant}
-
-  fun wordConstant (start, stop) =
-    {start = start, stop = stop, class = WordConstant}
-
-  fun reserved (start, stop, rclass) =
-    {start = start, stop = stop, class = Reserved rclass}
-
-  fun dotdotdot start =
-    {start = start, stop = start+3, class = Reserved DotDotDot}
+  fun reserved src rclass =
+    {source = src, class = Reserved rclass}
 
   fun classToString class =
     case class of

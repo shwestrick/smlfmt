@@ -1,4 +1,6 @@
 ../lib/sources.mlb
+FilePath.sml
+Source.sml
 Token.sml
 LEX.sml
 SeqLex.sml

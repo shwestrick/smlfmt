@@ -81,33 +81,41 @@ fun printLegend () =
   * Parse input file and color it.
   *)
 
-val infile = List.hd (CommandLine.arguments ())
-val fileContents = ReadFile.contentsSeq infile
-
-fun loop (toks, i) j =
-  if j >= Seq.length fileContents then
-    ( print TC.reset
-    ; TextIO.output1 (TextIO.stdOut, #"\n")
-    )
-  else if i >= Seq.length toks then
-    ( TextIO.output1 (TextIO.stdOut, Seq.nth fileContents j)
-    ; loop (toks, i) (j+1)
-    )
+fun loop acc (toks, i) {line=currLine, col=currCol} =
+  if i >= Seq.length toks then
+    print (String.concat (List.rev acc) ^ "\n")
   else
     let
-      val {start, stop, class} = Seq.nth toks i
+      val {source, class} = Seq.nth toks i
+      val {line, col} = Source.absoluteStart source
+
+(*
+      val tokenstuff =
+        String.concat (List.tabulate
+          (Source.length source, Char.toString o Source.nth source))
+      val _ = print ("token " ^ Int.toString line ^ " " ^ Int.toString col
+                     ^ ": " ^ tokenstuff ^ "\n")
+*)
+
+      val spaces =
+        if line = currLine then
+          CharVector.tabulate (col-currCol, fn _ => #" ")
+        else
+          CharVector.tabulate (line-currLine, fn _ => #"\n")
+          ^ CharVector.tabulate (col-1, fn _ => #" ")
+
+      val item = spaces ^ tokColor class ^ Source.toString source ^ TC.reset
     in
-      if j = start then print (tokColor class) else ();
-      TextIO.output1 (TextIO.stdOut, Seq.nth fileContents j);
-      if j = stop-1 then print TC.reset else ();
-      loop (toks, if j=stop-1 then i+1 else i) (j+1)
+      loop (item :: acc) (toks, i+1) (Source.absoluteEnd source)
     end
 
 val _ =
   let
-    val toks = SeqLex.tokens fileContents
+    val infile = List.hd (CommandLine.arguments ())
+    val toks = SeqLex.tokens (Source.loadFromFile (FilePath.fromUnixPath infile))
+    val _ = print ("done lexing\n")
   in
-    loop (toks, 0) 0
+    loop [] (toks, 0) {line=1, col=1}
   end
   handle e => print ("ERROR: " ^ exnMessage e ^ "\n")
 
