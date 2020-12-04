@@ -28,10 +28,49 @@ struct
     *   `args` is a state-dependent state (haha)
     *)
 
-  fun stateMachine src =
+  fun tokens src =
     let
-      fun mk x (i, j) = Token.make (Source.subseq src (i, j-i)) x
-      fun mkr x (i, j) = Token.reserved (Source.subseq src (i, j-i)) x
+      (** Some helpers for making source slices and tokens. *)
+      fun slice (i, j) = Source.subseq src (i, j-i)
+      fun mk x (i, j) = Token.make (slice (i, j)) x
+      fun mkr x (i, j) = Token.reserved (slice (i, j)) x
+
+      (** This function attempts to make an identifier token like so:
+        *   mk (Token.Identifier classArgs) (i, j)
+        * However, it also checks for reserved words and either makes the
+        * appropriate token or throws an error.
+        *)
+      fun mkIdentifierOrReserved classArgs (i, j) =
+        let
+          val thisSrc = slice (i, j)
+          val {separators, ...} = classArgs
+          val numSeps = Seq.length separators
+
+          val _ = print ("CHECKING: " ^ Source.toString thisSrc ^ "\n")
+          val _ = print ("seps: " ^ Seq.toString Int.toString separators ^ "\n")
+
+          fun fieldStart k =
+            if k = 0 then 0 else 1 + Seq.nth separators (k-1)
+          fun fieldEnd k =
+            if k = numSeps then Source.length thisSrc else Seq.nth separators k
+          fun field k =
+            Source.subseq thisSrc (fieldStart k, fieldEnd k)
+          fun checkNoReserved () =
+            Util.for (0, numSeps+1) (fn k =>
+              case Token.checkReserved (field k) of
+                NONE => print ("not reserved: " ^ Source.toString (field k) ^ "\n")
+              | SOME rclass =>
+                  raise Fail ("reserved word " ^ Source.toString (field k) ^ " in " ^ Source.toString (slice (i, j))))
+        in
+          if numSeps = 0 then
+            case Token.checkReserved (field 0) of
+              SOME rclass => (Token.reserved thisSrc rclass before print "is reserved\n")
+            | NONE => (Token.make thisSrc (Token.Identifier classArgs) before print "not reserved\n")
+          else
+            ( checkNoReserved ()
+            ; Token.make thisSrc (Token.Identifier classArgs)
+            )
+        end
 
       fun next1 s =
         if s < Source.length src then
@@ -70,7 +109,8 @@ struct
         | SOME #"~" =>
             loop_afterTwiddle acc (s+1)
         | SOME #"'" =>
-            loop_alphanumId acc (s+1) {idStart = s, startsPrime = true}
+            loop_alphanumId acc (s+1)
+              {idStart = s, startsPrime = true, seps = []}
         | SOME #"0" =>
             loop_afterZero acc (s+1)
         | SOME #"." =>
@@ -79,9 +119,10 @@ struct
             if isDecDigit c then
               loop_decIntegerConstant acc (s+1) {constStart = s}
             else if isSymbolic c then
-              loop_symbolicId acc (s+1) {idStart = s}
+              loop_symbolicId acc (s+1) {idStart = s, seps = []}
             else if isLetter c then
-              loop_alphanumId acc (s+1) {idStart = s, startsPrime = false}
+              loop_alphanumId acc (s+1)
+                {idStart = s, startsPrime = false, seps = []}
             else
               loop_topLevel acc (s+1)
         | NONE =>
@@ -93,7 +134,7 @@ struct
         case next2 s of
           SOME (#".", #".") =>
             loop_topLevel
-              (mkr Token.DotDotDot (s-1, 3) :: acc)
+              (mkr Token.DotDotDot (s-1, s+2) :: acc)
               (s+2)
         | SOME (c1, c2) =>
             raise Fail ("expected '...' but found '." ^ String.implode [c1,c2] ^ "'")
@@ -102,49 +143,74 @@ struct
 
 
 
-      and loop_symbolicId acc s (args as {idStart}) =
-        case next1 s of
-          SOME c =>
-            if isSymbolic c then
-              loop_symbolicId acc (s+1) args
-            else
-              loop_topLevel
-                (mk Token.SymbolicId (idStart, s) :: acc)
-                s
-        | NONE =>
-            (** DONE *)
-            mk Token.SymbolicId (idStart, s) :: acc
+      (** `idStart` is the overall index start of the identifier
+        * (i.e. if long, includes all the qualifiers too).
+        *
+        * `seps` is the offsets of the "." separators in a long identifier.
+        * Note that this is an offset, i.e. relative to `idStart`
+        *)
+      and loop_symbolicId acc s (args as {idStart, seps}) =
+        let
+          val seps' = Seq.fromList (List.rev seps)
+          val classArgs = {separators = seps', isSymbolic = true}
+          fun tokIfEndsHere() = mkIdentifierOrReserved classArgs (idStart, s)
+        in
+          case next1 s of
+            SOME c =>
+              if isSymbolic c then
+                loop_symbolicId acc (s+1) args
+              else
+                loop_topLevel (tokIfEndsHere() :: acc) s
+          | NONE =>
+              (** DONE *)
+              tokIfEndsHere() :: acc
+        end
 
 
 
-      and loop_alphanumId acc s (args as {idStart, startsPrime}) =
-        case next1 s of
-          SOME #"." =>
-            if startsPrime then
-              raise Fail "structure identifiers cannot start with prime"
-            else
-              loop_continueLongIdentifier acc (s+1) {idStart=idStart}
-        | SOME c =>
-            (** SML's notion of alphanum is a little weird. *)
-            if isAlphaNumPrimeOrUnderscore c then
-              loop_alphanumId acc (s+1) args
-            else
-              loop_topLevel
-                (mk Token.AlphanumId (idStart, s) :: acc)
-                s
-        | NONE =>
-            (** DONE *)
-            mk Token.AlphanumId (idStart, s) :: acc
+      (** `idStart` is the overall index start of the identifier
+        * (i.e. if long, includes all the qualifiers too).
+        *
+        * `seps` is the offsets of the "." separators in a long identifier.
+        * Note that this is an offset, i.e. relative to `idStart`
+        *)
+      and loop_alphanumId acc s (args as {idStart, startsPrime, seps}) =
+        let
+          val classArgs =
+            {separators = Seq.fromList (List.rev seps), isSymbolic = false}
+          fun tokIfEndsHere() = mkIdentifierOrReserved classArgs (idStart, s)
+        in
+          case next1 s of
+            SOME #"." =>
+              if startsPrime then
+                raise Fail "structure identifiers cannot start with prime"
+              else
+                loop_continueLongIdentifier acc (s+1)
+                  {idStart = idStart, seps = (s-idStart) :: seps}
+          | SOME c =>
+              (** SML's notion of alphanum is a little weird. *)
+              if isAlphaNumPrimeOrUnderscore c then
+                loop_alphanumId acc (s+1) args
+              else
+                loop_topLevel (tokIfEndsHere() :: acc) s
+          | NONE =>
+              (** DONE *)
+              tokIfEndsHere() :: acc
+        end
 
 
 
-      and loop_continueLongIdentifier acc s (args as {idStart}) =
+      and loop_continueLongIdentifier acc s (args as {idStart, seps}) =
         case next1 s of
           SOME c =>
             if isSymbolic c then
               loop_symbolicId acc (s+1) args
             else if isLetter c then
-              loop_alphanumId acc (s+1) {idStart = idStart, startsPrime = false}
+              loop_alphanumId acc (s+1)
+                { idStart = idStart
+                , startsPrime = false
+                , seps = seps
+                }
             else
               raise Fail "after qualifier, expected letter or symbol"
         | NONE =>
@@ -159,21 +225,26 @@ struct
         * indicate the beginning of hex format.
         *)
       and loop_afterTwiddle acc s =
-        case next1 s of
-          SOME #"0" =>
-            loop_afterTwiddleThenZero acc (s+1)
-        | SOME c =>
-            if isDecDigit c then
-              loop_decIntegerConstant acc (s+1) {constStart = s - 1}
-            else if isSymbolic c then
-              loop_symbolicId acc (s+1) {idStart = s - 1}
-            else
-              loop_topLevel
-                (mk Token.SymbolicId (s - 1, s) :: acc)
-                s
-        | NONE =>
-            (** DONE *)
-            mk Token.SymbolicId (s - 1, s) :: acc
+        let
+          val classArgs =
+            {separators=Seq.empty(), isSymbolic=true}
+          fun tokIfEndsHere() =
+            mkIdentifierOrReserved classArgs (s - 1, s)
+        in
+          case next1 s of
+            SOME #"0" =>
+              loop_afterTwiddleThenZero acc (s+1)
+          | SOME c =>
+              if isDecDigit c then
+                loop_decIntegerConstant acc (s+1) {constStart = s - 1}
+              else if isSymbolic c then
+                loop_symbolicId acc (s+1) {idStart = s - 1, seps = []}
+              else
+                loop_topLevel (tokIfEndsHere() :: acc) s
+          | NONE =>
+              (** DONE *)
+              tokIfEndsHere() :: acc
+        end
 
 
 
@@ -187,9 +258,7 @@ struct
             if isHexDigit c then
               loop_hexIntegerConstant acc (s+2) {constStart = s - 2}
             else
-              loop_topLevel
-                (mk Token.IntegerConstant (s - 2, s) :: acc)
-                s
+              loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
         | _ =>
         case next1 s of
           SOME #"." =>
@@ -198,9 +267,7 @@ struct
             if isDecDigit c then
               loop_decIntegerConstant acc (s+1) {constStart = s - 2}
             else
-              loop_topLevel
-                (mk Token.IntegerConstant (s - 2, s) :: acc)
-                s
+              loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
         | NONE =>
             (** DONE *)
             mk Token.IntegerConstant (s - 2, s) :: acc
@@ -331,34 +398,34 @@ struct
         *   0wx       -- integer constant 0 followed by alphanum-id "wx"
         *)
       and loop_afterZeroDubya acc s =
-        case next2 s of
-          SOME (#"x", c) =>
-            if isHexDigit c then
-              loop_hexWordConstant acc (s+2) {constStart = s - 2}
-            else
-              (** TODO: FIX: this is not quite right. Should
-                * jump straight to identifier that starts with "wx"
+        let
+          (** In case the 0 ends up as an integer constant *)
+          val zeroIntConstant =
+            mk Token.IntegerConstant (s - 2, s - 1)
+        in
+          case next2 s of
+            SOME (#"x", c) =>
+              if isHexDigit c then
+                loop_hexWordConstant acc (s+2) {constStart = s - 2}
+              else
+                loop_topLevel (zeroIntConstant :: acc) (s-1)
+          | _ =>
+          case next1 s of
+            SOME c =>
+              if isDecDigit c then
+                loop_decWordConstant acc (s+1) {constStart = s - 2}
+              else
+                loop_topLevel (zeroIntConstant :: acc) (s-1)
+          | NONE =>
+              (** We're done, but need to parse the "0" as an integer constant,
+                * and the "w" as an identifier. So back up to s-1 and continue.
                 *)
-              loop_topLevel
-                (mk Token.IntegerConstant (s - 2, s - 1) :: acc)
-                s
-        | _ =>
-        case next1 s of
-          SOME c =>
-            if isDecDigit c then
-              loop_decWordConstant acc (s+1) {constStart = s - 2}
-            else
-              (** TODO: FIX: this is not quite right. Should
-                * jump straight to identifier that starts with "w"
-                *)
-              loop_topLevel
-                (mk Token.IntegerConstant (s - 2, s - 1) :: acc)
-                s
-        | NONE =>
-            (** DONE *)
-            mk Token.IntegerConstant (s - 2, s - 1) ::
-            mk Token.AlphanumId (s - 1, s) ::
-            acc
+              loop_alphanumId (zeroIntConstant :: acc) (s-1)
+                { idStart = s-1
+                , startsPrime = false
+                , seps = []
+                }
+        end
 
 
       (** An open-paren could just be a normal paren, or it could be the
@@ -470,108 +537,6 @@ struct
 
     in
       Seq.fromList (List.rev (loop_topLevel [] 0))
-    end
-
-
-
-  (** =====================================================================
-    * The lexer above is a bit sloppy, in that it doesn't always produce
-    * all reserved words. So we clean up here.
-    *
-    * The function `clarifyClassOfSymbolic` catches reserved words that
-    * were sloppily identified as `Token.SymbolicId`.
-    *
-    * Similarly, `clarifyClassOfAlphanum` handles sloppy `Token.AlphanumId`s
-    *)
-
-  (** look closer at the token [f(k) : i <= k < j] *)
-  fun clarifyClassOfSymbolic str =
-    case str of
-      ":" => Token.Reserved Token.Colon
-    | ":>" => Token.Reserved Token.ColonArrow
-    | "|" => Token.Reserved Token.Bar
-    | "=" => Token.Reserved Token.Equal
-    | "=>" => Token.Reserved Token.FatArrow
-    | "->" => Token.Reserved Token.Arrow
-    | "#" => Token.Reserved Token.Hash
-    | _ => Token.SymbolicId
-
-
-  fun clarifyClassOfAlphanum str =
-    let
-      fun r rclass = Token.Reserved rclass
-    in
-      case str of
-      (** Core *)
-        "abstype" => r Token.Abstype
-      | "and" => r Token.And
-      | "andalso" => r Token.Andalso
-      | "as" => r Token.As
-      | "case" => r Token.Case
-      | "datatype" => r Token.Datatype
-      | "do" => r Token.Do
-      | "else" => r Token.Else
-      | "end" => r Token.End
-      | "exception" => r Token.Exception
-      | "fn" => r Token.Fn
-      | "fun" => r Token.Fun
-      | "handle" => r Token.Handle
-      | "if" => r Token.If
-      | "in" => r Token.In
-      | "infix" => r Token.Infix
-      | "infixr" => r Token.Infixr
-      | "let" => r Token.Let
-      | "local" => r Token.Local
-      | "nonfix" => r Token.Nonfix
-      | "of" => r Token.Of
-      | "op" => r Token.Op
-      | "open" => r Token.Open
-      | "orelse" => r Token.Orelse
-      | "raise" => r Token.Raise
-      | "rec" => r Token.Rec
-      | "then" => r Token.Then
-      | "type" => r Token.Type
-      | "val" => r Token.Val
-      | "with" => r Token.With
-      | "withtype" => r Token.Withtype
-      | "while" => r Token.While
-      (** Modules *)
-      | "eqtype" => r Token.Eqtype
-      | "functor" => r Token.Functor
-      | "include" => r Token.Include
-      | "sharing" => r Token.Sharing
-      | "sig" => r Token.Sig
-      | "signature" => r Token.Signature
-      | "struct" => r Token.Struct
-      | "structure" => r Token.Structure
-      | "where" => r Token.Where
-
-      (** Other *)
-      | _ => Token.AlphanumId
-    end
-
-
-  (** ======================================================================
-    * The final algorithm just invokes the state-machine loop and then
-    * cleans up reserved words.
-    *)
-
-  fun tokens src =
-    let
-      val toks = stateMachine src
-
-      fun replaceWithReserved (tok as {source=src, class}: Token.t) =
-        { source = src
-        , class =
-            case class of
-              Token.SymbolicId =>
-                clarifyClassOfSymbolic (Source.toString src)
-            | Token.AlphanumId =>
-                clarifyClassOfAlphanum (Source.toString src)
-            | _ => class
-        }
-    in
-      Seq.map replaceWithReserved toks
     end
 
 end

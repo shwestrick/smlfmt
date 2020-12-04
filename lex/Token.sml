@@ -70,9 +70,10 @@ struct
   | WordConstant
   | RealConstant
   | StringConstant
-  | AlphanumId
-  | SymbolicId
-  | Other
+  (** The separators are the offsets of the "."s in a long identifier. For
+    * short identifiers, separators is empty.
+    *)
+  | Identifier of {separators: int Seq.t, isSymbolic: bool}
 
   type token = {source: Source.t, class: class}
   type t = token
@@ -83,6 +84,68 @@ struct
   fun reserved src rclass =
     {source = src, class = Reserved rclass}
 
+  fun checkReserved src =
+    let
+      val str = CharVector.tabulate (Source.length src, Source.nth src)
+      fun r rclass = SOME rclass
+    in
+      case str of
+      (** Symbolic *)
+        ":" => r Colon
+      | ":>" => r ColonArrow
+      | "|" => r Bar
+      | "=" => r Equal
+      | "=>" => r FatArrow
+      | "->" => r Arrow
+      | "#" => r Hash
+      (** Core *)
+      | "abstype" => r Abstype
+      | "and" => r And
+      | "andalso" => r Andalso
+      | "as" => r As
+      | "case" => r Case
+      | "datatype" => r Datatype
+      | "do" => r Do
+      | "else" => r Else
+      | "end" => r End
+      | "exception" => r Exception
+      | "fn" => r Fn
+      | "fun" => r Fun
+      | "handle" => r Handle
+      | "if" => r If
+      | "in" => r In
+      | "infix" => r Infix
+      | "infixr" => r Infixr
+      | "let" => r Let
+      | "local" => r Local
+      | "nonfix" => r Nonfix
+      | "of" => r Of
+      | "op" => r Op
+      | "open" => r Open
+      | "orelse" => r Orelse
+      | "raise" => r Raise
+      | "rec" => r Rec
+      | "then" => r Then
+      | "type" => r Type
+      | "val" => r Val
+      | "with" => r With
+      | "withtype" => r Withtype
+      | "while" => r While
+      (** Modules *)
+      | "eqtype" => r Eqtype
+      | "functor" => r Functor
+      | "include" => r Include
+      | "sharing" => r Sharing
+      | "sig" => r Sig
+      | "signature" => r Signature
+      | "struct" => r Struct
+      | "structure" => r Structure
+      | "where" => r Where
+
+      | other => NONE
+          (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
+    end
+
   fun classToString class =
     case class of
       Comment => "comment"
@@ -91,8 +154,7 @@ struct
     | WordConstant => "word"
     | RealConstant => "real"
     | StringConstant => "string"
-    | AlphanumId => "alphanum-id"
-    | SymbolicId => "symbolic-id"
-    | Other => "other"
+    | Identifier {isSymbolic=false, ...} => "alphanum-id"
+    | Identifier {isSymbolic=true, ...} => "symbolic-id"
 
 end

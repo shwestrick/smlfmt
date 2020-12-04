@@ -28,12 +28,10 @@ fun tokColor class =
       green
   | Token.Reserved _ =>
       TC.bold ^ blue
-  | Token.SymbolicId =>
+  | Token.Identifier {isSymbolic=true, ...} =>
       pink
-  | Token.AlphanumId =>
+  | Token.Identifier {isSymbolic=false, ...} =>
       darkgreen
-  | _ =>
-      ""
 
 fun printLegend () =
   let
@@ -44,8 +42,8 @@ fun printLegend () =
       , Token.IntegerConstant
       , Token.RealConstant
       , Token.Reserved Token.And  (* arbitrary... just need something reserved *)
-      , Token.SymbolicId
-      , Token.AlphanumId
+      , Token.Identifier {separators=Seq.empty(), isSymbolic=true}
+      , Token.Identifier {separators=Seq.empty(), isSymbolic=false}
       ]
     val boxWidth =
       List.foldl Int.max 0
@@ -116,6 +114,6 @@ val _ =
   in
     loop [] (toks, 0) {line=1, col=1}
   end
-  handle e => print ("ERROR: " ^ exnMessage e ^ "\n")
+  (* handle e => print ("ERROR: " ^ exnMessage e ^ "\nHISTORY: " ^ ) *)
 
 val _ = printLegend ()
