@@ -1,20 +1,6 @@
 structure SeqLex: LEX =
 struct
 
-  (** ======================================================================
-    * Some helpers
-    *)
-
-  val isValidFormatEscapeChar = Char.contains " \t\n\f\r"
-  val isValidSingleEscapeChar = Char.contains "abtnvfr\\\""
-  val isSymbolic = Char.contains "!%&$#+-/:<=>?@\\~`^|*"
-  fun isDecDigit c = Char.isDigit c
-  fun isHexDigit c = Char.isHexDigit c
-  fun isLetter c = Char.isAlpha c
-  fun isAlphaNumPrimeOrUnderscore c =
-    Char.isAlphaNum c orelse c = #"_" orelse c = #"'"
-
-
   (** =====================================================================
     * STATE MACHINE
     *
@@ -34,43 +20,7 @@ struct
       fun slice (i, j) = Source.subseq src (i, j-i)
       fun mk x (i, j) = Token.make (slice (i, j)) x
       fun mkr x (i, j) = Token.reserved (slice (i, j)) x
-
-      (** This function attempts to make an identifier token like so:
-        *   mk (Token.Identifier classArgs) (i, j)
-        * However, it also checks for reserved words and either makes the
-        * appropriate token or throws an error.
-        *)
-      fun mkIdentifierOrReserved classArgs (i, j) =
-        let
-          val thisSrc = slice (i, j)
-          val {separators, ...} = classArgs
-          val numSeps = Seq.length separators
-
-          val _ = print ("CHECKING: " ^ Source.toString thisSrc ^ "\n")
-          val _ = print ("seps: " ^ Seq.toString Int.toString separators ^ "\n")
-
-          fun fieldStart k =
-            if k = 0 then 0 else 1 + Seq.nth separators (k-1)
-          fun fieldEnd k =
-            if k = numSeps then Source.length thisSrc else Seq.nth separators k
-          fun field k =
-            Source.subseq thisSrc (fieldStart k, fieldEnd k)
-          fun checkNoReserved () =
-            Util.for (0, numSeps+1) (fn k =>
-              case Token.checkReserved (field k) of
-                NONE => print ("not reserved: " ^ Source.toString (field k) ^ "\n")
-              | SOME rclass =>
-                  raise Fail ("reserved word " ^ Source.toString (field k) ^ " in " ^ Source.toString (slice (i, j))))
-        in
-          if numSeps = 0 then
-            case Token.checkReserved (field 0) of
-              SOME rclass => (Token.reserved thisSrc rclass before print "is reserved\n")
-            | NONE => (Token.make thisSrc (Token.Identifier classArgs) before print "not reserved\n")
-          else
-            ( checkNoReserved ()
-            ; Token.make thisSrc (Token.Identifier classArgs)
-            )
-        end
+      fun mki (i, j) = Token.identifierOrReserved (slice (i, j))
 
       fun next1 s =
         if s < Source.length src then
@@ -109,20 +59,19 @@ struct
         | SOME #"~" =>
             loop_afterTwiddle acc (s+1)
         | SOME #"'" =>
-            loop_alphanumId acc (s+1)
-              {idStart = s, startsPrime = true, seps = []}
+            loop_alphanumId acc (s+1) {idStart = s, startsPrime = true}
         | SOME #"0" =>
             loop_afterZero acc (s+1)
         | SOME #"." =>
             loop_afterDot acc (s+1)
         | SOME c =>
-            if isDecDigit c then
+            if LexUtils.isDecDigit c then
               loop_decIntegerConstant acc (s+1) {constStart = s}
-            else if isSymbolic c then
-              loop_symbolicId acc (s+1) {idStart = s, seps = []}
-            else if isLetter c then
+            else if LexUtils.isSymbolic c then
+              loop_symbolicId acc (s+1) {idStart = s}
+            else if LexUtils.isLetter c then
               loop_alphanumId acc (s+1)
-                {idStart = s, startsPrime = false, seps = []}
+                {idStart = s, startsPrime = false}
             else
               loop_topLevel acc (s+1)
         | NONE =>
@@ -145,19 +94,14 @@ struct
 
       (** `idStart` is the overall index start of the identifier
         * (i.e. if long, includes all the qualifiers too).
-        *
-        * `seps` is the offsets of the "." separators in a long identifier.
-        * Note that this is an offset, i.e. relative to `idStart`
         *)
-      and loop_symbolicId acc s (args as {idStart, seps}) =
+      and loop_symbolicId acc s (args as {idStart}) =
         let
-          val seps' = Seq.fromList (List.rev seps)
-          val classArgs = {separators = seps', isSymbolic = true}
-          fun tokIfEndsHere() = mkIdentifierOrReserved classArgs (idStart, s)
+          fun tokIfEndsHere() = mki (idStart, s)
         in
           case next1 s of
             SOME c =>
-              if isSymbolic c then
+              if LexUtils.isSymbolic c then
                 loop_symbolicId acc (s+1) args
               else
                 loop_topLevel (tokIfEndsHere() :: acc) s
@@ -170,26 +114,20 @@ struct
 
       (** `idStart` is the overall index start of the identifier
         * (i.e. if long, includes all the qualifiers too).
-        *
-        * `seps` is the offsets of the "." separators in a long identifier.
-        * Note that this is an offset, i.e. relative to `idStart`
         *)
-      and loop_alphanumId acc s (args as {idStart, startsPrime, seps}) =
+      and loop_alphanumId acc s (args as {idStart, startsPrime}) =
         let
-          val classArgs =
-            {separators = Seq.fromList (List.rev seps), isSymbolic = false}
-          fun tokIfEndsHere() = mkIdentifierOrReserved classArgs (idStart, s)
+          fun tokIfEndsHere() = mki (idStart, s)
         in
           case next1 s of
             SOME #"." =>
               if startsPrime then
                 raise Fail "structure identifiers cannot start with prime"
               else
-                loop_continueLongIdentifier acc (s+1)
-                  {idStart = idStart, seps = (s-idStart) :: seps}
+                loop_continueLongIdentifier acc (s+1) {idStart = idStart}
           | SOME c =>
               (** SML's notion of alphanum is a little weird. *)
-              if isAlphaNumPrimeOrUnderscore c then
+              if LexUtils.isAlphaNumPrimeOrUnderscore c then
                 loop_alphanumId acc (s+1) args
               else
                 loop_topLevel (tokIfEndsHere() :: acc) s
@@ -200,17 +138,13 @@ struct
 
 
 
-      and loop_continueLongIdentifier acc s (args as {idStart, seps}) =
+      and loop_continueLongIdentifier acc s (args as {idStart}) =
         case next1 s of
           SOME c =>
-            if isSymbolic c then
+            if LexUtils.isSymbolic c then
               loop_symbolicId acc (s+1) args
-            else if isLetter c then
-              loop_alphanumId acc (s+1)
-                { idStart = idStart
-                , startsPrime = false
-                , seps = seps
-                }
+            else if LexUtils.isLetter c then
+              loop_alphanumId acc (s+1) {idStart = idStart, startsPrime = false}
             else
               raise Fail "after qualifier, expected letter or symbol"
         | NONE =>
@@ -226,19 +160,16 @@ struct
         *)
       and loop_afterTwiddle acc s =
         let
-          val classArgs =
-            {separators=Seq.empty(), isSymbolic=true}
-          fun tokIfEndsHere() =
-            mkIdentifierOrReserved classArgs (s - 1, s)
+          fun tokIfEndsHere() = mki (s - 1, s)
         in
           case next1 s of
             SOME #"0" =>
               loop_afterTwiddleThenZero acc (s+1)
           | SOME c =>
-              if isDecDigit c then
+              if LexUtils.isDecDigit c then
                 loop_decIntegerConstant acc (s+1) {constStart = s - 1}
-              else if isSymbolic c then
-                loop_symbolicId acc (s+1) {idStart = s - 1, seps = []}
+              else if LexUtils.isSymbolic c then
+                loop_symbolicId acc (s+1) {idStart = s - 1}
               else
                 loop_topLevel (tokIfEndsHere() :: acc) s
           | NONE =>
@@ -255,7 +186,7 @@ struct
       and loop_afterTwiddleThenZero acc s =
         case next2 s of
           SOME (#"x", c) =>
-            if isHexDigit c then
+            if LexUtils.isHexDigit c then
               loop_hexIntegerConstant acc (s+2) {constStart = s - 2}
             else
               loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
@@ -264,7 +195,7 @@ struct
           SOME #"." =>
             loop_realConstantAfterDot acc (s+1) {constStart = s - 2}
         | SOME c =>
-            if isDecDigit c then
+            if LexUtils.isDecDigit c then
               loop_decIntegerConstant acc (s+1) {constStart = s - 2}
             else
               loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
@@ -281,7 +212,7 @@ struct
       and loop_afterZero acc s =
         case next2 s of
           SOME (#"x", c) =>
-            if isHexDigit c then
+            if LexUtils.isHexDigit c then
               loop_hexIntegerConstant acc (s+2) {constStart = s - 1}
             else
               loop_topLevel (mk Token.IntegerConstant (s - 1, s) :: acc) s
@@ -292,7 +223,7 @@ struct
         | SOME #"w" =>
             loop_afterZeroDubya acc (s+1)
         | SOME c =>
-            if isDecDigit c then
+            if LexUtils.isDecDigit c then
               loop_decIntegerConstant acc (s+1) {constStart = s - 1}
             else
               loop_topLevel (mk Token.IntegerConstant (s - 1, s) :: acc) s
@@ -307,7 +238,7 @@ struct
           SOME #"." =>
             loop_realConstantAfterDot acc (s+1) args
         | SOME c =>
-            if isDecDigit c then
+            if LexUtils.isDecDigit c then
               loop_decIntegerConstant acc (s+1) args
             else
               loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
@@ -321,7 +252,7 @@ struct
       and loop_realConstantAfterDot acc s (args as {constStart}) =
         case next1 s of
           SOME c =>
-            if isDecDigit c then
+            if LexUtils.isDecDigit c then
               loop_realConstant acc (s+1) args
             else
               raise Fail ("while parsing real constant, expected decimal digit \
@@ -339,7 +270,7 @@ struct
           SOME #"E" =>
             raise Fail "real constants with exponents 'E' not supported yet"
         | SOME c =>
-            if isDecDigit c then
+            if LexUtils.isDecDigit c then
               loop_realConstant acc (s+1) args
             else
               loop_topLevel
@@ -353,7 +284,7 @@ struct
       and loop_hexIntegerConstant acc s (args as {constStart}) =
         case next1 s of
           SOME c =>
-            if isHexDigit c then
+            if LexUtils.isHexDigit c then
               loop_hexIntegerConstant acc (s+1) args
             else
               loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
@@ -366,7 +297,7 @@ struct
       and loop_decWordConstant acc s (args as {constStart}) =
         case next1 s of
           SOME c =>
-            if isDecDigit c then
+            if LexUtils.isDecDigit c then
               loop_decWordConstant acc (s+1) args
             else
               loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
@@ -379,7 +310,7 @@ struct
       and loop_hexWordConstant acc s (args as {constStart}) =
         case next1 s of
           SOME c =>
-            if isHexDigit c then
+            if LexUtils.isHexDigit c then
               loop_hexWordConstant acc (s+1) args
             else
               loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
@@ -405,14 +336,14 @@ struct
         in
           case next2 s of
             SOME (#"x", c) =>
-              if isHexDigit c then
+              if LexUtils.isHexDigit c then
                 loop_hexWordConstant acc (s+2) {constStart = s - 2}
               else
                 loop_topLevel (zeroIntConstant :: acc) (s-1)
           | _ =>
           case next1 s of
             SOME c =>
-              if isDecDigit c then
+              if LexUtils.isDecDigit c then
                 loop_decWordConstant acc (s+1) {constStart = s - 2}
               else
                 loop_topLevel (zeroIntConstant :: acc) (s-1)
@@ -423,7 +354,6 @@ struct
               loop_alphanumId (zeroIntConstant :: acc) (s-1)
                 { idStart = s-1
                 , startsPrime = false
-                , seps = []
                 }
         end
 
@@ -465,15 +395,15 @@ struct
       and loop_inStringEscapeSequence acc s (args as {stringStart}) =
         case next1 s of
           SOME c =>
-            if isValidSingleEscapeChar c then
+            if LexUtils.isValidSingleEscapeChar c then
               loop_inString acc (s+1) args
-            else if isValidFormatEscapeChar c then
+            else if LexUtils.isValidFormatEscapeChar c then
               loop_inStringFormatEscapeSequence acc (s+1) args
             else if c = #"^" then
               loop_inStringControlEscapeSequence acc (s+1) args
             else if c = #"u" then
               raise Fail "escape sequences \\uxxxx not supported yet"
-            else if isDecDigit c then
+            else if LexUtils.isDecDigit c then
               raise Fail "escape sequences \\ddd not supported yet"
             else
               loop_inString acc s args
@@ -488,12 +418,12 @@ struct
       and loop_inStringControlEscapeSequence acc s (args as {stringStart}) =
         case next1 s of
           SOME c =>
-            if 64 <= Char.ord c andalso Char.ord c <= 95 then
+            if LexUtils.isValidControlEscapeChar c then
               loop_inStringEscapeSequence acc (s+1) args
             else
-              raise Fail ("invalid control escape sequence at " ^ Int.toString (s))
+              raise Fail ("invalid control escape sequence at " ^ Int.toString s)
         | NONE =>
-            raise Fail ("incomplete control escape sequence at " ^ Int.toString (s))
+            raise Fail ("incomplete control escape sequence at " ^ Int.toString s)
 
 
 
@@ -506,7 +436,7 @@ struct
           SOME #"\\" (*"*) =>
             loop_inString acc (s+1) args
         | SOME c =>
-            if isValidFormatEscapeChar c then
+            if LexUtils.isValidFormatEscapeChar c then
               loop_inStringFormatEscapeSequence acc (s+1) args
             else
               raise Fail ("invalid format escape sequence at " ^ Int.toString (s))
