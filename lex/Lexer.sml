@@ -30,13 +30,31 @@ struct
 
       fun next2 s =
         if s < Source.length src - 1 then
-          SOME (Source.nth src s, Source.nth src (s+1))
+          SOME
+            ( Source.nth src s
+            , Source.nth src (s+1)
+            )
         else
           NONE
 
       fun next3 s =
         if s < Source.length src - 2 then
-          SOME (Source.nth src s, Source.nth src (s+1), Source.nth src (s+2))
+          SOME
+            ( Source.nth src s
+            , Source.nth src (s+1)
+            , Source.nth src (s+2)
+            )
+        else
+          NONE
+
+      fun next4 s =
+        if s < Source.length src - 3 then
+          SOME
+            ( Source.nth src s
+            , Source.nth src (s+1)
+            , Source.nth src (s+2)
+            , Source.nth src (s+3)
+            )
         else
           NONE
 
@@ -408,8 +426,13 @@ struct
             else if c = #"^" then
               loop_inStringControlEscapeSequence acc (s+1) args
             else if c = #"u" then
-              raise Fail "escape sequences \\uxxxx not supported yet"
+              loop_inStringFourDigitEscapeSequence acc (s+1) args
             else if LexUtils.isDecDigit c then
+              (** Note the `s` instead of `s+1`.
+                * For consistency with the other functions, we put the index
+                * immediately after the "preamble" (my term) of the escape
+                * sequence.
+                *)
               loop_inStringThreeDigitEscapeSequence acc s args
             else
               loop_inString acc s args
@@ -421,17 +444,26 @@ struct
       and loop_inStringThreeDigitEscapeSequence acc s args =
         case next3 s of
           SOME (c1, c2, c3) =>
-            if
-              LexUtils.isDecDigit c1 andalso
-              LexUtils.isDecDigit c2 andalso
-              LexUtils.isDecDigit c3
-            then
+            if List.all LexUtils.isDecDigit [c1, c2, c3] then
               loop_inString acc (s+3) args
             else
               raise Fail ("in string, expected escape sequence \\ddd but found"
                           ^ Source.toString (Source.subseq src (s-1, 4)))
         | NONE =>
-            raise Fail ("incomplete three-digit escape sequence at " ^ Int.toString s)
+            raise Fail ("incomplete three-digit escape sequence at " ^ Int.toString (s-1))
+
+
+
+      and loop_inStringFourDigitEscapeSequence acc s args =
+        case next4 s of
+          SOME (c1, c2, c3, c4) =>
+            if List.all LexUtils.isHexDigit [c1, c2, c3, c4] then
+              loop_inString acc (s+4) args
+            else
+              raise Fail ("in string, expected escape sequence \\uxxxx but found"
+                          ^ Source.toString (Source.subseq src (s-2, 6)))
+        | NONE =>
+            raise Fail ("incomplete four-digit escape sequence at " ^ Int.toString (s-2))
 
 
 
