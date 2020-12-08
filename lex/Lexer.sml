@@ -34,6 +34,12 @@ struct
         else
           NONE
 
+      fun next3 s =
+        if s < Source.length src - 2 then
+          SOME (Source.nth src s, Source.nth src (s+1), Source.nth src (s+2))
+        else
+          NONE
+
       fun loop_topLevel acc s =
         case next1 s of
           SOME #"(" =>
@@ -404,11 +410,28 @@ struct
             else if c = #"u" then
               raise Fail "escape sequences \\uxxxx not supported yet"
             else if LexUtils.isDecDigit c then
-              raise Fail "escape sequences \\ddd not supported yet"
+              loop_inStringThreeDigitEscapeSequence acc s args
             else
               loop_inString acc s args
         | NONE =>
             raise Fail ("unclosed string starting at " ^ Int.toString stringStart)
+
+
+
+      and loop_inStringThreeDigitEscapeSequence acc s args =
+        case next3 s of
+          SOME (c1, c2, c3) =>
+            if
+              LexUtils.isDecDigit c1 andalso
+              LexUtils.isDecDigit c2 andalso
+              LexUtils.isDecDigit c3
+            then
+              loop_inString acc (s+3) args
+            else
+              raise Fail ("in string, expected escape sequence \\ddd but found"
+                          ^ Source.toString (Source.subseq src (s-1, 4)))
+        | NONE =>
+            raise Fail ("incomplete three-digit escape sequence at " ^ Int.toString s)
 
 
 
