@@ -292,7 +292,9 @@ struct
       and loop_realConstant acc s (args as {constStart}) =
         case next1 s of
           SOME #"E" =>
-            raise Fail "real constants with exponents 'E' not supported yet"
+            loop_realConstantAfterExponent acc (s+1) args
+        | SOME #"e" =>
+            loop_realConstantAfterExponent acc (s+1) args
         | SOME c =>
             if LexUtils.isDecDigit c then
               loop_realConstant acc (s+1) args
@@ -302,6 +304,11 @@ struct
                 s
         | NONE =>
             mk Token.RealConstant (constStart, s) :: acc
+
+
+
+      and loop_realConstantAfterExponent acc s args =
+        raise Fail "real constants with exponents not supported yet"
 
 
 
