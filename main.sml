@@ -110,7 +110,7 @@ fun loop acc (toks, i) {line=currLine, col=currCol} =
 val _ =
   let
     val infile = List.hd (CommandLine.arguments ())
-    val toks = SeqLex.tokens (Source.loadFromFile (FilePath.fromUnixPath infile))
+    val toks = Lexer.tokens (Source.loadFromFile (FilePath.fromUnixPath infile))
   in
     loop [] (toks, 0) {line=1, col=1}
   end

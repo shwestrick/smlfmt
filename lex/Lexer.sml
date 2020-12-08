@@ -1,4 +1,4 @@
-structure SeqLex: LEX =
+structure Lexer: LEX =
 struct
 
   (** =====================================================================

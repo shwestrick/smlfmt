@@ -4,4 +4,4 @@ Source.sml
 LexUtils.sml
 Token.sml
 LEX.sml
-SeqLex.sml
+Lexer.sml

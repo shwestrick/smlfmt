@@ -24,7 +24,7 @@ You'll need [`mlton`](http://mlton.org/) installed.
 Do `make` and then pass a `.sml` file, for example:
 ```
 $ make
-$ ./main lex/SeqLex.sml
+$ ./main lex/Lexer.sml
 ```
 
 This lexes the file and outputs it with highlighting to indicate token
