@@ -14,6 +14,15 @@ struct
     *   `args` is a state-dependent state (haha)
     *)
 
+  fun error acc msg =
+    LexResult.Failure
+      { partial = Seq.fromList (List.rev acc)
+      , error = LexResult.OtherError msg
+      }
+
+  fun success acc =
+    LexResult.Success (Seq.fromList (List.rev acc))
+
   fun tokens src =
     let
       (** Some helpers for making source slices and tokens. *)
@@ -100,7 +109,7 @@ struct
               loop_topLevel acc (s+1)
         | NONE =>
             (** DONE *)
-            acc
+            success acc
 
 
       and loop_afterDot acc s =
@@ -110,9 +119,9 @@ struct
               (mkr Token.DotDotDot (s-1, s+2) :: acc)
               (s+2)
         | SOME (c1, c2) =>
-            raise Fail ("expected '...' but found '." ^ String.implode [c1,c2] ^ "'")
+            error acc ("expected '...' but found '." ^ String.implode [c1,c2] ^ "'")
         | NONE =>
-            raise Fail ("expected '...' but found end of file")
+            error acc ("expected '...' but found end of file")
 
 
 
@@ -131,8 +140,9 @@ struct
                 loop_topLevel (tokIfEndsHere() :: acc) s
           | NONE =>
               (** DONE *)
-              tokIfEndsHere() :: acc
+              success (tokIfEndsHere() :: acc)
         end
+        handle Fail msg => error acc msg
 
 
 
@@ -146,7 +156,7 @@ struct
           case next1 s of
             SOME #"." =>
               if startsPrime then
-                raise Fail "structure identifiers cannot start with prime"
+                error acc "structure identifiers cannot start with prime"
               else
                 loop_continueLongIdentifier acc (s+1) {idStart = idStart}
           | SOME c =>
@@ -157,8 +167,9 @@ struct
                 loop_topLevel (tokIfEndsHere() :: acc) s
           | NONE =>
               (** DONE *)
-              tokIfEndsHere() :: acc
+              success (tokIfEndsHere() :: acc)
         end
+        handle Fail msg => error acc msg
 
 
 
@@ -170,9 +181,9 @@ struct
             else if LexUtils.isLetter c then
               loop_alphanumId acc (s+1) {idStart = idStart, startsPrime = false}
             else
-              raise Fail "after qualifier, expected letter or symbol"
+              error acc "after qualifier, expected letter or symbol"
         | NONE =>
-            raise Fail "unexpected end of qualified identifier"
+            error acc "unexpected end of qualified identifier"
 
 
 
@@ -198,8 +209,9 @@ struct
                 loop_topLevel (tokIfEndsHere() :: acc) s
           | NONE =>
               (** DONE *)
-              tokIfEndsHere() :: acc
+              success (tokIfEndsHere() :: acc)
         end
+        handle Fail msg => error acc msg
 
 
 
@@ -225,7 +237,7 @@ struct
               loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
         | NONE =>
             (** DONE *)
-            mk Token.IntegerConstant (s - 2, s) :: acc
+            success (mk Token.IntegerConstant (s - 2, s) :: acc)
 
 
 
@@ -253,7 +265,7 @@ struct
               loop_topLevel (mk Token.IntegerConstant (s - 1, s) :: acc) s
         | NONE =>
             (** DONE *)
-            mk Token.IntegerConstant (s - 1, s) :: acc
+            success (mk Token.IntegerConstant (s - 1, s) :: acc)
 
 
 
@@ -268,7 +280,7 @@ struct
               loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
         | NONE =>
             (** DONE *)
-            mk Token.IntegerConstant (constStart, s) :: acc
+            success (mk Token.IntegerConstant (constStart, s) :: acc)
 
 
 
@@ -279,10 +291,10 @@ struct
             if LexUtils.isDecDigit c then
               loop_realConstant acc (s+1) args
             else
-              raise Fail ("while parsing real constant, expected decimal digit \
+              error acc ("while parsing real constant, expected decimal digit \
                           \but found '." ^ String.implode [c] ^ "'")
         | NONE =>
-            raise Fail "real constant ends unexpectedly at end of file"
+            error acc "real constant ends unexpectedly at end of file"
 
 
       (** Parsing the remainder of a real constant. This is already after the
@@ -303,12 +315,13 @@ struct
                 (mk Token.RealConstant (constStart, s) :: acc)
                 s
         | NONE =>
-            mk Token.RealConstant (constStart, s) :: acc
+            (** DONE *)
+            success (mk Token.RealConstant (constStart, s) :: acc)
 
 
 
       and loop_realConstantAfterExponent acc s args =
-        raise Fail "real constants with exponents not supported yet"
+        error acc "real constants with exponents not supported yet"
 
 
 
@@ -321,7 +334,7 @@ struct
               loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
         | NONE =>
             (** DONE *)
-            mk Token.IntegerConstant (constStart, s) :: acc
+            success (mk Token.IntegerConstant (constStart, s) :: acc)
 
 
 
@@ -334,7 +347,7 @@ struct
               loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
         | NONE =>
             (** DONE *)
-            mk Token.WordConstant (constStart, s) :: acc
+            success (mk Token.WordConstant (constStart, s) :: acc)
 
 
 
@@ -347,7 +360,7 @@ struct
               loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
         | NONE =>
             (** DONE *)
-            mk Token.WordConstant (constStart, s) :: acc
+            success (mk Token.WordConstant (constStart, s) :: acc)
 
 
 
@@ -400,7 +413,7 @@ struct
             loop_topLevel (mkr Token.OpenParen (s - 1, s) :: acc) s
         | NONE =>
             (** DONE *)
-            mkr Token.OpenParen (s - 1, s) :: acc
+            success (mkr Token.OpenParen (s - 1, s) :: acc)
 
 
 
@@ -416,9 +429,9 @@ struct
             if Char.isPrint c then
               loop_inString acc (s+1) args
             else
-              raise Fail ("non-printable character at " ^ Int.toString (s))
+              error acc ("non-printable character at " ^ Int.toString (s))
         | NONE =>
-            raise Fail ("unclosed string starting at " ^ Int.toString stringStart)
+            error acc ("unclosed string starting at " ^ Int.toString stringStart)
 
 
 
@@ -444,7 +457,7 @@ struct
             else
               loop_inString acc s args
         | NONE =>
-            raise Fail ("unclosed string starting at " ^ Int.toString stringStart)
+            error acc ("unclosed string starting at " ^ Int.toString stringStart)
 
 
 
@@ -454,10 +467,10 @@ struct
             if List.all LexUtils.isDecDigit [c1, c2, c3] then
               loop_inString acc (s+3) args
             else
-              raise Fail ("in string, expected escape sequence \\ddd but found"
+              error acc ("in string, expected escape sequence \\ddd but found"
                           ^ Source.toString (Source.subseq src (s-1, 4)))
         | NONE =>
-            raise Fail ("incomplete three-digit escape sequence at " ^ Int.toString (s-1))
+            error acc ("incomplete three-digit escape sequence at " ^ Int.toString (s-1))
 
 
 
@@ -467,10 +480,10 @@ struct
             if List.all LexUtils.isHexDigit [c1, c2, c3, c4] then
               loop_inString acc (s+4) args
             else
-              raise Fail ("in string, expected escape sequence \\uxxxx but found"
+              error acc ("in string, expected escape sequence \\uxxxx but found"
                           ^ Source.toString (Source.subseq src (s-2, 6)))
         | NONE =>
-            raise Fail ("incomplete four-digit escape sequence at " ^ Int.toString (s-2))
+            error acc ("incomplete four-digit escape sequence at " ^ Int.toString (s-2))
 
 
 
@@ -483,9 +496,9 @@ struct
             if LexUtils.isValidControlEscapeChar c then
               loop_inStringEscapeSequence acc (s+1) args
             else
-              raise Fail ("invalid control escape sequence at " ^ Int.toString s)
+              error acc ("invalid control escape sequence at " ^ Int.toString s)
         | NONE =>
-            raise Fail ("incomplete control escape sequence at " ^ Int.toString s)
+            error acc ("incomplete control escape sequence at " ^ Int.toString s)
 
 
 
@@ -501,9 +514,9 @@ struct
             if LexUtils.isValidFormatEscapeChar c then
               loop_inStringFormatEscapeSequence acc (s+1) args
             else
-              raise Fail ("invalid format escape sequence at " ^ Int.toString (s))
+              error acc ("invalid format escape sequence at " ^ Int.toString (s))
         | NONE =>
-            raise Fail ("incomplete format escape sequence at " ^ Int.toString (s))
+            error acc ("incomplete format escape sequence at " ^ Int.toString (s))
 
 
       (** Inside a comment that started at `commentStart`
@@ -525,10 +538,10 @@ struct
           SOME _ =>
             loop_inComment acc (s+1) {commentStart=commentStart, nesting=nesting}
         | NONE =>
-            raise Fail ("unclosed comment starting at " ^ Int.toString commentStart)
+            error acc ("unclosed comment starting at " ^ Int.toString commentStart)
 
     in
-      Seq.fromList (List.rev (loop_topLevel [] 0))
+      loop_topLevel [] 0
     end
 
 end

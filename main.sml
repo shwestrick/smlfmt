@@ -110,9 +110,20 @@ fun loop acc (toks, i) {line=currLine, col=currCol} =
 val _ =
   let
     val infile = List.hd (CommandLine.arguments ())
-    val toks = Lexer.tokens (Source.loadFromFile (FilePath.fromUnixPath infile))
+    val source = Source.loadFromFile (FilePath.fromUnixPath infile)
+    val (toks, err) =
+      case Lexer.tokens source of
+        LexResult.Success toks => (toks, NONE)
+      | LexResult.Failure {partial=toks, error=err} => (toks, SOME err)
   in
-    loop [] (toks, 0) {line=1, col=1}
+    loop [] (toks, 0) {line=1, col=1};
+
+    print "\n";
+
+    case err of
+      SOME (LexResult.OtherError msg) => print ("ERROR: " ^ msg ^ "\n")
+    | _ => ()
+
   end
   (* handle e => print ("ERROR: " ^ exnMessage e ^ "\nHISTORY: " ^ ) *)
 
