@@ -121,7 +121,7 @@ val _ =
     print "\n";
 
     case err of
-      SOME (LexResult.OtherError msg) => print ("ERROR: " ^ msg ^ "\n")
+      SOME (LexResult.Error.Other msg) => print ("ERROR: " ^ msg ^ "\n")
     | _ => ()
 
   end

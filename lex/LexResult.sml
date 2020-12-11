@@ -1,15 +1,20 @@
 structure LexResult =
 struct
 
-  datatype error =
-    (*UnexpectedCloseComment of {pos: Source.t}
-  | EndOfFileUnclosedComment of {start: Source.t}
-  | EndOfFileUnclosedString of {start: Source.t}
-  |*) OtherError of string
+  structure Error =
+  struct
+    datatype error =
+      (*UnexpectedCloseComment of {pos: Source.t}
+    | EndOfFileUnclosedComment of {start: Source.t}
+    | EndOfFileUnclosedString of {start: Source.t}
+    |*) Other of string
+
+    type t = error
+  end
 
   datatype result =
     Success of Token.t Seq.t
-  | Failure of {partial: Token.t Seq.t , error: error}
+  | Failure of {partial: Token.t Seq.t, error: Error.t}
 
   type t = result
 

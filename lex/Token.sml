@@ -1,4 +1,7 @@
-structure Token =
+structure Token:
+sig
+
+end =
 struct
 
   datatype reserved =

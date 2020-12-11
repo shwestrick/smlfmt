@@ -17,7 +17,7 @@ struct
   fun error acc msg =
     LexResult.Failure
       { partial = Seq.fromList (List.rev acc)
-      , error = LexResult.OtherError msg
+      , error = LexResult.Error.Other msg
       }
 
   fun success acc =
