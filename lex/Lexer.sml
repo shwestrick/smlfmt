@@ -37,12 +37,14 @@ struct
 
       fun get i = Source.nth src i
 
-      fun nextIsSymbolic s =
-        s < Source.length src andalso LexUtils.isSymbolic (get s)
-      fun nextIsDot s =
-        s < Source.length src andalso get s = #"."
-      fun nextIsAlphaNumPrimeOrUnderscore s =
-        s < Source.length src andalso LexUtils.isAlphaNumPrimeOrUnderscore (get s)
+      (** This silliness lets you write almost-English like this:
+        *   if is #"x" at            then ...
+        *   if check isSymbolic at i then ...
+        *)
+      infix 5 at
+      fun f at i = f i
+      fun check f i = i < Source.length src andalso f (get i)
+      fun is c = check (fn c' => c = c')
 
       fun next1 s =
         if s < Source.length src then
@@ -130,20 +132,17 @@ struct
 
 
       and loop_afterDot acc s =
-        case next2 s of
-          SOME (#".", #".") =>
-            loop_topLevel
-              (mkr Token.DotDotDot (s-1, s+2) :: acc)
-              (s+2)
-        | SOME (c1, c2) =>
-            error acc ("expected '...' but found '." ^ String.implode [c1,c2] ^ "'")
-        | NONE =>
-            error acc ("expected '...' but found end of file")
+        if (is #"." at s) andalso (is #"." at s+1) then
+          loop_topLevel
+            (mkr Token.DotDotDot (s-1, s+2) :: acc)
+            (s+2)
+        else
+          error acc "unexpected '.'"
 
 
 
       and loop_symbolicId acc s (args as {idStart, isQualified}) =
-        if nextIsSymbolic s then
+        if check LexUtils.isSymbolic at s then
           loop_symbolicId acc (s+1) args
         else
           let
@@ -166,13 +165,11 @@ struct
 
 
       and loop_alphanumId acc s (args as {idStart, startsPrime, isQualified}) =
-        if nextIsAlphaNumPrimeOrUnderscore s then
+        if check LexUtils.isAlphaNumPrimeOrUnderscore at s then
           loop_alphanumId acc (s+1) args
-
-        else if nextIsDot s andalso startsPrime then
+        else if is #"." at s andalso startsPrime then
           error acc "structure identifiers cannot start with prime"
-
-        else if nextIsDot s then
+        else if is #"." at s then
           let
             val srcHere = slice (idStart, s)
           in
@@ -188,7 +185,6 @@ struct
                   (Token.qualifier srcHere :: acc)
                   (s+1)
           end
-
         else
           let
             val srcHere = slice (idStart, s)
@@ -210,20 +206,16 @@ struct
 
 
       and loop_continueLongIdentifier acc s =
-        case next1 s of
-          SOME c =>
-            if LexUtils.isSymbolic c then
-              loop_symbolicId acc (s+1) {idStart = s, isQualified = true}
-            else if LexUtils.isLetter c then
-              loop_alphanumId acc (s+1)
-                { idStart = s
-                , startsPrime = false
-                , isQualified = true
-                }
-            else
-              error acc "after qualifier, expected letter or symbol"
-        | NONE =>
-            error acc "unexpected end of qualified identifier"
+        if check LexUtils.isSymbolic at s then
+          loop_symbolicId acc (s+1) {idStart = s, isQualified = true}
+        else if check LexUtils.isLetter at s then
+          loop_alphanumId acc (s+1)
+            { idStart = s
+            , startsPrime = false
+            , isQualified = true
+            }
+        else
+          error acc "unexpected end of qualified identifier"
 
 
 
@@ -234,24 +226,14 @@ struct
         * indicate the beginning of hex format.
         *)
       and loop_afterTwiddle acc s =
-        let
-          fun tokIfEndsHere() = mki (s - 1, s)
-        in
-          case next1 s of
-            SOME #"0" =>
-              loop_afterTwiddleThenZero acc (s+1)
-          | SOME c =>
-              if LexUtils.isDecDigit c then
-                loop_decIntegerConstant acc (s+1) {constStart = s - 1}
-              else if LexUtils.isSymbolic c then
-                loop_symbolicId acc (s+1) {idStart = s - 1, isQualified = false}
-              else
-                loop_topLevel (tokIfEndsHere() :: acc) s
-          | NONE =>
-              (** DONE *)
-              success (tokIfEndsHere() :: acc)
-        end
-        handle Fail msg => error acc msg
+        if is #"0" at s then
+          loop_afterTwiddleThenZero acc (s+1)
+        else if check LexUtils.isDecDigit at s then
+          loop_decIntegerConstant acc (s+1) {constStart = s - 1}
+        else if check LexUtils.isSymbolic at s then
+          loop_symbolicId acc (s+1) {idStart = s - 1, isQualified = false}
+        else
+          loop_topLevel (mki (s - 1, s) :: acc) s
 
 
 
@@ -260,24 +242,14 @@ struct
         * to first figure out if the integer constant is hex format.
         *)
       and loop_afterTwiddleThenZero acc s =
-        case next2 s of
-          SOME (#"x", c) =>
-            if LexUtils.isHexDigit c then
-              loop_hexIntegerConstant acc (s+2) {constStart = s - 2}
-            else
-              loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
-        | _ =>
-        case next1 s of
-          SOME #"." =>
-            loop_realConstantAfterDot acc (s+1) {constStart = s - 2}
-        | SOME c =>
-            if LexUtils.isDecDigit c then
-              loop_decIntegerConstant acc (s+1) {constStart = s - 2}
-            else
-              loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
-        | NONE =>
-            (** DONE *)
-            success (mk Token.IntegerConstant (s - 2, s) :: acc)
+        if is #"x" at s andalso check LexUtils.isHexDigit at s+1 then
+          loop_hexIntegerConstant acc (s+2) {constStart = s - 2}
+        else if is #"." at s then
+          loop_realConstantAfterDot acc (s+1) {constStart = s - 2}
+        else if check LexUtils.isDecDigit at s then
+          loop_decIntegerConstant acc (s+1) {constStart = s - 2}
+        else
+          loop_topLevel (mk Token.IntegerConstant (s - 2, s) :: acc) s
 
 
 
@@ -286,55 +258,35 @@ struct
         * a word, and if it is hex or decimal format.
         *)
       and loop_afterZero acc s =
-        case next2 s of
-          SOME (#"x", c) =>
-            if LexUtils.isHexDigit c then
-              loop_hexIntegerConstant acc (s+2) {constStart = s - 1}
-            else
-              loop_topLevel (mk Token.IntegerConstant (s - 1, s) :: acc) s
-        | _ =>
-        case next1 s of
-          SOME #"." =>
-            loop_realConstantAfterDot acc (s+1) {constStart = s - 1}
-        | SOME #"w" =>
-            loop_afterZeroDubya acc (s+1)
-        | SOME c =>
-            if LexUtils.isDecDigit c then
-              loop_decIntegerConstant acc (s+1) {constStart = s - 1}
-            else
-              loop_topLevel (mk Token.IntegerConstant (s - 1, s) :: acc) s
-        | NONE =>
-            (** DONE *)
-            success (mk Token.IntegerConstant (s - 1, s) :: acc)
+        if is #"x" at s andalso check LexUtils.isHexDigit at s+1 then
+          loop_hexIntegerConstant acc (s+2) {constStart = s - 1}
+        else if is #"w" at s then
+          loop_afterZeroDubya acc (s+1)
+        else if is #"." at s then
+          loop_realConstantAfterDot acc (s+1) {constStart = s - 1}
+        else if check LexUtils.isDecDigit at s then
+          loop_decIntegerConstant acc (s+1) {constStart = s - 1}
+        else
+          loop_topLevel (mk Token.IntegerConstant (s-1, s) :: acc) s
 
 
 
       and loop_decIntegerConstant acc s (args as {constStart}) =
-        case next1 s of
-          SOME #"." =>
-            loop_realConstantAfterDot acc (s+1) args
-        | SOME c =>
-            if LexUtils.isDecDigit c then
-              loop_decIntegerConstant acc (s+1) args
-            else
-              loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
-        | NONE =>
-            (** DONE *)
-            success (mk Token.IntegerConstant (constStart, s) :: acc)
+        if check LexUtils.isDecDigit at s then
+          loop_decIntegerConstant acc (s+1) args
+        else if is #"." at s then
+          loop_realConstantAfterDot acc (s+1) args
+        else
+          loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
 
 
 
       (** Immediately after the dot, we need to see at least one decimal digit *)
       and loop_realConstantAfterDot acc s (args as {constStart}) =
-        case next1 s of
-          SOME c =>
-            if LexUtils.isDecDigit c then
-              loop_realConstant acc (s+1) args
-            else
-              error acc ("while parsing real constant, expected decimal digit \
-                          \but found '." ^ String.implode [c] ^ "'")
-        | NONE =>
-            error acc "real constant ends unexpectedly at end of file"
+        if check LexUtils.isDecDigit at s then
+          loop_realConstant acc (s+1) args
+        else
+          error acc ("unexpected end of real constant")
 
 
       (** Parsing the remainder of a real constant. This is already after the
@@ -342,21 +294,14 @@ struct
         * an integer constant.
         *)
       and loop_realConstant acc s (args as {constStart}) =
-        case next1 s of
-          SOME #"E" =>
-            loop_realConstantAfterExponent acc (s+1) args
-        | SOME #"e" =>
-            loop_realConstantAfterExponent acc (s+1) args
-        | SOME c =>
-            if LexUtils.isDecDigit c then
-              loop_realConstant acc (s+1) args
-            else
-              loop_topLevel
-                (mk Token.RealConstant (constStart, s) :: acc)
-                s
-        | NONE =>
-            (** DONE *)
-            success (mk Token.RealConstant (constStart, s) :: acc)
+        if check LexUtils.isDecDigit at s then
+          loop_realConstant acc (s+1) args
+        else if  is #"E" at s  orelse  is #"e" at s  then
+          loop_realConstantAfterExponent acc (s+1) args
+        else
+          loop_topLevel
+            (mk Token.RealConstant (constStart, s) :: acc)
+            s
 
 
 
@@ -366,41 +311,26 @@ struct
 
 
       and loop_hexIntegerConstant acc s (args as {constStart}) =
-        case next1 s of
-          SOME c =>
-            if LexUtils.isHexDigit c then
-              loop_hexIntegerConstant acc (s+1) args
-            else
-              loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
-        | NONE =>
-            (** DONE *)
-            success (mk Token.IntegerConstant (constStart, s) :: acc)
+        if check LexUtils.isHexDigit at s then
+          loop_hexIntegerConstant acc (s+1) args
+        else
+          loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
 
 
 
       and loop_decWordConstant acc s (args as {constStart}) =
-        case next1 s of
-          SOME c =>
-            if LexUtils.isDecDigit c then
-              loop_decWordConstant acc (s+1) args
-            else
-              loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
-        | NONE =>
-            (** DONE *)
-            success (mk Token.WordConstant (constStart, s) :: acc)
+        if check LexUtils.isDecDigit at s then
+          loop_decWordConstant acc (s+1) args
+        else
+          loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
 
 
 
       and loop_hexWordConstant acc s (args as {constStart}) =
-        case next1 s of
-          SOME c =>
-            if LexUtils.isHexDigit c then
-              loop_hexWordConstant acc (s+1) args
-            else
-              loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
-        | NONE =>
-            (** DONE *)
-            success (mk Token.WordConstant (constStart, s) :: acc)
+        if check LexUtils.isHexDigit at s then
+          loop_hexWordConstant acc (s+1) args
+        else
+          loop_topLevel (mk Token.WordConstant (constStart, s) :: acc) s
 
 
 
@@ -447,14 +377,10 @@ struct
         * start of a comment.
         *)
       and loop_afterOpenParen acc s =
-        case next1 s of
-          SOME #"*" =>
-            loop_inComment acc (s+1) {commentStart = s - 1, nesting = 1}
-        | SOME _ =>
-            loop_topLevel (mkr Token.OpenParen (s - 1, s) :: acc) s
-        | NONE =>
-            (** DONE *)
-            success (mkr Token.OpenParen (s - 1, s) :: acc)
+        if is #"*" at s then
+          loop_inComment acc (s+1) {commentStart = s - 1, nesting = 1}
+        else
+          loop_topLevel (mkr Token.OpenParen (s - 1, s) :: acc) s
 
 
 
