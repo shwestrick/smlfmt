@@ -23,13 +23,26 @@ struct
   fun success acc =
     LexResult.Success (Seq.fromList (List.rev acc))
 
+  fun isReserved src =
+    Option.isSome (Token.checkReserved src)
+
   fun tokens src =
     let
       (** Some helpers for making source slices and tokens. *)
       fun slice (i, j) = Source.subseq src (i, j-i)
       fun mk x (i, j) = Token.make (slice (i, j)) x
       fun mkr x (i, j) = Token.reserved (slice (i, j)) x
-      fun mki (i, j) = Token.identifierOrReserved (slice (i, j))
+      fun mki (i, j) = Token.identifier (slice (i, j))
+      fun mkq (i, j) = Token.qualifier (slice (i, j))
+
+      fun get i = Source.nth src i
+
+      fun nextIsSymbolic s =
+        s < Source.length src andalso LexUtils.isSymbolic (get s)
+      fun nextIsDot s =
+        s < Source.length src andalso get s = #"."
+      fun nextIsAlphaNumPrimeOrUnderscore s =
+        s < Source.length src andalso LexUtils.isAlphaNumPrimeOrUnderscore (get s)
 
       fun next1 s =
         if s < Source.length src then
@@ -92,7 +105,11 @@ struct
         | SOME #"~" =>
             loop_afterTwiddle acc (s+1)
         | SOME #"'" =>
-            loop_alphanumId acc (s+1) {idStart = s, startsPrime = true}
+            loop_alphanumId acc (s+1)
+              { idStart = s
+              , startsPrime = true
+              , isQualified = false
+              }
         | SOME #"0" =>
             loop_afterZero acc (s+1)
         | SOME #"." =>
@@ -101,10 +118,10 @@ struct
             if LexUtils.isDecDigit c then
               loop_decIntegerConstant acc (s+1) {constStart = s}
             else if LexUtils.isSymbolic c then
-              loop_symbolicId acc (s+1) {idStart = s}
+              loop_symbolicId acc (s+1) {idStart = s, isQualified = false}
             else if LexUtils.isLetter c then
               loop_alphanumId acc (s+1)
-                {idStart = s, startsPrime = false}
+                {idStart = s, startsPrime = false, isQualified = false}
             else
               loop_topLevel acc (s+1)
         | NONE =>
@@ -125,61 +142,84 @@ struct
 
 
 
-      (** `idStart` is the overall index start of the identifier
-        * (i.e. if long, includes all the qualifiers too).
-        *)
-      and loop_symbolicId acc s (args as {idStart}) =
-        let
-          fun tokIfEndsHere() = mki (idStart, s)
-        in
-          case next1 s of
-            SOME c =>
-              if LexUtils.isSymbolic c then
-                loop_symbolicId acc (s+1) args
-              else
-                loop_topLevel (tokIfEndsHere() :: acc) s
-          | NONE =>
-              (** DONE *)
-              success (tokIfEndsHere() :: acc)
+      and loop_symbolicId acc s (args as {idStart, isQualified}) =
+        if nextIsSymbolic s then
+          loop_symbolicId acc (s+1) args
+        else
+          let
+            val srcHere = slice (idStart, s)
+          in
+            case Token.checkReserved srcHere of
+              NONE =>
+                loop_topLevel (Token.identifier srcHere :: acc) s
+            | SOME r =>
+                if isQualified then
+                  error acc
+                    ( "reserved word '"
+                    ^ Source.toString srcHere
+                    ^ "' prefaced by qualifiers"
+                    )
+                else
+                  loop_topLevel (Token.reserved srcHere r :: acc) s
         end
-        handle Fail msg => error acc msg
 
 
 
-      (** `idStart` is the overall index start of the identifier
-        * (i.e. if long, includes all the qualifiers too).
-        *)
-      and loop_alphanumId acc s (args as {idStart, startsPrime}) =
-        let
-          fun tokIfEndsHere() = mki (idStart, s)
-        in
-          case next1 s of
-            SOME #"." =>
-              if startsPrime then
-                error acc "structure identifiers cannot start with prime"
-              else
-                loop_continueLongIdentifier acc (s+1) {idStart = idStart}
-          | SOME c =>
-              (** SML's notion of alphanum is a little weird. *)
-              if LexUtils.isAlphaNumPrimeOrUnderscore c then
-                loop_alphanumId acc (s+1) args
-              else
-                loop_topLevel (tokIfEndsHere() :: acc) s
-          | NONE =>
-              (** DONE *)
-              success (tokIfEndsHere() :: acc)
-        end
-        handle Fail msg => error acc msg
+      and loop_alphanumId acc s (args as {idStart, startsPrime, isQualified}) =
+        if nextIsAlphaNumPrimeOrUnderscore s then
+          loop_alphanumId acc (s+1) args
+
+        else if nextIsDot s andalso startsPrime then
+          error acc "structure identifiers cannot start with prime"
+
+        else if nextIsDot s then
+          let
+            val srcHere = slice (idStart, s)
+          in
+            case Token.checkReserved srcHere of
+              SOME r =>
+                error acc
+                  ( "reserved word '"
+                  ^ Source.toString srcHere
+                  ^ "' cannot be used as qualifier"
+                  )
+            | NONE =>
+                loop_continueLongIdentifier
+                  (Token.qualifier srcHere :: acc)
+                  (s+1)
+          end
+
+        else
+          let
+            val srcHere = slice (idStart, s)
+          in
+            case Token.checkReserved srcHere of
+              NONE =>
+                loop_topLevel (Token.identifier srcHere :: acc) s
+            | SOME r =>
+                if isQualified then
+                  error acc
+                    ( "reserved word '"
+                    ^ Source.toString srcHere
+                    ^ "' prefaced by qualifiers"
+                    )
+                else
+                  loop_topLevel (Token.reserved srcHere r :: acc) s
+          end
 
 
 
-      and loop_continueLongIdentifier acc s (args as {idStart}) =
+      and loop_continueLongIdentifier acc s =
         case next1 s of
           SOME c =>
             if LexUtils.isSymbolic c then
-              loop_symbolicId acc (s+1) args
+              loop_symbolicId acc (s+1) {idStart = s, isQualified = true}
             else if LexUtils.isLetter c then
-              loop_alphanumId acc (s+1) {idStart = idStart, startsPrime = false}
+              loop_alphanumId acc (s+1)
+                { idStart = s
+                , startsPrime = false
+                , isQualified = true
+                }
             else
               error acc "after qualifier, expected letter or symbol"
         | NONE =>
@@ -204,7 +244,7 @@ struct
               if LexUtils.isDecDigit c then
                 loop_decIntegerConstant acc (s+1) {constStart = s - 1}
               else if LexUtils.isSymbolic c then
-                loop_symbolicId acc (s+1) {idStart = s - 1}
+                loop_symbolicId acc (s+1) {idStart = s - 1, isQualified = false}
               else
                 loop_topLevel (tokIfEndsHere() :: acc) s
           | NONE =>
@@ -398,6 +438,7 @@ struct
               loop_alphanumId (zeroIntConstant :: acc) (s-1)
                 { idStart = s-1
                 , startsPrime = false
+                , isQualified = false
                 }
         end
 

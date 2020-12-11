@@ -28,9 +28,9 @@ fun tokColor class =
       green
   | Token.Reserved _ =>
       TC.bold ^ blue
-  | Token.Identifier {isSymbolic=true, ...} =>
+  | Token.Qualifier =>
       pink
-  | Token.Identifier {isSymbolic=false, ...} =>
+  | Token.Identifier =>
       darkgreen
 
 fun printLegend () =
@@ -42,8 +42,8 @@ fun printLegend () =
       , Token.IntegerConstant
       , Token.RealConstant
       , Token.Reserved Token.And  (* arbitrary... just need something reserved *)
-      , Token.Identifier {separators=Seq.empty(), isSymbolic=true}
-      , Token.Identifier {separators=Seq.empty(), isSymbolic=false}
+      , Token.Identifier
+      , Token.Qualifier
       ]
     val boxWidth =
       List.foldl Int.max 0
@@ -86,14 +86,6 @@ fun loop acc (toks, i) {line=currLine, col=currCol} =
     let
       val {source, class} = Seq.nth toks i
       val {line, col} = Source.absoluteStart source
-
-(*
-      val tokenstuff =
-        String.concat (List.tabulate
-          (Source.length source, Char.toString o Source.nth source))
-      val _ = print ("token " ^ Int.toString line ^ " " ^ Int.toString col
-                     ^ ": " ^ tokenstuff ^ "\n")
-*)
 
       val spaces =
         if line = currLine then

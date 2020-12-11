@@ -1,7 +1,4 @@
-structure Token:
-sig
-
-end =
+structure Token =
 struct
 
   datatype reserved =
@@ -73,10 +70,8 @@ struct
   | WordConstant
   | RealConstant
   | StringConstant
-  (** The separators are the offsets of the "."s in a long identifier. For
-    * short identifiers, separators is empty.
-    *)
-  | Identifier of {separators: int Seq.t, isSymbolic: bool}
+  | Identifier
+  | Qualifier
 
   type token = {source: Source.t, class: class}
   type t = token
@@ -86,6 +81,12 @@ struct
 
   fun reserved src rclass =
     {source = src, class = Reserved rclass}
+
+  fun qualifier src =
+    {source = src, class = Qualifier}
+
+  fun identifier src =
+    {source = src, class = Identifier}
 
   fun checkReserved src =
     let
@@ -149,52 +150,6 @@ struct
           (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
     end
 
-
-  (** This function attempts to make an identifier token, which could be
-    * a long identifier, in which case we need to find the separators and
-    * make sure none of the fields are reserved.
-    *)
-  fun identifierOrReserved src =
-    let
-      (** Indices of '.' separators within this source *)
-      val seps =
-        Seq.filter (fn i => Source.nth src i = #".")
-        (Seq.tabulate (fn i => i) (Source.length src))
-      val numSeps = Seq.length seps
-      val numFields = numSeps+1
-
-(*
-      val _ = print ("CHECKING: " ^ Source.toString src ^ "\n")
-      val _ = print ("seps: " ^ Seq.toString Int.toString seps ^ "\n")
-*)
-
-      fun fieldStart k =
-        if k = 0 then 0 else 1 + Seq.nth seps (k-1)
-      fun fieldEnd k =
-        if k = numSeps then Source.length src else Seq.nth seps k
-      fun field k =
-        Source.subseq src (fieldStart k, fieldEnd k - fieldStart k)
-      fun checkNoReserved () =
-        Util.for (0, numSeps+1) (fn k =>
-          case checkReserved (field k) of
-            NONE => ()
-          | SOME rclass =>
-              raise Fail ("reserved word '" ^ Source.toString (field k)
-                          ^ "' in '" ^ Source.toString src ^ "'"))
-      val isSymb =
-        LexUtils.isSymbolic (Source.nth (field (numFields-1)) 0)
-    in
-      if numSeps = 0 then
-        case checkReserved (field 0) of
-          SOME rclass => reserved src rclass
-        | NONE => make src (Identifier {separators=seps, isSymbolic=isSymb})
-      else
-        ( checkNoReserved ()
-        ; make src (Identifier {separators=seps, isSymbolic=isSymb})
-        )
-    end
-
-
   fun classToString class =
     case class of
       Comment => "comment"
@@ -203,7 +158,7 @@ struct
     | WordConstant => "word"
     | RealConstant => "real"
     | StringConstant => "string"
-    | Identifier {isSymbolic=false, ...} => "alphanum-id"
-    | Identifier {isSymbolic=true, ...} => "symbolic-id"
+    | Identifier => "identifier"
+    | Qualifier => "qualifier"
 
 end
