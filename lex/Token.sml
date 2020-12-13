@@ -88,7 +88,7 @@ struct
   fun identifier src =
     {source = src, class = Identifier}
 
-  fun checkReserved src =
+  fun tryReserved src =
     let
       val str = CharVector.tabulate (Source.length src, Source.nth src)
       fun r rclass = SOME rclass
@@ -150,6 +150,16 @@ struct
           (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
     end
 
+  fun reservedOrIdentifier src =
+    case tryReserved src of
+      SOME r => reserved src r
+    | NONE => identifier src
+
+  fun isReserved (tok: token) =
+    case #class tok of
+      Reserved _ => true
+    | _ => false
+
   fun classToString class =
     case class of
       Comment => "comment"
@@ -160,5 +170,24 @@ struct
     | StringConstant => "string"
     | Identifier => "identifier"
     | Qualifier => "qualifier"
+
+
+  fun isValidQualifier src =
+    Source.length src > 0 andalso
+    Source.nth src 0 <> #"'" andalso
+    List.all LexUtils.isAlphaNumPrimeOrUnderscore
+      (List.tabulate (Source.length src, Source.nth src))
+
+
+  fun switchIdentifierToQualifier (tok: token) =
+    case #class tok of
+      Identifier =>
+        if isValidQualifier (#source tok) then
+          {source = #source tok, class = Qualifier}
+        else
+          raise Fail ("Token.switchIdentifierToQualifier on invalid qualifier: "
+                      ^ Source.toString (#source tok))
+    | cls =>
+        raise Fail ("Token.switchIdentifierToQualifier " ^ classToString cls)
 
 end

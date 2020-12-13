@@ -1,6 +1,9 @@
 structure Lexer: LEX =
 struct
 
+  (** This is just to get around annoying bad syntax highlighting for SML... *)
+  val backslash = #"\\" (* " *)
+
   (** =====================================================================
     * STATE MACHINE
     *
@@ -24,7 +27,7 @@ struct
     LexResult.Success (Seq.fromList (List.rev acc))
 
   fun isReserved src =
-    Option.isSome (Token.checkReserved src)
+    Option.isSome (Token.tryReserved src)
 
   fun tokens src =
     let
@@ -45,6 +48,9 @@ struct
       fun f at i = f i
       fun check f i = i < Source.length src andalso f (get i)
       fun is c = check (fn c' => c = c')
+
+      fun isEndOfFileAt s =
+        s >= Source.length src
 
       fun next1 s =
         if s < Source.length src then
@@ -81,6 +87,8 @@ struct
             )
         else
           NONE
+
+
 
       fun loop_topLevel acc s =
         case next1 s of
@@ -131,6 +139,7 @@ struct
             success acc
 
 
+
       and loop_afterDot acc s =
         if (is #"." at s) andalso (is #"." at s+1) then
           loop_topLevel
@@ -146,61 +155,48 @@ struct
           loop_symbolicId acc (s+1) args
         else
           let
-            val srcHere = slice (idStart, s)
+            val tok = Token.reservedOrIdentifier (slice (idStart, s))
           in
-            case Token.checkReserved srcHere of
-              NONE =>
-                loop_topLevel (Token.identifier srcHere :: acc) s
-            | SOME r =>
-                if isQualified then
-                  error acc
-                    ( "reserved word '"
-                    ^ Source.toString srcHere
-                    ^ "' prefaced by qualifiers"
-                    )
-                else
-                  loop_topLevel (Token.reserved srcHere r :: acc) s
-        end
+            if Token.isReserved tok andalso isQualified then
+              error acc
+                ( "reserved word '"
+                ^ Source.toString (slice (idStart, s))
+                ^ "' prefaced by qualifiers"
+                )
+            else
+              loop_topLevel (tok :: acc) s
+          end
 
 
 
       and loop_alphanumId acc s (args as {idStart, startsPrime, isQualified}) =
         if check LexUtils.isAlphaNumPrimeOrUnderscore at s then
           loop_alphanumId acc (s+1) args
-        else if is #"." at s andalso startsPrime then
-          error acc "structure identifiers cannot start with prime"
-        else if is #"." at s then
-          let
-            val srcHere = slice (idStart, s)
-          in
-            case Token.checkReserved srcHere of
-              SOME r =>
-                error acc
-                  ( "reserved word '"
-                  ^ Source.toString srcHere
-                  ^ "' cannot be used as qualifier"
-                  )
-            | NONE =>
-                loop_continueLongIdentifier
-                  (Token.qualifier srcHere :: acc)
-                  (s+1)
-          end
         else
           let
             val srcHere = slice (idStart, s)
+            val tok = Token.reservedOrIdentifier srcHere
           in
-            case Token.checkReserved srcHere of
-              NONE =>
-                loop_topLevel (Token.identifier srcHere :: acc) s
-            | SOME r =>
-                if isQualified then
-                  error acc
-                    ( "reserved word '"
-                    ^ Source.toString srcHere
-                    ^ "' prefaced by qualifiers"
-                    )
-                else
-                  loop_topLevel (Token.reserved srcHere r :: acc) s
+            if Token.isReserved tok andalso isQualified then
+              error acc
+                ( "reserved word '"
+                ^ Source.toString srcHere
+                ^ "' prefaced by qualifiers"
+                )
+            else if is #"." at s andalso Token.isReserved tok then
+              error acc
+                ( "reserved word '"
+                ^ Source.toString srcHere
+                ^ "' cannot be used as qualifier"
+                )
+            else if is #"." at s andalso startsPrime then
+              error acc "structure identifiers cannot start with prime"
+            else if is #"." at s then
+              loop_continueLongIdentifier
+                (Token.switchIdentifierToQualifier tok :: acc)
+                (s+1)
+            else
+              loop_topLevel (tok :: acc) s
           end
 
 
@@ -373,6 +369,7 @@ struct
         end
 
 
+
       (** An open-paren could just be a normal paren, or it could be the
         * start of a comment.
         *)
@@ -385,105 +382,95 @@ struct
 
 
       and loop_inString acc s (args as {stringStart}) =
-        case next1 s of
-          SOME #"\\" (* " *) =>
-            loop_inStringEscapeSequence acc (s+1) args
-        | SOME #"\"" =>
-            loop_topLevel
-              (mk Token.StringConstant (stringStart, s+1) :: acc)
-              (s+1)
-        | SOME c =>
-            if Char.isPrint c then
-              loop_inString acc (s+1) args
-            else
-              error acc ("non-printable character at " ^ Int.toString (s))
-        | NONE =>
-            error acc ("unclosed string starting at " ^ Int.toString stringStart)
+        if is backslash at s then
+          loop_inStringEscapeSequence acc (s+1) args
+        else if is #"\"" at s then
+          loop_topLevel
+            (mk Token.StringConstant (stringStart, s+1) :: acc)
+            (s+1)
+        else if not (check Char.isPrint at s) then
+          error acc ("non-printable character at " ^ Int.toString s)
+        else if isEndOfFileAt s then
+          error acc ("unclosed string starting at " ^ Int.toString stringStart)
+        else
+          loop_inString acc (s+1) args
 
 
 
-      (** Inside a string, and furthermore immediately inside a backslash *)
+      (** Inside a string, immediately after a backslash *)
       and loop_inStringEscapeSequence acc s (args as {stringStart}) =
-        case next1 s of
-          SOME c =>
-            if LexUtils.isValidSingleEscapeChar c then
-              loop_inString acc (s+1) args
-            else if LexUtils.isValidFormatEscapeChar c then
-              loop_inStringFormatEscapeSequence acc (s+1) args
-            else if c = #"^" then
-              loop_inStringControlEscapeSequence acc (s+1) args
-            else if c = #"u" then
-              loop_inStringFourDigitEscapeSequence acc (s+1) args
-            else if LexUtils.isDecDigit c then
-              (** Note the `s` instead of `s+1`.
-                * For consistency with the other functions, we put the index
-                * immediately after the "preamble" (my term) of the escape
-                * sequence.
-                *)
-              loop_inStringThreeDigitEscapeSequence acc s args
-            else
-              loop_inString acc s args
-        | NONE =>
-            error acc ("unclosed string starting at " ^ Int.toString stringStart)
+        if check LexUtils.isValidSingleEscapeChar at s then
+          loop_inString acc (s+1) args
+        else if check LexUtils.isValidFormatEscapeChar at s then
+          loop_inStringFormatEscapeSequence acc (s+1) args
+        else if is #"^" at s then
+          loop_inStringControlEscapeSequence acc (s+1) args
+        else if is #"u" at s then
+          loop_inStringFourDigitEscapeSequence acc (s+1) args
+        else if check LexUtils.isDecDigit at s then
+          (** Note the `s` instead of `s+1`... intentional. *)
+          loop_inStringThreeDigitEscapeSequence acc s args
+        else if isEndOfFileAt s then
+          error acc ("unclosed string starting at " ^ Int.toString stringStart)
+        else
+          loop_inString acc s args
 
 
 
+      (** In a string, expecting to see \ddd
+        * with s immediately after the backslash
+        *)
       and loop_inStringThreeDigitEscapeSequence acc s args =
-        case next3 s of
-          SOME (c1, c2, c3) =>
-            if List.all LexUtils.isDecDigit [c1, c2, c3] then
-              loop_inString acc (s+3) args
-            else
-              error acc ("in string, expected escape sequence \\ddd but found"
-                          ^ Source.toString (Source.subseq src (s-1, 4)))
-        | NONE =>
-            error acc ("incomplete three-digit escape sequence at " ^ Int.toString (s-1))
+        if
+          check LexUtils.isDecDigit at s andalso
+          check LexUtils.isDecDigit at s+1 andalso
+          check LexUtils.isDecDigit at s+2
+        then
+          loop_inString acc (s+3) args
+        else
+          error acc ("in string, expected escape sequence \\ddd but found"
+                     ^ Source.toString (slice (s-1, s+3)))
 
 
-
+      (** In a string, expecting to see \uxxxx
+        * with s immediately after the u
+        *)
       and loop_inStringFourDigitEscapeSequence acc s args =
-        case next4 s of
-          SOME (c1, c2, c3, c4) =>
-            if List.all LexUtils.isHexDigit [c1, c2, c3, c4] then
-              loop_inString acc (s+4) args
-            else
-              error acc ("in string, expected escape sequence \\uxxxx but found"
-                          ^ Source.toString (Source.subseq src (s-2, 6)))
-        | NONE =>
-            error acc ("incomplete four-digit escape sequence at " ^ Int.toString (s-2))
+        if
+          check LexUtils.isHexDigit at s andalso
+          check LexUtils.isHexDigit at s+1 andalso
+          check LexUtils.isHexDigit at s+2 andalso
+          check LexUtils.isHexDigit at s+3
+        then
+          loop_inString acc (s+4) args
+        else
+          error acc ("in string, expected escape sequence \\uxxxx but found: "
+                     ^ Source.toString (slice (s-2, s+4)))
 
 
 
-      (** Inside a string, and furthermore inside an escape sequence of
-        * the form \^c
+      (** Inside a string, expecting to see \^c
+        * with s immediately after the ^
         *)
       and loop_inStringControlEscapeSequence acc s (args as {stringStart}) =
-        case next1 s of
-          SOME c =>
-            if LexUtils.isValidControlEscapeChar c then
-              loop_inStringEscapeSequence acc (s+1) args
-            else
-              error acc ("invalid control escape sequence at " ^ Int.toString s)
-        | NONE =>
-            error acc ("incomplete control escape sequence at " ^ Int.toString s)
+        if check LexUtils.isValidControlEscapeChar at s then
+          loop_inStringEscapeSequence acc (s+1) args
+        else
+          error acc ("invalid control escape sequence at " ^ Int.toString s)
 
 
 
-      (** Inside a string, and furthermore inside an escape sequence of the
-        * form \f...f\ where each f is a format character (space, newline, tab,
-        * etc.)
+      (** Inside a string, expecting to be inside a \f...f\
+        * where each f is a format character (space, newline, tab, etc.)
         *)
       and loop_inStringFormatEscapeSequence acc s (args as {stringStart}) =
-        case next1 s of
-          SOME #"\\" (*"*) =>
-            loop_inString acc (s+1) args
-        | SOME c =>
-            if LexUtils.isValidFormatEscapeChar c then
-              loop_inStringFormatEscapeSequence acc (s+1) args
-            else
-              error acc ("invalid format escape sequence at " ^ Int.toString (s))
-        | NONE =>
-            error acc ("incomplete format escape sequence at " ^ Int.toString (s))
+        if is backslash at s then
+          loop_inString acc (s+1) args
+        else if check LexUtils.isValidFormatEscapeChar at s then
+          loop_inStringFormatEscapeSequence acc (s+1) args
+        else
+          error acc ("invalid format escape sequence at " ^ Int.toString s)
+
 
 
       (** Inside a comment that started at `commentStart`
@@ -492,20 +479,16 @@ struct
       and loop_inComment acc s {commentStart, nesting} =
         if nesting = 0 then
           loop_topLevel (mk Token.Comment (commentStart, s) :: acc) s
+        else if is #"(" at s andalso is #"*" at s+1 then
+          loop_inComment acc (s+2) {commentStart=commentStart, nesting=nesting+1}
+        else if is #"*" at s andalso is #")" at s+1 then
+          loop_inComment acc (s+2) {commentStart=commentStart, nesting=nesting-1}
+        else if isEndOfFileAt s then
+          error acc ("unclosed comment starting at " ^ Int.toString commentStart)
         else
+          loop_inComment acc (s+1) {commentStart=commentStart, nesting=nesting}
 
-        case next2 s of
-          SOME (#"(", #"*") =>
-            loop_inComment acc (s+2) {commentStart=commentStart, nesting=nesting+1}
-        | SOME (#"*", #")") =>
-            loop_inComment acc (s+2) {commentStart=commentStart, nesting=nesting-1}
-        | _ =>
 
-        case next1 s of
-          SOME _ =>
-            loop_inComment acc (s+1) {commentStart=commentStart, nesting=nesting}
-        | NONE =>
-            error acc ("unclosed comment starting at " ^ Int.toString commentStart)
 
     in
       loop_topLevel [] 0
