@@ -201,6 +201,8 @@ struct
           loop_hexIntegerConstant acc (s+2) {constStart = s - 2}
         else if is #"." at s then
           loop_realConstantAfterDot acc (s+1) {constStart = s - 2}
+        else if is #"e" at s orelse is #"E" at s then
+          loop_realConstantAfterExponent acc (s+1) {constStart = s - 2}
         else if check LexUtils.isDecDigit at s then
           loop_decIntegerConstant acc (s+1) {constStart = s - 2}
         else
@@ -210,7 +212,7 @@ struct
 
       (** After seeing "0", we're certainly at the beginning of some sort
         * of numeric constant. We need to figure out if this is an integer or
-        * a word, and if it is hex or decimal format.
+        * a word or a real, and if it is hex or decimal format.
         *)
       and loop_afterZero acc s =
         if is #"x" at s andalso check LexUtils.isHexDigit at s+1 then
@@ -219,6 +221,8 @@ struct
           loop_afterZeroDubya acc (s+1)
         else if is #"." at s then
           loop_realConstantAfterDot acc (s+1) {constStart = s - 1}
+        else if is #"e" at s orelse is #"E" at s then
+          loop_realConstantAfterExponent acc (s+1) {constStart = s - 1}
         else if check LexUtils.isDecDigit at s then
           loop_decIntegerConstant acc (s+1) {constStart = s - 1}
         else
@@ -231,6 +235,8 @@ struct
           loop_decIntegerConstant acc (s+1) args
         else if is #"." at s then
           loop_realConstantAfterDot acc (s+1) args
+        else if is #"e" at s orelse is #"E" at s then
+          loop_realConstantAfterExponent acc (s+1) args
         else
           loop_topLevel (mk Token.IntegerConstant (constStart, s) :: acc) s
 
@@ -260,8 +266,22 @@ struct
 
 
 
-      and loop_realConstantAfterExponent acc s args =
-        error acc "real constants with exponents not supported yet"
+      (** Immediately after the "E" or "e", there might be a twiddle,
+        * and then a bunch of decimal digits.
+        *)
+      and loop_realConstantAfterExponent acc s {constStart} =
+        let
+          fun walkThroughDigits i =
+            if check LexUtils.isDecDigit at i then
+              walkThroughDigits (i+1)
+            else
+              i
+          val s' = walkThroughDigits (if is #"~" at s then s+1 else s)
+        in
+          loop_topLevel
+            (mk Token.RealConstant (constStart, s') :: acc)
+            s'
+        end
 
 
 
