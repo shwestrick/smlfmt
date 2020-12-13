@@ -26,22 +26,20 @@ struct
   fun success acc =
     LexResult.Success (Seq.fromList (List.rev acc))
 
-  fun isReserved src =
-    Option.isSome (Token.tryReserved src)
-
   fun tokens src =
     let
       (** Some helpers for making source slices and tokens. *)
       fun slice (i, j) = Source.subseq src (i, j-i)
       fun mk x (i, j) = Token.make (slice (i, j)) x
       fun mkr x (i, j) = Token.reserved (slice (i, j)) x
-      fun mki (i, j) = Token.identifier (slice (i, j))
-      fun mkq (i, j) = Token.qualifier (slice (i, j))
 
       fun get i = Source.nth src i
 
+      fun isEndOfFileAt s =
+        s >= Source.length src
+
       (** This silliness lets you write almost-English like this:
-        *   if is #"x" at            then ...
+        *   if is #"x" at i          then ...
         *   if check isSymbolic at i then ...
         *)
       infix 5 at
@@ -49,94 +47,55 @@ struct
       fun check f i = i < Source.length src andalso f (get i)
       fun is c = check (fn c' => c = c')
 
-      fun isEndOfFileAt s =
-        s >= Source.length src
-
-      fun next1 s =
-        if s < Source.length src then
-          SOME (Source.nth src s)
-        else
-          NONE
-
-      fun next2 s =
-        if s < Source.length src - 1 then
-          SOME
-            ( Source.nth src s
-            , Source.nth src (s+1)
-            )
-        else
-          NONE
-
-      fun next3 s =
-        if s < Source.length src - 2 then
-          SOME
-            ( Source.nth src s
-            , Source.nth src (s+1)
-            , Source.nth src (s+2)
-            )
-        else
-          NONE
-
-      fun next4 s =
-        if s < Source.length src - 3 then
-          SOME
-            ( Source.nth src s
-            , Source.nth src (s+1)
-            , Source.nth src (s+2)
-            , Source.nth src (s+3)
-            )
-        else
-          NONE
-
-
 
       fun loop_topLevel acc s =
-        case next1 s of
-          SOME #"(" =>
-            loop_afterOpenParen acc (s+1)
-        | SOME #")" =>
-            loop_topLevel (mkr Token.CloseParen (s, s+1) :: acc) (s+1)
-        | SOME #"[" =>
-            loop_topLevel (mkr Token.OpenSquareBracket (s, s+1) :: acc) (s+1)
-        | SOME #"]" =>
-            loop_topLevel (mkr Token.CloseSquareBracket (s, s+1) :: acc) (s+1)
-        | SOME #"{" =>
-            loop_topLevel (mkr Token.OpenCurlyBracket (s, s+1) :: acc) (s+1)
-        | SOME #"}" =>
-            loop_topLevel (mkr Token.CloseCurlyBracket (s, s+1) :: acc) (s+1)
-        | SOME #"," =>
-            loop_topLevel (mkr Token.Comma (s, s+1) :: acc) (s+1)
-        | SOME #";" =>
-            loop_topLevel (mkr Token.Semicolon (s, s+1) :: acc) (s+1)
-        | SOME #"_" =>
-            loop_topLevel (mkr Token.Underscore (s, s+1) :: acc) (s+1)
-        | SOME #"\"" =>
-            loop_inString acc (s+1) {stringStart = s}
-        | SOME #"~" =>
-            loop_afterTwiddle acc (s+1)
-        | SOME #"'" =>
-            loop_alphanumId acc (s+1)
-              { idStart = s
-              , startsPrime = true
-              , isQualified = false
-              }
-        | SOME #"0" =>
-            loop_afterZero acc (s+1)
-        | SOME #"." =>
-            loop_afterDot acc (s+1)
-        | SOME c =>
-            if LexUtils.isDecDigit c then
-              loop_decIntegerConstant acc (s+1) {constStart = s}
-            else if LexUtils.isSymbolic c then
-              loop_symbolicId acc (s+1) {idStart = s, isQualified = false}
-            else if LexUtils.isLetter c then
+        if isEndOfFileAt s then
+          (** DONE *)
+          success acc
+        else
+          case get s of
+            #"(" =>
+              loop_afterOpenParen acc (s+1)
+          | #")" =>
+              loop_topLevel (mkr Token.CloseParen (s, s+1) :: acc) (s+1)
+          | #"[" =>
+              loop_topLevel (mkr Token.OpenSquareBracket (s, s+1) :: acc) (s+1)
+          | #"]" =>
+              loop_topLevel (mkr Token.CloseSquareBracket (s, s+1) :: acc) (s+1)
+          | #"{" =>
+              loop_topLevel (mkr Token.OpenCurlyBracket (s, s+1) :: acc) (s+1)
+          | #"}" =>
+              loop_topLevel (mkr Token.CloseCurlyBracket (s, s+1) :: acc) (s+1)
+          | #"," =>
+              loop_topLevel (mkr Token.Comma (s, s+1) :: acc) (s+1)
+          | #";" =>
+              loop_topLevel (mkr Token.Semicolon (s, s+1) :: acc) (s+1)
+          | #"_" =>
+              loop_topLevel (mkr Token.Underscore (s, s+1) :: acc) (s+1)
+          | #"\"" =>
+              loop_inString acc (s+1) {stringStart = s}
+          | #"~" =>
+              loop_afterTwiddle acc (s+1)
+          | #"'" =>
               loop_alphanumId acc (s+1)
-                {idStart = s, startsPrime = false, isQualified = false}
-            else
-              loop_topLevel acc (s+1)
-        | NONE =>
-            (** DONE *)
-            success acc
+                { idStart = s
+                , startsPrime = true
+                , isQualified = false
+                }
+          | #"0" =>
+              loop_afterZero acc (s+1)
+          | #"." =>
+              loop_afterDot acc (s+1)
+          | c =>
+              if LexUtils.isDecDigit c then
+                loop_decIntegerConstant acc (s+1) {constStart = s}
+              else if LexUtils.isSymbolic c then
+                loop_symbolicId acc (s+1) {idStart = s, isQualified = false}
+              else if LexUtils.isLetter c then
+                loop_alphanumId acc (s+1)
+                  {idStart = s, startsPrime = false, isQualified = false}
+              else
+                loop_topLevel acc (s+1)
 
 
 
@@ -229,7 +188,7 @@ struct
         else if check LexUtils.isSymbolic at s then
           loop_symbolicId acc (s+1) {idStart = s - 1, isQualified = false}
         else
-          loop_topLevel (mki (s - 1, s) :: acc) s
+          loop_topLevel (mk Token.Identifier (s - 1, s) :: acc) s
 
 
 
@@ -339,34 +298,28 @@ struct
         *   0wx       -- integer constant 0 followed by alphanum-id "wx"
         *)
       and loop_afterZeroDubya acc s =
-        let
-          (** In case the 0 ends up as an integer constant *)
-          val zeroIntConstant =
-            mk Token.IntegerConstant (s - 2, s - 1)
-        in
-          case next2 s of
-            SOME (#"x", c) =>
-              if LexUtils.isHexDigit c then
-                loop_hexWordConstant acc (s+2) {constStart = s - 2}
-              else
-                loop_topLevel (zeroIntConstant :: acc) (s-1)
-          | _ =>
-          case next1 s of
-            SOME c =>
-              if LexUtils.isDecDigit c then
-                loop_decWordConstant acc (s+1) {constStart = s - 2}
-              else
-                loop_topLevel (zeroIntConstant :: acc) (s-1)
-          | NONE =>
-              (** We're done, but need to parse the "0" as an integer constant,
-                * and the "w" as an identifier. So back up to s-1 and continue.
+        if is #"x" at s andalso check LexUtils.isHexDigit at s+1 then
+          loop_hexWordConstant acc (s+2) {constStart = s - 2}
+        else if check LexUtils.isDecDigit at s then
+          loop_decWordConstant acc (s+1) {constStart = s - 2}
+        else
+          let
+            val zeroIntConstant =
+              mk Token.IntegerConstant (s - 2, s - 1)
+          in
+            if isEndOfFileAt s then
+              (** A funny edge case. Need to parse the "0" as an integer
+                * constant, and the "w" as an identifier. To get the "w", we
+                * back up to s-1 and continue as an alphanumId.
                 *)
               loop_alphanumId (zeroIntConstant :: acc) (s-1)
-                { idStart = s-1
-                , startsPrime = false
-                , isQualified = false
-                }
-        end
+                  { idStart = s-1
+                  , startsPrime = false
+                  , isQualified = false
+                  }
+            else
+              loop_topLevel (zeroIntConstant :: acc) (s-1)
+          end
 
 
 
@@ -430,6 +383,7 @@ struct
         else
           error acc ("in string, expected escape sequence \\ddd but found"
                      ^ Source.toString (slice (s-1, s+3)))
+
 
 
       (** In a string, expecting to see \uxxxx
