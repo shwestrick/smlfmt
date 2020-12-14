@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure Color =
 struct
   type channel = Word8.word

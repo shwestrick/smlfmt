@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (* Author: Lawrence Wang (lawrenc2@andrew.cmu.edu, github.com/larry98)
  *
  * The lsdSort and msdSort functions take the following arguments:

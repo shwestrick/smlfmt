@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 signature SEQUENCE =
 sig
   type 'a t

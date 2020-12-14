@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure CountingSort :>
 sig
   type 'a seq = 'a ArraySlice.slice

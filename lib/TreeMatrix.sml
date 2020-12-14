@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure TreeMatrix:
 sig
   (* square matrices of sidelength 2^n matrices only! *)

@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (** A source is a contiguous subsequence of a code file. We can look up its
   * position (e.g. line-and-column, or character index), take subsequences,
   * etc.

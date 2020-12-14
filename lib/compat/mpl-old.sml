@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (* already provided by the compiler *)
 structure ForkJoin = ForkJoin
 

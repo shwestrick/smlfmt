@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (* Author: Guy Blelloch
  *
  * This file is basically the cache-oblivious sorting algorithm from:

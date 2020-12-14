@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure FindFirst :
 sig
   val findFirstSerial : (int * int) -> (int -> bool) -> int option

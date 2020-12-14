@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure CommandLineArgs :
 sig
   (* each takes a key K and a default value D, looks for -K V in the

@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure Util:
 sig
   val getTime: (unit -> 'a) -> ('a * Time.time)

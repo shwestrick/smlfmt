@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (* Basic support for the netpbm .ppm file format. *)
 structure PPM:
 sig

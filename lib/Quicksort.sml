@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (* Author: The 210 Team
  *
  * Uses dual-pivot quicksort from:

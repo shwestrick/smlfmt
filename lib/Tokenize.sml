@@ -1,3 +1,8 @@
+(** Copyright (c) 2020 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure Tokenize:
 sig
   val tokenRanges: (char -> bool) -> char Seq.t -> int * (int -> (int * int))
