@@ -3,6 +3,7 @@ FilePath.sml
 Source.sml
 LexUtils.sml
 Token.sml
+ShowLineError.sml
 LexResult.sml
 LEX.sml
 Lexer.sml

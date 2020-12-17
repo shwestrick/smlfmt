@@ -20,18 +20,24 @@ sig
 
   val length: source -> int
   val nth: source -> int -> char
-  val subseq: source -> int * int -> source
+  val slice: source -> int * int -> source
   val take: source -> int -> source
   val drop: source -> int -> source
 
   val toString: source -> string
 
-  val base: source -> source
+  val wholeFile: source -> source
+
+  (** `wholeLine src lineNum`
+    * Doesn't matter if the src is positioned elsewhere. Uses absolute lineNum.
+    * Remember, 1-indexing for line nums, ugh.
+    *)
+  val wholeLine: source -> int -> source
 end =
 struct
 
   type source =
-    { slice: char Seq.t
+    { data: char Seq.t
     (** underlying file *)
     , fileName: FilePath.t
     (** the byte offsets of newlines in the underlying file *)
@@ -58,7 +64,7 @@ struct
           (fn i => i)
           (fn i => Seq.nth contents i = #"\n"))
     in
-      { slice = contents
+      { data = contents
       , fileName = path
       , newlineIdxs = newlineIdxs
       }
@@ -66,9 +72,9 @@ struct
 
   fun fileName (s: source) = #fileName s
 
-  fun absoluteOffset ({slice, ...}: source) =
+  fun absoluteOffset ({data, ...}: source) =
     let
-      val (_, off, _) = ArraySlice.base slice
+      val (_, off, _) = ArraySlice.base data
     in
       off
     end
@@ -88,17 +94,17 @@ struct
         {line = lineNum+1, col = charNum+1}
       end
 
-  fun length ({slice, ...}: source) = Seq.length slice
-  fun nth ({slice, ...}: source) k = Seq.nth slice k
+  fun length ({data, ...}: source) = Seq.length data
+  fun nth ({data, ...}: source) k = Seq.nth data k
 
-  fun subseq {slice, fileName, newlineIdxs} (i, len) =
-    { slice = Seq.subseq slice (i, Int.min (len, Seq.length slice - i))
+  fun slice {data, fileName, newlineIdxs} (i, len) =
+    { data = Seq.subseq data (i, Int.min (len, Seq.length data - i))
     , fileName = fileName
     , newlineIdxs = newlineIdxs
     }
 
-  fun take s k = subseq s (0, k)
-  fun drop s k = subseq s (k, length s - k)
+  fun take s k = slice s (0, k)
+  fun drop s k = slice s (k, length s - k)
 
   fun absoluteEnd s =
     absoluteStart (drop s (length s))
@@ -106,14 +112,34 @@ struct
   fun toString s =
     CharVector.tabulate (length s, nth s)
 
-  fun base ({slice, fileName, newlineIdxs}: source) =
+  fun wholeFile ({data, fileName, newlineIdxs}: source) =
     let
-      val (a, _, _) = ArraySlice.base slice
+      val (a, _, _) = ArraySlice.base data
     in
-      { slice = ArraySlice.full a
+      { data = ArraySlice.full a
       , fileName = fileName
       , newlineIdxs = newlineIdxs
       }
+    end
+
+  fun wholeLine (s as {data, fileName, newlineIdxs}: source) lineNum1 =
+    let
+      val base = wholeFile s
+
+      (** Back to 0-indexing *)
+      val lineNum0 = lineNum1 - 1
+
+      val lineStartOffset =
+        if lineNum0 = 0 then
+          0
+        else
+          1 + Seq.nth newlineIdxs (lineNum0 - 1)
+
+      val lineEndOffset =
+        Seq.nth newlineIdxs lineNum0
+
+    in
+      slice base (lineStartOffset, lineEndOffset - lineStartOffset)
     end
 
 end

@@ -113,15 +113,12 @@ val _ =
         LexResult.Success toks => (toks, NONE)
       | LexResult.Failure {partial=toks, error=err} => (toks, SOME err)
   in
-    loop [] (toks, 0) {line=1, col=1};
-
-    print "\n";
-
     case err of
       SOME e => print (LexResult.Error.report e ^ "\n")
-    | _ => ()
-
+    | _ =>
+        ( loop [] (toks, 0) {line=1, col=1}
+        ; print "\n"
+        ; printLegend ()
+        )
   end
-  (* handle e => print ("ERROR: " ^ exnMessage e ^ "\nHISTORY: " ^ ) *)
 
-val _ = printLegend ()

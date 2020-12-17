@@ -43,7 +43,7 @@ struct
   fun tokens src =
     let
       (** Some helpers for making source slices and tokens. *)
-      fun slice (i, j) = Source.subseq src (i, j-i)
+      fun slice (i, j) = Source.slice src (i, j-i)
       fun mk x (i, j) = Token.make (slice (i, j)) x
       fun mkr x (i, j) = Token.reserved (slice (i, j)) x
 

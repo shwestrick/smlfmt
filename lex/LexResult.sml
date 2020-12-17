@@ -34,43 +34,31 @@ struct
           "Uncategorized error: " ^ msg
 
       | UnexpectedCloseComment {pos} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Unexpected end-of-comment symbol."
+          ShowLineError.show pos "unexpected end-of-comment symbol"
 
       | UnexpectedDot {pos} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Unexpected dot."
+          ShowLineError.show pos "unexpected dot"
 
       | ReservedAsIdentifier {pos} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Reserved word: "
-          ^ Source.toString pos
-          ^ "\nReserved words cannot be used as identifiers."
+          ShowLineError.show pos "reserved word cannot be used as identifier"
 
       | QualifierStartsPrime {pos} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Unexpected prime: "
-          ^ Source.toString pos
-          ^ "\nStructure identifiers cannot start with a prime."
+          ShowLineError.show pos "structure identifiers cannot start with prime"
 
       | QualifiedIdentifierStartsPrime {pos} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Unexpected prime after a qualifier."
+          ShowLineError.show pos "unexpected prime after a qualifier."
 
       | UnexpectedEndOfLongIdentifier {pos} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Long identifier ends unexpectedly."
-          ^ "\nAfter the dot, there needs to be either a letter or a symbol."
+          ShowLineError.show pos "unexpected character"
+          ^ "In a long identifier, after a dot, there needs to be either "
+          ^ "a letter or symbol."
 
       | InvalidRealConstant {pos, reason} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Invalid real constant: "
-          ^ Source.toString pos
-          ^ "\n" ^ reason
+          ShowLineError.show pos "invalid real constant"
+          ^ reason
 
       | UnclosedString {pos} =>
-          lcToStr (Source.absoluteStart pos)
-          ^ " Unclosed string at end of line."
+          ShowLineError.show pos "unclosed string"
   end
 
   datatype result =
