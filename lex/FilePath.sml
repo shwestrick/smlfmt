@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure FilePath:
+structure FilePath:>
 sig
   type filepath
   type t = filepath

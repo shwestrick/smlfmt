@@ -30,14 +30,17 @@ struct
   fun success acc =
     LexResult.Success (finalize acc)
 
-  fun error acc err =
+  fun error acc errSpec =
     LexResult.Failure
       { partial = finalize acc
-      , error = err
+      , error = LR.Error errSpec
       }
 
   fun errorOther acc msg =
-    error acc (LR.Other msg)
+    LexResult.Failure
+      { partial = finalize acc
+      , error = LR.Other msg
+      }
 
   fun tokens src =
     let
@@ -101,11 +104,11 @@ struct
               loop_afterDot acc (s+1)
           | #"*" =>
               if is #")" at s+1 then
-                error acc (LR.Error
+                error acc
                   { pos = slice (s, s+2)
-                  , what = "unexpected close-comment symbol"
+                  , what = "Unexpected end of comment."
                   , explain = NONE
-                  })
+                  }
               else
                 loop_symbolicId acc (s+1) {idStart = s, isQualified = false}
           | c =>
@@ -130,11 +133,11 @@ struct
           let
             val huh = if (is #"." at s) then s+1 else s
           in
-            error acc (LR.Error
+            error acc
               { pos = slice (huh, huh+1)
-              , what = "unexpected character"
-              , explain = NONE
-              })
+              , what = "Unexpected character."
+              , explain = SOME "Perhaps you meant: ..."
+              }
           end
 
 
@@ -147,11 +150,11 @@ struct
             val tok = Token.reservedOrIdentifier (srcHere)
           in
             if Token.isReserved tok andalso isQualified then
-              error acc (LR.Error
+              error acc
                 { pos = srcHere
-                , what = "unexpected reserved symbol"
+                , what = "Unexpected reserved symbol."
                 , explain = SOME "Reserved symbols cannot be used as identifiers."
-                })
+                }
             else
               loop_topLevel (tok :: acc) s
           end
@@ -167,17 +170,17 @@ struct
             val tok = Token.reservedOrIdentifier srcHere
           in
             if Token.isReserved tok andalso (isQualified orelse is #"." at s) then
-              error acc (LR.Error
+              error acc
                 { pos = srcHere
-                , what = "unexpected reserved keyword"
+                , what = "Unexpected reserved keyword."
                 , explain = SOME "Reserved keywords cannot be used as identifiers."
-                })
+                }
             else if is #"." at s andalso startsPrime then
-              error acc (LR.Error
+              error acc
                 { pos = slice (s, s+1)
-                , what = "unexpected dot"
-                , explain = SOME "Qualifiers can't start with a prime (')"
-                })
+                , what = "Unexpected dot."
+                , explain = SOME "Qualifiers cannot start with a prime (')"
+                }
             else if is #"." at s then
               loop_continueLongIdentifier
                 (Token.switchIdentifierToQualifier tok :: acc)
@@ -198,11 +201,11 @@ struct
             , isQualified = true
             }
         else
-          error acc (LR.Error
+          error acc
             { pos = slice (s, s+1)
-            , what = "unexpected character"
-            , explain = SOME "Identifiers have to start with a letter or symbol"
-            })
+            , what = "Unexpected character."
+            , explain = SOME "Identifiers have to start with a letter or symbol."
+            }
 
 
       (** After seeing a twiddle, we might be at the beginning of an integer
@@ -278,11 +281,11 @@ struct
         if check LexUtils.isDecDigit at s then
           loop_realConstant acc (s+1) args
         else
-          error acc (LR.Error
+          error acc
             { pos = slice (constStart, s)
-            , what = "invalid real constant"
+            , what = "Invalid real constant."
             , explain = SOME "After the dot, there needs to be at least one decimal digit."
-            })
+            }
 
 
       (** Parsing the remainder of a real constant. This is already after the
@@ -397,17 +400,18 @@ struct
             (mk Token.StringConstant (stringStart, s+1) :: acc)
             (s+1)
         else if is #"\n" at s orelse isEndOfFileAt s then
-          error acc (LR.Error
-            { pos = slice (stringStart, s)
-            , what = "unclosed string"
+          error acc
+            { pos = slice (stringStart, stringStart+1)
+            , what = "Unclosed string."
             , explain = NONE
-            })
+            }
         else if not (check Char.isPrint at s) then
-          error acc (LR.Error
+          error acc
             { pos = slice (s, s+1)
-            , what = "non-printable character"
-            , explain = NONE
-            })
+            , what = "Invalid character."
+            , explain = SOME "Strings can only contain printable (visible or \
+                             \whitespace) ASCII characters."
+            }
         else
           loop_inString acc (s+1) args
 
@@ -419,7 +423,10 @@ struct
           (** Includes e.g. \t, \n, \", \\, etc. *)
           loop_inString acc (s+1) args
         else if check LexUtils.isValidFormatEscapeChar at s then
-          loop_inStringFormatEscapeSequence acc (s+1) args
+          loop_inStringFormatEscapeSequence acc (s+1)
+            { stringStart = stringStart
+            , escapeStart = s-1
+            }
         else if is #"^" at s then
           loop_inStringControlEscapeSequence acc (s+1) args
         else if is #"u" at s then
@@ -428,13 +435,17 @@ struct
           (** Note the `s` instead of `s+1`... intentional. *)
           loop_inStringThreeDigitEscapeSequence acc s args
         else if isEndOfFileAt s then
-          error acc (LR.Error
-            { pos = slice (stringStart, s)
-            , what = "unclosed string"
+          error acc
+            { pos = slice (stringStart, stringStart+1)
+            , what = "Unclosed string."
             , explain = NONE
-            })
+            }
         else
-          loop_inString acc s args
+          error acc
+            { pos = slice (s-1, s+1)
+            , what = "Invalid escape sequence."
+            , explain = NONE
+            }
 
 
 
@@ -449,12 +460,12 @@ struct
         then
           loop_inString acc (s+3) args
         else
-          error acc (LR.Error
+          error acc
             { pos = slice (s-1, s)
-            , what = "invalid escape sequence"
+            , what = "Invalid escape sequence"
             , explain = SOME "Three-digit escape sequences must be of the form \
-                             \\\DDD where D is a decimal digit"
-            })
+                             \\\DDD where D is a decimal digit."
+            }
 
 
       (** In a string, expecting to see \uxxxx
@@ -469,12 +480,12 @@ struct
         then
           loop_inString acc (s+4) args
         else
-          error acc (LR.Error
+          error acc
             { pos = slice (s-2, s-1)
-            , what = "invalid escape sequence"
+            , what = "Invalid escape sequence."
             , explain = SOME "Four-digit escape sequences must be of the form \
-                             \\\uXXXX where X is a hexadecimal digit"
-            })
+                             \\\uXXXX where X is a hexadecimal digit."
+            }
 
 
       (** Inside a string, expecting to see \^c
@@ -484,23 +495,38 @@ struct
         if check LexUtils.isValidControlEscapeChar at s then
           loop_inStringEscapeSequence acc (s+1) args
         else
-          error acc (LR.Error
+          error acc
             { pos = slice (s-2, s-1)
-            , what = "invalid escape sequence"
-            , explain = SOME "Control escape sequences must be of the form \\^C"
-            })
+            , what = "Invalid escape sequence."
+            , explain = SOME
+                "Control escape sequences must be of the form \\^C where C is \
+                \one of the following characters: @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
+            }
 
 
       (** Inside a string, expecting to be inside a \f...f\
         * where each f is a format character (space, newline, tab, etc.)
         *)
-      and loop_inStringFormatEscapeSequence acc s (args as {stringStart}) =
+      and loop_inStringFormatEscapeSequence acc s (args as {stringStart, escapeStart}) =
         if is backslash at s then
-          loop_inString acc (s+1) args
+          loop_inString acc (s+1) {stringStart=stringStart}
         else if check LexUtils.isValidFormatEscapeChar at s then
           loop_inStringFormatEscapeSequence acc (s+1) args
+        else if isEndOfFileAt s then
+          error acc
+            { pos = slice (escapeStart, escapeStart+1)
+            , what = "Unclosed format escape sequence."
+            , explain = NONE
+            }
         else
-          errorOther acc ("invalid format escape sequence at " ^ Int.toString s)
+          error acc
+            { pos = slice (s, s+1)
+            , what = "Invalid format escape character."
+            , explain = SOME
+                "A formatting escape sequence must be of the form \\F...F\\ \
+                \where F is either a space, newline, tab, carriage-return, or \
+                \form-feed."
+            }
 
 
 
@@ -515,11 +541,11 @@ struct
         else if is #"*" at s andalso is #")" at s+1 then
           loop_inComment acc (s+2) {commentStart=commentStart, nesting=nesting-1}
         else if isEndOfFileAt s then
-          error acc (LR.Error
+          error acc
             { pos = slice (commentStart, commentStart+2)
-            , what = "unclosed comment"
+            , what = "Unclosed comment."
             , explain = NONE
-            })
+            }
         else
           loop_inComment acc (s+1) {commentStart=commentStart, nesting=nesting}
 

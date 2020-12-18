@@ -1,4 +1,5 @@
 $(SML_LIB)/basis/basis.mlb
+$(SML_LIB)/basis/mlton.mlb
 
 compat/$(COMPAT).mlb
 
@@ -45,3 +46,4 @@ Benchmark.sml
 TreeSeq.sml
 
 TerminalColors.sml
+Terminal.sml
