@@ -114,7 +114,7 @@ val _ =
       | LexResult.Failure {partial=toks, error=err} => (toks, SOME err)
   in
     case err of
-      SOME e => print (LexResult.Error.report e ^ "\n")
+      SOME e => print (LexResult.report e ^ "\n")
     | _ =>
         ( loop [] (toks, 0) {line=1, col=1}
         ; print "\n"

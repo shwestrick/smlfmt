@@ -7,7 +7,6 @@ structure Lexer: LEX =
 struct
 
   structure LR = LexResult
-  structure LRE = LexResult.Error
 
   (** This is just to get around annoying bad syntax highlighting for SML... *)
   val backslash = #"\\" (* " *)
@@ -38,7 +37,7 @@ struct
       }
 
   fun errorOther acc msg =
-    error acc (LRE.Other msg)
+    error acc (LR.Other msg)
 
   fun tokens src =
     let
@@ -102,7 +101,11 @@ struct
               loop_afterDot acc (s+1)
           | #"*" =>
               if is #")" at s+1 then
-                error acc (LRE.UnexpectedCloseComment {pos = slice (s, s+2)})
+                error acc (LR.Error
+                  { pos = slice (s, s+2)
+                  , what = "unexpected close-comment symbol"
+                  , explain = NONE
+                  })
               else
                 loop_symbolicId acc (s+1) {idStart = s, isQualified = false}
           | c =>
@@ -124,8 +127,15 @@ struct
             (mkr Token.DotDotDot (s-1, s+2) :: acc)
             (s+2)
         else
-          error acc (LRE.UnexpectedDot {pos = slice (s-1,s)})
-
+          let
+            val huh = if (is #"." at s) then s+1 else s
+          in
+            error acc (LR.Error
+              { pos = slice (huh, huh+1)
+              , what = "unexpected character"
+              , explain = NONE
+              })
+          end
 
 
       and loop_symbolicId acc s (args as {idStart, isQualified}) =
@@ -133,10 +143,15 @@ struct
           loop_symbolicId acc (s+1) args
         else
           let
-            val tok = Token.reservedOrIdentifier (slice (idStart, s))
+            val srcHere = slice (idStart, s)
+            val tok = Token.reservedOrIdentifier (srcHere)
           in
             if Token.isReserved tok andalso isQualified then
-              error acc (LRE.ReservedAsIdentifier {pos = slice (idStart, s)})
+              error acc (LR.Error
+                { pos = srcHere
+                , what = "unexpected reserved symbol"
+                , explain = SOME "Reserved symbols cannot be used as identifiers."
+                })
             else
               loop_topLevel (tok :: acc) s
           end
@@ -152,9 +167,17 @@ struct
             val tok = Token.reservedOrIdentifier srcHere
           in
             if Token.isReserved tok andalso (isQualified orelse is #"." at s) then
-              error acc (LRE.ReservedAsIdentifier {pos = srcHere})
+              error acc (LR.Error
+                { pos = srcHere
+                , what = "unexpected reserved keyword"
+                , explain = SOME "Reserved keywords cannot be used as identifiers."
+                })
             else if is #"." at s andalso startsPrime then
-              error acc (LRE.QualifierStartsPrime {pos = srcHere})
+              error acc (LR.Error
+                { pos = slice (s, s+1)
+                , what = "unexpected dot"
+                , explain = SOME "Qualifiers can't start with a prime (')"
+                })
             else if is #"." at s then
               loop_continueLongIdentifier
                 (Token.switchIdentifierToQualifier tok :: acc)
@@ -174,12 +197,12 @@ struct
             , startsPrime = false
             , isQualified = true
             }
-        (** Otherwise, error! But what kind of error? *)
-        else if is #"'" at s then
-          error acc (LRE.QualifiedIdentifierStartsPrime {pos = slice (s-1, s)})
         else
-          error acc (LRE.UnexpectedEndOfLongIdentifier {pos = slice (s-1, s)})
-
+          error acc (LR.Error
+            { pos = slice (s, s+1)
+            , what = "unexpected character"
+            , explain = SOME "Identifiers have to start with a letter or symbol"
+            })
 
 
       (** After seeing a twiddle, we might be at the beginning of an integer
@@ -255,9 +278,10 @@ struct
         if check LexUtils.isDecDigit at s then
           loop_realConstant acc (s+1) args
         else
-          error acc (LRE.InvalidRealConstant
+          error acc (LR.Error
             { pos = slice (constStart, s)
-            , reason = "After the dot, there needs to be at least one decimal digit."
+            , what = "invalid real constant"
+            , explain = SOME "After the dot, there needs to be at least one decimal digit."
             })
 
 
@@ -373,9 +397,17 @@ struct
             (mk Token.StringConstant (stringStart, s+1) :: acc)
             (s+1)
         else if is #"\n" at s orelse isEndOfFileAt s then
-          error acc (LRE.UnclosedString {pos = slice (stringStart, s)})
+          error acc (LR.Error
+            { pos = slice (stringStart, s)
+            , what = "unclosed string"
+            , explain = NONE
+            })
         else if not (check Char.isPrint at s) then
-          errorOther acc ("non-printable character at " ^ Int.toString s)
+          error acc (LR.Error
+            { pos = slice (s, s+1)
+            , what = "non-printable character"
+            , explain = NONE
+            })
         else
           loop_inString acc (s+1) args
 
@@ -396,7 +428,11 @@ struct
           (** Note the `s` instead of `s+1`... intentional. *)
           loop_inStringThreeDigitEscapeSequence acc s args
         else if isEndOfFileAt s then
-          error acc (LRE.UnclosedString {pos = slice (stringStart, s)})
+          error acc (LR.Error
+            { pos = slice (stringStart, s)
+            , what = "unclosed string"
+            , explain = NONE
+            })
         else
           loop_inString acc s args
 
@@ -413,9 +449,12 @@ struct
         then
           loop_inString acc (s+3) args
         else
-          errorOther acc ("in string, expected escape sequence \\ddd but found"
-                          ^ Source.toString (slice (s-1, s+3)))
-
+          error acc (LR.Error
+            { pos = slice (s-1, s)
+            , what = "invalid escape sequence"
+            , explain = SOME "Three-digit escape sequences must be of the form \
+                             \\\DDD where D is a decimal digit"
+            })
 
 
       (** In a string, expecting to see \uxxxx
@@ -430,9 +469,12 @@ struct
         then
           loop_inString acc (s+4) args
         else
-          errorOther acc ("in string, expected escape sequence \\uxxxx but found: "
-                          ^ Source.toString (slice (s-2, s+4)))
-
+          error acc (LR.Error
+            { pos = slice (s-2, s-1)
+            , what = "invalid escape sequence"
+            , explain = SOME "Four-digit escape sequences must be of the form \
+                             \\\uXXXX where X is a hexadecimal digit"
+            })
 
 
       (** Inside a string, expecting to see \^c
@@ -442,8 +484,11 @@ struct
         if check LexUtils.isValidControlEscapeChar at s then
           loop_inStringEscapeSequence acc (s+1) args
         else
-          errorOther acc ("invalid control escape sequence at " ^ Int.toString s)
-
+          error acc (LR.Error
+            { pos = slice (s-2, s-1)
+            , what = "invalid escape sequence"
+            , explain = SOME "Control escape sequences must be of the form \\^C"
+            })
 
 
       (** Inside a string, expecting to be inside a \f...f\
@@ -470,10 +515,13 @@ struct
         else if is #"*" at s andalso is #")" at s+1 then
           loop_inComment acc (s+2) {commentStart=commentStart, nesting=nesting-1}
         else if isEndOfFileAt s then
-          errorOther acc ("unclosed comment starting at " ^ Int.toString commentStart)
+          error acc (LR.Error
+            { pos = slice (commentStart, commentStart+2)
+            , what = "unclosed comment"
+            , explain = NONE
+            })
         else
           loop_inComment acc (s+1) {commentStart=commentStart, nesting=nesting}
-
 
 
     in
