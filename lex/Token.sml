@@ -78,20 +78,20 @@ struct
   | Identifier
   | Qualifier
 
-  type token = {source: Source.t, class: class}
+  type token = class WithSource.t
   type t = token
 
   fun make src class =
-    {source = src, class = class}
+    WithSource.make {value = class, source = src}
 
   fun reserved src rclass =
-    {source = src, class = Reserved rclass}
+    WithSource.make {value = Reserved rclass, source = src}
 
   fun qualifier src =
-    {source = src, class = Qualifier}
+    WithSource.make {value = Qualifier, source = src}
 
   fun identifier src =
-    {source = src, class = Identifier}
+    WithSource.make {value = Identifier, source = src}
 
   fun tryReserved src =
     let
@@ -161,7 +161,7 @@ struct
     | NONE => identifier src
 
   fun isReserved (tok: token) =
-    case #class tok of
+    case WithSource.valOf tok of
       Reserved _ => true
     | _ => false
 
@@ -185,13 +185,13 @@ struct
 
 
   fun switchIdentifierToQualifier (tok: token) =
-    case #class tok of
+    case WithSource.valOf tok of
       Identifier =>
-        if isValidQualifier (#source tok) then
-          {source = #source tok, class = Qualifier}
+        if isValidQualifier (WithSource.srcOf tok) then
+          WithSource.map (fn _ => Qualifier) tok
         else
           raise Fail ("Token.switchIdentifierToQualifier on invalid qualifier: "
-                      ^ Source.toString (#source tok))
+                      ^ Source.toString (WithSource.srcOf tok))
     | cls =>
         raise Fail ("Token.switchIdentifierToQualifier " ^ classToString cls)
 

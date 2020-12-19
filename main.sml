@@ -88,13 +88,14 @@ fun loop (wholeSrc, i) (toks, j) =
   if i >= Source.length wholeSrc then
     ()
   else if j >= Seq.length toks orelse
-          Source.absoluteStartOffset (#source (Seq.nth toks j)) > i then
+          Source.absoluteStartOffset
+            (WithSource.srcOf (Seq.nth toks j)) > i then
     ( TextIO.output1 (TextIO.stdOut, Source.nth wholeSrc i)
     ; loop (wholeSrc, i+1) (toks, j)
     )
   else
     let
-      val {source=thisSrc, class} = Seq.nth toks j
+      val {source=thisSrc, value=class} = WithSource.unpack (Seq.nth toks j)
     in
       print (tokColor class);
       print (Source.toString thisSrc);

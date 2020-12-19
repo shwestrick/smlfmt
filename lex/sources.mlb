@@ -1,6 +1,7 @@
 ../lib/sources.mlb
 FilePath.sml
 Source.sml
+WithSource.sml
 LexUtils.sml
 Token.sml
 ShowLineError.sml
