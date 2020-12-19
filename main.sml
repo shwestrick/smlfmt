@@ -87,9 +87,10 @@ fun printLegend () =
 fun loop (wholeSrc, i) (toks, j) =
   if i >= Source.length wholeSrc then
     ()
-  else if j >= Seq.length toks orelse
-          Source.absoluteStartOffset
-            (WithSource.srcOf (Seq.nth toks j)) > i then
+  else if
+    j >= Seq.length toks orelse
+    Source.absoluteStartOffset (WithSource.srcOf (Seq.nth toks j)) > i
+  then
     ( TextIO.output1 (TextIO.stdOut, Source.nth wholeSrc i)
     ; loop (wholeSrc, i+1) (toks, j)
     )
