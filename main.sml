@@ -84,24 +84,22 @@ fun printLegend () =
   * Parse input file and color it.
   *)
 
-fun loop acc (toks, i) {line=currLine, col=currCol} =
-  if i >= Seq.length toks then
-    print (String.concat (List.rev acc) ^ "\n")
+fun loop (wholeSrc, i) (toks, j) =
+  if i >= Source.length wholeSrc then
+    ()
+  else if j >= Seq.length toks orelse
+          Source.absoluteStartOffset (#source (Seq.nth toks j)) > i then
+    ( TextIO.output1 (TextIO.stdOut, Source.nth wholeSrc i)
+    ; loop (wholeSrc, i+1) (toks, j)
+    )
   else
     let
-      val {source, class} = Seq.nth toks i
-      val {line, col} = Source.absoluteStart source
-
-      val spaces =
-        if line = currLine then
-          CharVector.tabulate (col-currCol, fn _ => #" ")
-        else
-          CharVector.tabulate (line-currLine, fn _ => #"\n")
-          ^ CharVector.tabulate (col-1, fn _ => #" ")
-
-      val item = spaces ^ tokColor class ^ Source.toString source ^ TC.reset
+      val {source=thisSrc, class} = Seq.nth toks j
     in
-      loop (item :: acc) (toks, i+1) (Source.absoluteEnd source)
+      print (tokColor class);
+      print (Source.toString thisSrc);
+      print TC.reset;
+      loop (wholeSrc, Source.absoluteEndOffset thisSrc) (toks, j+1)
     end
 
 val _ =
@@ -116,7 +114,7 @@ val _ =
     case err of
       SOME e => print (LexResult.report e ^ "\n")
     | _ =>
-        ( loop [] (toks, 0) {line=1, col=1}
+        ( loop (source, 0) (toks, 0)
         ; print "\n"
         ; printLegend ()
         )

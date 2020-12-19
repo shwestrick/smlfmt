@@ -18,6 +18,9 @@ sig
   val absoluteStart: source -> {line: int, col: int}
   val absoluteEnd: source -> {line: int, col: int}
 
+  val absoluteStartOffset: source -> int
+  val absoluteEndOffset: source -> int
+
   val length: source -> int
   val nth: source -> int -> char
   val slice: source -> int * int -> source
@@ -72,23 +75,30 @@ struct
 
   fun fileName (s: source) = #fileName s
 
-  fun absoluteOffset ({data, ...}: source) =
+  fun absoluteStartOffset ({data, ...}: source) =
     let
       val (_, off, _) = ArraySlice.base data
     in
       off
     end
 
+  fun absoluteEndOffset ({data, ...}: source) =
+    let
+      val (_, off, n) = ArraySlice.base data
+    in
+      off + n
+    end
+
   fun absoluteStart (s as {newlineIdxs, ...}: source) =
-    if absoluteOffset s = 0 then
+    if absoluteStartOffset s = 0 then
       {line = 1, col = 1}
     else
       let
         val lineNum =
-          BinarySearch.search Int.compare newlineIdxs (absoluteOffset s)
+          BinarySearch.search Int.compare newlineIdxs (absoluteStartOffset s)
         val lineOffset =
           if lineNum = 0 then 0 else 1 + Seq.nth newlineIdxs (lineNum - 1)
-        val charNum = absoluteOffset s - lineOffset
+        val charNum = absoluteStartOffset s - lineOffset
       in
         (** Convert to 1-indexing *)
         {line = lineNum+1, col = charNum+1}

@@ -284,7 +284,8 @@ struct
           error acc
             { pos = slice (constStart, s)
             , what = "Invalid real constant."
-            , explain = SOME "After the dot, there needs to be at least one decimal digit."
+            , explain = SOME
+                "After the dot, there needs to be at least one decimal digit."
             }
 
 
@@ -463,7 +464,7 @@ struct
           error acc
             { pos = slice (s-1, s)
             , what = "Invalid escape sequence"
-            , explain = SOME "Three-digit escape sequences must be of the form \
+            , explain = SOME "Three-digit escape sequences must look like \
                              \\\DDD where D is a decimal digit."
             }
 
@@ -483,7 +484,7 @@ struct
           error acc
             { pos = slice (s-2, s-1)
             , what = "Invalid escape sequence."
-            , explain = SOME "Four-digit escape sequences must be of the form \
+            , explain = SOME "Four-digit escape sequences must look like \
                              \\\uXXXX where X is a hexadecimal digit."
             }
 
@@ -499,7 +500,7 @@ struct
             { pos = slice (s-2, s-1)
             , what = "Invalid escape sequence."
             , explain = SOME
-                "Control escape sequences must be of the form \\^C where C is \
+                "Control escape sequences should look like \\^C where C is \
                 \one of the following characters: @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
             }
 
@@ -523,9 +524,8 @@ struct
             { pos = slice (s, s+1)
             , what = "Invalid format escape character."
             , explain = SOME
-                "A formatting escape sequence must be of the form \\F...F\\ \
-                \where F is either a space, newline, tab, carriage-return, or \
-                \form-feed."
+                "Formatting escape sequences have to be enclosed by backslashes\
+                \and should only contain whitespace characters."
             }
 
 
