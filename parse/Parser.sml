@@ -5,7 +5,7 @@
 
 structure Parser:
 sig
-  val parse: Token.t Seq.t -> AST.t
+  val parse: Token.t Seq.t -> Ast.t
 end =
 struct
 
