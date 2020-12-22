@@ -171,6 +171,18 @@ sig
   structure Exp:
   sig
 
+    (** tyvarseq tycon = ty [and tyvarseq tycon = ty ...] *)
+    type typbind =
+      { elems:
+          { tyvars: Token.t SyntaxSeq.t
+          , tycon: MaybeLong.t
+          , eq: Token.t
+          , ty: Ty.t
+          } Seq.t
+      (** the `and` delimiters between bindings *)
+      , delims: Token.t Seq.t
+      }
+
 
     (** tyvarseq tycon = conbind [and tyvarseq tycon = conbind ...]
       * where conbind ::= [op] vid [of ty] [| [op] vid [of ty] ...]
@@ -190,6 +202,26 @@ sig
         } Seq.t
 
       (** the `and` delimiters between bindings *)
+      , delims: Token.t Seq.t
+      }
+
+
+    type 'exp fvalbind =
+      { elems:
+          { elems:
+              { opp: Token.t option
+              , id: Token.t
+              , args: Pat.atpat Seq.t
+              , ty: {colon: Token.t, ty: Ty.t} option
+              , eq: Token.t
+              , exp: 'exp
+              } Seq.t
+
+          (** the `|` delimiters *)
+          , delims: Token.t Seq.t
+          } Seq.t
+
+      (** the `and` delimiters *)
       , delims: Token.t Seq.t
       }
 
@@ -369,23 +401,24 @@ sig
         , delims: Token.t Seq.t
         }
 
+    (** fun tyvarseq [op]vid atpat ... atpat [: ty] = exp [| ...] *)
+    | DecFun of
+        { funn: Token.t
+        , tyvars: Token.t SyntaxSeq.t
+        , fvalbind: exp fvalbind
+        }
+
     (** type tyvarseq tycon = ty [and tyvarseq tycon = ty ...] *)
     | DecType of
         { typee: Token.t
-        , elems:
-            { tyvars: Token.t SyntaxSeq.t
-            , tycon: MaybeLong.t
-            , eq: Token.t
-            , ty: Ty.t
-            } Seq.t
-        (** the `and` delimiters between bindings *)
-        , delims: Token.t Seq.t
+        , typbind: typbind
         }
 
-    (** datatype datbind *)
+    (** datatype datbind [withtype typbind] *)
     | DecDatatype of
         { datatypee: Token.t
         , datbind: datbind
+        , withtypee: {withtypee: Token.t, typbind: typbind} option
         }
 
     (** datatype tycon = datatype longtycon *)
@@ -397,11 +430,13 @@ sig
         , right_id: MaybeLong.t
         }
 
-    (** abstype datbind with dec end *)
+    (** abstype datbind [withtype typbind] with dec end *)
     | DecAbstype of
         { abstypee: Token.t
         , datbind: datbind
+        , withtypee: {withtypee: Token.t, typbind: typbind} option
         , dec: dec
+        , endd: Token.t
         }
 
     (** exception exbind *)

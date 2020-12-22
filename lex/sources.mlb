@@ -6,5 +6,5 @@ LexUtils.sml
 Token.sml
 ShowLineError.sml
 LexResult.sml
-LEX.sml
+LEX.sig
 Lexer.sml
