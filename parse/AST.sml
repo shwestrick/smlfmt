@@ -41,7 +41,7 @@ sig
     | One of Token.t
     | Many of
         { left: Token.t         (** open paren *)
-        , elems: 'a Seq.t         (** elements *)
+        , elems: 'a Seq.t       (** elements *)
         , delims: Token.t Seq.t (** commas between elements *)
         , right: Token.t        (** close paren *)
         }
@@ -60,6 +60,14 @@ sig
     | Record of
         { left: Token.t
         , elems: {lab: Token.t, colon: Token.t, ty: ty} Seq.t
+        , delims: Token.t Seq.t
+        , right: Token.t
+        }
+
+    (** (ty * ... * ty) *)
+    | Tuple of
+        { left: Token.t
+        , elems: ty Seq.t
         , delims: Token.t Seq.t
         , right: Token.t
         }
@@ -188,7 +196,7 @@ sig
 
 
 
-    datatype atexp =
+    datatype exp =
       Const of Token.t
 
     (** [op] longvid *)
@@ -205,32 +213,67 @@ sig
         , right: Token.t
         }
 
-    (** ( pat ) *)
+    (** # label *)
+    | Select of
+        { hash: Token.t
+        , label: Token.t
+        }
+
+    (** () *)
+    | Unit of Token.t
+
+    (** (exp, ..., exp) *)
+    | Tuple of
+        { left: Token.t         (** open paren *)
+        , elems: exp Seq.t      (** elements *)
+        , delims: Token.t Seq.t (** commas between elements *)
+        , right: Token.t        (** close paren *)
+        }
+
+    (** [exp, ..., exp] *)
+    | List of
+        { left: Token.t
+        , elems: exp Seq.t
+        , delims: Token.t Seq.t
+        , right: Token.t
+        }
+
+    (** (exp; ...; exp) *)
+    | Sequence of
+        { left: Token.t
+        , elems: exp Seq.t
+        , delims: Token.t Seq.t
+        , right: Token.t
+        }
+
+    (** let dec in exp [; exp ...] end *)
+    | LetInEnd of
+        { lett: Token.t
+        , dec: dec
+        , inn: Token.t
+        , exps: exp Seq.t
+        , delims: Token.t Seq.t
+        , endd: Token.t
+        }
+
+    (** ( exp ) *)
     | Parens of
         { left: Token.t
         , exp: exp
         , right: Token.t
         }
 
-    (** let dec in exp end *)
-    | LetInEnd of
-        { lett: Token.t
-        , dec: dec
-        , inn: Token.t
-        , exp: exp
-        , endd: Token.t
-        }
-
-    and exp =
-      Atexp of atexp
-
-    (** exp atexp *)
+    (** exp exp
+      * (Note: needs to be restricted by AtExp < AppExp < InfExp < Exp)
+      *)
     | App of
         { left: exp     (** the function expression *)
-        , right: atexp  (** the argument expression *)
+        , right: exp    (** the argument expression *)
         }
 
-    (** exp vid exp *)
+    (** exp vid exp
+      * (Note: needs to be restricted by AtExp < AppExp < InfExp < Exp)
+      *)
     | Infix of
        { left: exp
        , id: Token.t
@@ -242,6 +285,20 @@ sig
         { exp: exp
         , colon: Token.t
         , ty: Ty.t
+        }
+
+    (** exp andalso exp *)
+    | Andalso of
+        { left: exp
+        , andalsoo: Token.t
+        , right: exp
+        }
+
+    (** exp orelse exp *)
+    | Orelse of
+        { left: exp
+        , orelsee: Token.t
+        , right: exp
         }
 
     (** exp handle pat => exp [| pat => exp ...] *)
@@ -256,6 +313,33 @@ sig
     | Raise of
         { raisee: Token.t
         , exp: exp
+        }
+
+    (** if exp then exp else exp *)
+    | IfThenElse of
+        { iff: Token.t
+        , exp1: exp
+        , thenn: Token.t
+        , exp2: exp
+        , elsee: Token.t
+        , exp3: exp
+        }
+
+    (** while exp do exp *)
+    | While of
+        { whilee: Token.t
+        , exp1: exp
+        , doo: Token.t
+        , exp2: exp
+        }
+
+    (** case exp of pat => exp [| pat => exp ...] *)
+    | Case of
+        { casee: Token.t
+        , exp: exp
+        , off: Token.t
+        , elems: {pat: Pat.t, arrow: Token.t, exp: exp} Seq.t
+        , delims: Token.t Seq.t   (** the bars between match rules *)
         }
 
     (** fn pat => exp [| pat => exp ...] *)
