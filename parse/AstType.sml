@@ -11,14 +11,14 @@
   * the colons in type annotations) but is great for completely tracking
   * provenance!
   *)
-signature AST =
-sig
+structure AstType =
+struct
 
   (** A maybe-long thing can be prefaced by structure identifiers, like
     * `Hello.World.thing` but also just `thing` (which has no qualifiers)
     *)
-  structure MaybeLong:
-  sig
+  structure MaybeLong =
+  struct
     type t =
       { qualifiers: Token.t Seq.t
       , thing: Token.t
@@ -34,8 +34,8 @@ sig
     *
     * e.g. tyseq, tyvarseq, etc.
     *)
-  structure SyntaxSeq:
-  sig
+  structure SyntaxSeq =
+  struct
     datatype 'a t =
       Empty
     | One of Token.t
@@ -51,8 +51,8 @@ sig
   (** ======================================================================
     * Types.
     *)
-  structure Ty:
-  sig
+  structure Ty =
+  struct
     datatype ty =
       Var of Token.t
 
@@ -99,8 +99,8 @@ sig
   (** ======================================================================
     * Patterns.
     *)
-  structure Pat:
-  sig
+  structure Pat =
+  struct
     datatype atpat =
       Wild of Token.t
 
@@ -168,8 +168,8 @@ sig
   (** ======================================================================
     * Expressions and declarations.
     *)
-  structure Exp:
-  sig
+  structure Exp =
+  struct
 
     (** tyvarseq tycon = ty [and tyvarseq tycon = ty ...] *)
     type typbind =
@@ -393,7 +393,7 @@ sig
         , tyvars: Token.t SyntaxSeq.t
         , elems:
             { recc: Token.t option
-            , pat: Pat.t,
+            , pat: Pat.t
             , eq: Token.t
             , exp: exp
             } Seq.t
@@ -507,8 +507,10 @@ sig
 
   end
 
+
+
   datatype ast =
-    Foobar
+    Dec of Exp.dec
 
   (** A fallback for unimplemented features, or for incrementality *)
   | Unknown of Token.t Seq.t

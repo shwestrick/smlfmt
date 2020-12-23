@@ -93,6 +93,12 @@ struct
   fun identifier src =
     WithSource.make {value = Identifier, source = src}
 
+  fun getClass tok =
+    WithSource.valOf tok
+
+  fun getSource tok =
+    WithSource.srcOf tok
+
   fun tryReserved src =
     let
       val str = CharVector.tabulate (Source.length src, Source.nth src)
