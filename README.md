@@ -1,21 +1,50 @@
-# parse-sml (work-in-progress)
+# parse-sml (WIP)
 
-New users of Standard ML are often presented with error messages that
-are incomprehensible (especially for a beginner), and other ML-like languages
-are probably similar. In my opinion, this initial barrier to entry is a major
-reason why ML-like languages are not more popular.
-
-The goal of this project is to develop a custom lexer/parser for Standard ML
-which helps both beginners and experts solve syntax errors quickly. Perhaps
-it could also eventually provide SML tooling. (I would love to
-have a comprehensive language server for SML...)
+I'm building a custom lexer/parser for Standard ML with the goal of providing
+better error messages. Perhaps it could also eventually provide SML tooling.
+(I would love to have a comprehensive language server for SML...)
 
 ## Current Status
 
-This project is very much in its initial stages.
-Currently, I'm working on the lexer, which is far enough along to at least
-provide a little bit of syntax highlighting. But don't expect any nice error
-messages yet.
+The lexer is done, and now I'm working on the parser.
+
+Currently, you can see lexing errors. For files that pass through lexing
+successfully, you can see a bit of syntax highlighting.
+
+## Examples
+
+```
+$ ./main test/fail/reserved-in-long-id.sml
+-- SYNTAX ERROR --------- test/fail/reserved-in-long-id.sml
+
+Unexpected reserved keyword.
+
+5| val z = X.and.b
+             ^^^
+Reserved keywords cannot be used as identifiers.
+```
+
+```
+$ ./main test/fail/bad-real.sml
+-- SYNTAX ERROR -------------------- test/fail/bad-real.sml
+
+Invalid real constant.
+
+1| val x = 1.E1
+           ^^
+After the dot, there needs to be at least one decimal digit.
+```
+
+```
+$ ./main test/fail/dots.sml
+-- SYNTAX ERROR ------------------------ test/fail/dots.sml
+
+Unexpected character.
+
+2| val {z, ..} = yo
+             ^
+Perhaps you meant: ...
+```
 
 ## Build and run
 
