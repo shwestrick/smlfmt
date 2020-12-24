@@ -3,16 +3,27 @@
   * See the file LICENSE for details.
   *)
 
-structure ShowLineError:
+structure LineError:
 sig
-  val show:
+  type t =
     { pos: Source.t
     , what: string
     , explain: string option
     }
-    -> string
+
+  type err = t
+
+  val show: err -> string
 end =
 struct
+
+  type t =
+    { pos: Source.t
+    , what: string
+    , explain: string option
+    }
+
+  type err = t
 
   fun repeatChar n c =
     CharVector.tabulate (n, fn _ => c)

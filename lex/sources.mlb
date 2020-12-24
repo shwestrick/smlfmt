@@ -2,9 +2,9 @@
 FilePath.sml
 Source.sml
 WithSource.sml
+MaybeError.sml
 LexUtils.sml
 Token.sml
-ShowLineError.sml
-LexResult.sml
+LineError.sml
 LEX.sig
 Lexer.sml

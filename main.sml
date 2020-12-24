@@ -108,14 +108,11 @@ val _ =
   let
     val infile = List.hd (CommandLine.arguments ())
     val source = Source.loadFromFile (FilePath.fromUnixPath infile)
-    val (toks, err) =
-      case Lexer.tokens source of
-        LexResult.Success toks => (toks, NONE)
-      | LexResult.Failure {partial=toks, error=err} => (toks, SOME err)
   in
-    case err of
-      SOME e => print (LexResult.report e ^ "\n")
-    | _ =>
+    case Lexer.tokens source of
+      MaybeError.Error e =>
+        print (LineError.show e)
+    | MaybeError.Success toks =>
         ( loop (source, 0) (toks, 0)
         ; print "\n"
         ; printLegend ()

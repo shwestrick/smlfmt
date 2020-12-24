@@ -5,5 +5,6 @@
 
 signature LEX =
 sig
-  val tokens: Source.t -> LexResult.t
+  val next: Source.t -> (Token.t, LineError.t) MaybeError.t option
+  val tokens: Source.t -> (Token.t Seq.t, LineError.t) MaybeError.t
 end
