@@ -33,7 +33,7 @@ fun tokColor class =
       green
   | Token.Reserved _ =>
       TC.bold ^ blue
-  | Token.Qualifier =>
+  | Token.LongIdentifier =>
       pink
   | Token.Identifier =>
       darkgreen
@@ -48,7 +48,7 @@ fun printLegend () =
       , Token.RealConstant
       , Token.Reserved Token.And  (* arbitrary... just need something reserved *)
       , Token.Identifier
-      , Token.Qualifier
+      , Token.LongIdentifier
       ]
     val boxWidth =
       List.foldl Int.max 0

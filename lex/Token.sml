@@ -76,7 +76,7 @@ struct
   | RealConstant
   | StringConstant
   | Identifier
-  | Qualifier
+  | LongIdentifier
 
   type token = class WithSource.t
   type t = token
@@ -87,8 +87,8 @@ struct
   fun reserved src rclass =
     WithSource.make {value = Reserved rclass, source = src}
 
-  fun qualifier src =
-    WithSource.make {value = Qualifier, source = src}
+  fun longIdentifier src =
+    WithSource.make {value = LongIdentifier, source = src}
 
   fun identifier src =
     WithSource.make {value = Identifier, source = src}
@@ -180,10 +180,10 @@ struct
     | RealConstant => "real"
     | StringConstant => "string"
     | Identifier => "identifier"
-    | Qualifier => "qualifier"
+    | LongIdentifier => "long identifier"
 
 
-  fun isValidQualifier src =
+  (* fun isValidQualifier src =
     Source.length src > 0 andalso
     Source.nth src 0 <> #"'" andalso
     List.all LexUtils.isAlphaNumPrimeOrUnderscore
@@ -199,6 +199,6 @@ struct
           raise Fail ("Token.switchIdentifierToQualifier on invalid qualifier: "
                       ^ Source.toString (WithSource.srcOf tok))
     | cls =>
-        raise Fail ("Token.switchIdentifierToQualifier " ^ classToString cls)
+        raise Fail ("Token.switchIdentifierToQualifier " ^ classToString cls) *)
 
 end

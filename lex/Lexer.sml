@@ -92,7 +92,7 @@ struct
               loop_alphanumId (s+1)
                 { idStart = s
                 , startsPrime = true
-                , isQualified = false
+                , longStart = NONE
                 }
           | #"0" =>
               loop_afterZero (s+1)
@@ -106,15 +106,15 @@ struct
                   , explain = NONE
                   }
               else
-                loop_symbolicId (s+1) {idStart = s, isQualified = false}
+                loop_symbolicId (s+1) {idStart = s, longStart = NONE}
           | c =>
               if LexUtils.isDecDigit c then
                 loop_decIntegerConstant (s+1) {constStart = s}
               else if LexUtils.isSymbolic c then
-                loop_symbolicId (s+1) {idStart = s, isQualified = false}
+                loop_symbolicId (s+1) {idStart = s, longStart = NONE}
               else if LexUtils.isLetter c then
                 loop_alphanumId (s+1)
-                  {idStart = s, startsPrime = false, isQualified = false}
+                  {idStart = s, startsPrime = false, longStart = NONE}
               else
                 loop_topLevel (s+1)
 
@@ -135,13 +135,14 @@ struct
           end
 
 
-      and loop_symbolicId s (args as {idStart, isQualified}) =
+      and loop_symbolicId s (args as {idStart, longStart}) =
         if check LexUtils.isSymbolic at s then
           loop_symbolicId (s+1) args
         else
           let
             val srcHere = slice (idStart, s)
-            val tok = Token.reservedOrIdentifier (srcHere)
+            val tok = Token.reservedOrIdentifier srcHere
+            val isQualified = Option.isSome longStart
           in
             if Token.isReserved tok andalso isQualified then
               error
@@ -149,19 +150,22 @@ struct
                 , what = "Unexpected reserved symbol."
                 , explain = SOME "Reserved symbols cannot be used as identifiers."
                 }
-            else
+            else if not isQualified then
               success tok
+            else
+              success (mk Token.LongIdentifier (Option.valOf longStart, s))
           end
 
 
 
-      and loop_alphanumId s (args as {idStart, startsPrime, isQualified}) =
+      and loop_alphanumId s (args as {idStart, startsPrime, longStart}) =
         if check LexUtils.isAlphaNumPrimeOrUnderscore at s then
           loop_alphanumId (s+1) args
         else
           let
             val srcHere = slice (idStart, s)
             val tok = Token.reservedOrIdentifier srcHere
+            val isQualified = Option.isSome longStart
           in
             if Token.isReserved tok andalso (isQualified orelse is #"." at s) then
               error
@@ -176,30 +180,27 @@ struct
                 , explain = SOME "Qualifiers cannot start with a prime (')"
                 }
             else if is #"." at s then
-              (** TODO FIXME *)
-              error
-                { pos = slice (s, s+1)
-                , what = "Whoops! My bad! Need to fix long identifiers!"
-                , explain = SOME "(I'm in the process of doing a refactoring... bear with me)"
-                }
-              (* loop_continueLongIdentifier
-                (Token.switchIdentifierToQualifier tok :: acc)
-                (s+1) *)
-            else
+              loop_continueLongIdentifier (s+1)
+                { longStart = if isQualified then longStart else SOME idStart }
+            else if not isQualified then
               success tok
+            else
+              success (mk Token.LongIdentifier (Option.valOf longStart, s))
           end
 
 
 
-(*
-      and loop_continueLongIdentifier s =
+      and loop_continueLongIdentifier s {longStart} =
         if check LexUtils.isSymbolic at s then
-          loop_symbolicId (s+1) {idStart = s, isQualified = true}
+          loop_symbolicId (s+1)
+            { idStart = s
+            , longStart = longStart
+            }
         else if check LexUtils.isLetter at s then
           loop_alphanumId (s+1)
             { idStart = s
             , startsPrime = false
-            , isQualified = true
+            , longStart = longStart
             }
         else
           error
@@ -207,7 +208,6 @@ struct
             , what = "Unexpected character."
             , explain = SOME "Identifiers have to start with a letter or symbol."
             }
-*)
 
 
       (** After seeing a twiddle, we might be at the beginning of an integer
@@ -222,7 +222,7 @@ struct
         else if check LexUtils.isDecDigit at s then
           loop_decIntegerConstant (s+1) {constStart = s - 1}
         else if check LexUtils.isSymbolic at s then
-          loop_symbolicId (s+1) {idStart = s - 1, isQualified = false}
+          loop_symbolicId (s+1) {idStart = s - 1, longStart = NONE}
         else
           success (mk Token.Identifier (s - 1, s))
 
@@ -361,25 +361,7 @@ struct
           loop_decWordConstant (s+1) {constStart = s - 2}
         else
           success (mk Token.IntegerConstant (s - 2, s - 1))
-(*
-          let
-            val zeroIntConstant =
-              mk Token.IntegerConstant (s - 2, s - 1)
-          in
-            if isEndOfFileAt s then
-              (** A funny edge case. Need to parse the "0" as an integer
-                * constant, and the "w" as an identifier. To get the "w", we
-                * back up to s-1 and continue as an alphanumId.
-                *)
-              loop_alphanumId (zeroIntConstant :: acc) (s-1)
-                  { idStart = s-1
-                  , startsPrime = false
-                  , isQualified = false
-                  }
-            else
-              loop_topLevel (zeroIntConstant :: acc) (s-1)
-          end
-*)
+
 
 
       (** An open-paren could just be a normal paren, or it could be the
@@ -523,7 +505,7 @@ struct
             , what = "Invalid format escape character."
             , explain = SOME
                 "Formatting escape sequences have to be enclosed by backslashes\
-                \and should only contain whitespace characters."
+                \ and should only contain whitespace characters."
             }
 
 
@@ -560,17 +542,22 @@ struct
       val endOffset = Source.absoluteEndOffset src
       val src = Source.wholeFile src
 
+      fun tokEndOffset tok =
+        Source.absoluteEndOffset (WithSource.srcOf tok)
+
+      fun finish acc =
+        MaybeError.Success (Seq.rev (Seq.fromList acc))
+
       fun loop acc offset =
         if offset >= endOffset then
-          MaybeError.Success (Seq.rev (Seq.fromList acc))
+          finish acc
         else
           case next (Source.drop src offset) of
             NONE =>
-              MaybeError.Success (Seq.rev (Seq.fromList acc))
+              finish acc
           | SOME tokOrErr =>
-              MaybeError.andThen tokOrErr (fn (tok: Token.t) =>
-                loop (tok :: acc) (Source.absoluteEndOffset (WithSource.srcOf tok))
-              )
+              MaybeError.andThen tokOrErr (fn tok =>
+                loop (tok :: acc) (tokEndOffset tok))
     in
       loop [] startOffset
     end
