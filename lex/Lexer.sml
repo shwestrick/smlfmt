@@ -543,7 +543,7 @@ struct
       val src = Source.wholeFile src
 
       fun tokEndOffset tok =
-        Source.absoluteEndOffset (WithSource.srcOf tok)
+        Source.absoluteEndOffset (Token.getSource tok)
 
       fun finish acc =
         MaybeError.Success (Seq.rev (Seq.fromList acc))

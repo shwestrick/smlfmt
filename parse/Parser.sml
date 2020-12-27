@@ -5,14 +5,11 @@
 
 structure Parser:
 sig
-  val parse: Token.t Seq.t -> ParseResult.t
+  val parse: Source.t -> (Ast.t, LineError.t) MaybeError.t
 end =
 struct
 
-  fun parse toks =
-    ParseResult.Success (Ast.Unknown toks)
-
-
+(*
   fun parse toks =
     let
       val numToks = Seq.length toks
@@ -31,7 +28,6 @@ struct
       (** This silliness lets you write almost-English like this:
         *   if is Token.Identifier at i           then ...
         *   if isReserved Token.Val at i          then ...
-        *   if is (Token.Reserved Token.Val) at i then ...
         *   if check isTyVar at i                 then ...
         *)
       infix 5 at
@@ -93,10 +89,45 @@ struct
         *     ^
         *)
       and loop_decVal acc i =
+        if isReserved Token.OpenParen at i andalso check isTyVar at (i+1) then
         let
           val (i, tyvars) = consume_tyvars i
         in
         end
+    in
+    end
+*)
+
+  fun parse src =
+    let
+      fun nextFrom i =
+        Lexer.next (Source.drop src i)
+
+      fun tokEndOffset tok =
+        Source.absoluteEndOffset (Token.getSource tok)
+
+      fun loop_topLevel acc i =
+        let
+          val tok = nextFromOffset i
+          val i' = tokEndOffset tok
+        in
+          case Token.getClass tok of
+            Token.Comment =>
+              loop_topLevel acc i'
+
+          | Token.Reserved Token.Val =>
+              loop_decVal acc i'
+
+          | _ =>
+              error acc
+                { pos = Token.getSource tok
+                , what = "Unexpected token (not implemented yet)"
+                , explain = NONE
+                }
+        end
+
+      and loop_decVal =
+
     in
     end
 
