@@ -13,6 +13,10 @@ sig
             -> ('a -> ('b, 'err) t)
             -> ('b, 'err) t
 
+  val map: ('a, 'err) t
+        -> ('a -> 'b)
+        -> ('b, 'err) t
+
 end =
 struct
   datatype ('a, 'err) t =
@@ -23,4 +27,7 @@ struct
     case maybeErr of
       Success x => f x
     | Error err => Error err
+
+  fun map maybeErr f =
+    andThen maybeErr (Success o f)
 end

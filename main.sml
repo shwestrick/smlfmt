@@ -108,14 +108,11 @@ val _ =
   let
     val infile = List.hd (CommandLine.arguments ())
     val source = Source.loadFromFile (FilePath.fromUnixPath infile)
+    val toks = Lexer.tokens source
   in
-    case Lexer.tokens source of
-      MaybeError.Error e =>
-        print (LineError.show e)
-    | MaybeError.Success toks =>
-        ( loop (source, 0) (toks, 0)
-        ; print "\n"
-        ; printLegend ()
-        )
+    loop (source, 0) (toks, 0);
+    print "\n";
+    printLegend ()
   end
+  handle Lexer.Error e => print (LineError.show e)
 

@@ -6,40 +6,22 @@
 structure Lexer: LEX =
 struct
 
+  exception Error of LineError.t
+
   (** This is just to get around annoying bad syntax highlighting for SML... *)
   val backslash = #"\\" (* " *)
 
-  (** =====================================================================
-    * STATE MACHINE
-    *
-    * This bunch of mutually-recursive functions implements an efficient
-    * state machine. Each is named `loop_<STATE_NAME>`. The arguments are
-    * always
-    *   `loop_XXX acc stream [args]`
-    * where
-    *   `acc` is a token accumulator,
-    *   `stream` is the rest of the input, and
-    *   `args` is a state-dependent state (haha)
-    *)
-
   fun success tok =
-    SOME (MaybeError.Success tok)
+    SOME tok
 
   fun error errSpec =
-    SOME (MaybeError.Error errSpec)
+    raise Error errSpec
 
 
-  fun next (src: Source.t) : (Token.t, LineError.t) MaybeError.t option =
+  fun next (src: Source.t) : Token.t option =
     let
       val startOffset = Source.absoluteStartOffset src
-      (* val {line, col} = Source.absoluteStart src *)
       val src = Source.wholeFile src
-
-      (* val _ = print ("next at " ^ "(line "
-    ^ Int.toString line
-    ^ ", col "
-    ^ Int.toString col
-    ^ ")" ^ "\n") *)
 
       (** Some helpers for making source slices and tokens. *)
       fun slice (i, j) = Source.slice src (i, j-i)
@@ -60,6 +42,17 @@ struct
       fun check f i = i < Source.length src andalso f (get i)
       fun is c = check (fn c' => c = c')
 
+      (** ====================================================================
+        * STATE MACHINE
+        *
+        * This bunch of mutually-recursive functions implements an efficient
+        * state machine. Each is named `loop_<STATE_NAME>`. The arguments
+        * are always
+        *   `loop_XXX s [args]`
+        * where
+        *   `s` is the current position, and
+        *   `args` is a state-dependent state (haha)
+        *)
 
       fun loop_topLevel s =
         if isEndOfFileAt s then
@@ -546,7 +539,7 @@ struct
         Source.absoluteEndOffset (Token.getSource tok)
 
       fun finish acc =
-        MaybeError.Success (Seq.rev (Seq.fromList acc))
+        Seq.rev (Seq.fromList acc)
 
       fun loop acc offset =
         if offset >= endOffset then
@@ -555,9 +548,8 @@ struct
           case next (Source.drop src offset) of
             NONE =>
               finish acc
-          | SOME tokOrErr =>
-              MaybeError.andThen tokOrErr (fn tok =>
-                loop (tok :: acc) (tokEndOffset tok))
+          | SOME tok =>
+              loop (tok :: acc) (tokEndOffset tok)
     in
       loop [] startOffset
     end
