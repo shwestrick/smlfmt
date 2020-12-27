@@ -1,10 +1,6 @@
-../lib/sources.mlb
-FilePath.sml
-Source.sml
-WithSource.sml
-MaybeError.sml
+../base/sources.mlb
+
 LexUtils.sml
 Token.sml
-LineError.sml
 LEX.sig
 Lexer.sml
