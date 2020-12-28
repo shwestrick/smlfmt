@@ -175,7 +175,7 @@ struct
         *)
       and advance_inStringFormatEscapeSequence s (args as {stringStart, escapeStart}) =
         if is backslash at s then
-          SOME (s+1)
+          advance_oneCharInString (s+1) {stringStart=stringStart}
         else if check LexUtils.isValidFormatEscapeChar at s then
           advance_inStringFormatEscapeSequence (s+1) args
         else if isEndOfFileAt s then
