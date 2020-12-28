@@ -3,7 +3,20 @@
   * See the file LICENSE for details.
   *)
 
-structure Lexer: LEX =
+structure Lexer:
+sig
+  exception Error of LineError.t
+
+  (** Get the next token in the given source. If there isn't one, returns NONE.
+    * raises Error if there's a problem.
+    *)
+  val next: Source.t -> Token.t option
+
+  (** Get all the tokens in the given source.
+    * raises Error if there's a problem.
+    *)
+  val tokens: Source.t -> Token.t Seq.t
+end =
 struct
 
   exception Error of LineError.t
@@ -42,6 +55,155 @@ struct
       fun check f i = i < Source.length src andalso f (get i)
       fun is c = check (fn c' => c = c')
 
+
+      (** ====================================================================
+        * STRING HANDLING
+        *)
+
+      fun advance_oneCharInString s (args as {stringStart}) =
+        if is backslash at s then
+          advance_inStringEscapeSequence (s+1) args
+        else if is #"\"" at s then
+          NONE
+        else if is #"\n" at s orelse isEndOfFileAt s then
+          error
+            { pos = slice (stringStart, stringStart+1)
+            , what = "Unclosed string."
+            , explain = NONE
+            }
+        else if not (check Char.isPrint at s) then
+          error
+            { pos = slice (s, s+1)
+            , what = "Invalid character."
+            , explain = SOME "Strings can only contain printable (visible or \
+                             \whitespace) ASCII characters."
+            }
+        else
+          SOME (s+1)
+
+
+
+      (** Inside a string, immediately after a backslash *)
+      and advance_inStringEscapeSequence s (args as {stringStart}) =
+        if check LexUtils.isValidSingleEscapeChar at s then
+          (** Includes e.g. \t, \n, \", \\, etc. *)
+          SOME (s+1)
+        else if check LexUtils.isValidFormatEscapeChar at s then
+          advance_inStringFormatEscapeSequence (s+1)
+            { stringStart = stringStart
+            , escapeStart = s-1
+            }
+        else if is #"^" at s then
+          advance_inStringControlEscapeSequence (s+1) args
+        else if is #"u" at s then
+          advance_inStringFourDigitEscapeSequence (s+1) args
+        else if check LexUtils.isDecDigit at s then
+          (** Note the `s` instead of `s+1`... intentional. *)
+          advance_inStringThreeDigitEscapeSequence s args
+        else if isEndOfFileAt s then
+          error
+            { pos = slice (stringStart, stringStart+1)
+            , what = "Unclosed string."
+            , explain = NONE
+            }
+        else
+          error
+            { pos = slice (s-1, s+1)
+            , what = "Invalid escape sequence."
+            , explain = NONE
+            }
+
+
+
+      (** In a string, expecting to see \ddd
+        * with s immediately after the backslash
+        *)
+      and advance_inStringThreeDigitEscapeSequence s args =
+        if
+          check LexUtils.isDecDigit at s andalso
+          check LexUtils.isDecDigit at s+1 andalso
+          check LexUtils.isDecDigit at s+2
+        then
+          SOME (s+3)
+        else
+          error
+            { pos = slice (s-1, s)
+            , what = "Invalid escape sequence"
+            , explain = SOME "Three-digit escape sequences must look like \
+                             \\\DDD where D is a decimal digit."
+            }
+
+
+      (** In a string, expecting to see \uxxxx
+        * with s immediately after the u
+        *)
+      and advance_inStringFourDigitEscapeSequence s args =
+        if
+          check LexUtils.isHexDigit at s andalso
+          check LexUtils.isHexDigit at s+1 andalso
+          check LexUtils.isHexDigit at s+2 andalso
+          check LexUtils.isHexDigit at s+3
+        then
+          SOME (s+4)
+        else
+          error
+            { pos = slice (s-2, s-1)
+            , what = "Invalid escape sequence."
+            , explain = SOME "Four-digit escape sequences must look like \
+                             \\\uXXXX where X is a hexadecimal digit."
+            }
+
+
+      (** "...\^C
+        *       ^
+        *)
+      and advance_inStringControlEscapeSequence s (args as {stringStart}) =
+        if check LexUtils.isValidControlEscapeChar at s then
+          SOME (s+1)
+        else
+          error
+            { pos = slice (s-2, s-1)
+            , what = "Invalid escape sequence."
+            , explain = SOME
+                "Control escape sequences should look like \\^C where C is \
+                \one of the following characters: @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
+            }
+
+
+      (** Inside a string, expecting to be inside a \f...f\
+        * where each f is a format character (space, newline, tab, etc.)
+        *)
+      and advance_inStringFormatEscapeSequence s (args as {stringStart, escapeStart}) =
+        if is backslash at s then
+          SOME (s+1)
+        else if check LexUtils.isValidFormatEscapeChar at s then
+          advance_inStringFormatEscapeSequence (s+1) args
+        else if isEndOfFileAt s then
+          error
+            { pos = slice (escapeStart, escapeStart+1)
+            , what = "Unclosed format escape sequence."
+            , explain = NONE
+            }
+        else
+          error
+            { pos = slice (s, s+1)
+            , what = "Invalid format escape character."
+            , explain = SOME
+                "Formatting escape sequences have to be enclosed by backslashes\
+                \ and should only contain whitespace characters."
+            }
+
+
+
+      fun advance_toEndOfString s (args as {stringStart}) =
+        case advance_oneCharInString s args of
+          SOME s' => advance_toEndOfString s' args
+        | NONE =>
+            if is #"\"" at s then
+              s+1
+            else
+              raise Fail "Lexer.advance_toEndOfString: bug"
+
       (** ====================================================================
         * STATE MACHINE
         *
@@ -78,7 +240,11 @@ struct
           | #"_" =>
               success (mkr Token.Underscore (s, s+1))
           | #"\"" =>
-              loop_inString (s+1) {stringStart = s}
+              let
+                val s' = advance_toEndOfString (s+1) {stringStart = s}
+              in
+                success (mk Token.StringConstant (s, s'))
+              end
           | #"~" =>
               loop_afterTwiddle (s+1)
           | #"'" =>
@@ -100,6 +266,11 @@ struct
                   }
               else
                 loop_symbolicId (s+1) {idStart = s, longStart = NONE}
+          | #"#" =>
+              if is #"\"" at s+1 then
+                loop_charConstant (s+2)
+              else
+                loop_symbolicId (s+1) {idStart = s, longStart = NONE}
           | c =>
               if LexUtils.isDecDigit c then
                 loop_decIntegerConstant (s+1) {constStart = s}
@@ -110,6 +281,30 @@ struct
                   {idStart = s, startsPrime = false, longStart = NONE}
               else
                 loop_topLevel (s+1)
+
+
+
+      (** #"...
+        *   ^
+        *)
+      and loop_charConstant s =
+        case advance_oneCharInString s {stringStart = s-1} of
+          SOME s' =>
+            if is #"\"" at s' then
+              success (mk Token.CharConstant (s-2, s'+1))
+            else
+              error
+                { pos = slice (s', s'+1)
+                , what = "Character constant contains more than one character."
+                , explain = NONE
+                }
+
+        | NONE =>
+            error
+              { pos = slice (s-2, s)
+              , what = "Character constant is empty."
+              , explain = NONE
+              }
 
 
 
@@ -367,7 +562,7 @@ struct
           success (mkr Token.OpenParen (s - 1, s))
 
 
-
+(*
       and loop_inString s (args as {stringStart}) =
         if is backslash at s then
           loop_inStringEscapeSequence (s+1) args
@@ -500,7 +695,7 @@ struct
                 "Formatting escape sequences have to be enclosed by backslashes\
                 \ and should only contain whitespace characters."
             }
-
+*)
 
 
       (** Inside a comment that started at `commentStart`

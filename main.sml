@@ -16,6 +16,7 @@ val yellow = TC.foreground (TC.hsv {h=60.0, s=0.75, v=0.65})
 val blue = TC.foreground (TC.hsv {h=240.0, s=0.65, v=0.85})
 val lightblue = TC.foreground (TC.hsv {h=180.0, s=1.0, v=0.75})
 val pink = TC.foreground (TC.hsv {h=300.0, s=1.0, v=0.75})
+val purple = TC.foreground (TC.hsv {h=269.0, s=0.94, v=1.0})
 val gray = TC.foreground (TC.hsv {h=0.0, s=0.0, v=0.55})
 val black = TC.foreground TC.black
 
@@ -23,6 +24,8 @@ fun tokColor class =
   case class of
     Token.StringConstant =>
       red
+  | Token.CharConstant =>
+      purple
   | Token.WordConstant =>
       yellow
   | Token.Comment =>
@@ -45,6 +48,7 @@ fun printLegend () =
       , Token.StringConstant
       , Token.WordConstant
       , Token.IntegerConstant
+      , Token.CharConstant
       , Token.RealConstant
       , Token.Reserved Token.And  (* arbitrary... just need something reserved *)
       , Token.Identifier

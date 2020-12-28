@@ -74,6 +74,7 @@ struct
   | IntegerConstant
   | WordConstant
   | RealConstant
+  | CharConstant
   | StringConstant
   | Identifier
   | LongIdentifier
@@ -171,6 +172,18 @@ struct
       Reserved _ => true
     | _ => false
 
+  (** SML permits ints, strings, words, and chars as constants in patterns,
+    * but NOT reals.
+    *)
+  fun isPatternConstant tok =
+    case WithSource.valOf tok of
+      IntegerConstant => true
+    | WordConstant => true
+    | StringConstant => true
+    | CharConstant => true
+    | _ => false
+
+
   fun classToString class =
     case class of
       Comment => "comment"
@@ -179,6 +192,7 @@ struct
     | WordConstant => "word"
     | RealConstant => "real"
     | StringConstant => "string"
+    | CharConstant => "char"
     | Identifier => "identifier"
     | LongIdentifier => "long identifier"
 
