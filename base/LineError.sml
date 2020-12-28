@@ -6,7 +6,8 @@
 structure LineError:
 sig
   type t =
-    { pos: Source.t
+    { header: string
+    , pos: Source.t
     , what: string
     , explain: string option
     }
@@ -18,7 +19,8 @@ end =
 struct
 
   type t =
-    { pos: Source.t
+    { header: string
+    , pos: Source.t
     , what: string
     , explain: string option
     }
@@ -100,7 +102,7 @@ struct
     end
 
 
-  fun show {pos, what=msg, explain=extraInfo} =
+  fun show {header, pos, what=msg, explain=extraInfo} =
     let
       val {line=lineNum, col=colStart} = Source.absoluteStart pos
       val {line=lineNum', col=colEnd} = Source.absoluteEnd pos
@@ -124,7 +126,9 @@ struct
         | SOME info => textWrap info
     in
       justifyWith #"-"
-        ("-- SYNTAX ERROR ", " " ^ FilePath.toHostPath (Source.fileName pos))
+        ( "-- " ^ header ^ " "
+        , " " ^ FilePath.toHostPath (Source.fileName pos)
+        )
       ^ "\n\n"
       ^ msg ^ "\n\n"
       ^ leftMargin ^ Source.toString line ^ "\n"

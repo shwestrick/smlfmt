@@ -27,8 +27,13 @@ struct
   fun success tok =
     SOME tok
 
-  fun error errSpec =
-    raise Error errSpec
+  fun error {pos, what, explain} =
+    raise Error
+      { header = "SYNTAX ERROR"
+      , pos = pos
+      , what = what
+      , explain = explain
+      }
 
 
   fun next (src: Source.t) : Token.t option =
@@ -301,7 +306,7 @@ struct
 
         | NONE =>
             error
-              { pos = slice (s-2, s)
+              { pos = slice (s-2, s+1)
               , what = "Character constant is empty."
               , explain = NONE
               }
