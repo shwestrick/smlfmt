@@ -13,6 +13,14 @@ struct
   structure MaybeLong =
   struct
     open AstType.MaybeLong
+
+    fun make (tok: Token.t) : t =
+      case Token.getClass tok of
+        Token.Identifier => tok
+      | Token.LongIdentifier => tok
+      | cls =>
+          raise Fail ("Ast.MaybeLong.make: given non-identifier ("
+                      ^ Token.classToString cls ^ ")")
   end
 
   structure SyntaxSeq =

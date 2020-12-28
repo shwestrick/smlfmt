@@ -5,24 +5,22 @@
 
 structure Parser:
 sig
-  val parse: Source.t -> (Ast.t, LineError.t) MaybeError.t
+  exception Error of LineError.t
+  val parse: Source.t -> Ast.t
 end =
 struct
 
-(*
-  fun parse toks =
+  exception Error of LineError.t
+
+  fun error errSpec =
+    raise Error errSpec
+
+  fun parse src =
     let
+      (** This might raise Lexer.Error *)
+      val toks = Lexer.tokens src
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-
-      fun success acc =
-        ParseResult.Success acc
-
-      fun error acc errSpec =
-        ParseResult.Failure
-          { partial = acc
-          , error = ParseResult.Error errSpec
-          }
 
 
       (** This silliness lets you write almost-English like this:
@@ -37,7 +35,7 @@ struct
       fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
 
-      fun consume_tyvarSeqMany i (args as {start}) =
+      fun consume_tyvarsMany i (args as {start}) =
         if isReserved Token.CloseParen at i then
           let
             val numElems = (i-start) div 2
@@ -54,15 +52,66 @@ struct
             (i+1, result)
           end
         else if isReserved Token.Comma at i andalso check isTyVar at (i+1) then
-          consume_tyvarSeqMany (i+2) args
+          consume_tyvarsMany (i+2) args
         else
-          (** TODO: need to restructure in terms of some sort of error Monad?? *)
-          raise Fail "Error: consume_tyvarSeqMany"
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Invalid type-variable sequence"
+            , explain = "Expected to see something that looks like ('a, 'b, 'c)"
+            }
 
 
       fun consume_tyvars i =
-        if isReserved Token.OpenParen at i andalso check isTyVar at (i+1) then
-          consume_tyvarSeqMany (i+2) {start = i}
+        if check isTyVar at i then
+          (i+1, Ast.SyntaxSeq.One (tok i))
+        else if isReserved Token.OpenParen at i andalso check isTyVar at (i+1) then
+          consume_tyvarsMany (i+2) {start = i}
+        else
+          (i, Ast.SyntaxSeq.Empty)
+
+
+      fun consume_maybeRec i =
+        if isReserved Token.Rec at i then
+          (i+1, SOME (tok i))
+        else
+          (i, NONE)
+
+
+      fun consume_pat i =
+        if isReserved Token.Underscore at i then
+          ( i+1
+          , Ast.Pat.Atpat (Ast.Pat.Wild (tok i))
+          )
+        else if check Token.isPatternConstant at i then
+          ( i+1
+          , Ast.Pat.Atpat (Ast.Pat.Const (tok i))
+          )
+        else if isReserved Token.Op at i then
+          (** TODO *)
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Not implemented yet."
+            , explain = NONE
+            }
+        else if isReserved Token.OpenParen at i then
+          let
+            val (i', pat) = consume_pat (i+1)
+          in
+            if isReserved Token.CloseParen at i' then
+              ( i'+1
+              , Ast.Pat.Parens
+                  { left = tok i
+                  , pat = pat
+                  , right = tok i'
+                  }
+              )
+            else
+              error
+                { pos = Token.getSource (tok i)
+                , what = "Unmatched parentheses in pattern."
+                , explain = NONE
+                }
+          end
 
 
       fun loop_topLevel acc i =
@@ -78,7 +127,7 @@ struct
               loop_decVal acc (i+1)
 
           | _ =>
-              error acc
+              error
                 { pos = Token.getSource (tok i)
                 , what = "Unexpected token (not implemented yet)"
                 , explain = NONE
@@ -89,46 +138,15 @@ struct
         *     ^
         *)
       and loop_decVal acc i =
-        if isReserved Token.OpenParen at i andalso check isTyVar at (i+1) then
         let
           val (i, tyvars) = consume_tyvars i
+          val (i, recc) = consume_maybeRec i
+          val (i, pat) = consume_pat i
         in
         end
-    in
-    end
-*)
-
-  fun parse src =
-    let
-      fun nextFrom i =
-        Lexer.next (Source.drop src i)
-
-      fun tokEndOffset tok =
-        Source.absoluteEndOffset (Token.getSource tok)
-
-      fun loop_topLevel acc i =
-        let
-          val tok = nextFromOffset i
-          val i' = tokEndOffset tok
-        in
-          case Token.getClass tok of
-            Token.Comment =>
-              loop_topLevel acc i'
-
-          | Token.Reserved Token.Val =>
-              loop_decVal acc i'
-
-          | _ =>
-              error acc
-                { pos = Token.getSource tok
-                , what = "Unexpected token (not implemented yet)"
-                , explain = NONE
-                }
-        end
-
-      and loop_decVal =
 
     in
     end
+
 
 end

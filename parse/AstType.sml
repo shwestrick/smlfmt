@@ -19,10 +19,7 @@ struct
     *)
   structure MaybeLong =
   struct
-    type t =
-      { qualifiers: Token.t Seq.t
-      , thing: Token.t
-      }
+    type t = Token.t
   end
 
 
