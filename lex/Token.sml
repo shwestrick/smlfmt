@@ -168,21 +168,46 @@ struct
     | NONE => identifier src
 
   fun isReserved (tok: token) =
-    case WithSource.valOf tok of
+    case getClass tok of
       Reserved _ => true
+    | _ => false
+
+  fun isComment tok =
+    case getClass tok of
+      Comment => true
+    | _ => false
+
+  fun isMaybeLongIdentifier tok =
+    case getClass tok of
+      Identifier => true
+    | LongIdentifier => true
+    | _ => false
+
+  (** tyvars are small identifiers that begin with a prime *)
+  fun isTyVar tok =
+    case getClass tok of
+      Identifier => Source.nth (getSource tok) 0 = #"'"
     | _ => false
 
   (** SML permits ints, strings, words, and chars as constants in patterns,
     * but NOT reals.
     *)
   fun isPatternConstant tok =
-    case WithSource.valOf tok of
+    case getClass tok of
       IntegerConstant => true
     | WordConstant => true
     | StringConstant => true
     | CharConstant => true
     | _ => false
 
+  fun isConstant tok =
+    case getClass tok of
+      IntegerConstant => true
+    | WordConstant => true
+    | StringConstant => true
+    | CharConstant => true
+    | RealConstant => true
+    | _ => false
 
   fun classToString class =
     case class of

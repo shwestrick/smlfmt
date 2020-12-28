@@ -12,13 +12,20 @@ struct
 
   exception Error of LineError.t
 
-  fun error errSpec =
-    raise Error errSpec
+  fun error {what, pos, explain} =
+    raise Error
+      { header = "PARSE ERROR"
+      , pos = pos
+      , what = what
+      , explain = explain
+      }
+
 
   fun parse src =
     let
       (** This might raise Lexer.Error *)
-      val toks = Lexer.tokens src
+      val toksWithComments = Lexer.tokens src
+      val toks = Seq.filter (not o Token.isComment) toksWithComments
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
 
@@ -51,20 +58,20 @@ struct
           in
             (i+1, result)
           end
-        else if isReserved Token.Comma at i andalso check isTyVar at (i+1) then
+        else if isReserved Token.Comma at i andalso check Token.isTyVar at (i+1) then
           consume_tyvarsMany (i+2) args
         else
           error
             { pos = Token.getSource (tok i)
             , what = "Invalid type-variable sequence"
-            , explain = "Expected to see something that looks like ('a, 'b, 'c)"
+            , explain = SOME "Expected to see something that looks like ('a, 'b, 'c)"
             }
 
 
       fun consume_tyvars i =
-        if check isTyVar at i then
+        if check Token.isTyVar at i then
           (i+1, Ast.SyntaxSeq.One (tok i))
-        else if isReserved Token.OpenParen at i andalso check isTyVar at (i+1) then
+        else if isReserved Token.OpenParen at i andalso check Token.isTyVar at (i+1) then
           consume_tyvarsMany (i+2) {start = i}
         else
           (i, Ast.SyntaxSeq.Empty)
@@ -86,6 +93,13 @@ struct
           ( i+1
           , Ast.Pat.Atpat (Ast.Pat.Const (tok i))
           )
+        else if check Token.isMaybeLongIdentifier at i then
+          ( i+1
+          , Ast.Pat.Atpat (Ast.Pat.Ident
+              { opp = NONE
+              , id = tok i
+              })
+          )
         else if isReserved Token.Op at i then
           (** TODO *)
           error
@@ -99,11 +113,11 @@ struct
           in
             if isReserved Token.CloseParen at i' then
               ( i'+1
-              , Ast.Pat.Parens
+              , Ast.Pat.Atpat (Ast.Pat.Parens
                   { left = tok i
                   , pat = pat
                   , right = tok i'
-                  }
+                  })
               )
             else
               error
@@ -112,40 +126,80 @@ struct
                 , explain = NONE
                 }
           end
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token (not implemented yet)"
+            , explain = NONE
+            }
 
 
-      fun loop_topLevel acc i =
+      fun consume_eq i =
+        if isReserved Token.Equal at i then
+          (i+1, tok i)
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Expected to see '=' but found something else."
+            , explain = NONE
+            }
+
+
+      fun loop_topLevel i =
         if i >= numToks then
           (** DONE *)
-          success acc
+          raise Fail "EOF"
+        else if isReserved Token.Val at i then
+          consume_decVal (i+1)
         else
-          case Token.getClass (tok i) of
-            Token.Comment =>
-              loop_topLevel acc (i+1)
-
-          | Token.Reserved Token.Val =>
-              loop_decVal acc (i+1)
-
-          | _ =>
-              error
-                { pos = Token.getSource (tok i)
-                , what = "Unexpected token (not implemented yet)"
-                , explain = NONE
-                }
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token (not implemented yet)"
+            , explain = NONE
+            }
 
 
       (** val tyvarseq [rec] pat = exp [and [rec] pat = exp ...]
         *     ^
         *)
-      and loop_decVal acc i =
+      and consume_decVal i =
         let
           val (i, tyvars) = consume_tyvars i
           val (i, recc) = consume_maybeRec i
           val (i, pat) = consume_pat i
+          val (i, eq) = consume_eq i
+          val (i, exp) = consume_exp i
         in
+          ( i
+          , Ast.Exp.DecVal
+              { vall = tok (i-1)
+              , tyvars = tyvars
+              , elems = Seq.singleton
+                  { recc = recc
+                  , pat = pat
+                  , eq = eq
+                  , exp = exp
+                  }
+              , delims = Seq.empty ()
+              }
+          )
         end
 
+
+      and consume_exp i =
+        if check Token.isConstant at i then
+          (i+1, Ast.Exp.Const (tok i))
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token (not implemented yet)"
+            , explain = NONE
+            }
+
+
+      val (_, topdec) = loop_topLevel 0
     in
+      Ast.Dec topdec
     end
 
 

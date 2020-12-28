@@ -108,15 +108,25 @@ fun loop (wholeSrc, i) (toks, j) =
       loop (wholeSrc, Source.absoluteEndOffset thisSrc) (toks, j+1)
     end
 
-val _ =
-  let
-    val infile = List.hd (CommandLine.arguments ())
-    val source = Source.loadFromFile (FilePath.fromUnixPath infile)
-    val toks = Lexer.tokens source
-  in
-    loop (source, 0) (toks, 0);
-    print "\n";
-    printLegend ()
-  end
-  handle Lexer.Error e => print (LineError.show e)
+
+val infile = List.hd (CommandLine.arguments ())
+val source = Source.loadFromFile (FilePath.fromUnixPath infile)
+
+val toks =
+  Lexer.tokens source
+  handle Lexer.Error e =>
+    ( print (LineError.show e)
+    ; OS.Process.exit OS.Process.failure
+    )
+
+val _ = loop (source, 0) (toks, 0)
+val _ = print "\nLexing succeeded.\n"
+val _ = print "Parsing...\n\n"
+
+val ast =
+  Parser.parse source
+  handle Parser.Error e =>
+    ( print (LineError.show e)
+    ; OS.Process.exit OS.Process.failure
+    )
 

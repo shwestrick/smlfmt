@@ -8,8 +8,8 @@ better error messages. Perhaps it could also eventually provide SML tooling.
 
 The lexer is done, and now I'm working on the parser.
 
-Currently, you can see lexing errors. For files that pass through lexing
-successfully, you can see a bit of syntax highlighting.
+For files that pass through lexing successfully, you will see a bit of syntax
+highlighting in the output.
 
 ## Examples
 
