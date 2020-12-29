@@ -287,19 +287,46 @@ struct
           val (i, dec) = consume_dec i
           val (i, inn) = consume_expectReserved Token.In i
           val (i, exp) = consume_exp i
-          val (i, endd) = consume_expectReserved Token.End i
         in
-          ( i
-          , Ast.Exp.LetInEnd
-              { lett = lett
-              , dec = dec
-              , inn = inn
-              , exps = Seq.singleton exp
-              , delims = Seq.empty ()
-              , endd = endd
-              }
-          )
+          consume_expLetInEndSequence lett dec inn [exp] [] i
         end
+
+
+      (** let dec in exp [; exp ...] end
+        *               ^
+        *)
+      and consume_expLetInEndSequence lett dec inn exps delims i =
+        if isReserved Token.Semicolon at i then
+          let
+            val delim = tok i
+            val (i, exp) = consume_exp (i+1)
+          in
+            consume_expLetInEndSequence
+              lett dec inn
+              (exp :: exps)
+              (delim :: delims)
+              i
+          end
+        else if isReserved Token.End at i then
+          if List.length delims <> List.length exps - 1 then
+            raise Fail "Bug: Parser.parse.consume_expLetInEndSequence"
+          else
+            ( i+1
+            , Ast.Exp.LetInEnd
+                { lett = lett
+                , dec = dec
+                , inn = inn
+                , exps = Seq.rev (Seq.fromList exps)
+                , delims = Seq.rev (Seq.fromList delims)
+                , endd = tok i
+                }
+            )
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Expected either a semicolon or an 'end'."
+            , explain = NONE
+            }
 
 
       (** ( [...; exp;] [exp [; exp ...]] )
