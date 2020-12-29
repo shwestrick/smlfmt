@@ -114,10 +114,23 @@ struct
 
     | Const of Token.t
 
+    | Unit of
+        { left: Token.t
+        , right: Token.t
+        }
+
     (** [op] longvid *)
     | Ident of
         { opp: Token.t option
         , id: MaybeLong.t
+        }
+
+    (** ( pat, ..., pat ) *)
+    | Tuple of
+        { left: Token.t
+        , elems: pat Seq.t
+        , delims: Token.t Seq.t  (** Gotta remember the commas too! *)
+        , right: Token.t
         }
 
     (** { lab = pat, ..., lab = pat } *)

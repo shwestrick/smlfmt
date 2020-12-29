@@ -111,30 +111,70 @@ struct
               , id = Ast.MaybeLong.make (tok i)
               })
           )
-        else if isReserved Token.Op at i then
-          (** TODO *)
-          nyi "consume_pat" i
         else if isReserved Token.OpenParen at i then
-          let
-            val (i', pat) = consume_pat (i+1)
-          in
-            if isReserved Token.CloseParen at i' then
-              ( i'+1
-              , Ast.Pat.Atpat (Ast.Pat.Parens
-                  { left = tok i
-                  , pat = pat
-                  , right = tok i'
-                  })
-              )
-            else
-              error
-                { pos = Token.getSource (tok i)
-                , what = "Unmatched parentheses in pattern."
-                , explain = NONE
-                }
-          end
+          consume_patParensOrTupleOrUnit (tok i) [] [] (i+1)
         else
           nyi "consume_pat" i
+
+
+      (** ( [..., pat,] [pat [, pat ...]] )
+        *              ^
+        *)
+      and consume_patParensOrTupleOrUnit leftParen pats delims i =
+        if isReserved Token.CloseParen at i then
+          consume_endPatParensOrTupleOrUnit leftParen pats delims (i+1)
+        else
+          let
+            val (i, pat) = consume_pat i
+            val pats = pat :: pats
+            val (i, delims) =
+              if isReserved Token.Comma at i then
+                (i+1, tok i :: delims)
+              else
+                (i, delims)
+          in
+            consume_patParensOrTupleOrUnit leftParen pats delims i
+          end
+
+
+      (** ( [pat [, pat ...]] )
+        *                       ^
+        * Immediately past the close paren, we need to figure out whether
+        * this is a unit, or parens around a pat, or a tuple.
+        *)
+      and consume_endPatParensOrTupleOrUnit leftParen pats delims i =
+        let
+          val rightParen = tok (i-1)
+          val ast =
+            case (pats, delims) of
+              ([], []) =>
+                Ast.Pat.Atpat (Ast.Pat.Unit
+                  { left = leftParen
+                  , right = rightParen
+                  })
+            | ([pat], []) =>
+                Ast.Pat.Atpat (Ast.Pat.Parens
+                  { left = leftParen
+                  , pat = pat
+                  , right = rightParen
+                  })
+            | _ =>
+                if not (List.length delims = List.length pats - 1) then
+                  raise Fail
+                    "Bug: Parser.parse.consume_endPatParensOrTupleOrUnit: \
+                    \number of patterns and delimiters don't match."
+                else
+                  Ast.Pat.Atpat (Ast.Pat.Tuple
+                    { left = leftParen
+                    , elems = Seq.rev (Seq.fromList pats)
+                    , delims = Seq.rev (Seq.fromList delims)
+                    , right = rightParen
+                    })
+        in
+          (i, ast)
+        end
+
+
 
 
       fun consume_eq i =
@@ -224,44 +264,67 @@ struct
         if check Token.isConstant at i then
           (i+1, Ast.Exp.Const (tok i))
         else if isReserved Token.OpenParen at i then
-          consume_expParensOrUnit (i+1)
+          consume_expParensOrTupleOrUnit (tok i) [] [] (i+1)
         else
           nyi "consume_exp" i
 
 
-      (** ( [exp] )
-        *  ^
+      (** ( [..., exp,] [exp [, exp ...]] )
+        *              ^
         *)
-      and consume_expParensOrUnit i =
+      and consume_expParensOrTupleOrUnit leftParen exps delims i =
         if isReserved Token.CloseParen at i then
-          ( i+1
-          , Ast.Exp.Unit
-              { left = tok (i-1)
-              , right = tok i
-              }
-          )
+          consume_endExpParensOrTupleOrUnit leftParen exps delims (i+1)
         else
           let
-            val left = tok i
             val (i, exp) = consume_exp i
-            val right = tok i
+            val exps = exp :: exps
+            val (i, delims) =
+              if isReserved Token.Comma at i then
+                (i+1, tok i :: delims)
+              else
+                (i, delims)
           in
-            if isReserved Token.CloseParen at i then
-              ( i+1
-              , Ast.Exp.Parens
-                  { left = left
-                  , exp = exp
-                  , right = right
-                  }
-              )
-            else
-              error
-                { what = "Unmatched parentheses in expression."
-                , pos = Token.getSource left
-                , explain = NONE
-                }
+            consume_expParensOrTupleOrUnit leftParen exps delims i
           end
 
+
+      (** ( [exp [, exp ...]] )
+        *                       ^
+        * Immediately past the close paren, we need to figure out whether
+        * this is a unit, or parens around an exp, or a tuple.
+        *)
+      and consume_endExpParensOrTupleOrUnit leftParen exps delims i =
+        let
+          val rightParen = tok (i-1)
+          val ast =
+            case (exps, delims) of
+              ([], []) =>
+                Ast.Exp.Unit
+                  { left = leftParen
+                  , right = rightParen
+                  }
+            | ([exp], []) =>
+                Ast.Exp.Parens
+                  { left = leftParen
+                  , exp = exp
+                  , right = rightParen
+                  }
+            | _ =>
+                if not (List.length delims = List.length exps - 1) then
+                  raise Fail
+                    "Bug: Parser.parse.consume_endExpParensOrTupleOrUnit: \
+                    \number of patterns and delimiters don't match."
+                else
+                  Ast.Exp.Tuple
+                    { left = leftParen
+                    , elems = Seq.rev (Seq.fromList exps)
+                    , delims = Seq.rev (Seq.fromList delims)
+                    , right = rightParen
+                    }
+        in
+          (i, ast)
+        end
 
 
       val (i, topdec) = consume_decMultiple [] [] 0
