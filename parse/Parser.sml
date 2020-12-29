@@ -271,7 +271,7 @@ struct
         if check Token.isConstant at i then
           (i+1, Ast.Exp.Const (tok i))
         else if isReserved Token.OpenParen at i then
-          consume_expParensOrTupleOrUnit (tok i) [] [] (i+1)
+          consume_expParensOrTupleOrUnitOrSequence (tok i) [] [] (i+1)
         else if isReserved Token.Let at i then
           consume_expLetInEnd (i+1)
         else
@@ -302,32 +302,69 @@ struct
         end
 
 
-      (** ( [..., exp,] [exp [, exp ...]] )
+      (** ( [...; exp;] [exp [; exp ...]] )
+        * OR
+        * ( [..., exp,] [exp [, exp ...]] )
         *              ^
         *)
-      and consume_expParensOrTupleOrUnit leftParen exps delims i =
+      and consume_expParensOrTupleOrUnitOrSequence leftParen exps delims i =
         if isReserved Token.CloseParen at i then
-          consume_endExpParensOrTupleOrUnit leftParen exps delims (i+1)
+          consume_endExpParensOrTupleOrUnitOrSequence leftParen exps delims (i+1)
         else
           let
             val (i, exp) = consume_exp i
             val exps = exp :: exps
+
+            (** Try to continue by parsing the next delimiter. It needs to
+              * match exiting delimiter.
+              *)
+            val commasOkay =
+              case delims of
+                [] => true
+              | d :: _ => Token.isComma d
+            val semicolonsOkay =
+              case delims of
+                [] => true
+              | d :: _ => Token.isSemicolon d
+
             val (i, delims) =
               if isReserved Token.Comma at i then
-                (i+1, tok i :: delims)
+                if commasOkay then
+                  (i+1, tok i :: delims)
+                else
+                  error
+                    { pos = Token.getSource (tok i)
+                    , what = "Unexpected comma."
+                    , explain = SOME
+                        "Perhaps you meant to use a semicolon. Sequences of \
+                        \expressions are separated by semicolons."
+                    }
+              else if isReserved Token.Semicolon at i then
+                if semicolonsOkay then
+                  (i+1, tok i :: delims)
+                else
+                  error
+                    { pos = Token.getSource (tok i)
+                    , what = "Unexpected semicolon."
+                    , explain = SOME
+                        "Perhaps you meant to use a comma. Tuples of \
+                        \expressions are separated by commas."
+                    }
               else
                 (i, delims)
           in
-            consume_expParensOrTupleOrUnit leftParen exps delims i
+            consume_expParensOrTupleOrUnitOrSequence leftParen exps delims i
           end
 
 
-      (** ( [exp [, exp ...]] )
+      (** ( [exp [; exp ...]] )
+        * OR
+        * ( [exp [, exp ...]] )
         *                       ^
         * Immediately past the close paren, we need to figure out whether
-        * this is a unit, or parens around an exp, or a tuple.
+        * this is a unit, or parens around an exp, a tuple, or a sequence.
         *)
-      and consume_endExpParensOrTupleOrUnit leftParen exps delims i =
+      and consume_endExpParensOrTupleOrUnitOrSequence leftParen exps delims i =
         let
           val rightParen = tok (i-1)
           val ast =
@@ -343,18 +380,33 @@ struct
                   , exp = exp
                   , right = rightParen
                   }
-            | _ =>
+            | (_, exampleDelim :: _) =>
                 if not (List.length delims = List.length exps - 1) then
                   raise Fail
-                    "Bug: Parser.parse.consume_endExpParensOrTupleOrUnit: \
+                    "Bug: Parser.parse.consume_endExpParensOrTupleOrUnitOrSequence: \
                     \number of patterns and delimiters don't match."
-                else
+                else if Token.isComma exampleDelim then
                   Ast.Exp.Tuple
                     { left = leftParen
                     , elems = Seq.rev (Seq.fromList exps)
                     , delims = Seq.rev (Seq.fromList delims)
                     , right = rightParen
                     }
+                else if Token.isSemicolon exampleDelim then
+                  Ast.Exp.Sequence
+                    { left = leftParen
+                    , elems = Seq.rev (Seq.fromList exps)
+                    , delims = Seq.rev (Seq.fromList delims)
+                    , right = rightParen
+                    }
+                else
+                  raise Fail
+                    "Bug: Parser.parse.consume_endExpParensOrTupleOrUnitOrSequence: \
+                    \invalid delimiters."
+            | _ =>
+                raise Fail
+                  "Bug: Parser.parse.consume_endExpParensOrTupleOrUnitOrSequence"
+
         in
           (i, ast)
         end

@@ -233,6 +233,16 @@ struct
       Comment => true
     | _ => false
 
+  fun isComma tok =
+    case getClass tok of
+      Reserved Comma => true
+    | _ => false
+
+  fun isSemicolon tok =
+    case getClass tok of
+      Reserved Semicolon => true
+    | _ => false
+
   fun isMaybeLongIdentifier tok =
     case getClass tok of
       Identifier => true
