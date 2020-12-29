@@ -238,6 +238,13 @@ struct
       Reserved Comma => true
     | _ => false
 
+  fun isStar tok =
+    let
+      val src = getSource tok
+    in
+      Source.length src = 1 andalso Source.nth src 0 = #"*"
+    end
+
   fun isSemicolon tok =
     case getClass tok of
       Reserved Semicolon => true

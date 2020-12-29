@@ -268,14 +268,217 @@ struct
 
 
       and consume_exp i =
-        if check Token.isConstant at i then
-          (i+1, Ast.Exp.Const (tok i))
-        else if isReserved Token.OpenParen at i then
-          consume_expParensOrTupleOrUnitOrSequence (tok i) [] [] (i+1)
-        else if isReserved Token.Let at i then
-          consume_expLetInEnd (i+1)
+        let
+          val (i, exp) =
+            if check Token.isConstant at i then
+              (i+1, Ast.Exp.Const (tok i))
+            else if isReserved Token.OpenParen at i then
+              consume_expParensOrTupleOrUnitOrSequence (tok i) [] [] (i+1)
+            else if isReserved Token.Let at i then
+              consume_expLetInEnd (i+1)
+            else if check Token.isMaybeLongIdentifier at i then
+              ( i+1
+              , Ast.Exp.Ident
+                  { opp = NONE
+                  , id = Ast.MaybeLong.make (tok i)
+                  }
+              )
+            else
+              nyi "consume_exp" i
+        in
+          consume_afterExp exp i
+        end
+
+
+      (** exp ...
+        *    ^
+        *
+        * Multiple possibilities for what could be found after an expression:
+        *   exp : ty              -- type annotation
+        *   exp handle ...        -- handle exception
+        *   exp vid exp           -- infix application
+        *   exp exp               -- application
+        *)
+      and consume_afterExp exp i =
+        let
+          val (again, (i, exp)) =
+            if isReserved Token.Colon at i then
+              (true, consume_expTyped exp (i+1))
+            else
+              (false, (i, exp))
+        in
+          if again then
+            consume_afterExp exp i
+          else
+            (i, exp)
+        end
+
+
+
+      (** exp : ty
+        *      ^
+        *)
+      and consume_expTyped exp i =
+        let
+          val colon = tok (i-1)
+          val (i, ty) = consume_ty i
+        in
+          ( i
+          , Ast.Exp.Typed
+              { exp = exp
+              , colon = colon
+              , ty = ty
+              }
+          )
+        end
+
+
+
+      and consume_ty i =
+        let
+          val (i, ty) =
+            if check Token.isTyVar at i then
+              ( i+1
+              , Ast.Ty.Var (tok i)
+              )
+            else if isReserved Token.OpenParen at i then
+              let
+                val leftParen = tok i
+                val (i, ty) = consume_ty (i+1)
+              in
+                consume_tyParensOrSequence leftParen [ty] [] i
+              end
+            else if check Token.isMaybeLongIdentifier at i then
+              ( i+1
+              , Ast.Ty.Con
+                  { id = Ast.MaybeLong.make (tok i)
+                  , args = Ast.SyntaxSeq.Empty
+                  }
+              )
+            else
+              nyi "consume_ty" i
+        in
+          consume_afterTy ty i
+        end
+
+
+      (** ty
+        *   ^
+        *
+        * Multiple possibilities for what could be found after a type:
+        *   ty -> ty        -- function type
+        *   ty longtycon    -- type constructor
+        *)
+      and consume_afterTy ty i =
+        let
+          val (again, (i, ty)) =
+            if check Token.isMaybeLongIdentifier at i then
+              ( true
+              , ( i+1
+                , Ast.Ty.Con
+                    { id = Ast.MaybeLong.make (tok i)
+                    , args = Ast.SyntaxSeq.One ty
+                    }
+                )
+              )
+            else if isReserved Token.Arrow at i then
+              (true, consume_tyArrow ty (i+1))
+            else
+              (false, (i, ty))
+        in
+          if again then
+            consume_afterTy ty i
+          else
+            (i, ty)
+        end
+
+
+
+      (** ty -> ty
+        *      ^
+        *)
+      and consume_tyArrow fromTy i =
+        let
+          val arrow = tok (i-1)
+          val (i, toTy) = consume_ty i
+        in
+          ( i
+          , Ast.Ty.Arrow
+              { from = fromTy
+              , arrow = arrow
+              , to = toTy
+              }
+          )
+        end
+
+
+      (** ( ty )
+        *     ^
+        * OR
+        * ( ty [, ty ...] ) longtycon
+        *     ^
+        *)
+      and consume_tyParensOrSequence leftParen tys delims i =
+        if isReserved Token.CloseParen at i then
+          consume_tyEndParensOrSequence leftParen tys delims (i+1)
+        else if isReserved Token.Comma at i then
+          let
+            val comma = tok i
+            val (i, ty) = consume_ty (i+1)
+          in
+            consume_tyParensOrSequence leftParen (ty :: tys) (comma :: delims) i
+          end
         else
-          nyi "consume_exp" i
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token."
+            , explain = NONE
+            }
+
+
+
+      (** ( ty )
+        *       ^
+        * OR
+        * ( ty, ... ) longtycon
+        *            ^
+        *)
+      and consume_tyEndParensOrSequence leftParen tys delims i =
+        let
+          val rightParen = tok (i-1)
+        in
+          case (tys, delims) of
+            ([ty], []) =>
+              ( i
+              , Ast.Ty.Parens
+                  { left = leftParen
+                  , ty = ty
+                  , right = rightParen
+                  }
+              )
+
+          | _ =>
+              if check Token.isMaybeLongIdentifier at i then
+                ( i+1
+                , Ast.Ty.Con
+                    { id = Ast.MaybeLong.make (tok i)
+                    , args =
+                        Ast.SyntaxSeq.Many
+                          { left = leftParen
+                          , elems = Seq.rev (Seq.fromList tys)
+                          , delims = Seq.rev (Seq.fromList delims)
+                          , right = rightParen
+                          }
+                    }
+                )
+              else
+                error
+                  { pos = Token.getSource (tok i)
+                  , what = "Unexpected token."
+                  , explain = SOME "Expected to see a type constructor."
+                  }
+        end
+
 
 
       (** let dec in exp [; exp ...] end

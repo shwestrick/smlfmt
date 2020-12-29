@@ -46,7 +46,7 @@ struct
   struct
     datatype 'a t =
       Empty
-    | One of Token.t
+    | One of 'a
     | Many of
         { left: Token.t         (** open paren *)
         , elems: 'a Seq.t       (** elements *)
@@ -72,7 +72,7 @@ struct
         , right: Token.t
         }
 
-    (** (ty * ... * ty) *)
+    (** ty * ... * ty *)
     | Tuple of
         { left: Token.t
         , elems: ty Seq.t
