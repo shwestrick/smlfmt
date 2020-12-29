@@ -176,14 +176,15 @@ struct
 
 
 
-
-      fun consume_eq i =
-        if isReserved Token.Equal at i then
+      fun consume_expectReserved rc i =
+        if isReserved rc at i then
           (i+1, tok i)
         else
           error
             { pos = Token.getSource (tok i)
-            , what = "Expected to see '=' but found something else."
+            , what =
+                "Unexpected token. Expected to see "
+                ^ "'" ^ Token.reservedToString rc ^ "'"
             , explain = NONE
             }
 
@@ -232,6 +233,12 @@ struct
         end
 
 
+      and consume_dec i =
+        if check Token.isDecStartToken at i then
+          consume_decMultiple [] [] i
+        else
+          (i, Ast.Exp.DecEmpty)
+
 
       (** val tyvarseq [rec] pat = exp [and [rec] pat = exp ...]
         *     ^
@@ -241,7 +248,7 @@ struct
           val (i, tyvars) = consume_tyvars i
           val (i, recc) = consume_maybeRec i
           val (i, pat) = consume_pat i
-          val (i, eq) = consume_eq i
+          val (i, eq) = consume_expectReserved Token.Equal i
           val (i, exp) = consume_exp i
         in
           ( i
@@ -265,8 +272,34 @@ struct
           (i+1, Ast.Exp.Const (tok i))
         else if isReserved Token.OpenParen at i then
           consume_expParensOrTupleOrUnit (tok i) [] [] (i+1)
+        else if isReserved Token.Let at i then
+          consume_expLetInEnd (i+1)
         else
           nyi "consume_exp" i
+
+
+      (** let dec in exp [; exp ...] end
+        *    ^
+        *)
+      and consume_expLetInEnd i =
+        let
+          val lett = tok (i-1)
+          val (i, dec) = consume_dec i
+          val (i, inn) = consume_expectReserved Token.In i
+          val (i, exp) = consume_exp i
+          val (i, endd) = consume_expectReserved Token.End i
+        in
+          ( i
+          , Ast.Exp.LetInEnd
+              { lett = lett
+              , dec = dec
+              , inn = inn
+              , exps = Seq.singleton exp
+              , delims = Seq.empty ()
+              , endd = endd
+              }
+          )
+        end
 
 
       (** ( [..., exp,] [exp [, exp ...]] )
@@ -327,7 +360,7 @@ struct
         end
 
 
-      val (i, topdec) = consume_decMultiple [] [] 0
+      val (i, topdec) = consume_dec 0
 
       val _ =
         print ("Successfully parsed "

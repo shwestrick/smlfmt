@@ -162,6 +162,62 @@ struct
           (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
     end
 
+  fun reservedToString rc =
+    case rc of
+    (** Symbolic *)
+      Colon => ":"
+    | ColonArrow => ":>"
+    | Bar => "|"
+    | Equal => "="
+    | FatArrow => "=>"
+    | Arrow => "->"
+    | Hash => "#"
+    (** Core *)
+    | Abstype => "abstype"
+    | And => "and"
+    | Andalso => "andalso"
+    | As => "as"
+    | Case => "case"
+    | Datatype => "datatype"
+    | Do => "do"
+    | Else => "else"
+    | End => "end"
+    | Exception => "exception"
+    | Fn => "fn"
+    | Fun => "fun"
+    | Handle => "handle"
+    | If => "if"
+    | In => "in"
+    | Infix => "infix"
+    | Infixr => "infixr"
+    | Let => "let"
+    | Local => "local"
+    | Nonfix => "nonfix"
+    | Of => "of"
+    | Op => "op"
+    | Open => "open"
+    | Orelse => "orelse"
+    | Raise => "raise"
+    | Rec => "rec"
+    | Then => "then"
+    | Type => "type"
+    | Val => "val"
+    | With => "with"
+    | Withtype => "withtype"
+    | While => "while"
+    (** Modules *)
+    | Eqtype => "eqtype"
+    | Functor => "functor"
+    | Include => "include"
+    | Sharing => "sharing"
+    | Sig => "sig"
+    | Signature => "signature"
+    | Struct => "struct"
+    | Structure => "structure"
+    | Where => "where"
+
+    | _ => raise Fail "Bug: Token.reservedToString: missing something..."
+
   fun reservedOrIdentifier src =
     case tryReserved src of
       SOME r => reserved src r
