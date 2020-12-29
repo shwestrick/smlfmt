@@ -30,6 +30,16 @@ struct
       fun tok i = Seq.nth toks i
 
 
+      (** not yet implemented *)
+      fun nyi fname i =
+        raise Error
+          { header = "ERROR: NOT YET IMPLEMENTED"
+          , pos = Token.getSource (tok i)
+          , what = "Unexpected token."
+          , explain = SOME ("(TODO: Sam: see Parser.parse." ^ fname ^ ")")
+          }
+
+
       (** This silliness lets you write almost-English like this:
         *   if is Token.Identifier at i           then ...
         *   if isReserved Token.Val at i          then ...
@@ -63,8 +73,9 @@ struct
         else
           error
             { pos = Token.getSource (tok i)
-            , what = "Invalid type-variable sequence"
-            , explain = SOME "Expected to see something that looks like ('a, 'b, 'c)"
+            , what = "Unexpected token."
+            , explain = SOME "Invalid type-variable sequence. Expected to see \
+                             \something that looks like ('a, 'b, 'c)"
             }
 
 
@@ -97,16 +108,12 @@ struct
           ( i+1
           , Ast.Pat.Atpat (Ast.Pat.Ident
               { opp = NONE
-              , id = tok i
+              , id = Ast.MaybeLong.make (tok i)
               })
           )
         else if isReserved Token.Op at i then
           (** TODO *)
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Not implemented yet."
-            , explain = NONE
-            }
+          nyi "consume_pat" i
         else if isReserved Token.OpenParen at i then
           let
             val (i', pat) = consume_pat (i+1)
@@ -127,11 +134,7 @@ struct
                 }
           end
         else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Unexpected token (not implemented yet)"
-            , explain = NONE
-            }
+          nyi "consume_pat" i
 
 
       fun consume_eq i =
@@ -145,18 +148,49 @@ struct
             }
 
 
-      fun loop_topLevel i =
-        if i >= numToks then
-          (** DONE *)
-          raise Fail "EOF"
-        else if isReserved Token.Val at i then
-          consume_decVal (i+1)
+      (** dec [[;] dec ...]
+        * ^
+        *)
+      fun consume_decMultiple decs delims i =
+        if isReserved Token.Val at i then
+          let
+            val (i, dec) = consume_decVal (i+1)
+          in
+            consume_maybeContinueDecMultiple (dec :: decs) delims i
+          end
         else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Unexpected token (not implemented yet)"
-            , explain = NONE
-            }
+          nyi "consume_decMultiple" i
+
+
+      (** dec [[;] dec ...]
+        *     ^
+        *)
+      and consume_maybeContinueDecMultiple decs delims i =
+        let
+          val (i, delims) =
+            if isReserved Token.Semicolon at i then
+              (i+1, SOME (tok i) :: delims)
+            else
+              (i, delims)
+        in
+          if check Token.isDecStartToken at i then
+            consume_decMultiple decs (NONE :: delims) i
+          else if List.length delims = 0 andalso List.length decs = 1 then
+            (i, List.hd decs)
+          else
+            let
+              val delims = Seq.rev (Seq.fromList delims)
+              val decs = Seq.rev (Seq.fromList decs)
+            in
+              ( i
+              , Ast.Exp.DecMultiple
+                { elems = decs
+                , delims = delims
+                }
+              )
+            end
+        end
+
 
 
       (** val tyvarseq [rec] pat = exp [and [rec] pat = exp ...]
@@ -189,15 +223,53 @@ struct
       and consume_exp i =
         if check Token.isConstant at i then
           (i+1, Ast.Exp.Const (tok i))
+        else if isReserved Token.OpenParen at i then
+          consume_expParensOrUnit (i+1)
         else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Unexpected token (not implemented yet)"
-            , explain = NONE
-            }
+          nyi "consume_exp" i
 
 
-      val (_, topdec) = loop_topLevel 0
+      (** ( [exp] )
+        *  ^
+        *)
+      and consume_expParensOrUnit i =
+        if isReserved Token.CloseParen at i then
+          ( i+1
+          , Ast.Exp.Unit
+              { left = tok (i-1)
+              , right = tok i
+              }
+          )
+        else
+          let
+            val left = tok i
+            val (i, exp) = consume_exp i
+            val right = tok i
+          in
+            if isReserved Token.CloseParen at i then
+              ( i+1
+              , Ast.Exp.Parens
+                  { left = left
+                  , exp = exp
+                  , right = right
+                  }
+              )
+            else
+              error
+                { what = "Unmatched parentheses in expression."
+                , pos = Token.getSource left
+                , explain = NONE
+                }
+          end
+
+
+
+      val (i, topdec) = consume_decMultiple [] [] 0
+
+      val _ =
+        print ("Successfully parsed "
+               ^ Int.toString i ^ " out of " ^ Int.toString numToks
+               ^ " tokens\n")
     in
       Ast.Dec topdec
     end

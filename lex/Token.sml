@@ -209,6 +209,27 @@ struct
     | RealConstant => true
     | _ => false
 
+
+  val decStartTokens =
+    [ Abstype
+    , Datatype
+    , Exception
+    , Infix
+    , Infixr
+    , Nonfix
+    , Type
+    , Val
+    , Fun
+    , Open
+    , Local
+    ]
+
+  fun isDecStartToken tok =
+    case getClass tok of
+      Reserved rc =>
+        List.exists (fn rc' => rc = rc') decStartTokens
+    | _ => false
+
   fun classToString class =
     case class of
       Comment => "comment"

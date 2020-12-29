@@ -17,9 +17,20 @@ struct
   (** A maybe-long thing can be prefaced by structure identifiers, like
     * `Hello.World.thing` but also just `thing` (which has no qualifiers)
     *)
-  structure MaybeLong =
+  structure MaybeLong :>
+  sig
+    type t
+    val make: Token.t -> t
+  end =
   struct
     type t = Token.t
+
+    fun make (tok: Token.t) : t =
+      if Token.isMaybeLongIdentifier tok then
+        tok
+      else
+        raise Fail ("Ast.MaybeLong.make: given non-identifier ("
+                    ^ Token.classToString (Token.getClass tok) ^ ")")
   end
 
 
@@ -249,7 +260,10 @@ struct
         }
 
     (** () *)
-    | Unit of Token.t
+    | Unit of
+        { left: Token.t
+        , right: Token.t
+        }
 
     (** (exp, ..., exp) *)
     | Tuple of
