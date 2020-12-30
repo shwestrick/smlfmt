@@ -125,8 +125,14 @@ val _ = print "Parsing...\n\n"
 
 val ast =
   Parser.parse source
-  handle Parser.Error e =>
+  handle (exn as Parser.Error e) =>
     ( print (LineError.show e)
+    ; let
+        val hist = MLton.Exn.history exn
+      in
+        if List.null hist then () else
+        print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist))
+      end
     ; OS.Process.exit OS.Process.failure
     )
 

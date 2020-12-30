@@ -21,6 +21,30 @@ struct
       }
 
 
+  (** This just implements a dumb little ordering:
+    *   AtExp < AppExp < InfExp < Exp
+    * and then e.g. `appExpOkay r` checks `AppExp < r`
+    *)
+  datatype exp_restrict =
+    AtExpRestriction    (* AtExp *)
+  | AppExpRestriction   (* AppExp *)
+  | InfExpRestriction   (* InfExp *)
+  | NoRestriction       (* Exp *)
+  fun appExpOkay restrict =
+    case restrict of
+      AtExpRestriction => false
+    | _ => true
+  fun infExpOkay restrict =
+    case restrict of
+      AtExpRestriction => false
+    | AppExpRestriction => false
+    | _ => true
+  fun anyExpOkay restrict =
+    case restrict of
+      NoRestriction => true
+    | _ => false
+
+
   fun parse src =
     let
       (** This might raise Lexer.Error *)
@@ -32,12 +56,22 @@ struct
 
       (** not yet implemented *)
       fun nyi fname i =
-        raise Error
-          { header = "ERROR: NOT YET IMPLEMENTED"
-          , pos = Token.getSource (tok i)
-          , what = "Unexpected token."
-          , explain = SOME ("(TODO: Sam: see Parser.parse." ^ fname ^ ")")
-          }
+        if i >= numToks then
+          raise Error
+            { header = "ERROR: NOT YET IMPLEMENTED"
+            , pos = Token.getSource (tok (numToks-1))
+            , what = "Unexpected EOF after token."
+            , explain = SOME ("(TODO: Sam: see Parser.parse." ^ fname ^ ")")
+            }
+        else if i >= 0 then
+          raise Error
+            { header = "ERROR: NOT YET IMPLEMENTED"
+            , pos = Token.getSource (tok i)
+            , what = "Unexpected token."
+            , explain = SOME ("(TODO: Sam: see Parser.parse." ^ fname ^ ")")
+            }
+        else
+          raise Fail ("Bug: Parser.parse." ^ fname ^ ": position out of bounds??")
 
 
       (** This silliness lets you write almost-English like this:
@@ -249,7 +283,7 @@ struct
           val (i, recc) = consume_maybeRec i
           val (i, pat) = consume_pat i
           val (i, eq) = consume_expectReserved Token.Equal i
-          val (i, exp) = consume_exp i
+          val (i, exp) = consume_exp NoRestriction i
         in
           ( i
           , Ast.Exp.DecVal
@@ -267,7 +301,7 @@ struct
         end
 
 
-      and consume_exp i =
+      and consume_exp restriction i =
         let
           val (i, exp) =
             if check Token.isConstant at i then
@@ -286,7 +320,7 @@ struct
             else
               nyi "consume_exp" i
         in
-          consume_afterExp exp i
+          consume_afterExp restriction exp i
         end
 
 
@@ -296,21 +330,142 @@ struct
         * Multiple possibilities for what could be found after an expression:
         *   exp : ty              -- type annotation
         *   exp handle ...        -- handle exception
-        *   exp vid exp           -- infix application
-        *   exp exp               -- application
+        *   infexp vid infexp     -- infix application
+        *   appexp atexp          -- application
+        *   exp andalso exp
+        *   exp orelse exp
+        *
+        * Or, to definitely pop back up, we might see
+        *   exp )            -- end of parens, tuple, etc.
+        *   exp ,            -- continue tuple
+        *   exp ;            -- continue sequence
+        *   exp |            -- next in match
+        *   exp (then|else)  -- if ... then ... else
+        *   exp do           -- while ... do ...
+        *   exp of           -- case ... of
         *)
-      and consume_afterExp exp i =
+      and consume_afterExp restriction exp i =
         let
           val (again, (i, exp)) =
-            if isReserved Token.Colon at i then
+            if
+              i >= numToks orelse
+              check Token.endsCurrentExp at i
+            then
+              (false, (i, exp))
+
+            else if
+              anyExpOkay restriction
+              andalso isReserved Token.Colon at i
+            then
               (true, consume_expTyped exp (i+1))
+
+            else if
+              anyExpOkay restriction
+              andalso isReserved Token.Handle at i
+            then
+              (true, consume_expHandle exp (i+1))
+
+            else if
+              anyExpOkay restriction
+              andalso (isReserved Token.Andalso at i
+              orelse isReserved Token.Orelse at i)
+            then
+              (true, consume_expAndalsoOrOrelse exp (i+1))
+
+            else if
+              infExpOkay restriction
+              andalso Ast.Exp.isInfExp exp
+              andalso check Token.isValueIdentifier at i
+            then
+              (true, consume_expInfix exp (i+1))
+
+            else if
+              appExpOkay restriction
+            then
+              (true, consume_expApp exp i)
+
             else
               (false, (i, exp))
         in
           if again then
-            consume_afterExp exp i
+            consume_afterExp restriction exp i
           else
             (i, exp)
+        end
+
+
+
+      (** infexp1 vid infexp1
+        *            ^
+        *)
+      and consume_expInfix exp1 i =
+        let
+          val _ = print ("infix\n")
+          val id = tok (i-1)
+          val (i, exp2) = consume_exp InfExpRestriction i
+
+        in
+          ( i
+          , Ast.Exp.Infix
+              { left = exp1
+              , id = id
+              , right = exp2
+              }
+          )
+        end
+
+
+
+      (** appexp atexp
+        *       ^
+        *)
+      and consume_expApp leftExp i =
+        let
+          val _ = print ("app\n")
+          val (i, rightExp) = consume_exp AtExpRestriction i
+        in
+          ( i
+          , Ast.Exp.App
+              { left = leftExp
+              , right = rightExp
+              }
+          )
+        end
+
+
+      (** exp handle ...
+        *           ^
+        *)
+      and consume_expHandle exp i =
+        nyi "consume_expHandle" (i-1)
+
+
+
+      (** exp1 (andalso|orelse) exp2
+        *                      ^
+        *)
+      and consume_expAndalsoOrOrelse exp1 i =
+        let
+          val junct = tok (i-1)
+          val (i, exp2) = consume_exp NoRestriction i
+
+          val result =
+            if Token.isAndalso junct then
+              Ast.Exp.Andalso
+                { left = exp1
+                , andalsoo = junct
+                , right = exp2
+                }
+            else if Token.isOrelse junct then
+              Ast.Exp.Orelse
+                { left = exp1
+                , orelsee = junct
+                , right = exp2
+                }
+            else
+              raise Fail "Bug: Parser.parse.consume_expAndalsoOrOrelse"
+        in
+          (i, result)
         end
 
 
@@ -320,6 +475,8 @@ struct
         *)
       and consume_expTyped exp i =
         let
+          val _ = print ("typed\n")
+
           val colon = tok (i-1)
           val (i, ty) = consume_ty i
         in
@@ -489,7 +646,7 @@ struct
           val lett = tok (i-1)
           val (i, dec) = consume_dec i
           val (i, inn) = consume_expectReserved Token.In i
-          val (i, exp) = consume_exp i
+          val (i, exp) = consume_exp NoRestriction i
         in
           consume_expLetInEndSequence lett dec inn [exp] [] i
         end
@@ -502,7 +659,7 @@ struct
         if isReserved Token.Semicolon at i then
           let
             val delim = tok i
-            val (i, exp) = consume_exp (i+1)
+            val (i, exp) = consume_exp NoRestriction (i+1)
           in
             consume_expLetInEndSequence
               lett dec inn
@@ -543,7 +700,7 @@ struct
           consume_endExpParensOrTupleOrUnitOrSequence leftParen exps delims (i+1)
         else
           let
-            val (i, exp) = consume_exp i
+            val (i, exp) = consume_exp NoRestriction i
             val exps = exp :: exps
 
             (** Try to continue by parsing the next delimiter. It needs to

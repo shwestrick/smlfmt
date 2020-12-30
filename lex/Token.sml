@@ -238,6 +238,16 @@ struct
       Reserved Comma => true
     | _ => false
 
+  fun isAndalso tok =
+    case getClass tok of
+      Reserved Andalso => true
+    | _ => false
+
+  fun isOrelse tok =
+    case getClass tok of
+      Reserved Orelse => true
+    | _ => false
+
   fun isStar tok =
     let
       val src = getSource tok
@@ -248,6 +258,11 @@ struct
   fun isSemicolon tok =
     case getClass tok of
       Reserved Semicolon => true
+    | _ => false
+
+  fun isValueIdentifier tok =
+    case getClass tok of
+      Identifier => Source.nth (getSource tok) 0 <> #"'"
     | _ => false
 
   fun isMaybeLongIdentifier tok =
@@ -314,6 +329,17 @@ struct
     | CharConstant => "char"
     | Identifier => "identifier"
     | LongIdentifier => "long identifier"
+
+
+  (** This is used in Parser.consume_afterExp, to see if we should stop parsing
+    * the current expression and pop up to the previous context.
+    *)
+  fun endsCurrentExp tok =
+    case getClass tok of
+      Reserved rc =>
+        List.exists (fn rc' => rc = rc')
+          [CloseParen, Comma, Semicolon, Bar, Then, Else, Do, Of]
+    | _ => false
 
 
   (* fun isValidQualifier src =
