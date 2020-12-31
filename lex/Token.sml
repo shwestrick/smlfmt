@@ -331,6 +331,22 @@ struct
     | LongIdentifier => "long identifier"
 
 
+  (** Check that the text of t1 exactly matches the text of t2. Useful for
+    * comparing identifier names, e.g. for infix lookup.
+    *)
+  fun same (t1, t2) =
+    let
+      val s1 = getSource t1
+      val s2 = getSource t2
+      val n = Source.length s1
+    in
+      n = Source.length s2
+      andalso
+      Util.loop (0, n) true (fn (b, i) =>
+        b andalso Source.nth s1 i = Source.nth s2 i)
+    end
+
+
   (** This is used in Parser.consume_afterExp, to see if we should stop parsing
     * the current expression and pop up to the previous context.
     *)

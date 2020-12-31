@@ -5,3 +5,6 @@ Source.sml
 WithSource.sml
 LineError.sml
 MaybeError.sml
+
+KEY.sig
+ScopedDict.sml
