@@ -29,6 +29,9 @@ struct
       end)
 
 
+  fun seqFromRevList list = Seq.rev (Seq.fromList list)
+
+
   (** This just implements a dumb little ordering:
     *   AtExp < AppExp < InfExp < Exp
     * and then e.g. `appExpOkay r` checks `AppExp < r`
@@ -208,8 +211,8 @@ struct
                 else
                   Ast.Pat.Atpat (Ast.Pat.Tuple
                     { left = leftParen
-                    , elems = Seq.rev (Seq.fromList pats)
-                    , delims = Seq.rev (Seq.fromList delims)
+                    , elems = seqFromRevList pats
+                    , delims = seqFromRevList delims
                     , right = rightParen
                     })
         in
@@ -262,8 +265,8 @@ struct
             (i, List.hd decs)
           else
             let
-              val delims = Seq.rev (Seq.fromList delims)
-              val decs = Seq.rev (Seq.fromList decs)
+              val delims = seqFromRevList delims
+              val decs = seqFromRevList decs
             in
               ( i
               , Ast.Exp.DecMultiple
@@ -631,8 +634,8 @@ struct
                     , args =
                         Ast.SyntaxSeq.Many
                           { left = leftParen
-                          , elems = Seq.rev (Seq.fromList tys)
-                          , delims = Seq.rev (Seq.fromList delims)
+                          , elems = seqFromRevList tys
+                          , delims = seqFromRevList delims
                           , right = rightParen
                           }
                     }
@@ -686,8 +689,8 @@ struct
                 { lett = lett
                 , dec = dec
                 , inn = inn
-                , exps = Seq.rev (Seq.fromList exps)
-                , delims = Seq.rev (Seq.fromList delims)
+                , exps = seqFromRevList exps
+                , delims = seqFromRevList delims
                 , endd = tok i
                 }
             )
@@ -786,15 +789,15 @@ struct
                 else if Token.isComma exampleDelim then
                   Ast.Exp.Tuple
                     { left = leftParen
-                    , elems = Seq.rev (Seq.fromList exps)
-                    , delims = Seq.rev (Seq.fromList delims)
+                    , elems = seqFromRevList exps
+                    , delims = seqFromRevList delims
                     , right = rightParen
                     }
                 else if Token.isSemicolon exampleDelim then
                   Ast.Exp.Sequence
                     { left = leftParen
-                    , elems = Seq.rev (Seq.fromList exps)
-                    , delims = Seq.rev (Seq.fromList delims)
+                    , elems = seqFromRevList exps
+                    , delims = seqFromRevList delims
                     , right = rightParen
                     }
                 else
