@@ -21,6 +21,14 @@ struct
       }
 
 
+  structure InfixDict =
+    ScopedDict
+      (struct
+        type t = Token.t
+        val equal = Token.same
+      end)
+
+
   (** This just implements a dumb little ordering:
     *   AtExp < AppExp < InfExp < Exp
     * and then e.g. `appExpOkay r` checks `AppExp < r`
@@ -129,7 +137,7 @@ struct
           (i, NONE)
 
 
-      fun consume_pat i =
+      fun consume_pat infdict i =
         if isReserved Token.Underscore at i then
           ( i+1
           , Ast.Pat.Atpat (Ast.Pat.Wild (tok i))
@@ -146,7 +154,7 @@ struct
               })
           )
         else if isReserved Token.OpenParen at i then
-          consume_patParensOrTupleOrUnit (tok i) [] [] (i+1)
+          consume_patParensOrTupleOrUnit infdict (tok i) [] [] (i+1)
         else
           nyi "consume_pat" i
 
@@ -154,12 +162,12 @@ struct
       (** ( [..., pat,] [pat [, pat ...]] )
         *              ^
         *)
-      and consume_patParensOrTupleOrUnit leftParen pats delims i =
+      and consume_patParensOrTupleOrUnit infdict leftParen pats delims i =
         if isReserved Token.CloseParen at i then
           consume_endPatParensOrTupleOrUnit leftParen pats delims (i+1)
         else
           let
-            val (i, pat) = consume_pat i
+            val (i, pat) = consume_pat infdict i
             val pats = pat :: pats
             val (i, delims) =
               if isReserved Token.Comma at i then
@@ -167,7 +175,7 @@ struct
               else
                 (i, delims)
           in
-            consume_patParensOrTupleOrUnit leftParen pats delims i
+            consume_patParensOrTupleOrUnit infdict leftParen pats delims i
           end
 
 
@@ -226,12 +234,12 @@ struct
       (** dec [[;] dec ...]
         * ^
         *)
-      fun consume_decMultiple decs delims i =
+      fun consume_decMultiple infdict decs delims i =
         if isReserved Token.Val at i then
           let
-            val (i, dec) = consume_decVal (i+1)
+            val (i, dec) = consume_decVal infdict (i+1)
           in
-            consume_maybeContinueDecMultiple (dec :: decs) delims i
+            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
           end
         else
           nyi "consume_decMultiple" i
@@ -240,7 +248,7 @@ struct
       (** dec [[;] dec ...]
         *     ^
         *)
-      and consume_maybeContinueDecMultiple decs delims i =
+      and consume_maybeContinueDecMultiple infdict decs delims i =
         let
           val (i, delims) =
             if isReserved Token.Semicolon at i then
@@ -249,7 +257,7 @@ struct
               (i, delims)
         in
           if check Token.isDecStartToken at i then
-            consume_decMultiple decs (NONE :: delims) i
+            consume_decMultiple infdict decs (NONE :: delims) i
           else if List.length delims = 0 andalso List.length decs = 1 then
             (i, List.hd decs)
           else
@@ -267,9 +275,9 @@ struct
         end
 
 
-      and consume_dec i =
+      and consume_dec infdict i =
         if check Token.isDecStartToken at i then
-          consume_decMultiple [] [] i
+          consume_decMultiple infdict [] [] i
         else
           (i, Ast.Exp.DecEmpty)
 
@@ -277,13 +285,13 @@ struct
       (** val tyvarseq [rec] pat = exp [and [rec] pat = exp ...]
         *     ^
         *)
-      and consume_decVal i =
+      and consume_decVal infdict i =
         let
           val (i, tyvars) = consume_tyvars i
           val (i, recc) = consume_maybeRec i
-          val (i, pat) = consume_pat i
+          val (i, pat) = consume_pat infdict i
           val (i, eq) = consume_expectReserved Token.Equal i
-          val (i, exp) = consume_exp NoRestriction i
+          val (i, exp) = consume_exp infdict NoRestriction i
         in
           ( i
           , Ast.Exp.DecVal
@@ -301,15 +309,15 @@ struct
         end
 
 
-      and consume_exp restriction i =
+      and consume_exp infdict restriction i =
         let
           val (i, exp) =
             if check Token.isConstant at i then
               (i+1, Ast.Exp.Const (tok i))
             else if isReserved Token.OpenParen at i then
-              consume_expParensOrTupleOrUnitOrSequence (tok i) [] [] (i+1)
+              consume_expParensOrTupleOrUnitOrSequence infdict (tok i) [] [] (i+1)
             else if isReserved Token.Let at i then
-              consume_expLetInEnd (i+1)
+              consume_expLetInEnd infdict (i+1)
             else if check Token.isMaybeLongIdentifier at i then
               ( i+1
               , Ast.Exp.Ident
@@ -320,7 +328,7 @@ struct
             else
               nyi "consume_exp" i
         in
-          consume_afterExp restriction exp i
+          consume_afterExp infdict restriction exp i
         end
 
 
@@ -344,7 +352,7 @@ struct
         *   exp do           -- while ... do ...
         *   exp of           -- case ... of
         *)
-      and consume_afterExp restriction exp i =
+      and consume_afterExp infdict restriction exp i =
         let
           val (again, (i, exp)) =
             if
@@ -363,32 +371,32 @@ struct
               anyExpOkay restriction
               andalso isReserved Token.Handle at i
             then
-              (true, consume_expHandle exp (i+1))
+              (true, consume_expHandle infdict exp (i+1))
 
             else if
               anyExpOkay restriction
               andalso (isReserved Token.Andalso at i
               orelse isReserved Token.Orelse at i)
             then
-              (true, consume_expAndalsoOrOrelse exp (i+1))
+              (true, consume_expAndalsoOrOrelse infdict exp (i+1))
 
             else if
               infExpOkay restriction
               andalso Ast.Exp.isInfExp exp
               andalso check Token.isValueIdentifier at i
             then
-              (true, consume_expInfix exp (i+1))
+              (true, consume_expInfix infdict exp (i+1))
 
             else if
               appExpOkay restriction
             then
-              (true, consume_expApp exp i)
+              (true, consume_expApp infdict exp i)
 
             else
               (false, (i, exp))
         in
           if again then
-            consume_afterExp restriction exp i
+            consume_afterExp infdict restriction exp i
           else
             (i, exp)
         end
@@ -398,12 +406,12 @@ struct
       (** infexp1 vid infexp1
         *            ^
         *)
-      and consume_expInfix exp1 i =
+      and consume_expInfix infdict exp1 i =
         let
-          val _ = print ("infix\n")
-          val id = tok (i-1)
-          val (i, exp2) = consume_exp InfExpRestriction i
+          (* val _ = print ("infix\n") *)
 
+          val id = tok (i-1)
+          val (i, exp2) = consume_exp infdict InfExpRestriction i
         in
           ( i
           , Ast.Exp.Infix
@@ -419,10 +427,11 @@ struct
       (** appexp atexp
         *       ^
         *)
-      and consume_expApp leftExp i =
+      and consume_expApp infdict leftExp i =
         let
-          val _ = print ("app\n")
-          val (i, rightExp) = consume_exp AtExpRestriction i
+          (* val _ = print ("app\n") *)
+
+          val (i, rightExp) = consume_exp infdict AtExpRestriction i
         in
           ( i
           , Ast.Exp.App
@@ -436,7 +445,7 @@ struct
       (** exp handle ...
         *           ^
         *)
-      and consume_expHandle exp i =
+      and consume_expHandle infdict exp i =
         nyi "consume_expHandle" (i-1)
 
 
@@ -444,10 +453,10 @@ struct
       (** exp1 (andalso|orelse) exp2
         *                      ^
         *)
-      and consume_expAndalsoOrOrelse exp1 i =
+      and consume_expAndalsoOrOrelse infdict exp1 i =
         let
           val junct = tok (i-1)
-          val (i, exp2) = consume_exp NoRestriction i
+          val (i, exp2) = consume_exp infdict NoRestriction i
 
           val result =
             if Token.isAndalso junct then
@@ -475,7 +484,7 @@ struct
         *)
       and consume_expTyped exp i =
         let
-          val _ = print ("typed\n")
+          (* val _ = print ("typed\n") *)
 
           val colon = tok (i-1)
           val (i, ty) = consume_ty i
@@ -641,27 +650,28 @@ struct
       (** let dec in exp [; exp ...] end
         *    ^
         *)
-      and consume_expLetInEnd i =
+      and consume_expLetInEnd infdict i =
         let
           val lett = tok (i-1)
-          val (i, dec) = consume_dec i
+          val (i, dec) = consume_dec infdict i
           val (i, inn) = consume_expectReserved Token.In i
-          val (i, exp) = consume_exp NoRestriction i
+          val (i, exp) = consume_exp infdict NoRestriction i
         in
-          consume_expLetInEndSequence lett dec inn [exp] [] i
+          consume_expLetInEndSequence infdict lett dec inn [exp] [] i
         end
 
 
       (** let dec in exp [; exp ...] end
         *               ^
         *)
-      and consume_expLetInEndSequence lett dec inn exps delims i =
+      and consume_expLetInEndSequence infdict lett dec inn exps delims i =
         if isReserved Token.Semicolon at i then
           let
             val delim = tok i
-            val (i, exp) = consume_exp NoRestriction (i+1)
+            val (i, exp) = consume_exp infdict NoRestriction (i+1)
           in
             consume_expLetInEndSequence
+              infdict
               lett dec inn
               (exp :: exps)
               (delim :: delims)
@@ -695,12 +705,12 @@ struct
         * ( [..., exp,] [exp [, exp ...]] )
         *              ^
         *)
-      and consume_expParensOrTupleOrUnitOrSequence leftParen exps delims i =
+      and consume_expParensOrTupleOrUnitOrSequence infdict leftParen exps delims i =
         if isReserved Token.CloseParen at i then
           consume_endExpParensOrTupleOrUnitOrSequence leftParen exps delims (i+1)
         else
           let
-            val (i, exp) = consume_exp NoRestriction i
+            val (i, exp) = consume_exp infdict NoRestriction i
             val exps = exp :: exps
 
             (** Try to continue by parsing the next delimiter. It needs to
@@ -741,7 +751,7 @@ struct
               else
                 (i, delims)
           in
-            consume_expParensOrTupleOrUnitOrSequence leftParen exps delims i
+            consume_expParensOrTupleOrUnitOrSequence infdict leftParen exps delims i
           end
 
 
@@ -800,7 +810,8 @@ struct
         end
 
 
-      val (i, topdec) = consume_dec 0
+      val infdict = InfixDict.emptyTopLevel
+      val (i, topdec) = consume_dec infdict 0
 
       val _ =
         print ("Successfully parsed "
