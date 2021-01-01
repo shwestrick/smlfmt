@@ -351,10 +351,23 @@ struct
     * the current expression and pop up to the previous context.
     *)
   fun endsCurrentExp tok =
+    isDecStartToken tok
+    orelse
     case getClass tok of
       Reserved rc =>
         List.exists (fn rc' => rc = rc')
-          [CloseParen, Comma, Semicolon, Bar, Then, Else, Do, Of]
+          [ CloseParen
+          , Comma
+          , Semicolon
+          , Bar
+          , Then
+          , Else
+          , Do
+          , Of
+          , And
+          , In
+          , End
+          ]
     | _ => false
 
 
