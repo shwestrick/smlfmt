@@ -536,9 +536,6 @@ struct
   datatype ast =
     Dec of Exp.dec
 
-  (** A fallback for unimplemented features, or for incrementality *)
-  | Unknown of Token.t Seq.t
-
   type t = ast
 
 end
