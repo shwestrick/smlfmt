@@ -100,6 +100,13 @@ struct
   fun getSource tok =
     WithSource.srcOf tok
 
+  fun toString tok =
+    let
+      val src = getSource tok
+    in
+      CharVector.tabulate (Source.length src, Source.nth src)
+    end
+
   fun tryReserved src =
     let
       val str = CharVector.tabulate (Source.length src, Source.nth src)

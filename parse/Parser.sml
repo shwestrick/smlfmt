@@ -21,14 +21,6 @@ struct
       }
 
 
-  structure InfixDict =
-    ScopedDict
-      (struct
-        type t = Token.t
-        val equal = Token.same
-      end)
-
-
   fun seqFromRevList list = Seq.rev (Seq.fromList list)
 
 
@@ -387,6 +379,7 @@ struct
               infExpOkay restriction
               andalso Ast.Exp.isInfExp exp
               andalso check Token.isValueIdentifier at i
+              andalso InfixDict.contains infdict (tok i)
             then
               (true, consume_expInfix infdict exp (i+1))
 
@@ -813,7 +806,7 @@ struct
         end
 
 
-      val infdict = InfixDict.emptyTopLevel
+      val infdict = InfixDict.initialTopLevel
       val (i, topdec) = consume_dec infdict 0
 
       val _ =

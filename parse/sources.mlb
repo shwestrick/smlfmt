@@ -2,4 +2,5 @@
 
 AstType.sml
 Ast.sml
+InfixDict.sml
 Parser.sml
