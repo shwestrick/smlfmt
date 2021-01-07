@@ -54,8 +54,22 @@ sig
   type timer
   val startTiming: unit -> timer
   val tick: timer -> string -> timer
+
+  val splitLast: 'a list -> ('a list * 'a) option
 end =
 struct
+
+  fun splitLast xs =
+    let
+      fun loop acc (head, tail) =
+        case tail of
+          [] => SOME (List.rev acc, head)
+        | head' :: tail' => loop (head :: acc) (head', tail')
+    in
+      case xs of
+        [] => NONE
+      | head :: tail => loop [] (head, tail)
+    end
 
   fun die msg =
     ( TextIO.output (TextIO.stdErr, msg ^ "\n")
