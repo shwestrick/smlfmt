@@ -5,48 +5,55 @@
 
 structure InfixDict :>
 sig
-  type 'a t
+  type t
 
   exception TopLevel
-  val popScope: 'a t -> 'a t
-  val newScope: 'a t -> 'a t
-  val numScopes: 'a t -> int
+  val popScope: t -> t
+  val newScope: t -> t
+  val numScopes: t -> int
 
-  val initialTopLevel: int t
+  val initialTopLevel: t
 
-  val insert: 'a t -> (Token.t * 'a) -> 'a t
-  val contains: 'a t -> Token.t -> bool
+  val insert: t -> (Token.t * int) -> t
+  val contains: t -> Token.t -> bool
 
   exception NotFound
-  val lookup: 'a t -> Token.t -> 'a
+  val lookup: t -> Token.t -> int
+
+  val higherPrecedence: t -> (Token.t * Token.t) -> bool
 
 end =
-  struct
-    structure D =
-      ScopedDict
-        (struct
-          type t = string
-          val equal: t * t -> bool = op=
-        end)
+struct
+  structure D =
+    ScopedDict
+      (struct
+        type t = string
+        val equal: t * t -> bool = op=
+      end)
 
-    open D
+  open D
 
-    val initialTopLevel: int t =
-      topLevelFromList
-        [ ("div", 7), ("mod", 7), ("*", 7), ("/", 7)
-        , ("+", 6), ("-", 6), ("^", 6)
-        , ("::", 5), ("@", 5)
-        , ("=", 4), ("<", 4), (">", 4), ("<=", 4), (">=", 4), ("<>", 4)
-        , (":=", 3), ("o", 3)
-        , ("before", 0)
-        ]
+  type t = int D.t
 
-    fun contains d tok =
-      D.contains d (Token.toString tok)
+  val initialTopLevel: t =
+    topLevelFromList
+      [ ("div", 7), ("mod", 7), ("*", 7), ("/", 7)
+      , ("+", 6), ("-", 6), ("^", 6)
+      , ("::", 5), ("@", 5)
+      , ("=", 4), ("<", 4), (">", 4), ("<=", 4), (">=", 4), ("<>", 4)
+      , (":=", 3), ("o", 3)
+      , ("before", 0)
+      ]
 
-    fun insert d (tok, prec) =
-      D.insert d (Token.toString tok, prec)
+  fun contains d tok =
+    D.contains d (Token.toString tok)
 
-    fun lookup d tok =
-      D.lookup d (Token.toString tok)
-  end
+  fun insert d (tok, prec) =
+    D.insert d (Token.toString tok, prec)
+
+  fun lookup d tok =
+    D.lookup d (Token.toString tok)
+
+  fun higherPrecedence d (tok1, tok2) =
+    lookup d tok1 > lookup d tok2
+end

@@ -24,6 +24,35 @@ struct
   fun seqFromRevList list = Seq.rev (Seq.fromList list)
 
 
+  fun makeInfix infdict (left, id, right) =
+    let
+      val default =
+        Ast.Exp.Infix
+          { left = left
+          , id = id
+          , right = right
+          }
+    in
+      case right of
+        Ast.Exp.Infix {left=rLeft, id=rId, right=rRight} =>
+          if InfixDict.higherPrecedence infdict (rId, id) then
+            Ast.Exp.Infix
+              { left =
+                  Ast.Exp.Infix
+                    { left = left
+                    , id = id
+                    , right = rLeft
+                    }
+              , id = rId
+              , right = rRight
+              }
+          else
+            default
+      | _ =>
+          default
+    end
+
+
   (** This just implements a dumb little ordering:
     *   AtExp < AppExp < InfExp < Exp
     * and then e.g. `appExpOkay r` checks `AppExp < r`
@@ -399,7 +428,7 @@ struct
 
 
 
-      (** infexp1 vid infexp1
+      (** infexp1 vid infexp2
         *            ^
         *)
       and consume_expInfix infdict exp1 i =
@@ -410,11 +439,7 @@ struct
           val (i, exp2) = consume_exp infdict InfExpRestriction i
         in
           ( i
-          , Ast.Exp.Infix
-              { left = exp1
-              , id = id
-              , right = exp2
-              }
+          , makeInfix infdict (exp1, id, exp2)
           )
         end
 
