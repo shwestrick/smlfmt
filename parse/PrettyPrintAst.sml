@@ -11,7 +11,7 @@ struct
 
   structure PD = PrettierDoc
 
-  infix 2 ++ +/+ +\+ +\\+
+  infix 2 ++ +/+ +\+ +\\+ +-+
   fun x ++ y = PD.cat (x, y)
 
   fun x +/+ y = x ++ PD.softbreak ++ x
@@ -19,7 +19,9 @@ struct
   fun x +\+ y = x ++ PD.softline ++ y
   fun x +\\+ y = x ++ PD.line ++ y
 
+
   val space = PD.text " "
+  fun x +-+ y = x ++ space ++ y
 
   fun ind x = PD.nest 2 x
 
@@ -55,11 +57,12 @@ struct
               let
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
-                PD.text "val"
-                +\+ showSyntaxSeq tyvars Token.toString
-                +\+ (if Option.isSome recc then PD.text "rec" else PD.empty)
-                +\+ showPat pat
-                +\+ PD.text "="
+                PD.group (
+                  PD.text "val"
+                  +-+ showSyntaxSeq tyvars Token.toString
+                  +-+ (if Option.isSome recc then PD.text "rec" else PD.empty)
+                  +-+ showPat pat
+                  +-+ PD.text "=")
                 +\+ showExp exp
               end
 
@@ -90,7 +93,7 @@ struct
               PD.text "()"
           | Atpat (Ident {opp, id}) =>
               (if Option.isSome opp then PD.text "op" else PD.empty)
-              +/+ PD.text (Token.toString (Ast.MaybeLong.getToken id))
+              ++ PD.text (Token.toString (Ast.MaybeLong.getToken id))
           | Atpat (Parens {pat, ...}) =>
               parensAround (showPat pat)
           | _ =>
@@ -109,7 +112,7 @@ struct
               PD.text "()"
           | Ident {opp, id} =>
               (if Option.isSome opp then PD.text "op" else PD.empty)
-              +/+ PD.text (Token.toString (Ast.MaybeLong.getToken id))
+              ++ PD.text (Token.toString (Ast.MaybeLong.getToken id))
           | Parens {exp, ...} =>
               parensAround (showExp exp)
           | LetInEnd {dec, exps, ...} =>
@@ -117,15 +120,19 @@ struct
                 val prettyDec = showDec dec
                 val prettyExp = showExp (Seq.nth exps 0)
               in
+                (** TODO: we need explicit vertical alignment to make this
+                  * work. Is this what the `align` feature from wl-pprint is
+                  * for??
+                  *)
                 PD.group (
                   PD.text "let"
-                  +\+
-                  ind prettyDec
-                  +\+
+                  +\\+
+                  ind (PD.group prettyDec)
+                  +\\+
                   PD.text "in"
-                  +\+
-                  ind prettyExp
-                  +\+
+                  +\\+
+                  ind (PD.group prettyExp)
+                  +\\+
                   PD.text "end"
                 )
               end

@@ -3,6 +3,11 @@
   * See the file LICENSE for details.
   *)
 
+(** This is based on Daan Leijen's wl-pprint library for Haskell:
+  *   https://hackage.haskell.org/package/wl-pprint-1.2.1/src/
+  * which is (in turn) based on Wadler's "prettier printer":
+  *   http://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf
+  *)
 structure PrettierDoc :>
 sig
   type t
@@ -32,18 +37,24 @@ struct
 
   structure SimpleDoc =
   struct
-    datatype elem =
-      Text of string
-    | Newline of int  (** indent amount *)
-
-    type t = elem list
+    datatype t =
+      Empty
+    | Text of string * t
+    | Newline of int * t
 
     fun spaces count =
       CharVector.tabulate (count, fn _ => #" ")
 
-    fun toString elems =
-      String.concat
-        (List.map (fn Text s => s | Newline k => ("\n" ^ spaces k)) elems)
+    fun toString sdoc =
+      let
+        fun loop acc sdoc =
+          case sdoc of
+            Empty => String.concat (List.rev acc)
+          | Text (s, sdoc') => loop (s :: acc) sdoc'
+          | Newline (k, sdoc') => loop (spaces k :: "\n" :: acc) sdoc'
+      in
+        loop [] sdoc
+      end
   end
 
 
@@ -67,8 +78,8 @@ struct
 
   fun flatten doc =
     case doc of
-      Empty => doc
-    | Text s => doc
+      Empty => Empty
+    | Text s => Text s
     | Line => Text " "
     | Break => Empty
     | Cat (d1, d2) => Cat (flatten d1, flatten d2)
@@ -88,114 +99,46 @@ struct
       val ribbonWidth =
         Int.max (0, Int.min (maxWidth,
           Real.round (ribbonFrac * Real.fromInt maxWidth)))
+      val r = ribbonWidth
+      val w = maxWidth
 
-      (** =============================================================
-        * We're now going to define a function `simplify` that performs
-        * an inorder tree traversal on a document, threading a state
-        * parameter through the computation.
-        *     val simplify: state -> (int * doc) -> state
-        * Essentially, the state is just a partial simple doc. We could
-        * get away with `type state = SimpleDoc.elem list`, but to compute
-        * things about the current state faster, we also memoize some
-        * info along the way.
-        *
-        * This makes the state essentially an ADT:
-        *     type state
-        *     val initialState: state
-        *     val toSimpleDoc: state -> SimpleDoc.t
-        *     val push: state -> SimpleDoc.elem -> state
-        *     val isNice: state -> bool
-        *)
+      datatype docs = Nil | Cons of int * doc * docs
 
-      type simplify_state =
-        { firstLineStartAndSize: (int * int) option
-        , currLineStart: int
-        , currLineSize: int
-        , elems: SimpleDoc.elem list (** In reverse order! *)
-        }
+      fun fits w x =
+        if w < 0 then false else
+        case x of
+          SimpleDoc.Empty => true
+        | SimpleDoc.Text (s, x') => fits (w - String.size s) x'
+        | SimpleDoc.Newline (k, x') => true
 
-      fun toSimpleDoc ({elems, ...}: simplify_state) =
-        List.rev elems
-
-      val initialState =
-        { currLineSize = 0
-        , currLineStart = 0
-        , firstLineStartAndSize = NONE
-        , elems = []
-        }
-
-      fun push (s: simplify_state) elem =
-        case elem of
-          SimpleDoc.Text str =>
-            { currLineStart = #currLineStart s
-            , currLineSize = #currLineSize s + String.size str
-            , elems = elem :: #elems s
-            , firstLineStartAndSize = #firstLineStartAndSize s
-            }
-        | SimpleDoc.Newline indent =>
-            { currLineStart = indent
-            , currLineSize = indent
-            , elems = elem :: #elems s
-            , firstLineStartAndSize =
-                case #firstLineStartAndSize s of
-                  NONE => SOME (#currLineStart s, #currLineSize s)
-                | other => other
-            }
-
-      fun isNice (s: simplify_state) =
+      fun nicest n k x y =
         let
-          val (firstStart, firstSize) =
-            case #firstLineStartAndSize s of
-              SOME x => x
-            | NONE => (#currLineStart s, #currLineSize s)
+          val width = Int.min (w - k, r - k + n)
         in
-          (firstSize - firstStart) <= ribbonWidth
-          andalso
-          firstSize <= maxWidth
+          if fits width x then x else y
         end
 
-      fun simplify state (indent, doc) =
-        case doc of
-          Empty =>
-            state
-        | Text s =>
-            push state (SimpleDoc.Text s)
-        | Nest (k, doc') =>
-            simplify state (indent+k, doc')
-        | Line =>
-            push state (SimpleDoc.Newline indent)
-        | Break =>
-            push state (SimpleDoc.Newline indent)
-        | Cat (doc1, doc2) =>
-            simplify (simplify state (indent, doc1)) (indent, doc2)
-        | Union (doc1, doc2) =>
-            let
-              (** This is correct, but slow. I adapted this code from a
-                * lazy implementation that would only process as far as needed
-                * in order to figure out which is nicer.
-                *
-                * TODO: Optimize this by refactoring the code into
-                * line-generators. Essentially, the idea would be to simplify
-                * until we hit a newline, and then return our progress so far,
-                * as well as a continuation for the rest of the computation
-                * that will only be called if needed.
-                *)
-              val state1 = simplify state (indent, doc1)
-              val state2 = simplify state (indent, doc2)
-            in
-              (** Note that the first lines of state1 are longer than the
-                * first lines of state2, because of how `group` works.
-                * Therefore, if state1 is nice, it's preferable, because
-                * it maximizes horizontal usage.
-                *)
-              if isNice state1 then
-                state1
-              else
-                state2
-            end
+      (** TODO: Needs to be optimized.
+        *
+        * This is "correct" but inefficient, because it is adapted from
+        * lazy code. Specifically, in Union case, we only need to continue
+        * as far as necessary to figure out if the first line fits. But
+        * this code will fully evaluate both tails of the document.
+        *)
+      fun best n k Nil = SimpleDoc.Empty
+        | best n k (Cons (i, d, ds)) =
+            case d of
+              Empty        => best n k ds
+            | Text s       => SimpleDoc.Text (s, best n (k + String.size s) ds)
+            | Line         => SimpleDoc.Newline (i, best i i ds)
+            | Break        => SimpleDoc.Newline (i, best i i ds)
+            | Cat (x, y)   => best n k (Cons (i, x, Cons (i, y, ds)))
+            | Nest (j, x)  => best n k (Cons (i+j, x, ds))
+            | Union (x, y) => nicest n k (best n k (Cons (i, x, ds)))
+                                         (best n k (Cons (i, y, ds)))
 
     in
-      toSimpleDoc (simplify initialState (0, inputDoc))
+      best 0 0 (Cons (0, inputDoc, Nil))
     end
 
 
