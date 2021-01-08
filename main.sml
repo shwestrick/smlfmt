@@ -136,3 +136,5 @@ val ast =
     ; OS.Process.exit OS.Process.failure
     )
 
+val _ =
+  print (PrettyPrintAst.pretty ast ^ "\n")

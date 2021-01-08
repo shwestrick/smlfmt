@@ -2,5 +2,7 @@
 
 AstType.sml
 Ast.sml
+PrettyPrintAst.sml
+
 InfixDict.sml
 Parser.sml

@@ -21,6 +21,7 @@ struct
   sig
     type t
     val make: Token.t -> t
+    val getToken: t -> Token.t
   end =
   struct
     type t = Token.t
@@ -31,6 +32,8 @@ struct
       else
         raise Fail ("Ast.MaybeLong.make: given non-identifier ("
                     ^ Token.classToString (Token.getClass tok) ^ ")")
+
+    fun getToken tok = tok
   end
 
 
