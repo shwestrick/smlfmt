@@ -9,18 +9,19 @@ sig
 end =
 struct
 
-  structure PD = PrettyDoc
+  structure PD = PrettierDoc
 
-  infix 2 ^^ ++ +/+ +/+? ?+/+
-  fun x ^^ y = PD.verticalNest (x, 0, y)
-  fun x ++ y = PD.horizontal (x, y)
-  fun x +/+ y = PD.separate (x, y)
+  infix 2 ++ +/+ +\+ +\\+
+  fun x ++ y = PD.cat (x, y)
 
-  fun x +/+? NONE = x
-    | x +/+? (SOME y) = x +/+ y
+  fun x +/+ y = x ++ PD.softbreak ++ x
 
-  fun NONE ?+/+ y = y
-    | (SOME x) ?+/+ y = x +/+ y
+  fun x +\+ y = x ++ PD.softline ++ y
+  fun x +\\+ y = x ++ PD.line ++ y
+
+  val space = PD.text " "
+
+  fun ind x = PD.nest 2 x
 
   fun parensAround (x: PD.t) =
     PD.text "(" ++ x ++ PD.text ")"
@@ -30,20 +31,20 @@ struct
       val n = Seq.length xs
 
       fun get i =
-        PD.text "," +/+ Seq.nth xs i
+        delim ++ space ++ Seq.nth xs i
     in
-      Seq.iterate op++ (Seq.nth xs 0) (Seq.tabulate (fn i => get (i+1)) (n-1))
+      Seq.iterate op+/+ (Seq.nth xs 0) (Seq.tabulate (fn i => get (i+1)) (n-1))
     end
 
 
   fun pretty ast =
     let
-      fun maybeShowSyntaxSeq s f =
+      fun showSyntaxSeq s f =
         case s of
-          Ast.SyntaxSeq.Empty => NONE
-        | Ast.SyntaxSeq.One x => SOME (PD.text (f x))
+          Ast.SyntaxSeq.Empty => PD.empty
+        | Ast.SyntaxSeq.One x => PD.text (f x)
         | Ast.SyntaxSeq.Many {elems, ...} =>
-            SOME (parensAround (sequence (PD.text ",") (Seq.map (PD.text o f) elems)))
+            parensAround (sequence (PD.text ",") (Seq.map (PD.text o f) elems))
 
       fun showDec dec =
         let
@@ -55,22 +56,22 @@ struct
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
                 PD.text "val"
-                +/+? maybeShowSyntaxSeq tyvars Token.toString
-                +/+? Option.map (fn _ => PD.text "rec") recc
-                +/+ showPat pat
-                +/+ PD.text "="
-                +/+ showExp exp
+                +\+ showSyntaxSeq tyvars Token.toString
+                +\+ (if Option.isSome recc then PD.text "rec" else PD.empty)
+                +\+ showPat pat
+                +\+ PD.text "="
+                +\+ showExp exp
               end
 
           | DecMultiple {elems, ...} =>
               let
                 val elems = Seq.map showDec elems
               in
-                Seq.iterate op^^ (Seq.nth elems 0) (Seq.drop elems 1)
+                Seq.iterate op+\\+ (Seq.nth elems 0) (Seq.drop elems 1)
               end
 
           | DecEmpty =>
-              PD.text ""
+              PD.empty
 
           | _ =>
               PD.text "<dec>"
@@ -88,8 +89,8 @@ struct
           | Atpat (Unit _) =>
               PD.text "()"
           | Atpat (Ident {opp, id}) =>
-              Option.map (fn _ => PD.text "op") opp
-              ?+/+ PD.text (Token.toString (Ast.MaybeLong.getToken id))
+              (if Option.isSome opp then PD.text "op" else PD.empty)
+              +/+ PD.text (Token.toString (Ast.MaybeLong.getToken id))
           | Atpat (Parens {pat, ...}) =>
               parensAround (showPat pat)
           | _ =>
@@ -107,8 +108,8 @@ struct
           | Unit _ =>
               PD.text "()"
           | Ident {opp, id} =>
-              Option.map (fn _ => PD.text "op") opp
-              ?+/+ PD.text (Token.toString (Ast.MaybeLong.getToken id))
+              (if Option.isSome opp then PD.text "op" else PD.empty)
+              +/+ PD.text (Token.toString (Ast.MaybeLong.getToken id))
           | Parens {exp, ...} =>
               parensAround (showExp exp)
           | LetInEnd {dec, exps, ...} =>
@@ -116,18 +117,25 @@ struct
                 val prettyDec = showDec dec
                 val prettyExp = showExp (Seq.nth exps 0)
               in
-                PD.verticalNest (PD.text "let", 2, prettyDec)
-                ^^
-                PD.verticalNest (PD.text "in", 2, prettyExp)
-                ^^
-                PD.text "end"
+                PD.group (
+                  PD.text "let"
+                  +\+
+                  ind prettyDec
+                  +\+
+                  PD.text "in"
+                  +\+
+                  ind prettyExp
+                  +\+
+                  PD.text "end"
+                )
               end
+
           | _ =>
               PD.text "<exp>"
         end
 
     in
-      case ast of Ast.Dec d => PrettyDoc.pretty (showDec d)
+      case ast of Ast.Dec d => PrettierDoc.toString (showDec d)
     end
 
 end
