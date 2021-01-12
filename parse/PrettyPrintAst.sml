@@ -12,9 +12,10 @@ struct
   structure PD = PrettySimpleDoc
   open PD
 
-  infix 2 ++ $$
+  infix 2 ++ $$ //
   fun x ++ y = beside (x, y)
-  fun x $$ y = above (x, y)
+  fun x $$ y = aboveOrSpace (x, y)
+  fun x // y = aboveOrBeside (x, y)
 
   fun spaces n =
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
@@ -91,6 +92,17 @@ struct
               ++ text (Token.toString (Ast.MaybeLong.getToken id))
           | Atpat (Parens {pat, ...}) =>
               parensAround (showPat pat)
+          | Atpat (Tuple {elems, ...}) =>
+              let
+                val top = text "(" ++ softspace ++ showPat (Seq.nth elems 0)
+                fun f p = text ", " ++ showPat p
+              in
+                group (
+                  Seq.iterate op// top (Seq.map f (Seq.drop elems 1))
+                  //
+                  text ")"
+                )
+              end
           | _ =>
               text "<pat>"
         end

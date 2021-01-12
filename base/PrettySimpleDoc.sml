@@ -12,9 +12,11 @@ sig
   val text: string -> doc
 
   val beside: doc * doc -> doc
-  val above: doc * doc -> doc
+  val aboveOrSpace: doc * doc -> doc
+  val aboveOrBeside: doc * doc -> doc
 
   val space: doc
+  val softspace: doc
   val group: doc -> doc
 
   val pretty: int -> doc -> string
@@ -22,12 +24,15 @@ sig
 end =
 struct
 
+  (** for Space and Above, the boolean indicates whether or not to
+    * keep space when undone by group.
+    *)
   datatype doc =
     Empty
-  | Space
+  | Space of bool
   | Text of string
   | Beside of doc * doc
-  | Above of doc * doc
+  | Above of bool * doc * doc
   | Choice of {flattened: (bool * doc * int * bool), normal: doc}
 
 
@@ -35,7 +40,8 @@ struct
 
 
   val empty = Empty
-  val space = Space
+  val space = Space true
+  val softspace = Space false
   val text = Text
 
 
@@ -46,12 +52,14 @@ struct
     | _ => Beside (doc1, doc2)
 
 
-  fun above (doc1, doc2) =
+  fun above' withSpace (doc1, doc2) =
     case (doc1, doc2) of
       (Empty, _) => doc2
     | (_, Empty) => doc1
-    | _ => Above (doc1, doc2)
+    | _ => Above (withSpace, doc1, doc2)
 
+  val aboveOrSpace = above' true
+  val aboveOrBeside = above' false
 
   fun flatten doc =
     let
@@ -60,14 +68,17 @@ struct
         case doc of
           Empty =>
             (false, Empty, 0, false)
-        | Space =>
-            (true, Empty, 0, true)
+        | Space keepSpace =>
+            (keepSpace, Empty, 0, keepSpace)
         | Text str =>
             (false, Text str, String.size str, false)
         | Beside (d1, d2) =>
             loopBeside (d1, d2)
-        | Above (d1, d2) =>
-            loopBeside (d1, Beside (Space, d2))
+        | Above (withSpace, d1, d2) =>
+            if withSpace then
+              loopBeside (d1, Beside (Space true, d2))
+            else
+              loopBeside (d1, d2)
         | Choice {flattened, ...} =>
             flattened
 
@@ -89,7 +100,7 @@ struct
             | (_, false, _) =>
                 (false, Beside (flat1, flat2), sz1+sz2, false)
             | _ =>
-                (false, Beside (flat1, Beside (Space, flat2)), sz1+sz2+1, false)
+                (false, Beside (flat1, Beside (Space true, flat2)), sz1+sz2+1, false)
         in
           ( l1 orelse l
           , m
@@ -116,11 +127,11 @@ struct
       fun layout (col, acc) doc : int * (string list) =
         case doc of
           Empty => (col, acc)
-        | Space => (col + 1, " " :: acc)
+        | Space _ => (col + 1, " " :: acc)
         | Text str => (col + String.size str, str :: acc)
         | Beside (doc1, doc2) =>
             layout (layout (col, acc) doc1) doc2
-        | Above (doc1, doc2) =>
+        | Above (_, doc1, doc2) =>
             let
               val (_, acc) = layout (col, acc) doc1
               val acc = spaces col :: "\n" :: acc
