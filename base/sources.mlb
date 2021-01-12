@@ -9,4 +9,4 @@ MaybeError.sml
 KEY.sig
 ScopedDict.sml
 
-PrettierDoc.sml
+PrettySimpleDoc.sml

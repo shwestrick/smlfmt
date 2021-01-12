@@ -9,24 +9,17 @@ sig
 end =
 struct
 
-  structure PD = PrettierDoc
+  structure PD = PrettySimpleDoc
+  open PD
 
-  infix 2 ++ +/+ +\+ +\\+ +-+
-  fun x ++ y = PD.cat (x, y)
+  infix 2 ++ $$
+  fun x ++ y = beside (x, y)
+  fun x $$ y = above (x, y)
 
-  fun x +/+ y = x ++ PD.softbreak ++ x
+  fun spaces n = List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
-  fun x +\+ y = x ++ PD.softline ++ y
-  fun x +\\+ y = x ++ PD.line ++ y
-
-
-  val space = PD.text " "
-  fun x +-+ y = x ++ space ++ y
-
-  fun ind x = PD.nest 2 x
-
-  fun parensAround (x: PD.t) =
-    PD.text "(" ++ x ++ PD.text ")"
+  fun parensAround (x: doc) =
+    text "(" ++ x ++ text ")"
 
   fun sequence delim (xs: PD.t Seq.t) =
     let
@@ -35,7 +28,7 @@ struct
       fun get i =
         delim ++ space ++ Seq.nth xs i
     in
-      Seq.iterate op+/+ (Seq.nth xs 0) (Seq.tabulate (fn i => get (i+1)) (n-1))
+      Seq.iterate op++ (Seq.nth xs 0) (Seq.tabulate (fn i => get (i+1)) (n-1))
     end
 
 
@@ -43,8 +36,8 @@ struct
     let
       fun showSyntaxSeq s f =
         case s of
-          Ast.SyntaxSeq.Empty => PD.empty
-        | Ast.SyntaxSeq.One x => PD.text (f x)
+          Ast.SyntaxSeq.Empty => empty
+        | Ast.SyntaxSeq.One x => text (f x)
         | Ast.SyntaxSeq.Many {elems, ...} =>
             parensAround (sequence (PD.text ",") (Seq.map (PD.text o f) elems))
 
@@ -57,27 +50,28 @@ struct
               let
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
-                PD.group (
-                  PD.text "val"
-                  +-+ showSyntaxSeq tyvars Token.toString
-                  +-+ (if Option.isSome recc then PD.text "rec" else PD.empty)
-                  +-+ showPat pat
-                  +-+ PD.text "=")
-                +\+ showExp exp
+                group (
+                  group (text "val" ++ space
+                  ++ showSyntaxSeq tyvars Token.toString ++ space
+                  ++ (if Option.isSome recc then text "rec" else empty) ++ space
+                  ++ showPat pat ++ space
+                  ++ text "=" ++ space)
+                  $$
+                  (spaces 2 ++ showExp exp))
               end
 
           | DecMultiple {elems, ...} =>
               let
                 val elems = Seq.map showDec elems
               in
-                Seq.iterate op+\\+ (Seq.nth elems 0) (Seq.drop elems 1)
+                Seq.iterate op$$ (Seq.nth elems 0) (Seq.drop elems 1)
               end
 
           | DecEmpty =>
-              PD.empty
+              empty
 
           | _ =>
-              PD.text "<dec>"
+              text "<dec>"
         end
 
       and showPat pat =
@@ -86,18 +80,18 @@ struct
         in
           case pat of
             Atpat (Wild _) =>
-              PD.text "_"
+              text "_"
           | Atpat (Const tok) =>
-              PD.text (Token.toString tok)
+              text (Token.toString tok)
           | Atpat (Unit _) =>
-              PD.text "()"
+              text "()"
           | Atpat (Ident {opp, id}) =>
-              (if Option.isSome opp then PD.text "op" else PD.empty)
-              ++ PD.text (Token.toString (Ast.MaybeLong.getToken id))
+              (if Option.isSome opp then text "op" else empty)
+              ++ text (Token.toString (Ast.MaybeLong.getToken id))
           | Atpat (Parens {pat, ...}) =>
               parensAround (showPat pat)
           | _ =>
-              PD.text "<pat>"
+              text "<pat>"
         end
 
 
@@ -107,12 +101,12 @@ struct
         in
           case exp of
             Const tok =>
-              PD.text (Token.toString tok)
+              text (Token.toString tok)
           | Unit _ =>
-              PD.text "()"
+              text "()"
           | Ident {opp, id} =>
-              (if Option.isSome opp then PD.text "op" else PD.empty)
-              ++ PD.text (Token.toString (Ast.MaybeLong.getToken id))
+              (if Option.isSome opp then text "op" else empty)
+              ++ text (Token.toString (Ast.MaybeLong.getToken id))
           | Parens {exp, ...} =>
               parensAround (showExp exp)
           | LetInEnd {dec, exps, ...} =>
@@ -120,29 +114,25 @@ struct
                 val prettyDec = showDec dec
                 val prettyExp = showExp (Seq.nth exps 0)
               in
-                (** TODO: we need explicit vertical alignment to make this
-                  * work. Is this what the `align` feature from wl-pprint is
-                  * for??
-                  *)
-                PD.group (
-                  PD.text "let"
-                  +\\+
-                  ind (PD.group prettyDec)
-                  +\\+
-                  PD.text "in"
-                  +\\+
-                  ind (PD.group prettyExp)
-                  +\\+
-                  PD.text "end"
+                group (
+                  group (text "let"
+                  $$
+                  (spaces 2 ++ prettyDec)
+                  $$
+                  text "in")
+                  $$
+                  (spaces 2 ++ prettyExp)
+                  $$
+                  text "end"
                 )
               end
 
           | _ =>
-              PD.text "<exp>"
+              text "<exp>"
         end
 
     in
-      case ast of Ast.Dec d => PrettierDoc.toString (showDec d)
+      case ast of Ast.Dec d => PrettySimpleDoc.toString (showDec d)
     end
 
 end

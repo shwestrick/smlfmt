@@ -18,6 +18,7 @@ sig
   val group: doc -> doc
 
   val pretty: int -> doc -> string
+  val toString: doc -> string
 end =
 struct
 
@@ -136,5 +137,8 @@ struct
     in
       String.concat (List.rev strs)
     end
+
+
+  val toString = pretty 20
 
 end
