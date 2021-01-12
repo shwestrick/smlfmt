@@ -19,7 +19,7 @@ sig
   val softspace: doc
   val group: doc -> doc
 
-  val pretty: int -> doc -> string
+  val pretty: {ribbonFrac: real, maxWidth: int} -> doc -> string
   val toString: doc -> string
 end =
 struct
@@ -122,34 +122,47 @@ struct
     CharVector.tabulate (count, fn _ => #" ")
 
 
-  fun pretty maxWidth inputDoc =
+  fun pretty {ribbonFrac, maxWidth} inputDoc =
     let
-      fun layout (col, acc) doc : int * (string list) =
+      val ribbonWidth =
+        Int.max (0, Int.min (maxWidth,
+          Real.round (ribbonFrac * Real.fromInt maxWidth)))
+
+      fun layout (lnStart, col, acc) doc : int * int * (string list) =
         case doc of
-          Empty => (col, acc)
-        | Space _ => (col + 1, " " :: acc)
-        | Text str => (col + String.size str, str :: acc)
+          Empty => (lnStart, col, acc)
+        | Space _ =>
+            ( if lnStart = col then lnStart + 1 else lnStart
+            , col + 1
+            , " " :: acc
+            )
+        | Text str => (lnStart, col + String.size str, str :: acc)
         | Beside (doc1, doc2) =>
-            layout (layout (col, acc) doc1) doc2
+            layout (layout (lnStart, col, acc) doc1) doc2
         | Above (_, doc1, doc2) =>
             let
-              val (_, acc) = layout (col, acc) doc1
+              val (_, _, acc) = layout (lnStart, col, acc) doc1
               val acc = spaces col :: "\n" :: acc
             in
-              layout (col, acc) doc2
+              layout (lnStart, col, acc) doc2
             end
         | Choice {flattened = (_, flat, sz, _), normal} =>
-            if col + sz <= maxWidth then
-              layout (col, acc) flat
-            else
-              layout (col, acc) normal
+            let
+              val widthOkay = col + sz <= maxWidth
+              val ribbonOkay = (col - lnStart) + sz <= ribbonWidth
+            in
+              if widthOkay andalso ribbonOkay then
+                layout (lnStart, col, acc) flat
+              else
+                layout (lnStart, col, acc) normal
+            end
 
-      val (_, strs) = layout (0, []) inputDoc
+      val (_, _, strs) = layout (0, 0, []) inputDoc
     in
       String.concat (List.rev strs)
     end
 
 
-  val toString = pretty 80
+  val toString = pretty {ribbonFrac = 0.5, maxWidth = 80}
 
 end

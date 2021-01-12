@@ -53,13 +53,17 @@ struct
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
                 group (
-                  group (text "val" ++ space
-                  ++ showSyntaxSeq tyvars Token.toString ++ space
-                  ++ (if Option.isSome recc then text "rec" else empty) ++ space
+                  group (
+                    text "val" ++ space
+                    ++ showSyntaxSeq tyvars Token.toString ++ space
+                    ++ (if Option.isSome recc then text "rec" else empty)
+                  )
+                  ++ space
                   ++ showPat pat ++ space
-                  ++ text "=" ++ space)
+                  ++ text "="
                   $$
-                  (spaces 2 ++ showExp exp))
+                  (spaces 2 ++ showExp exp)
+                )
               end
 
           | DecMultiple {elems, ...} =>
@@ -122,6 +126,17 @@ struct
               ++ text (Token.toString (Ast.MaybeLong.getToken id))
           | Parens {exp, ...} =>
               parensAround (showExp exp)
+          | Tuple {elems, ...} =>
+              let
+                val top = text "(" ++ softspace ++ showExp (Seq.nth elems 0)
+                fun f e = text ", " ++ showExp e
+              in
+                group (
+                  Seq.iterate op// top (Seq.map f (Seq.drop elems 1))
+                  //
+                  text ")"
+                )
+              end
           | LetInEnd {dec, exps, ...} =>
               let
                 val prettyDec = showDec dec
