@@ -139,6 +139,6 @@ struct
     end
 
 
-  val toString = pretty 20
+  val toString = pretty 80
 
 end
