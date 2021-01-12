@@ -59,6 +59,12 @@ struct
       (case exp of
         Infix _ => true
       | _ => false)
+
+    fun isMultipleDecs dec =
+      case dec of
+        DecMultiple {elems, ...} =>
+          Seq.length elems > 1
+      | _ => false
   end
 
 end

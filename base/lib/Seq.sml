@@ -30,6 +30,8 @@ struct
 
   fun map f s = tabulate (fn i => f (nth s i)) (length s)
 
+  fun mapIdx f s = tabulate (fn i => f (i, nth s i)) (length s)
+
   fun rev s = tabulate (fn i => nth s (length s - i - 1)) (length s)
 
   fun append (s, t) =

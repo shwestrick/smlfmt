@@ -16,7 +16,8 @@ struct
   fun x ++ y = beside (x, y)
   fun x $$ y = above (x, y)
 
-  fun spaces n = List.foldl op++ empty (List.tabulate (n, fn _ => space))
+  fun spaces n =
+    List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
   fun parensAround (x: doc) =
     text "(" ++ x ++ text ")"
@@ -112,16 +113,29 @@ struct
           | LetInEnd {dec, exps, ...} =>
               let
                 val prettyDec = showDec dec
-                val prettyExp = showExp (Seq.nth exps 0)
-              in
-                group (
-                  group (text "let"
+                val numExps = Seq.length exps
+
+                val withDelims = Seq.mapIdx (fn (i, e) =>
+                    showExp e ++ (if i = numExps - 1 then empty else text ";"))
+                  exps
+
+                val topPart =
+                  text "let"
                   $$
                   (spaces 2 ++ prettyDec)
                   $$
-                  text "in")
+                  text "in"
+
+                val topPart =
+                  if Ast.Exp.isMultipleDecs dec then
+                    topPart
+                  else
+                    group topPart
+              in
+                group (
+                  topPart
                   $$
-                  (spaces 2 ++ prettyExp)
+                  (spaces 2 ++ group (Seq.iterate op$$ empty withDelims))
                   $$
                   text "end"
                 )
