@@ -36,18 +36,13 @@ struct
       case right of
         Ast.Exp.Infix {left=rLeft, id=rId, right=rRight} =>
           if InfixDict.higherPrecedence infdict (rId, id) then
+            default
+          else
             Ast.Exp.Infix
-              { left =
-                  Ast.Exp.Infix
-                    { left = left
-                    , id = id
-                    , right = rLeft
-                    }
+              { left = makeInfix infdict (left, id, rLeft)
               , id = rId
               , right = rRight
               }
-          else
-            default
       | _ =>
           default
     end
