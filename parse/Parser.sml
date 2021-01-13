@@ -640,6 +640,11 @@ struct
               )
 
           | _ =>
+              (** TODO: BUG:
+                *   isMaybeLongIdentifier is not enough. We need to check that
+                *   this is a valid tycon. For example, it should not be a
+                *   type var.
+                *)
               if check Token.isMaybeLongIdentifier at i then
                 ( i+1
                 , Ast.Ty.Con
