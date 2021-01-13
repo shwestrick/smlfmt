@@ -52,14 +52,24 @@ struct
         Var tok =>
           text (Token.toString tok)
       | Con {args = Ast.SyntaxSeq.Empty, id} =>
-          text (Token.toString (Ast.MaybeLong.getToken id))
+          (* text "CON" ++ parensAround *)
+            (text (Token.toString (Ast.MaybeLong.getToken id)))
       | Con {args, id} =>
-          showSyntaxSeq args showTy ++ space
-          ++ text (Token.toString (Ast.MaybeLong.getToken id))
+          (* text "CON" ++ parensAround *)
+            (showSyntaxSeq args showTy ++ space
+            ++ text (Token.toString (Ast.MaybeLong.getToken id)))
       | Parens {ty, ...} =>
           parensAround (showTy ty)
+      | Tuple {elems, ...} =>
+          let
+            val begin = showTy (Seq.nth elems 0)
+            fun f x = space ++ text "*" ++ space ++ showTy x
+          in
+            Seq.iterate op++ begin (Seq.map f (Seq.drop elems 1))
+          end
       | Arrow {from, to, ...} =>
-          showTy from ++ space ++ text "->" ++ space ++ showTy to
+          (* parensAround *)
+            (showTy from ++ space ++ text "->" ++ space ++ showTy to)
       | _ =>
         text "<ty>"
     end
@@ -147,11 +157,11 @@ struct
       | App {left, right} =>
           group (showExp left $$ (spaces 2 ++ showExp right))
       | Infix {left, id, right} =>
-          group (
+          parensAround (group (
             showExp left ++ space ++ text (Token.toString id)
             $$
             showExp right
-          )
+          ))
       | Typed {exp, ty, ...} =>
           showExp exp ++ space ++ text ":" ++ space ++ showTy ty
       | LetInEnd {dec, exps, ...} =>

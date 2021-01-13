@@ -503,7 +503,7 @@ struct
           (* val _ = print ("typed\n") *)
 
           val colon = tok (i-1)
-          val (i, ty) = consume_ty i
+          val (i, ty) = consume_ty {permitArrows=true} i
         in
           ( i
           , Ast.Exp.Typed
@@ -516,7 +516,7 @@ struct
 
 
 
-      and consume_ty i =
+      and consume_ty restriction i =
         let
           val (i, ty) =
             if check Token.isTyVar at i then
@@ -526,7 +526,7 @@ struct
             else if isReserved Token.OpenParen at i then
               let
                 val leftParen = tok i
-                val (i, ty) = consume_ty (i+1)
+                val (i, ty) = consume_ty {permitArrows=true} (i+1)
               in
                 consume_tyParensOrSequence leftParen [ty] [] i
               end
@@ -540,7 +540,7 @@ struct
             else
               nyi "consume_ty" i
         in
-          consume_afterTy ty i
+          consume_afterTy restriction ty i
         end
 
 
@@ -550,11 +550,12 @@ struct
         * Multiple possibilities for what could be found after a type:
         *   ty -> ty        -- function type
         *   ty longtycon    -- type constructor
+        *   ty * ...        -- tuple
         *)
-      and consume_afterTy ty i =
+      and consume_afterTy (restriction as {permitArrows: bool}) ty i =
         let
           val (again, (i, ty)) =
-            if check Token.isMaybeLongIdentifier at i then
+            if check Token.isTyCon at i then
               ( true
               , ( i+1
                 , Ast.Ty.Con
@@ -563,13 +564,15 @@ struct
                     }
                 )
               )
-            else if isReserved Token.Arrow at i then
+            else if permitArrows andalso isReserved Token.Arrow at i then
               (true, consume_tyArrow ty (i+1))
+            else if check Token.isStar at i then
+              (true, consume_tyTuple [ty] [] (i+1))
             else
               (false, (i, ty))
         in
           if again then
-            consume_afterTy ty i
+            consume_afterTy restriction ty i
           else
             (i, ty)
         end
@@ -582,7 +585,7 @@ struct
       and consume_tyArrow fromTy i =
         let
           val arrow = tok (i-1)
-          val (i, toTy) = consume_ty i
+          val (i, toTy) = consume_ty {permitArrows=true} i
         in
           ( i
           , Ast.Ty.Arrow
@@ -591,6 +594,28 @@ struct
               , to = toTy
               }
           )
+        end
+
+
+      (** [... *] ty * ...
+        *             ^
+        *)
+      and consume_tyTuple tys delims i =
+        let
+          val star = tok (i-1)
+          val (i, ty) = consume_ty {permitArrows=false} i
+          val tys = ty :: tys
+          val delims = star :: delims
+        in
+          if check Token.isStar at i then
+            consume_tyTuple tys delims (i+1)
+          else
+            ( i
+            , Ast.Ty.Tuple
+                { elems = seqFromRevList tys
+                , delims = seqFromRevList delims
+                }
+            )
         end
 
 
@@ -606,7 +631,7 @@ struct
         else if isReserved Token.Comma at i then
           let
             val comma = tok i
-            val (i, ty) = consume_ty (i+1)
+            val (i, ty) = consume_ty {permitArrows=true} (i+1)
           in
             consume_tyParensOrSequence leftParen (ty :: tys) (comma :: delims) i
           end
@@ -640,12 +665,7 @@ struct
               )
 
           | _ =>
-              (** TODO: BUG:
-                *   isMaybeLongIdentifier is not enough. We need to check that
-                *   this is a valid tycon. For example, it should not be a
-                *   type var.
-                *)
-              if check Token.isMaybeLongIdentifier at i then
+              if check Token.isTyCon at i then
                 ( i+1
                 , Ast.Ty.Con
                     { id = Ast.MaybeLong.make (tok i)

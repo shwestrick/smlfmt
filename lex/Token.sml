@@ -284,6 +284,16 @@ struct
       Identifier => Source.nth (getSource tok) 0 = #"'"
     | _ => false
 
+  (** tycons are maybe long identifiers that do not begin with a prime,
+    * and are not "*"
+    *)
+  fun isTyCon tok =
+    case getClass tok of
+      Identifier =>
+        not (isStar tok) andalso (Source.nth (getSource tok) 0 <> #"'")
+    | LongIdentifier => true
+    | _ => false
+
   (** SML permits ints, strings, words, and chars as constants in patterns,
     * but NOT reals.
     *)
@@ -364,6 +374,8 @@ struct
       Reserved rc =>
         List.exists (fn rc' => rc = rc')
           [ CloseParen
+          , CloseSquareBracket
+          , CloseCurlyBracket
           , Comma
           , Semicolon
           , Bar
@@ -376,6 +388,21 @@ struct
           , End
           ]
     | _ => false
+
+  (** This is used in Parser, to see if we should stop parsing
+    * the current type and pop up to the previous context.
+    *)
+  (* fun endsCurrentTy tok =
+    endsCurrentExp
+    orelse
+    case getClass tok of
+      Reserved rc =>
+        List.exists (fn rc' => rc = rc')
+          [ Arrow
+          , As
+          , Colon
+          , Equal
+          ] *)
 
 
   (* fun isValidQualifier src =

@@ -77,10 +77,8 @@ struct
 
     (** ty * ... * ty *)
     | Tuple of
-        { left: Token.t
-        , elems: ty Seq.t
+        { elems: ty Seq.t
         , delims: Token.t Seq.t
-        , right: Token.t
         }
 
     (** tyseq longtycon *)
