@@ -3,6 +3,12 @@ val b = Int.toString : int -> string
 val c = List.nil : int list
 val d = List.foldl : ('a * 'b -> 'b) -> 'b -> 'a list -> 'b
 val e = Array.update : 'a array * int * 'a -> unit
-val f = Substring.splitl : (char -> bool)
-                        -> Substring.substring
-                        -> Substring.substring * Substring.substring
+
+type ('a, 'b) folder = ('a * 'b -> 'b) -> 'b -> 'a list -> 'b
+val f = List.foldl : ('a, 'b) folder
+
+type sb = Substring.substring
+val g = Substring.splitl : (char -> bool) -> sb -> sb * sb
+
+type ('a, 'b) thing = 'a * 'a * 'b
+val h = (5, 6, "hello"): (int, string) thing

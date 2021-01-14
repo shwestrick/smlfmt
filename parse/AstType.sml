@@ -197,7 +197,7 @@ struct
     type typbind =
       { elems:
           { tyvars: Token.t SyntaxSeq.t
-          , tycon: MaybeLong.t
+          , tycon: Token.t
           , eq: Token.t
           , ty: Ty.t
           } Seq.t

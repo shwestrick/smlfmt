@@ -272,6 +272,11 @@ struct
       Identifier => Source.nth (getSource tok) 0 <> #"'"
     | _ => false
 
+  fun isLongIdentifier tok =
+    case getClass tok of
+      LongIdentifier => true
+    | _ => false
+
   fun isMaybeLongIdentifier tok =
     case getClass tok of
       Identifier => true
@@ -291,8 +296,10 @@ struct
     case getClass tok of
       Identifier =>
         not (isStar tok) andalso (Source.nth (getSource tok) 0 <> #"'")
-    | LongIdentifier => true
     | _ => false
+
+  fun isMaybeLongTyCon tok =
+    isTyCon tok orelse isLongIdentifier tok
 
   (** SML permits ints, strings, words, and chars as constants in patterns,
     * but NOT reals.

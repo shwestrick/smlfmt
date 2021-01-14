@@ -97,6 +97,22 @@ struct
             )
           end
 
+      | DecType {typee, typbind={elems, ...}} =>
+          let
+            val {tyvars, tycon, ty, ...} = Seq.nth elems 0
+          in
+            group (
+              group (
+                text "type" ++ space
+                ++ showSyntaxSeq tyvars (PD.text o Token.toString) ++ space
+                ++ text (Token.toString tycon) ++ space
+                ++ text "="
+              )
+              $$
+              (spaces 2 ++ showTy ty)
+            )
+          end
+
       | DecMultiple {elems, delims} =>
           let
             fun f i =

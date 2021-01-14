@@ -260,6 +260,12 @@ struct
           in
             consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
           end
+       else if isReserved Token.Type at i then
+          let
+            val (i, dec) = consume_decType infdict (i+1)
+          in
+            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+          end
         else
           nyi "consume_decMultiple" i
 
@@ -299,6 +305,47 @@ struct
           consume_decMultiple infdict [] [] i
         else
           (i, Ast.Exp.DecEmpty)
+
+
+      (** type tyvars tycon = ty
+        *     ^
+        *
+        * TODO: implement possible [and type tyvars tycon = ty and ...]
+        *)
+      and consume_decType infdict i =
+        let
+          val typee = tok (i-1)
+          val (i, tyvars) = consume_tyvars i
+          val (i, tycon) =
+            if check Token.isTyCon at i then
+              (i+1, tok i)
+            else
+              error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token. Invalid type constructor."
+                , explain = NONE
+                }
+
+          val (i, eq) = consume_expectReserved Token.Equal i
+          val (i, ty) = consume_ty {permitArrows=true} i
+
+          val typbind =
+            { delims = Seq.empty ()
+            , elems = Seq.singleton
+                { tyvars = tyvars
+                , tycon = tycon
+                , eq = eq
+                , ty = ty
+                }
+            }
+        in
+          ( i
+          , Ast.Exp.DecType
+              { typee = typee
+              , typbind = typbind
+              }
+          )
+        end
 
 
       (** val tyvarseq [rec] pat = exp [and [rec] pat = exp ...]
@@ -555,7 +602,7 @@ struct
       and consume_afterTy (restriction as {permitArrows: bool}) ty i =
         let
           val (again, (i, ty)) =
-            if check Token.isTyCon at i then
+            if check Token.isMaybeLongTyCon at i then
               ( true
               , ( i+1
                 , Ast.Ty.Con
@@ -665,7 +712,7 @@ struct
               )
 
           | _ =>
-              if check Token.isTyCon at i then
+              if check Token.isMaybeLongTyCon at i then
                 ( i+1
                 , Ast.Ty.Con
                     { id = Ast.MaybeLong.make (tok i)
