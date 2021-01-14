@@ -97,11 +97,14 @@ struct
             )
           end
 
-      | DecMultiple {elems, ...} =>
+      | DecMultiple {elems, delims} =>
           let
-            val elems = Seq.map showDec elems
+            fun f i =
+              showDec (Seq.nth elems i)
+              ++
+              (if Option.isSome (Seq.nth delims i) then text ";" else empty)
           in
-            Seq.iterate op$$ (Seq.nth elems 0) (Seq.drop elems 1)
+            Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
           end
 
       | DecEmpty =>

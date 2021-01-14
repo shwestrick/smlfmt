@@ -273,10 +273,10 @@ struct
             if isReserved Token.Semicolon at i then
               (i+1, SOME (tok i) :: delims)
             else
-              (i, delims)
+              (i, NONE :: delims)
         in
           if check Token.isDecStartToken at i then
-            consume_decMultiple infdict decs (NONE :: delims) i
+            consume_decMultiple infdict decs delims i
           else if List.length delims = 0 andalso List.length decs = 1 then
             (i, List.hd decs)
           else
