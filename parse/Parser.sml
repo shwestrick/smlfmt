@@ -26,6 +26,14 @@ struct
 
   fun makeInfix infdict (left, id, right) =
     let
+      val hp = InfixDict.higherPrecedence infdict
+      val sp = InfixDict.samePrecedence infdict
+      val aLeft = InfixDict.associatesLeft infdict
+      val aRight = InfixDict.associatesRight infdict
+
+      fun bothLeft (x, y) = aLeft x andalso aLeft y
+      fun bothRight (x, y) = aRight x andalso aRight y
+
       val default =
         Ast.Exp.Infix
           { left = left
@@ -35,17 +43,68 @@ struct
     in
       case right of
         Ast.Exp.Infix {left=rLeft, id=rId, right=rRight} =>
-          if InfixDict.higherPrecedence infdict (rId, id) then
+          if hp (rId, id) orelse (sp (rId, id) andalso bothRight (rId, id)) then
             default
-          else
+          else if hp (id, rId) orelse (sp (rId, id) andalso bothLeft (rId, id)) then
             Ast.Exp.Infix
               { left = makeInfix infdict (left, id, rLeft)
               , id = rId
               , right = rRight
               }
+          else
+            error
+              { pos = Token.getSource rId
+              , what = "Ambiguous infix expression."
+              , explain =
+                  SOME "You are not allowed to mix left- and right-associative \
+                       \operators of same precedence"
+              }
+
       | _ =>
           default
     end
+
+
+  fun updateInfixDict infdict dec =
+    let
+      fun parsePrec p =
+        case p of
+          NONE => 0
+        | SOME x =>
+            case Int.fromString (Token.toString x) of
+              SOME y => y
+            | NONE => raise Fail "Bug: updateInfixDict.parsePrec"
+    in
+      case dec of
+        Ast.Exp.DecInfix {precedence, elems, ...} =>
+          let
+            val p = parsePrec precedence
+            fun mk tok = (tok, p, InfixDict.AssocLeft)
+          in
+            Seq.iterate (fn (d, tok) => InfixDict.insert d (mk tok))
+              infdict
+              elems
+          end
+
+      | Ast.Exp.DecInfixr {precedence, elems, ...} =>
+          let
+            val p = parsePrec precedence
+            fun mk tok = (tok, p, InfixDict.AssocRight)
+          in
+            Seq.iterate (fn (d, tok) => InfixDict.insert d (mk tok))
+              infdict
+              elems
+          end
+
+      | Ast.Exp.DecNonfix {elems, ...} =>
+          Seq.iterate (fn (d, tok) => InfixDict.remove d tok)
+            infdict
+            elems
+
+      | _ =>
+        raise Fail "Bug: Parser.updateInfixDict: argument is not an infixity dec"
+    end
+
 
 
   (** This just implements a dumb little ordering:
@@ -250,24 +309,129 @@ struct
             }
 
 
+      fun consume_dec infdict i =
+        if check Token.isDecStartToken at i then
+          consume_decMultiple infdict [] [] i
+        else
+          (i, infdict, Ast.Exp.DecEmpty)
+
+
       (** dec [[;] dec ...]
         * ^
         *)
-      fun consume_decMultiple infdict decs delims i =
+      and consume_decMultiple infdict decs delims i =
         if isReserved Token.Val at i then
           let
             val (i, dec) = consume_decVal infdict (i+1)
           in
             consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
           end
-       else if isReserved Token.Type at i then
+        else if isReserved Token.Type at i then
           let
             val (i, dec) = consume_decType infdict (i+1)
           in
             consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
           end
+        else if isReserved Token.Infix at i then
+          let
+            val (i, dec) = consume_decInfix {isLeft=true} infdict (i+1)
+            val infdict = updateInfixDict infdict dec
+          in
+            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+          end
+        else if isReserved Token.Infixr at i then
+          let
+            val (i, dec) = consume_decInfix {isLeft=false} infdict (i+1)
+            val infdict = updateInfixDict infdict dec
+          in
+            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+          end
+        else if isReserved Token.Nonfix at i then
+          let
+            val (i, dec) = consume_decNonfix infdict (i+1)
+            val infdict = updateInfixDict infdict dec
+          in
+            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+          end
         else
           nyi "consume_decMultiple" i
+
+
+      (** infix [d] vid [vid ...]
+        *      ^
+        *)
+      and consume_decInfix {isLeft} infdict i =
+        let
+          val infixx = tok (i-1)
+
+          val (i, precedence) =
+            if check Token.isDecimalIntegerConstant at i then
+              (i+1, SOME (tok i))
+            else
+              (i, NONE)
+
+          fun loop acc i =
+            if check Token.isValueIdentifier at i then
+              loop (tok i :: acc) (i+1)
+            else
+              (i, seqFromRevList acc)
+
+          val (i, elems) = loop [] i
+        in
+          if Seq.length elems = 0 then
+            error
+              { pos = Token.getSource (tok i)
+              , what = "Unexpected token. Missing identifier."
+              , explain = NONE
+              }
+          else if isLeft then
+            ( i
+            , Ast.Exp.DecInfix
+                { infixx = infixx
+                , precedence = precedence
+                , elems = elems
+                }
+            )
+          else
+            ( i
+            , Ast.Exp.DecInfixr
+                { infixrr = infixx
+                , precedence = precedence
+                , elems = elems
+                }
+            )
+        end
+
+
+      (** nonfix vid [vid ...]
+        *       ^
+        *)
+      and consume_decNonfix infdict i =
+        let
+          val nonfixx = tok (i-1)
+
+          fun loop acc i =
+            if check Token.isValueIdentifier at i then
+              loop (tok i :: acc) (i+1)
+            else
+              (i, seqFromRevList acc)
+
+          val (i, elems) = loop [] i
+        in
+          if Seq.length elems = 0 then
+            error
+              { pos = Token.getSource (tok i)
+              , what = "Unexpected token. Missing identifier."
+              , explain = NONE
+              }
+          else
+            ( i
+            , Ast.Exp.DecNonfix
+                { nonfixx = nonfixx
+                , elems = elems
+                }
+            )
+        end
 
 
       (** dec [[;] dec ...]
@@ -284,13 +448,14 @@ struct
           if check Token.isDecStartToken at i then
             consume_decMultiple infdict decs delims i
           else if List.length delims = 0 andalso List.length decs = 1 then
-            (i, List.hd decs)
+            (i, infdict, List.hd decs)
           else
             let
               val delims = seqFromRevList delims
               val decs = seqFromRevList decs
             in
               ( i
+              , infdict
               , Ast.Exp.DecMultiple
                 { elems = decs
                 , delims = delims
@@ -298,13 +463,6 @@ struct
               )
             end
         end
-
-
-      and consume_dec infdict i =
-        if check Token.isDecStartToken at i then
-          consume_decMultiple infdict [] [] i
-        else
-          (i, Ast.Exp.DecEmpty)
 
 
       (** type tyvars tycon = ty
@@ -741,7 +899,7 @@ struct
       and consume_expLetInEnd infdict i =
         let
           val lett = tok (i-1)
-          val (i, dec) = consume_dec infdict i
+          val (i, infdict, dec) = consume_dec infdict i
           val (i, inn) = consume_expectReserved Token.In i
           val (i, exp) = consume_exp infdict NoRestriction i
         in
@@ -899,7 +1057,7 @@ struct
 
 
       val infdict = InfixDict.initialTopLevel
-      val (i, topdec) = consume_dec infdict 0
+      val (i, _, topdec) = consume_dec infdict 0
 
       val _ =
         print ("Successfully parsed "

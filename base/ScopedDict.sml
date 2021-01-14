@@ -19,6 +19,7 @@ sig
   val emptyTopLevel: 'a t
   val topLevelFromList: (Key.t * 'a) list -> 'a t
   val insert: 'a t -> (Key.t * 'a) -> 'a t
+  val remove: 'a t -> Key.t -> 'a t
 
   val contains: 'a t -> Key.t -> bool
 
@@ -45,6 +46,15 @@ struct
             SOME value
           else
             lookup scope' key
+
+    fun remove scope key =
+      case scope of
+        [] => []
+      | (key', value) :: scope' =>
+          if Key.equal (key, key') then
+            remove scope' key
+          else
+            (key', value) :: remove scope' key
 
     fun insert scope (key, value) = (key, value) :: scope
   end
@@ -75,6 +85,11 @@ struct
 
   fun insert ({curr, prev}: 'a t) (key, value) =
     { curr = Scope.insert curr (key, value)
+    , prev = prev
+    }
+
+  fun remove ({curr, prev}: 'a t) key =
+    { curr = Scope.remove curr key
     , prev = prev
     }
 

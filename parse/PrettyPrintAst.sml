@@ -113,6 +113,48 @@ struct
             )
           end
 
+      | DecInfix {precedence, elems, ...} =>
+          let
+            val p =
+              case precedence of
+                NONE => empty
+              | SOME x => text (Token.toString x)
+            val ids =
+              Seq.iterate
+                (fn (prev, id) => prev ++ space ++ text (Token.toString id))
+                empty
+                elems
+          in
+            group (text "infix" ++ space ++ p ++ space ++ ids)
+          end
+
+      | DecInfixr {precedence, elems, ...} =>
+          let
+            val p =
+              case precedence of
+                NONE => empty
+              | SOME x => text (Token.toString x)
+            val ids =
+              Seq.iterate
+                (fn (prev, id) => prev ++ space ++ text (Token.toString id))
+                empty
+                elems
+          in
+            group (text "infixr" ++ space ++ p ++ space ++ ids)
+          end
+
+      | DecNonfix {elems, ...} =>
+          let
+            val ids =
+              Seq.iterate
+                (fn (prev, id) => prev ++ space ++ text (Token.toString id))
+                empty
+                elems
+          in
+            group (text "nonfix" ++ space ++ ids)
+          end
+
+
       | DecMultiple {elems, delims} =>
           let
             fun f i =

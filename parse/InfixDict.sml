@@ -17,6 +17,7 @@ sig
   val initialTopLevel: t
 
   val insert: t -> (Token.t * int * assoc) -> t
+  val remove: t -> Token.t -> t
   val contains: t -> Token.t -> bool
 
   exception NotFound
@@ -26,6 +27,7 @@ sig
   val associatesRight: t -> Token.t -> bool
 
   val higherPrecedence: t -> (Token.t * Token.t) -> bool
+  val samePrecedence: t -> (Token.t * Token.t) -> bool
 
 end =
 struct
@@ -61,6 +63,9 @@ struct
   fun insert d (tok, prec, assoc) =
     D.insert d (Token.toString tok, (prec, assoc))
 
+  fun remove d tok =
+    D.remove d (Token.toString tok)
+
   fun lookupPrecedence (d: t) tok =
     #1 (D.lookup d (Token.toString tok))
 
@@ -75,4 +80,7 @@ struct
 
   fun higherPrecedence d (tok1, tok2) =
     lookupPrecedence d tok1 > lookupPrecedence d tok2
+
+  fun samePrecedence d (tok1, tok2) =
+    lookupPrecedence d tok1 = lookupPrecedence d tok2
 end

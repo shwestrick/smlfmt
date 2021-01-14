@@ -321,6 +321,22 @@ struct
     | RealConstant => true
     | _ => false
 
+  fun isHexIntegerConstant tok =
+    let
+      val src = getSource tok
+    in
+      case getClass tok of
+        IntegerConstant =>
+          Source.length src > 2 andalso
+          Source.nth src 0 = #"0" andalso
+          Source.nth src 1 = #"x"
+      | _ => false
+    end
+
+  fun isDecimalIntegerConstant tok =
+    case getClass tok of
+      IntegerConstant => not (isHexIntegerConstant tok)
+    | _ => false
 
   val decStartTokens =
     [ Abstype
