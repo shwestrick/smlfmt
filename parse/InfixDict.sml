@@ -7,6 +7,8 @@ structure InfixDict :>
 sig
   type t
 
+  datatype assoc = AssocLeft | AssocRight
+
   exception TopLevel
   val popScope: t -> t
   val newScope: t -> t
@@ -14,11 +16,14 @@ sig
 
   val initialTopLevel: t
 
-  val insert: t -> (Token.t * int) -> t
+  val insert: t -> (Token.t * int * assoc) -> t
   val contains: t -> Token.t -> bool
 
   exception NotFound
-  val lookup: t -> Token.t -> int
+  val lookupPrecedence: t -> Token.t -> int
+  val lookupAssoc: t -> Token.t -> assoc
+  val associatesLeft: t -> Token.t -> bool
+  val associatesRight: t -> Token.t -> bool
 
   val higherPrecedence: t -> (Token.t * Token.t) -> bool
 
@@ -33,27 +38,41 @@ struct
 
   open D
 
-  type t = int D.t
+  datatype assoc = AssocLeft | AssocRight
+
+  type t = (int * assoc) D.t
+
+  fun L (str, p) = (str, (p, AssocLeft))
+  fun R (str, p) = (str, (p, AssocRight))
 
   val initialTopLevel: t =
     topLevelFromList
-      [ ("div", 7), ("mod", 7), ("*", 7), ("/", 7)
-      , ("+", 6), ("-", 6), ("^", 6)
-      , ("::", 5), ("@", 5)
-      , ("=", 4), ("<", 4), (">", 4), ("<=", 4), (">=", 4), ("<>", 4)
-      , (":=", 3), ("o", 3)
-      , ("before", 0)
+      [ L("div", 7), L("mod", 7), L("*", 7), L("/", 7)
+      , L("+", 6), L("-", 6), L("^", 6)
+      , R("::", 5), R("@", 5)
+      , L("=", 4), L("<", 4), L(">", 4), L("<=", 4), L(">=", 4), L("<>", 4)
+      , L(":=", 3), L("o", 3)
+      , L("before", 0)
       ]
 
   fun contains d tok =
     D.contains d (Token.toString tok)
 
-  fun insert d (tok, prec) =
-    D.insert d (Token.toString tok, prec)
+  fun insert d (tok, prec, assoc) =
+    D.insert d (Token.toString tok, (prec, assoc))
 
-  fun lookup d tok =
-    D.lookup d (Token.toString tok)
+  fun lookupPrecedence (d: t) tok =
+    #1 (D.lookup d (Token.toString tok))
+
+  fun lookupAssoc (d: t) tok =
+    #2 (D.lookup d (Token.toString tok))
+
+  fun associatesLeft d tok =
+    AssocLeft = lookupAssoc d tok
+
+  fun associatesRight d tok =
+    AssocRight = lookupAssoc d tok
 
   fun higherPrecedence d (tok1, tok2) =
-    lookup d tok1 > lookup d tok2
+    lookupPrecedence d tok1 > lookupPrecedence d tok2
 end
