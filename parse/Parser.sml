@@ -633,6 +633,17 @@ struct
               consume_expValueIdentifier infdict (SOME (tok i)) (i+1)
             else if check Token.isMaybeLongIdentifier at i then
               consume_expValueIdentifier infdict NONE i
+
+            else if isReserved Token.Fn at i then
+              if anyExpOkay restriction then
+                consume_expFn infdict (i+1)
+              else
+                error
+                  { pos = Token.getSource (tok i)
+                  , what = "Unexpected beginning of anonymous function."
+                  , explain = SOME "Try using parentheses: (fn ... => ...)"
+                  }
+
             else
               nyi "consume_exp" i
         in
@@ -708,6 +719,38 @@ struct
             consume_afterExp infdict restriction exp i
           else
             (i, exp)
+        end
+
+
+      (** fn pat => exp [| pat => exp ...]
+        *   ^
+        *)
+      and consume_expFn infdict i =
+        let
+          val fnn = tok (i-1)
+
+          fun loop elems delims i =
+            let
+              val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
+              val (i, arrow) = consume_expectReserved Token.FatArrow i
+              val (i, exp) = consume_exp infdict NoRestriction i
+              val elems = {pat=pat, arrow=arrow, exp=exp} :: elems
+            in
+              if not (isReserved Token.Bar at i) then
+                (i, seqFromRevList elems, seqFromRevList delims)
+              else
+                loop elems (tok i :: delims) (i+1)
+            end
+
+          val (i, elems, delims) = loop [] [] i
+        in
+          ( i
+          , Ast.Exp.Fn
+              { fnn = fnn
+              , elems = elems
+              , delims = delims
+              }
+          )
         end
 
 

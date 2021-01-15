@@ -112,7 +112,7 @@ Expressions
 - [x] infix with precedences
 - [x] `andalso`, `orelse`
 - [x] function application
-- [ ] function constants (`fn ... => ...`)
+- [x] function constants (`fn ... => ...`)
 - [x] type annotations (e.g. `5: int`)
 - [ ] cases
 - [ ] handle exception

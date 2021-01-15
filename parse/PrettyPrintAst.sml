@@ -261,6 +261,33 @@ struct
           ))
       | Typed {exp, ty, ...} =>
           showExp exp ++ space ++ text ":" ++ space ++ showTy ty
+
+      | Fn {fnn, elems, ...} =>
+          let
+            val first = Seq.nth elems 0
+            val rest = Seq.drop elems 1
+
+            fun mk {pat, exp, ...} =
+              space ++
+              group (
+                (text "|" ++ space ++ showPat pat ++ space ++ text "=>")
+                $$
+                (spaces 4 ++ showExp exp)
+              )
+
+            val {pat, exp, ...} = first
+            val initial =
+              group (
+                (text "fn" ++ space ++
+                showPat pat ++ space ++
+                text "=>")
+                $$
+                (spaces 4 ++ showExp exp)
+              )
+          in
+            group (Seq.iterate (fn (prev, next) => prev $$ mk next) initial rest)
+          end
+
       | LetInEnd {dec, exps, ...} =>
           let
             val prettyDec = showDec dec

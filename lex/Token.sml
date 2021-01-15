@@ -270,6 +270,7 @@ struct
   fun isValueIdentifier tok =
     case getClass tok of
       Identifier => Source.nth (getSource tok) 0 <> #"'"
+    | Reserved Equal => true (** annoying edge case *)
     | _ => false
 
   fun isLongIdentifier tok =
