@@ -6,7 +6,7 @@ better error messages. Perhaps it could also eventually provide SML tooling.
 
 ## Current Status
 
-The lexer is done, and now I'm working on the parser.
+The lexer is done, and now I'm working on the parser. See the TODO list below.
 
 For files that pass through lexing successfully, you will see a bit of syntax
 highlighting in the output.
@@ -71,3 +71,68 @@ I decided not to use mllex/mlyacc for a number of reasons.
   finite state-machines (even large ones!) with a bunch of mutually recursive
   functions is fairly straightforward and pretty fun. The invariants of each
   state are easy to write down, and the code is somewhat self-documenting.
+
+## Core Parsing TODO
+
+Progress on the core language (no modules yet):
+
+Patterns:
+- [x] wildcard (`_`)
+- [x] constants (unit, strings, chars, integers, etc.)
+- [x] tuples
+- [x] identifiers
+- [x] parentheses
+- [ ] `op` identifiers (e.g. `op+`)
+- [ ] constructed values (e.g. `Node (a, b)`)
+- [ ] infixed constructed values (e.g. `x :: xs`)
+- [ ] list sugar (`[a, b, c]`)
+- [ ] records
+- [ ] type annotations (e.g. `x: ty`)
+- [ ] layered patterns (e.g. `x as (a, b)`)
+
+Types:
+- [x] type variables (e.g. `'a`)
+- [x] type constructors (e.g. `int list`)
+- [x] products
+- [x] arrows
+- [x] parentheses
+- [ ] records
+
+Expressions
+- [x] constants (unit, strings, chars, integers, etc.)
+- [x] tuples
+- [x] parentheses
+- [x] sequences (i.e. `(a; b; c)`)
+- [ ] list sugar
+- [ ] records
+- [ ] record selectors
+- [x] identifiers
+- [ ] `op` identifiers
+- [x] let-in-end
+- [x] infix with precedences
+- [x] `andalso`, `orelse`
+- [x] function application
+- [ ] function constants (`fn ... => ...`)
+- [ ] type annotations (e.g. `5: int`)
+- [ ] cases
+- [ ] handle exception
+- [ ] raise exception
+- [ ] if-then-else
+- [ ] while-do
+
+Declarations:
+- [x] value bindings (not mutually-recursive)
+- [ ] mutually-recursive values
+- [x] type bindings (not mutually-recursive)
+- [ ] mutually-recursive types
+- [x] function value bindings (not mutually-recursive, single pattern set)
+- [ ] multiple pattern-sets for `fun`
+- [ ] mutually-recursive function value bindings
+- [x] local infix directives (`infix`, `infixr`, `nonfix`)
+- [x] multiple declarations in sequence
+- [ ] datatypes
+- [ ] datatype replications (e.g. `datatype x = datatype y`)
+- [ ] exceptions
+- [ ] open structure
+- [ ] local-in-end
+- [ ] abstype
