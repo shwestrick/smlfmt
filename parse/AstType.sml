@@ -110,7 +110,7 @@ struct
     *)
   structure Pat =
   struct
-    datatype atpat =
+    datatype pat =
       Wild of Token.t
 
     | Const of Token.t
@@ -149,15 +149,11 @@ struct
         , right: Token.t
         }
 
-
-    and pat =
-      Atpat of atpat
-
     (** [op] longvid atpat *)
     | Con of
         { opp: Token.t option
         , id: MaybeLong.t
-        , atpat: atpat
+        , atpat: pat
         }
 
     (** pat vid pat *)
@@ -233,7 +229,7 @@ struct
           { elems:
               { opp: Token.t option
               , id: Token.t
-              , args: Pat.atpat Seq.t
+              , args: Pat.t Seq.t  (** NOTE: must be atomic patterns *)
               , ty: {colon: Token.t, ty: Ty.t} option
               , eq: Token.t
               , exp: 'exp

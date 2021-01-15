@@ -207,29 +207,51 @@ struct
         else
           (i, Ast.SyntaxSeq.Empty)
 
-
-      fun consume_maybeRec i =
-        if isReserved Token.Rec at i then
+      fun consume_maybeReserved rc i =
+        if isReserved rc at i then
           (i+1, SOME (tok i))
         else
           (i, NONE)
 
+      fun consume_expectReserved rc i =
+        if isReserved rc at i then
+          (i+1, tok i)
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what =
+                "Unexpected token. Expected to see "
+                ^ "'" ^ Token.reservedToString rc ^ "'"
+            , explain = NONE
+            }
 
-      fun consume_pat infdict i =
+
+      fun check_normalOrOpInfix infdict opp vid =
+        if InfixDict.contains infdict vid andalso not (Option.isSome opp) then
+          error
+            { pos = Token.getSource vid
+            , what = "Infix identifier not prefaced by 'op'"
+            , explain = NONE
+            }
+        else
+          ()
+
+
+      fun consume_pat {nonAtomicOkay} infdict i =
         if isReserved Token.Underscore at i then
           ( i+1
-          , Ast.Pat.Atpat (Ast.Pat.Wild (tok i))
+          , Ast.Pat.Wild (tok i)
           )
         else if check Token.isPatternConstant at i then
           ( i+1
-          , Ast.Pat.Atpat (Ast.Pat.Const (tok i))
+          , Ast.Pat.Const (tok i)
           )
         else if check Token.isMaybeLongIdentifier at i then
           ( i+1
-          , Ast.Pat.Atpat (Ast.Pat.Ident
+          , Ast.Pat.Ident
               { opp = NONE
               , id = Ast.MaybeLong.make (tok i)
-              })
+              }
           )
         else if isReserved Token.OpenParen at i then
           consume_patParensOrTupleOrUnit infdict (tok i) [] [] (i+1)
@@ -245,7 +267,7 @@ struct
           consume_endPatParensOrTupleOrUnit leftParen pats delims (i+1)
         else
           let
-            val (i, pat) = consume_pat infdict i
+            val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
             val pats = pat :: pats
             val (i, delims) =
               if isReserved Token.Comma at i then
@@ -268,45 +290,31 @@ struct
           val ast =
             case (pats, delims) of
               ([], []) =>
-                Ast.Pat.Atpat (Ast.Pat.Unit
+                Ast.Pat.Unit
                   { left = leftParen
                   , right = rightParen
-                  })
+                  }
             | ([pat], []) =>
-                Ast.Pat.Atpat (Ast.Pat.Parens
+                Ast.Pat.Parens
                   { left = leftParen
                   , pat = pat
                   , right = rightParen
-                  })
+                  }
             | _ =>
                 if not (List.length delims = List.length pats - 1) then
                   raise Fail
                     "Bug: Parser.parse.consume_endPatParensOrTupleOrUnit: \
                     \number of patterns and delimiters don't match."
                 else
-                  Ast.Pat.Atpat (Ast.Pat.Tuple
+                  Ast.Pat.Tuple
                     { left = leftParen
                     , elems = seqFromRevList pats
                     , delims = seqFromRevList delims
                     , right = rightParen
-                    })
+                    }
         in
           (i, ast)
         end
-
-
-
-      fun consume_expectReserved rc i =
-        if isReserved rc at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what =
-                "Unexpected token. Expected to see "
-                ^ "'" ^ Token.reservedToString rc ^ "'"
-            , explain = NONE
-            }
 
 
       fun consume_dec infdict i =
@@ -353,8 +361,87 @@ struct
           in
             consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
           end
+        else if isReserved Token.Fun at i then
+          let
+            val (i, dec) = consume_decFun infdict (i+1)
+          in
+            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+          end
         else
           nyi "consume_decMultiple" i
+
+
+      (** fun tyvarseq [op]vid atpat ... atpat [: ty] = exp [| ...] [and ...]
+        *    ^
+        *
+        * TODO: implement multiple func definitions separated by '|'s, and
+        * mutually recursive definitions separated by 'and's.
+        *)
+      and consume_decFun infdict i =
+        let
+          val funn = tok (i-1)
+          val (i, tyvars) = consume_tyvars i
+          val (i, opp) = consume_maybeReserved Token.Op i
+          val (i, vid) =
+            if check Token.isValueIdentifier at i then
+              (i+1, tok i)
+            else
+              error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token. Expected identifier"
+                , explain = NONE
+                }
+
+          val _ = check_normalOrOpInfix infdict opp vid
+
+          fun loop acc i =
+            if isReserved Token.Colon at i orelse isReserved Token.Equal at i then
+              (i, seqFromRevList acc)
+            else
+              let
+                val (i, atpat) = consume_pat {nonAtomicOkay=false} infdict i
+              in
+                loop (atpat :: acc) i
+              end
+
+          val (i, args) = loop [] i
+
+          val (i, ty) =
+            if not (isReserved Token.Colon at i) then
+              (i, NONE)
+            else
+              let
+                val colon = tok i
+                val (i, ty) = consume_ty {permitArrows=true} (i+1)
+              in
+                (i, SOME {colon = colon, ty = ty})
+              end
+          val (i, eq) = consume_expectReserved Token.Equal i
+          val (i, exp) = consume_exp infdict NoRestriction i
+
+          val fvalbind =
+            { delims = Seq.empty ()  (** 'and' delimiters *)
+            , elems = Seq.singleton
+                { delims = Seq.empty () (** '|' delimiters *)
+                , elems = Seq.singleton
+                    { opp = opp
+                    , id = vid
+                    , args = args
+                    , ty = ty
+                    , eq = eq
+                    , exp = exp
+                    }
+                }
+            }
+        in
+          ( i
+          , Ast.Exp.DecFun
+              { funn = funn
+              , tyvars = tyvars
+              , fvalbind = fvalbind
+              }
+          )
+        end
 
 
       (** infix [d] vid [vid ...]
@@ -512,8 +599,8 @@ struct
       and consume_decVal infdict i =
         let
           val (i, tyvars) = consume_tyvars i
-          val (i, recc) = consume_maybeRec i
-          val (i, pat) = consume_pat infdict i
+          val (i, recc) = consume_maybeReserved Token.Rec i
+          val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
           val (i, eq) = consume_expectReserved Token.Equal i
           val (i, exp) = consume_exp infdict NoRestriction i
         in

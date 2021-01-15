@@ -36,12 +36,23 @@ struct
     end
 
 
-  fun showSyntaxSeq s f =
+  fun separateWithSpaces (items: doc option list) : doc =
+    let
+      val items: doc list = List.mapPartial (fn x => x) items
+    in
+      case items of
+        [] => empty
+      | first :: rest =>
+          List.foldl (fn (next, prev) => prev ++ space ++ next) first rest
+    end
+
+
+  fun maybeShowSyntaxSeq s f =
     case s of
-      Ast.SyntaxSeq.Empty => empty
-    | Ast.SyntaxSeq.One x => f x
+      Ast.SyntaxSeq.Empty => NONE
+    | Ast.SyntaxSeq.One x => SOME (f x)
     | Ast.SyntaxSeq.Many {elems, ...} =>
-        sequence "(" "," ")" (Seq.map f elems)
+        SOME (sequence "(" "," ")" (Seq.map f elems))
 
 
   fun showTy ty =
@@ -56,8 +67,10 @@ struct
             (text (Token.toString (Ast.MaybeLong.getToken id)))
       | Con {args, id} =>
           (* text "CON" ++ parensAround *)
-            (showSyntaxSeq args showTy ++ space
-            ++ text (Token.toString (Ast.MaybeLong.getToken id)))
+          (separateWithSpaces
+            [ maybeShowSyntaxSeq args showTy
+            , SOME (text (Token.toString (Ast.MaybeLong.getToken id)))
+            ])
       | Parens {ty, ...} =>
           parensAround (showTy ty)
       | Tuple {elems, ...} =>
@@ -84,14 +97,37 @@ struct
             val {recc, pat, eq, exp} = Seq.nth elems 0
           in
             group (
-              group (
-                text "val" ++ space
-                ++ showSyntaxSeq tyvars (PD.text o Token.toString) ++ space
-                ++ (if Option.isSome recc then text "rec" else empty)
-              )
-              ++ space
-              ++ showPat pat ++ space
-              ++ text "="
+              separateWithSpaces
+                [ SOME (text "val")
+                , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
+                , Option.map (fn _ => text "rec") recc
+                , SOME (showPat pat)
+                , SOME (text "=")
+                ]
+              $$
+              (spaces 2 ++ showExp exp)
+            )
+          end
+
+      | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
+          let
+            val {elems, ...} = Seq.nth elems 0
+            val {opp, id, args, ty, eq, exp} = Seq.nth elems 0
+
+            val prettyArgs =
+              Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
+                (showPat (Seq.nth args 0))
+                (Seq.drop args 1)
+          in
+            group (
+              separateWithSpaces
+                [ SOME (text "fun")
+                , Option.map (fn _ => text "op") opp
+                , SOME (text (Token.toString id))
+                , SOME prettyArgs
+                , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
+                , SOME (text "=")
+                ]
               $$
               (spaces 2 ++ showExp exp)
             )
@@ -102,12 +138,12 @@ struct
             val {tyvars, tycon, ty, ...} = Seq.nth elems 0
           in
             group (
-              group (
-                text "type" ++ space
-                ++ showSyntaxSeq tyvars (PD.text o Token.toString) ++ space
-                ++ text (Token.toString tycon) ++ space
-                ++ text "="
-              )
+              separateWithSpaces
+                [ SOME (text "type")
+                , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
+                , SOME (text (Token.toString tycon))
+                , SOME (text "=")
+                ]
               $$
               (spaces 2 ++ showTy ty)
             )
@@ -115,32 +151,32 @@ struct
 
       | DecInfix {precedence, elems, ...} =>
           let
-            val p =
-              case precedence of
-                NONE => empty
-              | SOME x => text (Token.toString x)
             val ids =
               Seq.iterate
                 (fn (prev, id) => prev ++ space ++ text (Token.toString id))
-                empty
-                elems
+                (text (Token.toString (Seq.nth elems 0)))
+                (Seq.drop elems 1)
           in
-            group (text "infix" ++ space ++ p ++ space ++ ids)
+            separateWithSpaces
+              [ SOME (text "infix")
+              , Option.map (text o Token.toString) precedence
+              , SOME ids
+              ]
           end
 
       | DecInfixr {precedence, elems, ...} =>
           let
-            val p =
-              case precedence of
-                NONE => empty
-              | SOME x => text (Token.toString x)
             val ids =
               Seq.iterate
                 (fn (prev, id) => prev ++ space ++ text (Token.toString id))
-                empty
-                elems
+                (text (Token.toString (Seq.nth elems 0)))
+                (Seq.drop elems 1)
           in
-            group (text "infixr" ++ space ++ p ++ space ++ ids)
+            separateWithSpaces
+              [ SOME (text "infix")
+              , Option.map (text o Token.toString) precedence
+              , SOME ids
+              ]
           end
 
       | DecNonfix {elems, ...} =>
@@ -148,10 +184,10 @@ struct
             val ids =
               Seq.iterate
                 (fn (prev, id) => prev ++ space ++ text (Token.toString id))
-                empty
-                elems
+                (text (Token.toString (Seq.nth elems 0)))
+                (Seq.drop elems 1)
           in
-            group (text "nonfix" ++ space ++ ids)
+            text "nonfix" ++ space ++ ids
           end
 
 
@@ -177,18 +213,18 @@ struct
       open Ast.Pat
     in
       case pat of
-        Atpat (Wild _) =>
+        Wild _ =>
           text "_"
-      | Atpat (Const tok) =>
+      | Const tok =>
           text (Token.toString tok)
-      | Atpat (Unit _) =>
+      | Unit _ =>
           text "()"
-      | Atpat (Ident {opp, id}) =>
+      | Ident {opp, id} =>
           (if Option.isSome opp then text "op" else empty)
           ++ text (Token.toString (Ast.MaybeLong.getToken id))
-      | Atpat (Parens {pat, ...}) =>
+      | Parens {pat, ...} =>
           parensAround (showPat pat)
-      | Atpat (Tuple {elems, ...}) =>
+      | Tuple {elems, ...} =>
           sequence "(" "," ")" (Seq.map showPat elems)
       | Typed {pat, ty, ...} =>
           showPat pat ++ space ++ text ":" ++ space ++ showTy ty
