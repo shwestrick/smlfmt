@@ -629,13 +629,10 @@ struct
               consume_expParensOrTupleOrUnitOrSequence infdict (tok i) [] [] (i+1)
             else if isReserved Token.Let at i then
               consume_expLetInEnd infdict (i+1)
+            else if isReserved Token.Op at i then
+              consume_expValueIdentifier infdict (SOME (tok i)) (i+1)
             else if check Token.isMaybeLongIdentifier at i then
-              ( i+1
-              , Ast.Exp.Ident
-                  { opp = NONE
-                  , id = Ast.MaybeLong.make (tok i)
-                  }
-              )
+              consume_expValueIdentifier infdict NONE i
             else
               nyi "consume_exp" i
         in
@@ -711,6 +708,32 @@ struct
             consume_afterExp infdict restriction exp i
           else
             (i, exp)
+        end
+
+
+      (** [op] longvid
+        *     ^
+        *)
+      and consume_expValueIdentifier infdict opp i =
+        let
+          val (i, vid) =
+            if check Token.isMaybeLongIdentifier at i then
+              (i+1, Ast.MaybeLong.make (tok i))
+            else
+              error
+                { pos = Token.getSource (tok i)
+                , what = "Expected value identifier."
+                , explain = NONE
+                }
+
+          val _ = check_normalOrOpInfix infdict opp (Ast.MaybeLong.getToken vid)
+        in
+          ( i
+          , Ast.Exp.Ident
+              { opp = opp
+              , id = vid
+              }
+          )
         end
 
 

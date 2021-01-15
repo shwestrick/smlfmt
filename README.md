@@ -107,13 +107,13 @@ Expressions
 - [ ] records
 - [ ] record selectors
 - [x] identifiers
-- [ ] `op` identifiers
+- [x] `op` identifiers
 - [x] let-in-end
 - [x] infix with precedences
 - [x] `andalso`, `orelse`
 - [x] function application
 - [ ] function constants (`fn ... => ...`)
-- [ ] type annotations (e.g. `5: int`)
+- [x] type annotations (e.g. `5: int`)
 - [ ] cases
 - [ ] handle exception
 - [ ] raise exception
