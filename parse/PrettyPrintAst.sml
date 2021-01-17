@@ -259,6 +259,18 @@ struct
             $$
             showExp right
           ))
+      | Andalso {left, right, ...} =>
+          parensAround (group (
+            showExp left ++ space ++ text "andalso"
+            $$
+            showExp right
+          ))
+      | Orelse {left, right, ...} =>
+          parensAround (group (
+            showExp left ++ space ++ text "orelse"
+            $$
+            showExp right
+          ))
       | Typed {exp, ty, ...} =>
           showExp exp ++ space ++ text ":" ++ space ++ showTy ty
 

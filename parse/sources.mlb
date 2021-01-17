@@ -4,5 +4,10 @@ AstType.sml
 Ast.sml
 PrettyPrintAst.sml
 
-InfixDict.sml
-Parser.sml
+local
+  FixExpPrecedence.sml
+  InfixDict.sml
+  Parser.sml
+in
+  structure Parser
+end

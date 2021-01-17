@@ -847,6 +847,9 @@ struct
                 }
             else
               raise Fail "Bug: Parser.parse.consume_expAndalsoOrOrelse"
+
+          val result =
+            FixExpPrecedence.maybeRotateLeft result
         in
           (i, result)
         end

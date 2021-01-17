@@ -6,4 +6,6 @@ val x =
   , op+ (100, 1000)
   , List.filter (fn x => x mod 2 = 0) (List.tabulate (100, fn i => i))
   , fn 0 => 1 | 1 => 2 | 2 => 3 | 3 => 4 | 4 => 5 | _ => ~1
+  , true orelse false andalso true
+  , true andalso false orelse true
   )
