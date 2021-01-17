@@ -634,6 +634,16 @@ struct
             else if check Token.isMaybeLongIdentifier at i then
               consume_expValueIdentifier infdict NONE i
 
+            else if isReserved Token.Raise at i then
+              if anyExpOkay restriction then
+                consume_expRaise infdict (i+1)
+              else
+                error
+                  { pos = Token.getSource (tok i)
+                  , what = "Unexpected raise exception."
+                  , explain = SOME "Try using parentheses: (raise ...)"
+                  }
+
             else if isReserved Token.Fn at i then
               if anyExpOkay restriction then
                 consume_expFn infdict (i+1)
@@ -813,6 +823,30 @@ struct
               , right = rightExp
               }
           )
+        end
+
+
+      (** raise exp
+        *      ^
+        *)
+      and consume_expRaise infdict i =
+        let
+          val raisee = tok (i-1)
+          val (i, exp) = consume_exp infdict NoRestriction i
+
+          val result =
+            Ast.Exp.Raise
+              { raisee = raisee
+              , exp = exp
+              }
+
+          (** NOTE: this is technically a noop, because `raise` has low enough
+            * precedence that the left rotation will never happen. But I like
+            * keeping the code here because it's informative.
+            *)
+          val result = FixExpPrecedence.maybeRotateLeft result
+        in
+          (i, result)
         end
 
 

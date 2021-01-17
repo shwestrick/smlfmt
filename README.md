@@ -116,7 +116,7 @@ Expressions
 - [x] type annotations (e.g. `5: int`)
 - [ ] cases
 - [ ] handle exception
-- [ ] raise exception
+- [x] raise exception
 - [ ] if-then-else
 - [ ] while-do
 

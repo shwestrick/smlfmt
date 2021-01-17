@@ -274,6 +274,9 @@ struct
       | Typed {exp, ty, ...} =>
           showExp exp ++ space ++ text ":" ++ space ++ showTy ty
 
+      | Raise {exp, ...} =>
+          group (text "raise" $$ (spaces 2 ++ showExp exp))
+
       | Fn {fnn, elems, ...} =>
           let
             val first = Seq.nth elems 0

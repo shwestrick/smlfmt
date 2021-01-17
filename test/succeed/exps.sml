@@ -8,4 +8,7 @@ val x =
   , fn 0 => 1 | 1 => 2 | 2 => 3 | 3 => 4 | 4 => 5 | _ => ~1
   , true orelse false andalso true
   , true andalso false orelse true
+  , raise Subscript
+  , 1 + (raise Fail "Exceptions can be raised anywhere")
+  (* , raise Subscript handle Subscript => "whoa" *)
   )
