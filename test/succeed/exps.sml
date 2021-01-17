@@ -10,5 +10,5 @@ val x =
   , true andalso false orelse true
   , raise Subscript
   , 1 + (raise Fail "Exceptions can be raised anywhere")
-  (* , raise Subscript handle Subscript => "whoa" *)
+  , raise Subscript handle Subscript => "whoa" | Option => "yo"
   )

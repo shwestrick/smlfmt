@@ -277,6 +277,38 @@ struct
       | Raise {exp, ...} =>
           group (text "raise" $$ (spaces 2 ++ showExp exp))
 
+      | Handle {exp=expLeft, elems, ...} =>
+          let
+            val first = Seq.nth elems 0
+            val rest = Seq.drop elems 1
+
+            fun mk {pat, exp, ...} =
+              group (
+                (text "|" ++ space ++ showPat pat ++ space ++ text "=>")
+                $$
+                (spaces 4 ++ showExp exp)
+              )
+
+            val {pat, exp, ...} = first
+            val initial =
+              group (
+                showExp expLeft
+                $$
+                group (
+                  text "handle"
+                  $$
+                  (spaces 2 ++ showPat pat ++ space ++ text "=>")
+                  $$
+                  (spaces 4 ++ showExp exp)
+                )
+              )
+
+            val stuff =
+              group (Seq.iterate (fn (prev, next) => prev $$ mk next) initial rest)
+          in
+            parensAround stuff
+          end
+
       | Fn {fnn, elems, ...} =>
           let
             val first = Seq.nth elems 0

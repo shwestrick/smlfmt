@@ -115,7 +115,7 @@ Expressions
 - [x] function constants (`fn ... => ...`)
 - [x] type annotations (e.g. `5: int`)
 - [ ] cases
-- [ ] handle exception
+- [x] handle exception
 - [x] raise exception
 - [ ] if-then-else
 - [ ] while-do

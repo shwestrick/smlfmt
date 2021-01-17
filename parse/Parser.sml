@@ -732,13 +732,11 @@ struct
         end
 
 
-      (** fn pat => exp [| pat => exp ...]
-        *   ^
+      (**  pat => exp [| pat => exp ...]
+        * ^
         *)
-      and consume_expFn infdict i =
+      and consume_match infdict i =
         let
-          val fnn = tok (i-1)
-
           fun loop elems delims i =
             let
               val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
@@ -753,6 +751,18 @@ struct
             end
 
           val (i, elems, delims) = loop [] [] i
+        in
+          (i, elems, delims)
+        end
+
+
+      (** fn pat => exp [| pat => exp ...]
+        *   ^
+        *)
+      and consume_expFn infdict i =
+        let
+          val fnn = tok (i-1)
+          val (i, elems, delims) = consume_match infdict i
         in
           ( i
           , Ast.Exp.Fn
@@ -854,7 +864,22 @@ struct
         *           ^
         *)
       and consume_expHandle infdict exp i =
-        nyi "consume_expHandle" (i-1)
+        let
+          val handlee = tok (i-1)
+          val (i, elems, delims) = consume_match infdict i
+
+          val result =
+            Ast.Exp.Handle
+              { exp = exp
+              , handlee = handlee
+              , elems = elems
+              , delims = delims
+              }
+
+          val result = FixExpPrecedence.maybeRotateLeft result
+        in
+          (i, result)
+        end
 
 
 
