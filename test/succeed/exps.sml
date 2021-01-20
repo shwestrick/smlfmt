@@ -21,4 +21,7 @@ val x =
       0 => "short string"
     | 1 => String.concatWith "\n" (List.tabulate (100, fn i => Int.toString i))
     | 2 => "uhhh"
+  , [1, 2, 3, 4, [5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16], [], [17]]
+  , [1, 2, 3] @ 4 :: [5, 6, 7] @ []
+  , [case 0 of 0 => 1 | 1 => 2, 3, 4+5, Int.max (0, 1)]
   )

@@ -24,16 +24,19 @@ struct
     text "(" ++ x ++ text ")"
 
   fun sequence openn delim close (xs: PD.t Seq.t) =
-    let
-      val top = text openn ++ softspace ++ Seq.nth xs 0
-      fun f x = text delim ++ space ++ x
-    in
-      group (
-        Seq.iterate op// top (Seq.map f (Seq.drop xs 1))
-        //
-        text close
-      )
-    end
+    if Seq.length xs = 0 then
+      text openn ++ text close
+    else
+      let
+        val top = text openn ++ softspace ++ Seq.nth xs 0
+        fun f x = text delim ++ space ++ x
+      in
+        group (
+          Seq.iterate op// top (Seq.map f (Seq.drop xs 1))
+          //
+          text close
+        )
+      end
 
 
   fun separateWithSpaces (items: doc option list) : doc =
@@ -251,6 +254,8 @@ struct
           sequence "(" "," ")" (Seq.map showExp elems)
       | Sequence {elems, ...} =>
           sequence "(" ";" ")" (Seq.map showExp elems)
+      | List {elems, ...} =>
+          sequence "[" "," "]" (Seq.map showExp elems)
       | App {left, right} =>
           group (showExp left $$ (spaces 2 ++ showExp right))
       | Infix {left, id, right} =>

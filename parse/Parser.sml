@@ -627,6 +627,8 @@ struct
               (i+1, Ast.Exp.Const (tok i))
             else if isReserved Token.OpenParen at i then
               consume_expParensOrTupleOrUnitOrSequence infdict (tok i) [] [] (i+1)
+            else if isReserved Token.OpenSquareBracket at i then
+              consume_expListLiteral infdict (tok i) [] [] (i+1)
             else if isReserved Token.Let at i then
               consume_expLetInEnd infdict (i+1)
             else if isReserved Token.Op at i then
@@ -732,6 +734,47 @@ struct
           else
             (i, exp)
         end
+
+
+      (** [ ... ]
+        *      ^
+        * OR
+        * [ ... exp ... ]
+        *      ^
+        *)
+      and consume_expListLiteral infdict openBracket elems delims i =
+        if isReserved Token.CloseSquareBracket at i then
+          let
+            val (i, closeBracket) = (i+1, tok i)
+          in
+            ( i
+            , Ast.Exp.List
+                { left = openBracket
+                , right = closeBracket
+                , elems = seqFromRevList elems
+                , delims = seqFromRevList delims
+                }
+            )
+          end
+        else
+          let
+            val (i, exp) = consume_exp infdict NoRestriction i
+            val elems = exp :: elems
+          in
+            if isReserved Token.Comma at i then
+              consume_expListLiteral infdict openBracket
+                elems
+                (tok i :: delims)
+                (i+1)
+            else if isReserved Token.CloseSquareBracket at i then
+              consume_expListLiteral infdict openBracket elems delims i
+            else
+              error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token. Should be either a comma or close bracket."
+                , explain = NONE
+                }
+          end
 
 
       (** case exp of match

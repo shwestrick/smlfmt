@@ -103,7 +103,7 @@ Expressions
 - [x] tuples
 - [x] parentheses
 - [x] sequences (i.e. `(a; b; c)`)
-- [ ] list sugar
+- [x] list sugar
 - [ ] records
 - [ ] record selectors
 - [x] identifiers
