@@ -11,4 +11,14 @@ val x =
   , raise Subscript
   , 1 + (raise Fail "Exceptions can be raised anywhere")
   , raise Subscript handle Subscript => "whoa" | Option => "yo"
+  , case 0 of
+      0 => "this is a very long story"
+    | 1 => "about a guy named joe"
+    | 2 => "and his mama"
+    | 3 => "whose name is jo"
+  , case 0 of 0 => 1 | 1 => 2 | 2 => 3
+  , case 0 of
+      0 => "short string"
+    | 1 => String.concatWith "\n" (List.tabulate (100, fn i => Int.toString i))
+    | 2 => "uhhh"
   )

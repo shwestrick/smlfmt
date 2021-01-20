@@ -633,6 +633,8 @@ struct
               consume_expValueIdentifier infdict (SOME (tok i)) (i+1)
             else if check Token.isMaybeLongIdentifier at i then
               consume_expValueIdentifier infdict NONE i
+            else if isReserved Token.Case at i then
+              consume_expCase infdict (i+1)
 
             else if isReserved Token.Raise at i then
               if anyExpOkay restriction then
@@ -729,6 +731,28 @@ struct
             consume_afterExp infdict restriction exp i
           else
             (i, exp)
+        end
+
+
+      (** case exp of match
+        *     ^
+        *)
+      and consume_expCase infdict i =
+        let
+          val casee = tok (i-1)
+          val (i, exp) = consume_exp infdict NoRestriction i
+          val (i, off) = consume_expectReserved Token.Of i
+          val (i, elems, delims) = consume_match infdict i
+        in
+          ( i
+          , Ast.Exp.Case
+              { casee = casee
+              , exp = exp
+              , off = off
+              , elems = elems
+              , delims = delims
+              }
+          )
         end
 
 
