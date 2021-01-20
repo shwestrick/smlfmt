@@ -131,6 +131,17 @@ struct
     | _ => false
 
 
+  (** Morally, a parser is of type
+    *   stream -> (stream * 'a)
+    * It advances the stream and produce an element.
+    *
+    * Similarly, a peeker just looks at the front of
+    * of the stream to check for some condition.
+    *)
+  type 'a parser = int -> (int * 'a)
+  type peeker = int -> bool
+
+
   fun parse src =
     let
       (** This might raise Lexer.Error *)
@@ -170,6 +181,52 @@ struct
       fun check f i = i < numToks andalso f (tok i)
       fun is c = check (fn t => c = Token.getClass t)
       fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
+
+
+      (** parse_reservedToken:
+        *   Token.reserved -> Token.t parser
+        *)
+      fun parse_reservedToken rc i =
+        if isReserved rc at i then
+          (i+1, tok i)
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what =
+                "Unexpected token. Expected to see "
+                ^ "'" ^ Token.reservedToString rc ^ "'"
+            , explain = NONE
+            }
+
+
+      (** parse_oneOrMoreDelimitedByReserved
+        *   {parseElem: 'a parser, delim: Token.reserved} ->
+        *   {elems: 'a Seq.t, delims: Token.t Seq.t} parser
+        *)
+      fun parse_oneOrMoreDelimitedByReserved
+          {parseElem: 'a parser, delim: Token.reserved}
+          i =
+        let
+
+          fun loop elems delims i =
+            let
+              val (i, elem) = parseElem i
+              val elems = elem :: elems
+            in
+              if isReserved delim at i then
+                loop elems (tok i :: delims) (i+1)
+              else
+                (i, elems, delims)
+            end
+
+          val (i, elems, delims) = loop [] [] i
+        in
+          ( i
+          , { elems = seqFromRevList elems
+            , delims = seqFromRevList delims
+            }
+          )
+        end
 
 
       fun consume_tyvarsMany i (args as {start}) =
@@ -785,7 +842,10 @@ struct
           val casee = tok (i-1)
           val (i, exp) = consume_exp infdict NoRestriction i
           val (i, off) = consume_expectReserved Token.Of i
-          val (i, elems, delims) = consume_match infdict i
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = consume_matchElem infdict, delim = Token.Bar}
+              i
         in
           ( i
           , Ast.Exp.Case
@@ -799,27 +859,16 @@ struct
         end
 
 
-      (**  pat => exp [| pat => exp ...]
+      (**  pat => exp
         * ^
         *)
-      and consume_match infdict i =
+      and consume_matchElem infdict i =
         let
-          fun loop elems delims i =
-            let
-              val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
-              val (i, arrow) = consume_expectReserved Token.FatArrow i
-              val (i, exp) = consume_exp infdict NoRestriction i
-              val elems = {pat=pat, arrow=arrow, exp=exp} :: elems
-            in
-              if not (isReserved Token.Bar at i) then
-                (i, seqFromRevList elems, seqFromRevList delims)
-              else
-                loop elems (tok i :: delims) (i+1)
-            end
-
-          val (i, elems, delims) = loop [] [] i
+          val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
+          val (i, arrow) = consume_expectReserved Token.FatArrow i
+          val (i, exp) = consume_exp infdict NoRestriction i
         in
-          (i, elems, delims)
+          (i, {pat=pat, arrow=arrow, exp=exp})
         end
 
 
@@ -829,7 +878,10 @@ struct
       and consume_expFn infdict i =
         let
           val fnn = tok (i-1)
-          val (i, elems, delims) = consume_match infdict i
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = consume_matchElem infdict, delim = Token.Bar}
+              i
         in
           ( i
           , Ast.Exp.Fn
@@ -933,7 +985,10 @@ struct
       and consume_expHandle infdict exp i =
         let
           val handlee = tok (i-1)
-          val (i, elems, delims) = consume_match infdict i
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = consume_matchElem infdict, delim = Token.Bar}
+              i
 
           val result =
             Ast.Exp.Handle
