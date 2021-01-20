@@ -207,7 +207,6 @@ struct
           {parseElem: 'a parser, delim: Token.reserved}
           i =
         let
-
           fun loop elems delims i =
             let
               val (i, elem) = parseElem i
@@ -229,40 +228,43 @@ struct
         end
 
 
-      fun consume_tyvarsMany i (args as {start}) =
-        if isReserved Token.CloseParen at i then
-          let
-            val numElems = (i-start) div 2
-            fun elem j = tok (start + 1 + 2*j)
-            fun delim j = tok (start + 2 + 2*j)
-            val result =
-              Ast.SyntaxSeq.Many
-                { left = tok start
-                , right = tok i
-                , elems = Seq.tabulate elem numElems
-                , delims = Seq.tabulate delim (numElems-1)
-                }
-          in
-            (i+1, result)
-          end
-        else if isReserved Token.Comma at i andalso check Token.isTyVar at (i+1) then
-          consume_tyvarsMany (i+2) args
+      fun parse_tyvar i =
+        if check Token.isTyVar at i then
+          (i+1, tok i)
         else
           error
             { pos = Token.getSource (tok i)
-            , what = "Unexpected token."
-            , explain = SOME "Invalid type-variable sequence. Expected to see \
-                             \something that looks like ('a, 'b, 'c)"
+            , what = "Expected tyvar."
+            , explain = NONE
             }
 
 
-      fun consume_tyvars i =
+      fun parse_tyvars i =
         if check Token.isTyVar at i then
           (i+1, Ast.SyntaxSeq.One (tok i))
-        else if isReserved Token.OpenParen at i andalso check Token.isTyVar at (i+1) then
-          consume_tyvarsMany (i+2) {start = i}
-        else
+        else if not (isReserved Token.OpenParen at i
+                     andalso check Token.isTyVar at (i+1)) then
           (i, Ast.SyntaxSeq.Empty)
+        else
+          let
+            val (i, openParen) = (i+1, tok i)
+            val (i, {elems, delims}) =
+              parse_oneOrMoreDelimitedByReserved
+                {parseElem = parse_tyvar, delim = Token.Comma}
+                i
+            val (i, closeParen) =
+              parse_reservedToken Token.CloseParen i
+          in
+            ( i
+            , Ast.SyntaxSeq.Many
+                { left = openParen
+                , right = closeParen
+                , elems = elems
+                , delims = delims
+                }
+            )
+          end
+
 
       fun consume_maybeReserved rc i =
         if isReserved rc at i then
@@ -437,7 +439,7 @@ struct
       and consume_decFun infdict i =
         let
           val funn = tok (i-1)
-          val (i, tyvars) = consume_tyvars i
+          val (i, tyvars) = parse_tyvars i
           val (i, opp) = consume_maybeReserved Token.Op i
           val (i, vid) =
             if check Token.isValueIdentifier at i then
@@ -617,7 +619,7 @@ struct
       and consume_decType infdict i =
         let
           val typee = tok (i-1)
-          val (i, tyvars) = consume_tyvars i
+          val (i, tyvars) = parse_tyvars i
           val (i, tycon) =
             if check Token.isTyCon at i then
               (i+1, tok i)
@@ -655,7 +657,7 @@ struct
         *)
       and consume_decVal infdict i =
         let
-          val (i, tyvars) = consume_tyvars i
+          val (i, tyvars) = parse_tyvars i
           val (i, recc) = consume_maybeReserved Token.Rec i
           val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
           val (i, eq) = consume_expectReserved Token.Equal i
