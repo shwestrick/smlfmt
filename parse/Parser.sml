@@ -489,44 +489,17 @@ struct
 
       and consume_oneDec (i, infdict) =
         if isReserved Token.Val at i then
-          let
-            val (i, dec) = consume_decVal infdict (i+1)
-          in
-            ((i, infdict), dec)
-          end
+          consume_decVal (i+1, infdict)
         else if isReserved Token.Type at i then
-          let
-            val (i, dec) = consume_decType infdict (i+1)
-          in
-            ((i, infdict), dec)
-          end
+          consume_decType (i+1, infdict)
         else if isReserved Token.Infix at i then
-          let
-            val (i, dec) = consume_decInfix {isLeft=true} infdict (i+1)
-            val infdict = updateInfixDict infdict dec
-          in
-            ((i, infdict), dec)
-          end
+          consume_decInfix {isLeft=true} (i+1, infdict)
         else if isReserved Token.Infixr at i then
-          let
-            val (i, dec) = consume_decInfix {isLeft=false} infdict (i+1)
-            val infdict = updateInfixDict infdict dec
-          in
-            ((i, infdict), dec)
-          end
+          consume_decInfix {isLeft=false} (i+1, infdict)
         else if isReserved Token.Nonfix at i then
-          let
-            val (i, dec) = consume_decNonfix infdict (i+1)
-            val infdict = updateInfixDict infdict dec
-          in
-            ((i, infdict), dec)
-          end
+          consume_decNonfix (i+1, infdict)
         else if isReserved Token.Fun at i then
-          let
-            val (i, dec) = consume_decFun infdict (i+1)
-          in
-            ((i, infdict), dec)
-          end
+          consume_decFun (i+1, infdict)
         else
           nyi "consume_oneDec" i
 
@@ -537,7 +510,7 @@ struct
         * TODO: implement multiple func definitions separated by '|'s, and
         * mutually recursive definitions separated by 'and's.
         *)
-      and consume_decFun infdict i =
+      and consume_decFun (i, infdict) =
         let
           val funn = tok (i-1)
           val (i, tyvars) = parse_tyvars i
@@ -594,7 +567,7 @@ struct
                 }
             }
         in
-          ( i
+          ( (i, infdict)
           , Ast.Exp.DecFun
               { funn = funn
               , tyvars = tyvars
@@ -607,7 +580,7 @@ struct
       (** infix [d] vid [vid ...]
         *      ^
         *)
-      and consume_decInfix {isLeft} infdict i =
+      and consume_decInfix {isLeft} (i, infdict) =
         let
           val infixx = tok (i-1)
 
@@ -624,36 +597,35 @@ struct
               (i, seqFromRevList acc)
 
           val (i, elems) = loop [] i
-        in
-          if Seq.length elems = 0 then
-            error
-              { pos = Token.getSource (tok i)
-              , what = "Unexpected token. Missing identifier."
-              , explain = NONE
-              }
-          else if isLeft then
-            ( i
-            , Ast.Exp.DecInfix
+
+          val result =
+            if Seq.length elems = 0 then
+              error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token. Missing identifier."
+                , explain = NONE
+                }
+            else if isLeft then
+              Ast.Exp.DecInfix
                 { infixx = infixx
                 , precedence = precedence
                 , elems = elems
                 }
-            )
-          else
-            ( i
-            , Ast.Exp.DecInfixr
+            else
+              Ast.Exp.DecInfixr
                 { infixrr = infixx
                 , precedence = precedence
                 , elems = elems
                 }
-            )
+        in
+          ((i, updateInfixDict infdict result), result)
         end
 
 
       (** nonfix vid [vid ...]
         *       ^
         *)
-      and consume_decNonfix infdict i =
+      and consume_decNonfix (i, infdict) =
         let
           val nonfixx = tok (i-1)
 
@@ -664,20 +636,21 @@ struct
               (i, seqFromRevList acc)
 
           val (i, elems) = loop [] i
-        in
-          if Seq.length elems = 0 then
-            error
-              { pos = Token.getSource (tok i)
-              , what = "Unexpected token. Missing identifier."
-              , explain = NONE
-              }
-          else
-            ( i
-            , Ast.Exp.DecNonfix
+
+          val result =
+            if Seq.length elems = 0 then
+              error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token. Missing identifier."
+                , explain = NONE
+                }
+            else
+              Ast.Exp.DecNonfix
                 { nonfixx = nonfixx
                 , elems = elems
                 }
-            )
+        in
+          ((i, updateInfixDict infdict result), result)
         end
 
 
@@ -686,7 +659,7 @@ struct
         *
         * TODO: implement possible [and type tyvars tycon = ty and ...]
         *)
-      and consume_decType infdict i =
+      and consume_decType (i, infdict) =
         let
           val typee = tok (i-1)
           val (i, tyvars) = parse_tyvars i
@@ -713,7 +686,7 @@ struct
                 }
             }
         in
-          ( i
+          ( (i, infdict)
           , Ast.Exp.DecType
               { typee = typee
               , typbind = typbind
@@ -725,7 +698,7 @@ struct
       (** val tyvarseq [rec] pat = exp [and [rec] pat = exp ...]
         *     ^
         *)
-      and consume_decVal infdict i =
+      and consume_decVal (i, infdict) =
         let
           val (i, tyvars) = parse_tyvars i
           val (i, recc) = consume_maybeReserved Token.Rec i
@@ -733,7 +706,7 @@ struct
           val (i, eq) = consume_expectReserved Token.Equal i
           val (i, exp) = consume_exp infdict NoRestriction i
         in
-          ( i
+          ( (i, infdict)
           , Ast.Exp.DecVal
               { vall = tok (i-1)
               , tyvars = tyvars
