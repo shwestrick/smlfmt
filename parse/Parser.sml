@@ -131,15 +131,8 @@ struct
     | _ => false
 
 
-  (** Morally, a parser is of type
-    *   stream -> (stream * 'a)
-    * It advances the stream and produce an element.
-    *
-    * Similarly, a peeker just looks at the front of
-    * of the stream to check for some condition.
-    *)
-  type 'a parser = int -> (int * 'a)
-  type peeker = int -> bool
+  type ('state, 'result) parser = 'state -> ('state * 'result)
+  type 'state peeker = 'state -> bool
 
 
   fun parse src =
@@ -184,7 +177,7 @@ struct
 
 
       (** parse_reservedToken:
-        *   Token.reserved -> Token.t parser
+        *   Token.reserved -> (int, Token.t) parser
         *)
       fun parse_reservedToken rc i =
         if isReserved rc at i then
@@ -200,11 +193,11 @@ struct
 
 
       (** parse_oneOrMoreDelimitedByReserved
-        *   {parseElem: 'a parser, delim: Token.reserved} ->
-        *   {elems: 'a Seq.t, delims: Token.t Seq.t} parser
+        *   {parseElem: (int, 'a) parser, delim: Token.reserved} ->
+        *   (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
         *)
       fun parse_oneOrMoreDelimitedByReserved
-          {parseElem: 'a parser, delim: Token.reserved}
+          {parseElem: (int, 'a) parser, delim: Token.reserved}
           i =
         let
           fun loop elems delims i =
@@ -227,6 +220,79 @@ struct
           )
         end
 
+
+      (** parse_two:
+        *   ('s, 'a) parser * ('s, 'b) parser
+        *   -> ('s, ('a * 'b)) parser
+        *)
+      fun parse_two (p1, p2) state =
+        let
+          val (state, elem1) = p1 state
+          val (state, elem2) = p2 state
+        in
+          (state, (elem1, elem2))
+        end
+
+
+      (** parse_while:
+        *   's peeker -> ('s, 'a) parser -> ('s, 'a Seq.t) parser
+        *)
+      fun parse_while continue parse state =
+        let
+          fun loop elems state =
+            if not (continue state) then (state, elems) else
+            let
+              val (state, elem) = parse state
+              val elems = elem :: elems
+            in
+              loop elems state
+            end
+
+          val (state, elems) = loop [] state
+        in
+          (state, seqFromRevList elems)
+        end
+
+
+(*
+      (** parse_interleaveWhile
+        *   { parseElem: ('s, 'a) parser
+        *   , parseDelim: ('s, 'b) parser
+        *   , continue: 's peeker
+        *   } ->
+        *   ('s, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
+        *)
+      fun parse_interleaveWhile
+          {parseElem: ('s, 'a) parser, parseDelim: ('s, 'b) parser, continue}
+          state =
+        let
+          fun loopElem elems delims state =
+            if continue state then (state, elems, delims) else
+            let
+              val (state, elem) = parseElem state
+              val elems = elem :: elems
+            in
+              loopDelim elems delims state
+            end
+
+          and loopDelim elems delims state =
+            if continue state then (state, elems, delims) else
+            let
+              val (state, delim) = parseDelim state
+              val delims = delim :: delims
+            in
+              loopElem elems delims state
+            end
+
+          val (state, elems, delims) = loopElem [] [] state
+        in
+          ( state
+          , { elems = seqFromRevList elems
+            , delims = seqFromRevList delims
+            }
+          )
+        end
+*)
 
       fun parse_tyvar i =
         if check Token.isTyVar at i then
@@ -377,57 +443,92 @@ struct
 
 
       fun consume_dec infdict i =
-        if check Token.isDecStartToken at i then
-          consume_decMultiple infdict [] [] i
-        else
-          (i, infdict, Ast.Exp.DecEmpty)
+        let
+          fun consume_maybeSemicolon (i, infdict) =
+            if isReserved Token.Semicolon at i then
+              ((i+1, infdict), SOME (tok i))
+            else
+              ((i, infdict), NONE)
+
+          (** While we see a dec-start token, parse pairs of
+            *   (dec, semicolon option)
+            * The "state" in this computation is a pair (i, infdict), because
+            * declarations can affect local infixity.
+            *)
+          val ((i, infdict), decs) =
+            parse_while
+              (fn (i, _) => check Token.isDecStartToken at i)
+              (parse_two (consume_oneDec, consume_maybeSemicolon))
+              (i, infdict)
+
+          fun makeDecMultiple () =
+            Ast.Exp.DecMultiple
+              { elems = Seq.map #1 decs
+              , delims = Seq.map #2 decs
+              }
+
+          val result =
+            case Seq.length decs of
+              0 =>
+                Ast.Exp.DecEmpty
+            | 1 =>
+                let
+                  val (dec, semicolon) = Seq.nth decs 0
+                in
+                  if isSome semicolon then
+                    makeDecMultiple ()
+                  else
+                    dec
+                end
+            | _ =>
+                makeDecMultiple ()
+        in
+          (i, infdict, result)
+        end
 
 
-      (** dec [[;] dec ...]
-        * ^
-        *)
-      and consume_decMultiple infdict decs delims i =
+      and consume_oneDec (i, infdict) =
         if isReserved Token.Val at i then
           let
             val (i, dec) = consume_decVal infdict (i+1)
           in
-            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+            ((i, infdict), dec)
           end
         else if isReserved Token.Type at i then
           let
             val (i, dec) = consume_decType infdict (i+1)
           in
-            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+            ((i, infdict), dec)
           end
         else if isReserved Token.Infix at i then
           let
             val (i, dec) = consume_decInfix {isLeft=true} infdict (i+1)
             val infdict = updateInfixDict infdict dec
           in
-            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+            ((i, infdict), dec)
           end
         else if isReserved Token.Infixr at i then
           let
             val (i, dec) = consume_decInfix {isLeft=false} infdict (i+1)
             val infdict = updateInfixDict infdict dec
           in
-            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+            ((i, infdict), dec)
           end
         else if isReserved Token.Nonfix at i then
           let
             val (i, dec) = consume_decNonfix infdict (i+1)
             val infdict = updateInfixDict infdict dec
           in
-            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+            ((i, infdict), dec)
           end
         else if isReserved Token.Fun at i then
           let
             val (i, dec) = consume_decFun infdict (i+1)
           in
-            consume_maybeContinueDecMultiple infdict (dec :: decs) delims i
+            ((i, infdict), dec)
           end
         else
-          nyi "consume_decMultiple" i
+          nyi "consume_oneDec" i
 
 
       (** fun tyvarseq [op]vid atpat ... atpat [: ty] = exp [| ...] [and ...]
@@ -577,37 +678,6 @@ struct
                 , elems = elems
                 }
             )
-        end
-
-
-      (** dec [[;] dec ...]
-        *     ^
-        *)
-      and consume_maybeContinueDecMultiple infdict decs delims i =
-        let
-          val (i, delims) =
-            if isReserved Token.Semicolon at i then
-              (i+1, SOME (tok i) :: delims)
-            else
-              (i, NONE :: delims)
-        in
-          if check Token.isDecStartToken at i then
-            consume_decMultiple infdict decs delims i
-          else if List.length delims = 0 andalso List.length decs = 1 then
-            (i, infdict, List.hd decs)
-          else
-            let
-              val delims = seqFromRevList delims
-              val decs = seqFromRevList decs
-            in
-              ( i
-              , infdict
-              , Ast.Exp.DecMultiple
-                { elems = decs
-                , delims = delims
-                }
-              )
-            end
         end
 
 
