@@ -414,8 +414,40 @@ struct
           )
         else if isReserved Token.OpenParen at i then
           consume_patParensOrTupleOrUnit infdict (tok i) (i+1)
+        else if isReserved Token.OpenSquareBracket at i then
+          consume_patListLiteral infdict (tok i) (i+1)
         else
           nyi "consume_pat" i
+
+
+      (** [ ... ]
+        *  ^
+        *)
+      and consume_patListLiteral infdict openBracket i =
+        let
+          fun finish elems delims closeBracket =
+            Ast.Pat.List
+              { left = openBracket
+              , right = closeBracket
+              , elems = elems
+              , delims = delims
+              }
+        in
+          if isReserved Token.CloseSquareBracket at i then
+            (i+1, finish (Seq.empty ()) (Seq.empty ()) (tok i))
+          else
+            let
+              val parseElem = consume_pat {nonAtomicOkay=true} infdict
+              val (i, {elems, delims}) =
+                parse_oneOrMoreDelimitedByReserved
+                  {parseElem = parseElem, delim = Token.Comma}
+                  i
+              val (i, closeBracket) =
+                consume_expectReserved Token.CloseSquareBracket i
+            in
+              (i, finish elems delims closeBracket)
+            end
+        end
 
 
       (** ( )

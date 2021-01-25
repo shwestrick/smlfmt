@@ -126,6 +126,14 @@ struct
         , id: MaybeLong.t
         }
 
+    (** [ pat, ..., pat ] *)
+    | List of
+        { left: Token.t
+        , elems: pat Seq.t
+        , delims: Token.t Seq.t
+        , right: Token.t
+        }
+
     (** ( pat, ..., pat ) *)
     | Tuple of
         { left: Token.t

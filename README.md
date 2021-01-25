@@ -85,7 +85,7 @@ Patterns:
 - [ ] `op` identifiers (e.g. `op+`)
 - [ ] constructed values (e.g. `Node (a, b)`)
 - [ ] infixed constructed values (e.g. `x :: xs`)
-- [ ] list sugar (`[a, b, c]`)
+- [x] list sugar (`[a, b, c]`)
 - [ ] records
 - [ ] type annotations (e.g. `x: ty`)
 - [ ] layered patterns (e.g. `x as (a, b)`)

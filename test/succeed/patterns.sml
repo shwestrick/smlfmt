@@ -7,6 +7,8 @@ val ( (a, b, c)
     , d
     , (e, f)
     , whyIsThisParameterNamedSoBig
-    , (h, i, j, k, l, m, n, o, p)
+    , (h, i, j, k, l, m, n, oo, p)
     ) =
   someLongFunctionName ()
+val [(x), (1,2,3), "hello", Option.NONE] =
+  [ 0, (1,2,3), "hello", NONE ]

@@ -229,6 +229,8 @@ struct
           parensAround (showPat pat)
       | Tuple {elems, ...} =>
           sequence "(" "," ")" (Seq.map showPat elems)
+      | List {elems, ...} =>
+          sequence "[" "," "]" (Seq.map showPat elems)
       | Typed {pat, ty, ...} =>
           showPat pat ++ space ++ text ":" ++ space ++ showTy ty
       | _ =>
