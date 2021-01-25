@@ -191,6 +191,40 @@ struct
             , explain = NONE
             }
 
+      (** parse_zeroOrMoreDelimitedByReserved
+        *   { parseElem: (int, 'a) parser
+        *   , delim: Token.reserved
+        *   , shouldStop: int peeker
+        *   }
+        *   -> (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
+        *)
+      fun parse_zeroOrMoreDelimitedByReserved
+          {parseElem: (int, 'a) parser, delim: Token.reserved, shouldStop}
+          i =
+        let
+          fun loop elems delims i =
+            if shouldStop i then
+              (i, elems, delims)
+            else
+              let
+                val (i, elem) = parseElem i
+                val elems = elem :: elems
+              in
+                if isReserved delim at i then
+                  loop elems (tok i :: delims) (i+1)
+                else
+                  (i, elems, delims)
+              end
+
+          val (i, elems, delims) = loop [] [] i
+        in
+          ( i
+          , { elems = seqFromRevList elems
+            , delims = seqFromRevList delims
+            }
+          )
+        end
+
 
       (** parse_oneOrMoreDelimitedByReserved
         *   {parseElem: (int, 'a) parser, delim: Token.reserved} ->
@@ -379,67 +413,53 @@ struct
               }
           )
         else if isReserved Token.OpenParen at i then
-          consume_patParensOrTupleOrUnit infdict (tok i) [] [] (i+1)
+          consume_patParensOrTupleOrUnit infdict (tok i) (i+1)
         else
           nyi "consume_pat" i
 
 
-      (** ( [..., pat,] [pat [, pat ...]] )
-        *              ^
+      (** ( )
+        *  ^
+        * OR
+        * ( pat )
+        *  ^
+        * OR
+        * ( pat, pat [, pat ...] )
+        *  ^
         *)
-      and consume_patParensOrTupleOrUnit infdict leftParen pats delims i =
+      and consume_patParensOrTupleOrUnit infdict leftParen i =
         if isReserved Token.CloseParen at i then
-          consume_endPatParensOrTupleOrUnit leftParen pats delims (i+1)
+          ( i+1
+          , Ast.Pat.Unit
+              { left = leftParen
+              , right = tok i
+              }
+          )
         else
           let
-            val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
-            val pats = pat :: pats
-            val (i, delims) =
-              if isReserved Token.Comma at i then
-                (i+1, tok i :: delims)
-              else
-                (i, delims)
-          in
-            consume_patParensOrTupleOrUnit infdict leftParen pats delims i
-          end
-
-
-      (** ( [pat [, pat ...]] )
-        *                       ^
-        * Immediately past the close paren, we need to figure out whether
-        * this is a unit, or parens around a pat, or a tuple.
-        *)
-      and consume_endPatParensOrTupleOrUnit leftParen pats delims i =
-        let
-          val rightParen = tok (i-1)
-          val ast =
-            case (pats, delims) of
-              ([], []) =>
-                Ast.Pat.Unit
-                  { left = leftParen
-                  , right = rightParen
-                  }
-            | ([pat], []) =>
+            val parseElem = consume_pat {nonAtomicOkay=true} infdict
+            val (i, {elems, delims}) =
+              parse_oneOrMoreDelimitedByReserved
+                {parseElem = parseElem, delim = Token.Comma}
+                i
+            val (i, rightParen) = consume_expectReserved Token.CloseParen i
+            val result =
+              if Seq.length elems = 1 then
                 Ast.Pat.Parens
                   { left = leftParen
-                  , pat = pat
+                  , pat = Seq.nth elems 0
                   , right = rightParen
                   }
-            | _ =>
-                if not (List.length delims = List.length pats - 1) then
-                  raise Fail
-                    "Bug: Parser.parse.consume_endPatParensOrTupleOrUnit: \
-                    \number of patterns and delimiters don't match."
-                else
-                  Ast.Pat.Tuple
-                    { left = leftParen
-                    , elems = seqFromRevList pats
-                    , delims = seqFromRevList delims
-                    , right = rightParen
-                    }
-        in
-          (i, ast)
-        end
+              else
+                Ast.Pat.Tuple
+                  { left = leftParen
+                  , elems = elems
+                  , delims = delims
+                  , right = rightParen
+                  }
+          in
+            (i, result)
+          end
 
 
       fun consume_dec infdict i =
@@ -728,7 +748,7 @@ struct
             if check Token.isConstant at i then
               (i+1, Ast.Exp.Const (tok i))
             else if isReserved Token.OpenParen at i then
-              consume_expParensOrTupleOrUnitOrSequence infdict (tok i) [] [] (i+1)
+              consume_expParensOrTupleOrUnitOrSequence infdict (tok i) (i+1)
             else if isReserved Token.OpenSquareBracket at i then
               consume_expListLiteral infdict (i+1)
             else if isReserved Token.Let at i then
@@ -1295,115 +1315,76 @@ struct
         end
 
 
-      (** ( [...; exp;] [exp [; exp ...]] )
-        *              ^
+      (** ( )
+        *  ^
         * OR
-        * ( [..., exp,] [exp [, exp ...]] )
-        *              ^
+        * ( exp [, exp ...] )
+        *  ^
+        * OR
+        * ( exp [; exp ...] )
+        *  ^
         *)
-      and consume_expParensOrTupleOrUnitOrSequence infdict leftParen exps delims i =
+      and consume_expParensOrTupleOrUnitOrSequence infdict leftParen i =
         if isReserved Token.CloseParen at i then
-          consume_endExpParensOrTupleOrUnitOrSequence leftParen exps delims (i+1)
+          ( i+1
+          , Ast.Exp.Unit
+              { left = leftParen
+              , right = tok i
+              }
+          )
         else
           let
-            val (i, exp) = consume_exp infdict NoRestriction i
-            val exps = exp :: exps
-
-            (** Try to continue by parsing the next delimiter. It needs to
-              * match exiting delimiter.
-              *)
-            val commasOkay =
-              case delims of
-                [] => true
-              | d :: _ => Token.isComma d
-            val semicolonsOkay =
-              case delims of
-                [] => true
-              | d :: _ => Token.isSemicolon d
-
-            val (i, delims) =
-              if isReserved Token.Comma at i then
-                if commasOkay then
-                  (i+1, tok i :: delims)
-                else
-                  error
-                    { pos = Token.getSource (tok i)
-                    , what = "Unexpected comma."
-                    , explain = SOME
-                        "Perhaps you meant to use a semicolon. Sequences of \
-                        \expressions are separated by semicolons."
-                    }
-              else if isReserved Token.Semicolon at i then
-                if semicolonsOkay then
-                  (i+1, tok i :: delims)
-                else
-                  error
-                    { pos = Token.getSource (tok i)
-                    , what = "Unexpected semicolon."
-                    , explain = SOME
-                        "Perhaps you meant to use a comma. Tuples of \
-                        \expressions are separated by commas."
-                    }
-              else
-                (i, delims)
+            val parseElem = consume_exp infdict NoRestriction
+            val (i, exp) = parseElem i
           in
-            consume_expParensOrTupleOrUnitOrSequence infdict leftParen exps delims i
-          end
-
-
-      (** ( [exp [; exp ...]] )
-        * OR
-        * ( [exp [, exp ...]] )
-        *                       ^
-        * Immediately past the close paren, we need to figure out whether
-        * this is a unit, or parens around an exp, a tuple, or a sequence.
-        *)
-      and consume_endExpParensOrTupleOrUnitOrSequence leftParen exps delims i =
-        let
-          val rightParen = tok (i-1)
-          val ast =
-            case (exps, delims) of
-              ([], []) =>
-                Ast.Exp.Unit
-                  { left = leftParen
-                  , right = rightParen
-                  }
-            | ([exp], []) =>
-                Ast.Exp.Parens
+            if isReserved Token.CloseParen at i then
+              ( i+1
+              , Ast.Exp.Parens
                   { left = leftParen
                   , exp = exp
+                  , right = tok i
+                  }
+              )
+            else
+              let
+                val delimType =
+                  if isReserved Token.Comma at i then
+                    Token.Comma
+                  else if isReserved Token.Semicolon at i then
+                    Token.Semicolon
+                  else
+                    error
+                      { pos = Token.getSource leftParen
+                      , what = "Unmatched paren."
+                      , explain = NONE
+                      }
+
+                val (i, delim) = (i+1, tok i)
+
+                val (i, {elems, delims}) =
+                  parse_zeroOrMoreDelimitedByReserved
+                    { parseElem = parseElem
+                    , delim = delimType
+                    , shouldStop = isReserved Token.CloseParen
+                    }
+                    i
+
+                val (i, rightParen) = consume_expectReserved Token.CloseParen i
+
+                val stuff =
+                  { left = leftParen
+                  , elems = Seq.append (Seq.singleton exp, elems)
+                  , delims = Seq.append (Seq.singleton delim, delims)
                   , right = rightParen
                   }
-            | (_, exampleDelim :: _) =>
-                if not (List.length delims = List.length exps - 1) then
-                  raise Fail
-                    "Bug: Parser.parse.consume_endExpParensOrTupleOrUnitOrSequence: \
-                    \number of patterns and delimiters don't match."
-                else if Token.isComma exampleDelim then
-                  Ast.Exp.Tuple
-                    { left = leftParen
-                    , elems = seqFromRevList exps
-                    , delims = seqFromRevList delims
-                    , right = rightParen
-                    }
-                else if Token.isSemicolon exampleDelim then
-                  Ast.Exp.Sequence
-                    { left = leftParen
-                    , elems = seqFromRevList exps
-                    , delims = seqFromRevList delims
-                    , right = rightParen
-                    }
-                else
-                  raise Fail
-                    "Bug: Parser.parse.consume_endExpParensOrTupleOrUnitOrSequence: \
-                    \invalid delimiters."
-            | _ =>
-                raise Fail
-                  "Bug: Parser.parse.consume_endExpParensOrTupleOrUnitOrSequence"
-
-        in
-          (i, ast)
-        end
+              in
+                case delimType of
+                  Token.Comma =>
+                    (i, Ast.Exp.Tuple stuff)
+                | _ =>
+                    (i, Ast.Exp.Sequence stuff)
+              end
+          end
 
 
       val infdict = InfixDict.initialTopLevel
