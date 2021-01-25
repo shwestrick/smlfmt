@@ -1265,7 +1265,6 @@ struct
         end
 
 
-
       (** let dec in exp [; exp ...] end
         *    ^
         *)
@@ -1274,48 +1273,26 @@ struct
           val lett = tok (i-1)
           val (i, infdict, dec) = consume_dec infdict i
           val (i, inn) = consume_expectReserved Token.In i
-          val (i, exp) = consume_exp infdict NoRestriction i
-        in
-          consume_expLetInEndSequence infdict lett dec inn [exp] [] i
-        end
 
-
-      (** let dec in exp [; exp ...] end
-        *               ^
-        *)
-      and consume_expLetInEndSequence infdict lett dec inn exps delims i =
-        if isReserved Token.Semicolon at i then
-          let
-            val delim = tok i
-            val (i, exp) = consume_exp infdict NoRestriction (i+1)
-          in
-            consume_expLetInEndSequence
-              infdict
-              lett dec inn
-              (exp :: exps)
-              (delim :: delims)
+          val parseElem = consume_exp infdict NoRestriction
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.Semicolon}
               i
-          end
-        else if isReserved Token.End at i then
-          if List.length delims <> List.length exps - 1 then
-            raise Fail "Bug: Parser.parse.consume_expLetInEndSequence"
-          else
-            ( i+1
-            , Ast.Exp.LetInEnd
-                { lett = lett
-                , dec = dec
-                , inn = inn
-                , exps = seqFromRevList exps
-                , delims = seqFromRevList delims
-                , endd = tok i
-                }
-            )
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Expected either a semicolon or an 'end'."
-            , explain = NONE
-            }
+
+          val (i, endd) = consume_expectReserved Token.End i
+        in
+          ( i
+          , Ast.Exp.LetInEnd
+              { lett = lett
+              , dec = dec
+              , inn = inn
+              , exps = elems
+              , delims = delims
+              , endd = endd
+              }
+          )
+        end
 
 
       (** ( [...; exp;] [exp [; exp ...]] )
