@@ -122,7 +122,7 @@ Expressions
 
 Declarations:
 - [x] value bindings (not mutually-recursive)
-- [ ] mutually-recursive values
+- [x] mutually-recursive values
 - [x] type bindings (not mutually-recursive)
 - [ ] mutually-recursive types
 - [x] function value bindings (not mutually-recursive, single pattern set)

@@ -752,23 +752,38 @@ struct
         *)
       and consume_decVal (i, infdict) =
         let
+          (**  [rec] pat = exp
+            * ^
+            *)
+          fun parseElem i =
+            let
+              val (i, recc) = consume_maybeReserved Token.Rec i
+              val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
+              val (i, eq) = consume_expectReserved Token.Equal i
+              val (i, exp) = consume_exp infdict NoRestriction i
+            in
+              ( i
+              , { recc = recc
+                , pat = pat
+                , eq = eq
+                , exp = exp
+                }
+              )
+            end
+
+          val vall = tok (i-1)
           val (i, tyvars) = parse_tyvars i
-          val (i, recc) = consume_maybeReserved Token.Rec i
-          val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
-          val (i, eq) = consume_expectReserved Token.Equal i
-          val (i, exp) = consume_exp infdict NoRestriction i
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.And}
+              i
         in
           ( (i, infdict)
           , Ast.Exp.DecVal
-              { vall = tok (i-1)
+              { vall = vall
               , tyvars = tyvars
-              , elems = Seq.singleton
-                  { recc = recc
-                  , pat = pat
-                  , eq = eq
-                  , exp = exp
-                  }
-              , delims = Seq.empty ()
+              , elems = elems
+              , delims = delims
               }
           )
         end

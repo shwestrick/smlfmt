@@ -97,19 +97,36 @@ struct
       case dec of
         DecVal {vall, tyvars, elems, delims} =>
           let
-            val {recc, pat, eq, exp} = Seq.nth elems 0
+            fun mk {recc, pat, eq, exp} =
+              group (
+                separateWithSpaces
+                  [ SOME (text "and")
+                  , Option.map (fn _ => text "rec") recc
+                  , SOME (showPat pat)
+                  , SOME (text "=")
+                  ]
+                $$
+                (spaces 2 ++ showExp exp)
+              )
+
+            val first =
+              let
+                val {recc, pat, eq, exp} = Seq.nth elems 0
+              in
+                group (
+                  separateWithSpaces
+                    [ SOME (text "val")
+                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
+                    , Option.map (fn _ => text "rec") recc
+                    , SOME (showPat pat)
+                    , SOME (text "=")
+                    ]
+                  $$
+                  (spaces 2 ++ showExp exp)
+                )
+              end
           in
-            group (
-              separateWithSpaces
-                [ SOME (text "val")
-                , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                , Option.map (fn _ => text "rec") recc
-                , SOME (showPat pat)
-                , SOME (text "=")
-                ]
-              $$
-              (spaces 2 ++ showExp exp)
-            )
+            Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
           end
 
       | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
