@@ -326,6 +326,17 @@ struct
       | Typed {exp, ty, ...} =>
           showExp exp ++ space ++ text ":" ++ space ++ showTy ty
 
+      | IfThenElse {exp1, exp2, exp3, ...} =>
+          group (
+            (text "if" ++ space ++ showExp exp1 ++ space ++ text "then")
+            $$
+            (spaces 2 ++ showExp exp2)
+            $$
+            text "else"
+            $$
+            (spaces 2 ++ showExp exp3)
+          )
+
       | Raise {exp, ...} =>
           group (text "raise" $$ (spaces 2 ++ showExp exp))
 

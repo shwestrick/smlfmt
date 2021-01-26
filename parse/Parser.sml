@@ -820,6 +820,16 @@ struct
             else if isReserved Token.Case at i then
               consume_expCase infdict (i+1)
 
+            else if isReserved Token.If at i then
+              if anyExpOkay restriction then
+                consume_expIfThenElse infdict (tok i) (i+1)
+              else
+                error
+                  { pos = Token.getSource (tok i)
+                  , what = "Unexpected if-then-else expression."
+                  , explain = SOME "Try using parentheses: (if ... then ... else ...)"
+                  }
+
             else if isReserved Token.Raise at i then
               if anyExpOkay restriction then
                 consume_expRaise infdict (i+1)
@@ -915,6 +925,34 @@ struct
             consume_afterExp infdict restriction exp i
           else
             (i, exp)
+        end
+
+
+      and consume_expIfThenElse infdict iff i =
+        let
+          val (i, exp1) = consume_exp infdict NoRestriction i
+          val (i, thenn) = parse_reserved Token.Then i
+          val (i, exp2) = consume_exp infdict NoRestriction i
+          val (i, elsee) = parse_reserved Token.Else i
+          val (i, exp3) = consume_exp infdict NoRestriction i
+
+          val result =
+            Ast.Exp.IfThenElse
+              { iff = iff
+              , exp1 = exp1
+              , thenn = thenn
+              , exp2 = exp2
+              , elsee = elsee
+              , exp3 = exp3
+              }
+
+          (** NOTE: this is technically a noop, because `raise` has low enough
+            * precedence that the left rotation will never happen. But I like
+            * keeping the code here because it's informative.
+            *)
+          val result = FixExpPrecedence.maybeRotateLeft result
+        in
+          (i, result)
         end
 
 

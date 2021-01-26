@@ -25,4 +25,14 @@ val x =
   , [1, 2, 3] @ 4 :: [5, 6, 7] @ []
   , [case 0 of 0 => 1 | 1 => 2, 3, 4+5, Int.max (0, 1)]
   , fn [] => 0 | [1,2,3] => 1 | [1,2,3,4,5] => 2 | _ => 3
+  , if true then
+      if false then
+        "case 1 1"
+      else
+        "case 1 2"
+    else
+      if false then
+        "case 2 1"
+      else
+        "case 2 2"
   )

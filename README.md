@@ -117,7 +117,7 @@ Expressions
 - [x] cases
 - [x] handle exception
 - [x] raise exception
-- [ ] if-then-else
+- [x] if-then-else
 - [ ] while-do
 
 Declarations:
