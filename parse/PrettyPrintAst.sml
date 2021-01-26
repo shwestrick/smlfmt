@@ -240,7 +240,7 @@ struct
       | Unit _ =>
           text "()"
       | Ident {opp, id} =>
-          (if Option.isSome opp then text "op" else empty)
+          (if Option.isSome opp then text "op " else empty)
           ++ text (Token.toString (Ast.MaybeLong.getToken id))
       | Parens {pat, ...} =>
           parensAround (showPat pat)
@@ -265,7 +265,7 @@ struct
       | Unit _ =>
           text "()"
       | Ident {opp, id} =>
-          (if Option.isSome opp then text "op" else empty)
+          (if Option.isSome opp then text "op " else empty)
           ++ text (Token.toString (Ast.MaybeLong.getToken id))
       | Parens {exp, ...} =>
           parensAround (showExp exp)

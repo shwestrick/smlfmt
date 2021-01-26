@@ -175,11 +175,10 @@ struct
       fun is c = check (fn t => c = Token.getClass t)
       fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
-
-      (** parse_reservedToken:
+      (** parse_reserved:
         *   Token.reserved -> (int, Token.t) parser
         *)
-      fun parse_reservedToken rc i =
+      fun parse_reserved rc i =
         if isReserved rc at i then
           (i+1, tok i)
         else
@@ -353,7 +352,7 @@ struct
                 {parseElem = parse_tyvar, delim = Token.Comma}
                 i
             val (i, closeParen) =
-              parse_reservedToken Token.CloseParen i
+              parse_reserved Token.CloseParen i
           in
             ( i
             , Ast.SyntaxSeq.Many
@@ -372,18 +371,6 @@ struct
         else
           (i, NONE)
 
-      fun consume_expectReserved rc i =
-        if isReserved rc at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what =
-                "Unexpected token. Expected to see "
-                ^ "'" ^ Token.reservedToString rc ^ "'"
-            , explain = NONE
-            }
-
 
       fun check_normalOrOpInfix infdict opp vid =
         if InfixDict.contains infdict vid andalso not (Option.isSome opp) then
@@ -394,6 +381,38 @@ struct
             }
         else
           ()
+
+
+      fun parse_vid i =
+        if check Token.isValueIdentifier at i then
+          (i+1, tok i)
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token. Expected value identifier."
+            , explain = NONE
+            }
+
+
+      fun parse_longvid i =
+        if check Token.isMaybeLongIdentifier at i then
+          (i+1, Ast.MaybeLong.make (tok i))
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Expected (possibly long) value identifier."
+            , explain = NONE
+            }
+
+
+      fun consume_opvid infdict i =
+        let
+          val (i, opp) = consume_maybeReserved Token.Op i
+          val (i, vid) = parse_vid i
+          val _ = check_normalOrOpInfix infdict opp vid
+        in
+          (i, {opp = opp, vid = vid})
+        end
 
 
       fun consume_pat {nonAtomicOkay} infdict i =
@@ -443,7 +462,7 @@ struct
                   {parseElem = parseElem, delim = Token.Comma}
                   i
               val (i, closeBracket) =
-                consume_expectReserved Token.CloseSquareBracket i
+                parse_reserved Token.CloseSquareBracket i
             in
               (i, finish elems delims closeBracket)
             end
@@ -474,7 +493,7 @@ struct
               parse_oneOrMoreDelimitedByReserved
                 {parseElem = parseElem, delim = Token.Comma}
                 i
-            val (i, rightParen) = consume_expectReserved Token.CloseParen i
+            val (i, rightParen) = parse_reserved Token.CloseParen i
             val result =
               if Seq.length elems = 1 then
                 Ast.Pat.Parens
@@ -566,30 +585,19 @@ struct
         let
           val funn = tok (i-1)
           val (i, tyvars) = parse_tyvars i
-          val (i, opp) = consume_maybeReserved Token.Op i
-          val (i, vid) =
-            if check Token.isValueIdentifier at i then
-              (i+1, tok i)
-            else
-              error
-                { pos = Token.getSource (tok i)
-                , what = "Unexpected token. Expected identifier"
-                , explain = NONE
-                }
 
-          val _ = check_normalOrOpInfix infdict opp vid
 
-          fun loop acc i =
-            if isReserved Token.Colon at i orelse isReserved Token.Equal at i then
-              (i, seqFromRevList acc)
-            else
-              let
-                val (i, atpat) = consume_pat {nonAtomicOkay=false} infdict i
-              in
-                loop (atpat :: acc) i
-              end
+          val (i, {opp, vid}) = consume_opvid infdict i
 
-          val (i, args) = loop [] i
+          (** arg patterns continue until we see
+            * ':' (type annotation) or
+            * '=' (end of args, beginning of function body)
+            *)
+          val (i, args) =
+            parse_while
+              (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
+              (consume_pat {nonAtomicOkay=false} infdict)
+              i
 
           val (i, ty) =
             if not (isReserved Token.Colon at i) then
@@ -601,7 +609,7 @@ struct
               in
                 (i, SOME {colon = colon, ty = ty})
               end
-          val (i, eq) = consume_expectReserved Token.Equal i
+          val (i, eq) = parse_reserved Token.Equal i
           val (i, exp) = consume_exp infdict NoRestriction i
 
           val fvalbind =
@@ -725,7 +733,7 @@ struct
                 , explain = NONE
                 }
 
-          val (i, eq) = consume_expectReserved Token.Equal i
+          val (i, eq) = parse_reserved Token.Equal i
           val (i, ty) = consume_ty {permitArrows=true} i
 
           val typbind =
@@ -759,7 +767,7 @@ struct
             let
               val (i, recc) = consume_maybeReserved Token.Rec i
               val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
-              val (i, eq) = consume_expectReserved Token.Equal i
+              val (i, eq) = parse_reserved Token.Equal i
               val (i, exp) = consume_exp infdict NoRestriction i
             in
               ( i
@@ -930,7 +938,7 @@ struct
                   {parseElem = parseElem, delim = Token.Comma}
                   i
               val (i, closeBracket) =
-                consume_expectReserved Token.CloseSquareBracket i
+                parse_reserved Token.CloseSquareBracket i
             in
               (i, finish elems delims closeBracket)
             end
@@ -944,7 +952,7 @@ struct
         let
           val casee = tok (i-1)
           val (i, exp) = consume_exp infdict NoRestriction i
-          val (i, off) = consume_expectReserved Token.Of i
+          val (i, off) = parse_reserved Token.Of i
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar}
@@ -968,7 +976,7 @@ struct
       and consume_matchElem infdict i =
         let
           val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
-          val (i, arrow) = consume_expectReserved Token.FatArrow i
+          val (i, arrow) = parse_reserved Token.FatArrow i
           val (i, exp) = consume_exp infdict NoRestriction i
         in
           (i, {pat=pat, arrow=arrow, exp=exp})
@@ -1001,16 +1009,7 @@ struct
         *)
       and consume_expValueIdentifier infdict opp i =
         let
-          val (i, vid) =
-            if check Token.isMaybeLongIdentifier at i then
-              (i+1, Ast.MaybeLong.make (tok i))
-            else
-              error
-                { pos = Token.getSource (tok i)
-                , what = "Expected value identifier."
-                , explain = NONE
-                }
-
+          val (i, vid) = parse_longvid i
           val _ = check_normalOrOpInfix infdict opp (Ast.MaybeLong.getToken vid)
         in
           ( i
@@ -1339,7 +1338,7 @@ struct
         let
           val lett = tok (i-1)
           val (i, infdict, dec) = consume_dec infdict i
-          val (i, inn) = consume_expectReserved Token.In i
+          val (i, inn) = parse_reserved Token.In i
 
           val parseElem = consume_exp infdict NoRestriction
           val (i, {elems, delims}) =
@@ -1347,7 +1346,7 @@ struct
               {parseElem = parseElem, delim = Token.Semicolon}
               i
 
-          val (i, endd) = consume_expectReserved Token.End i
+          val (i, endd) = parse_reserved Token.End i
         in
           ( i
           , Ast.Exp.LetInEnd
@@ -1416,7 +1415,7 @@ struct
                     }
                     i
 
-                val (i, rightParen) = consume_expectReserved Token.CloseParen i
+                val (i, rightParen) = parse_reserved Token.CloseParen i
 
                 val stuff =
                   { left = leftParen
