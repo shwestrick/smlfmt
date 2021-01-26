@@ -583,39 +583,36 @@ struct
         *)
       and consume_decFun (i, infdict) =
         let
-          val funn = tok (i-1)
-          val (i, tyvars) = parse_tyvars i
+          (** [op]vid atpat .... atpat [: ty] = exp *)
+          fun parseElem i =
+            let
+              val (i, {opp, vid}) = consume_opvid infdict i
 
+              (** arg patterns continue until we see
+                * ':' (type annotation) or
+                * '=' (end of args, beginning of function body)
+                *)
+              val (i, args) =
+                parse_while
+                  (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
+                  (consume_pat {nonAtomicOkay=false} infdict)
+                  i
 
-          val (i, {opp, vid}) = consume_opvid infdict i
-
-          (** arg patterns continue until we see
-            * ':' (type annotation) or
-            * '=' (end of args, beginning of function body)
-            *)
-          val (i, args) =
-            parse_while
-              (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
-              (consume_pat {nonAtomicOkay=false} infdict)
-              i
-
-          val (i, ty) =
-            if not (isReserved Token.Colon at i) then
-              (i, NONE)
-            else
-              let
-                val colon = tok i
-                val (i, ty) = consume_ty {permitArrows=true} (i+1)
-              in
-                (i, SOME {colon = colon, ty = ty})
-              end
-          val (i, eq) = parse_reserved Token.Equal i
-          val (i, exp) = consume_exp infdict NoRestriction i
-
-          val fvalbind =
-            { delims = Seq.empty ()  (** 'and' delimiters *)
-            , elems = Seq.singleton
-                { delims = Seq.empty () (** '|' delimiters *)
+              val (i, ty) =
+                if not (isReserved Token.Colon at i) then
+                  (i, NONE)
+                else
+                  let
+                    val colon = tok i
+                    val (i, ty) = consume_ty {permitArrows=true} (i+1)
+                  in
+                    (i, SOME {colon = colon, ty = ty})
+                  end
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, exp) = consume_exp infdict NoRestriction i
+            in
+              ( i
+              , { delims = Seq.empty () (** '|' delimiters *)
                 , elems = Seq.singleton
                     { opp = opp
                     , id = vid
@@ -625,7 +622,15 @@ struct
                     , exp = exp
                     }
                 }
-            }
+              )
+            end
+
+          val funn = tok (i-1)
+          val (i, tyvars) = parse_tyvars i
+          val (i, fvalbind as {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.And}
+              i
         in
           ( (i, infdict)
           , Ast.Exp.DecFun

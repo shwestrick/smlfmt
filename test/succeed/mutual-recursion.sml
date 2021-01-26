@@ -9,3 +9,6 @@ and h =
   | 4 => "we should stop here"
   | 5 => "this is turning into a problem"
   | _ => "whew"
+
+fun odd x = (x = 1) orelse even (x-1)
+and even x = (x = 0) orelse odd (x-1)

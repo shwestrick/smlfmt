@@ -131,26 +131,54 @@ struct
 
       | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
           let
-            val {elems, ...} = Seq.nth elems 0
-            val {opp, id, args, ty, eq, exp} = Seq.nth elems 0
+            fun mk {elems=innerElems, delims} =
+              let
+                val {opp, id, args, ty, eq, exp} = Seq.nth innerElems 0
+                val prettyArgs =
+                  Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
+                    (showPat (Seq.nth args 0))
+                    (Seq.drop args 1)
+              in
+                group (
+                  separateWithSpaces
+                    [ SOME (text "and")
+                    , Option.map (fn _ => text "op") opp
+                    , SOME (text (Token.toString id))
+                    , SOME prettyArgs
+                    , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
+                    , SOME (text "=")
+                    ]
+                  $$
+                  (spaces 2 ++ showExp exp)
+                )
+              end
 
-            val prettyArgs =
-              Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
-                (showPat (Seq.nth args 0))
-                (Seq.drop args 1)
+
+            val first =
+              let
+                val {elems=innerElems, ...} = Seq.nth elems 0
+                val {opp, id, args, ty, eq, exp} = Seq.nth innerElems 0
+                val prettyArgs =
+                  Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
+                    (showPat (Seq.nth args 0))
+                    (Seq.drop args 1)
+              in
+                group (
+                  separateWithSpaces
+                    [ SOME (text "fun")
+                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
+                    , Option.map (fn _ => text "op") opp
+                    , SOME (text (Token.toString id))
+                    , SOME prettyArgs
+                    , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
+                    , SOME (text "=")
+                    ]
+                  $$
+                  (spaces 2 ++ showExp exp)
+                )
+              end
           in
-            group (
-              separateWithSpaces
-                [ SOME (text "fun")
-                , Option.map (fn _ => text "op") opp
-                , SOME (text (Token.toString id))
-                , SOME prettyArgs
-                , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
-                , SOME (text "=")
-                ]
-              $$
-              (spaces 2 ++ showExp exp)
-            )
+            Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
           end
 
       | DecType {typee, typbind={elems, ...}} =>
