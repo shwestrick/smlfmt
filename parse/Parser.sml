@@ -425,18 +425,32 @@ struct
           , Ast.Pat.Const (tok i)
           )
         else if check Token.isMaybeLongIdentifier at i then
-          ( i+1
-          , Ast.Pat.Ident
-              { opp = NONE
-              , id = Ast.MaybeLong.make (tok i)
-              }
-          )
+          consume_patValueIdentifier infdict NONE i
+        else if isReserved Token.Op at i then
+          consume_patValueIdentifier infdict (SOME (tok i)) (i+1)
         else if isReserved Token.OpenParen at i then
           consume_patParensOrTupleOrUnit infdict (tok i) (i+1)
         else if isReserved Token.OpenSquareBracket at i then
           consume_patListLiteral infdict (tok i) (i+1)
         else
           nyi "consume_pat" i
+
+
+      (** [op] longvid
+        *     ^
+        *)
+      and consume_patValueIdentifier infdict opp i =
+        let
+          val (i, vid) = parse_longvid i
+          val _ = check_normalOrOpInfix infdict opp (Ast.MaybeLong.getToken vid)
+        in
+          ( i
+          , Ast.Pat.Ident
+              { opp = opp
+              , id = vid
+              }
+          )
+        end
 
 
       (** [ ... ]

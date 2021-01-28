@@ -24,3 +24,10 @@ val c = << (10, 15)
 val d = >> (20, 25)
 val e = !! (30, 35)
 
+infix 5 << !!
+infixr 5 >>
+infixr 6 !!
+
+val op<< = op>>
+val op!! = op!!
+val op>> = op<<
