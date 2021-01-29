@@ -12,3 +12,5 @@ val ( (a, b, c)
   someLongFunctionName ()
 val [(x), (1,2,3), "hello", Option.NONE] =
   [ 0, (1,2,3), "hello", NONE ]
+
+val 1 :: 2 :: 3 :: nil = [1,2,3]

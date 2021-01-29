@@ -24,7 +24,14 @@ struct
   fun seqFromRevList list = Seq.rev (Seq.fromList list)
 
 
-  fun makeInfix infdict (left, id, right) =
+  (** ========================================================================
+    * Handle infix expressions and patterns by rotating AST according to
+    * operator precedence.
+    *
+    * TODO: DRY: makeInfixExp and makeInfixPat are nearly identical.
+    *)
+
+  fun makeInfixExp infdict (left, id, right) =
     let
       val hp = InfixDict.higherPrecedence infdict
       val sp = InfixDict.samePrecedence infdict
@@ -47,7 +54,7 @@ struct
             default
           else if hp (id, rId) orelse (sp (rId, id) andalso bothLeft (rId, id)) then
             Ast.Exp.Infix
-              { left = makeInfix infdict (left, id, rLeft)
+              { left = makeInfixExp infdict (left, id, rLeft)
               , id = rId
               , right = rRight
               }
@@ -55,6 +62,47 @@ struct
             error
               { pos = Token.getSource rId
               , what = "Ambiguous infix expression."
+              , explain =
+                  SOME "You are not allowed to mix left- and right-associative \
+                       \operators of same precedence"
+              }
+
+      | _ =>
+          default
+    end
+
+
+  fun makeInfixPat infdict (left, id, right) =
+    let
+      val hp = InfixDict.higherPrecedence infdict
+      val sp = InfixDict.samePrecedence infdict
+      val aLeft = InfixDict.associatesLeft infdict
+      val aRight = InfixDict.associatesRight infdict
+
+      fun bothLeft (x, y) = aLeft x andalso aLeft y
+      fun bothRight (x, y) = aRight x andalso aRight y
+
+      val default =
+        Ast.Pat.Infix
+          { left = left
+          , id = id
+          , right = right
+          }
+    in
+      case right of
+        Ast.Pat.Infix {left=rLeft, id=rId, right=rRight} =>
+          if hp (rId, id) orelse (sp (rId, id) andalso bothRight (rId, id)) then
+            default
+          else if hp (id, rId) orelse (sp (rId, id) andalso bothLeft (rId, id)) then
+            Ast.Pat.Infix
+              { left = makeInfixPat infdict (left, id, rLeft)
+              , id = rId
+              , right = rRight
+              }
+          else
+            error
+              { pos = Token.getSource rId
+              , what = "Ambiguous infix pattern."
               , explain =
                   SOME "You are not allowed to mix left- and right-associative \
                        \operators of same precedence"
@@ -106,11 +154,14 @@ struct
     end
 
 
-
-  (** This just implements a dumb little ordering:
+  (** ========================================================================
+    * Expression hierarchy
+    *
+    * This just implements a dumb little ordering:
     *   AtExp < AppExp < InfExp < Exp
     * and then e.g. `appExpOkay r` checks `AppExp < r`
     *)
+
   datatype exp_restrict =
     AtExpRestriction    (* AtExp *)
   | AppExpRestriction   (* AppExp *)
@@ -130,6 +181,8 @@ struct
       NoRestriction => true
     | _ => false
 
+  (** ========================================================================
+    *)
 
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
@@ -416,24 +469,81 @@ struct
 
 
       fun consume_pat {nonAtomicOkay} infdict i =
-        if isReserved Token.Underscore at i then
-          ( i+1
-          , Ast.Pat.Wild (tok i)
+        let
+          val (i, pat) =
+            if isReserved Token.Underscore at i then
+              ( i+1
+              , Ast.Pat.Wild (tok i)
+              )
+            else if check Token.isPatternConstant at i then
+              ( i+1
+              , Ast.Pat.Const (tok i)
+              )
+            else if check Token.isMaybeLongIdentifier at i then
+              consume_patValueIdentifier infdict NONE i
+            else if isReserved Token.Op at i then
+              consume_patValueIdentifier infdict (SOME (tok i)) (i+1)
+            else if isReserved Token.OpenParen at i then
+              consume_patParensOrTupleOrUnit infdict (tok i) (i+1)
+            else if isReserved Token.OpenSquareBracket at i then
+              consume_patListLiteral infdict (tok i) (i+1)
+            else
+              nyi "consume_pat" i
+        in
+          if nonAtomicOkay then
+            consume_afterPat infdict pat i
+          else
+            (i, pat)
+        end
+
+
+      (** pat
+        *    ^
+        *
+        * Multiple possibilities for what could be found after a pattern:
+        *   [op]longvid atpat     -- identifiers might actually be constructors
+        *   pat vid pat           -- infix constructor pattern
+        *   pat : ty              -- type annotation
+        *   [op]vid[: ty] as pat  -- layered
+        *)
+      and consume_afterPat infdict pat i =
+        let
+          val (again, (i, pat)) =
+            if
+              (** Annoying edge case with '='... we can use it in an infix
+                * expression as an equality predicate, but it is NEVER valid as
+                * an infix constructor, because SML forbids rebinding '=' in
+                * any program.
+                *
+                * Note to language designers... this is strange. Why not just
+                * use something reasonable like "==" for equality predicate?
+                * It makes the language more readable too...
+                *)
+              check Token.isValueIdentifierNoEqual at i
+              andalso InfixDict.contains infdict (tok i)
+            then
+              (true, consume_patInfix infdict pat (tok i) (i+1))
+            else
+              (false, (i, pat))
+        in
+          if again then
+            consume_afterPat infdict pat i
+          else
+            (i, pat)
+        end
+
+
+      (** pat vid pat
+        *        ^
+        *)
+      and consume_patInfix infdict leftPat vid i =
+        let
+          val (i, rightPat) = consume_pat {nonAtomicOkay=true} infdict i
+        in
+          ( i
+          , makeInfixPat infdict (leftPat, vid, rightPat)
           )
-        else if check Token.isPatternConstant at i then
-          ( i+1
-          , Ast.Pat.Const (tok i)
-          )
-        else if check Token.isMaybeLongIdentifier at i then
-          consume_patValueIdentifier infdict NONE i
-        else if isReserved Token.Op at i then
-          consume_patValueIdentifier infdict (SOME (tok i)) (i+1)
-        else if isReserved Token.OpenParen at i then
-          consume_patParensOrTupleOrUnit infdict (tok i) (i+1)
-        else if isReserved Token.OpenSquareBracket at i then
-          consume_patListLiteral infdict (tok i) (i+1)
-        else
-          nyi "consume_pat" i
+        end
 
 
       (** [op] longvid
@@ -1090,7 +1200,7 @@ struct
           val (i, exp2) = consume_exp infdict InfExpRestriction i
         in
           ( i
-          , makeInfix infdict (exp1, id, exp2)
+          , makeInfixExp infdict (exp1, id, exp2)
           )
         end
 

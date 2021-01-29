@@ -278,6 +278,12 @@ struct
           sequence "[" "," "]" (Seq.map showPat elems)
       | Typed {pat, ty, ...} =>
           showPat pat ++ space ++ text ":" ++ space ++ showTy ty
+      | Infix {left, id, right} =>
+          parensAround (group (
+            showPat left ++ space ++ text (Token.toString id)
+            $$
+            showPat right
+          ))
       | _ =>
           text "<pat>"
     end

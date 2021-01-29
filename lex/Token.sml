@@ -273,6 +273,11 @@ struct
     | Reserved Equal => true (** annoying edge case *)
     | _ => false
 
+  fun isValueIdentifierNoEqual tok =
+    case getClass tok of
+      Identifier => Source.nth (getSource tok) 0 <> #"'"
+    | _ => false
+
   fun isLongIdentifier tok =
     case getClass tok of
       LongIdentifier => true
