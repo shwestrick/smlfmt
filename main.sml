@@ -138,3 +138,5 @@ val ast =
 
 val _ =
   print (PrettyPrintAst.pretty ast ^ "\n")
+
+val _ = print "\nParsing succeeded.\n"

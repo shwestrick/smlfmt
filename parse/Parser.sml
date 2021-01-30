@@ -1604,9 +1604,13 @@ struct
       val (i, _, topdec) = consume_dec infdict 0
 
       val _ =
-        print ("Successfully parsed "
-               ^ Int.toString i ^ " out of " ^ Int.toString numToks
-               ^ " tokens\n")
+        if i >= numToks then ()
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token."
+            , explain = SOME "Invalid start of top-level declaration!"
+            }
     in
       Ast.Dec topdec
     end
