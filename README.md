@@ -83,7 +83,7 @@ Patterns:
 - [x] identifiers
 - [x] parentheses
 - [x] `op` identifiers (e.g. `op+`)
-- [ ] constructed values (e.g. `Node (a, b)`)
+- [x] constructed values (e.g. `Node (a, b)`)
 - [x] infixed constructed values (e.g. `x :: xs`)
 - [x] list sugar (`[a, b, c]`)
 - [ ] records

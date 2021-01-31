@@ -402,6 +402,20 @@ struct
     end
 
 
+  fun isAtPatStartToken tok =
+    case getClass tok of
+      Comment => false
+    | Reserved rc =>
+        List.exists (fn rc' => rc = rc')
+          [ OpenParen
+          , OpenSquareBracket
+          , OpenCurlyBracket
+          , Underscore
+          , Op
+          ]
+    | _ => true
+
+
   (** This is used in Parser.consume_afterExp, to see if we should stop parsing
     * the current expression and pop up to the previous context.
     *)

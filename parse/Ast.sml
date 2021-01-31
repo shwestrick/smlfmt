@@ -29,6 +29,23 @@ struct
   struct
     open AstType.Pat
 
+    fun isIdent pat =
+      case pat of
+        Ident _ => true
+      | _ => false
+
+    (* fun isValueIdentifier pat =
+      case pat of
+        Ident {id, ...} =>
+          Token.isValueIdentifierNoEqual (MaybeLong.getToken id)
+      | _ => false
+
+    fun isLongIdentifier pat =
+      case pat of
+        Ident {id, ...} =>
+          Token.isLongIdentifier (MaybeLong.getToken id)
+      | _ => false *)
+
     fun isAtPat pat =
       case pat of
         Wild _ => true

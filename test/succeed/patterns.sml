@@ -13,6 +13,16 @@ val ( (a, b, c)
 val [(x), (1,2,3), "hello", Option.NONE] =
   [ 0, (1,2,3), "hello", NONE ]
 
+infix 5 !!
+val SOME op!! = SOME (fn (a, b) => a + b)
+val SOME (Option.SOME (1 :: 2 :: [])) = SOME (SOME [1,2])
+
+val xx =
+  case SOME x of
+    Option.NONE => "hello"
+  | Option.SOME (SOME NONE) => "what"
+  | SOME _ => "goodbye"
+
 val 1 :: 2 :: (3:int) :: nil = [1,2,3]
 
 (** this is strange, but legit... *)

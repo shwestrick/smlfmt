@@ -507,6 +507,20 @@ struct
         let
           val (again, (i, pat)) =
             if
+              appOkay restriction
+              andalso Ast.Pat.isIdent pat
+              andalso check Token.isAtPatStartToken at i
+            then
+              let
+                val (opp, longvid) =
+                  case pat of
+                    Ast.Pat.Ident {opp, id} => (opp, id)
+                  | _ => raise Fail "Bug: Parser.parse.consume_afterPat"
+              in
+                (true, consume_patCon infdict opp longvid i)
+              end
+
+            else if
               (** Annoying edge case with '='... we can use it in an infix
                 * expression as an equality predicate, but it is NEVER valid as
                 * an infix constructor, because SML forbids rebinding '=' in
@@ -535,6 +549,23 @@ struct
             consume_afterPat infdict restriction pat i
           else
             (i, pat)
+        end
+
+
+      (** [op]longvid atpat
+        *            ^
+        *)
+      and consume_patCon infdict opp longvid i =
+        let
+          val (i, atpat) = consume_pat infdict AtRestriction i
+        in
+          ( i
+          , Ast.Pat.Con
+              { opp = opp
+              , id = longvid
+              , atpat = atpat
+              }
+          )
         end
 
 

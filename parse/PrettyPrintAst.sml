@@ -276,6 +276,10 @@ struct
           sequence "(" "," ")" (Seq.map showPat elems)
       | List {elems, ...} =>
           sequence "[" "," "]" (Seq.map showPat elems)
+      | Con {opp, id, atpat} =>
+          (if Option.isSome opp then text "op " else empty)
+          ++ text (Token.toString (Ast.MaybeLong.getToken id))
+          ++ space ++ showPat atpat
       | Typed {pat, ty, ...} =>
           showPat pat ++ space ++ text ":" ++ space ++ showTy ty
       | Infix {left, id, right} =>
