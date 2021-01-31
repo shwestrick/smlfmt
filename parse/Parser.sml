@@ -155,28 +155,28 @@ struct
 
 
   (** ========================================================================
-    * Expression hierarchy
+    * Expression/Pattern hierarchy
     *
     * This just implements a dumb little ordering:
-    *   AtExp < AppExp < InfExp < Exp
-    * and then e.g. `appExpOkay r` checks `AppExp < r`
+    *   AtExp/Pat < AppExp/Pat < InfExp/Pat < Exp/Pat
+    * and then e.g. `appOkay r` checks `AppExp < r`
     *)
 
   datatype exp_restrict =
-    AtExpRestriction    (* AtExp *)
-  | AppExpRestriction   (* AppExp *)
-  | InfExpRestriction   (* InfExp *)
-  | NoRestriction       (* Exp *)
-  fun appExpOkay restrict =
+    AtRestriction    (* AtExp/Pat *)
+  | AppRestriction   (* AppExp/Pat *)
+  | InfRestriction   (* InfExp/Pat *)
+  | NoRestriction    (* Exp *)
+  fun appOkay restrict =
     case restrict of
-      AtExpRestriction => false
+      AtRestriction => false
     | _ => true
-  fun infExpOkay restrict =
+  fun infOkay restrict =
     case restrict of
-      AtExpRestriction => false
-    | AppExpRestriction => false
+      AtRestriction => false
+    | AppRestriction => false
     | _ => true
-  fun anyExpOkay restrict =
+  fun anyOkay restrict =
     case restrict of
       NoRestriction => true
     | _ => false
@@ -468,7 +468,7 @@ struct
         end
 
 
-      fun consume_pat {nonAtomicOkay} infdict i =
+      fun consume_pat infdict restriction i =
         let
           val (i, pat) =
             if isReserved Token.Underscore at i then
@@ -490,10 +490,7 @@ struct
             else
               nyi "consume_pat" i
         in
-          if nonAtomicOkay then
-            consume_afterPat infdict pat i
-          else
-            (i, pat)
+          consume_afterPat infdict restriction pat i
         end
 
 
@@ -506,7 +503,7 @@ struct
         *   pat : ty              -- type annotation
         *   [op]vid[: ty] as pat  -- layered
         *)
-      and consume_afterPat infdict pat i =
+      and consume_afterPat infdict restriction pat i =
         let
           val (again, (i, pat)) =
             if
@@ -519,7 +516,8 @@ struct
                 * use something reasonable like "==" for equality predicate?
                 * It makes the language more readable too...
                 *)
-              check Token.isValueIdentifierNoEqual at i
+              infOkay restriction
+              andalso check Token.isValueIdentifierNoEqual at i
               andalso InfixDict.contains infdict (tok i)
             then
               (true, consume_patInfix infdict pat (tok i) (i+1))
@@ -527,7 +525,7 @@ struct
               (false, (i, pat))
         in
           if again then
-            consume_afterPat infdict pat i
+            consume_afterPat infdict restriction pat i
           else
             (i, pat)
         end
@@ -538,7 +536,7 @@ struct
         *)
       and consume_patInfix infdict leftPat vid i =
         let
-          val (i, rightPat) = consume_pat {nonAtomicOkay=true} infdict i
+          val (i, rightPat) = consume_pat infdict InfRestriction i
         in
           ( i
           , makeInfixPat infdict (leftPat, vid, rightPat)
@@ -580,7 +578,7 @@ struct
             (i+1, finish (Seq.empty ()) (Seq.empty ()) (tok i))
           else
             let
-              val parseElem = consume_pat {nonAtomicOkay=true} infdict
+              val parseElem = consume_pat infdict NoRestriction
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
                   {parseElem = parseElem, delim = Token.Comma}
@@ -612,7 +610,7 @@ struct
           )
         else
           let
-            val parseElem = consume_pat {nonAtomicOkay=true} infdict
+            val parseElem = consume_pat infdict NoRestriction
             val (i, {elems, delims}) =
               parse_oneOrMoreDelimitedByReserved
                 {parseElem = parseElem, delim = Token.Comma}
@@ -719,7 +717,7 @@ struct
               val (i, args) =
                 parse_while
                   (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
-                  (consume_pat {nonAtomicOkay=false} infdict)
+                  (consume_pat infdict AtRestriction)
                   i
 
               val (i, ty) =
@@ -895,7 +893,7 @@ struct
           fun parseElem i =
             let
               val (i, recc) = consume_maybeReserved Token.Rec i
-              val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
+              val (i, pat) = consume_pat infdict NoRestriction i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, exp) = consume_exp infdict NoRestriction i
             in
@@ -945,7 +943,7 @@ struct
               consume_expCase infdict (i+1)
 
             else if isReserved Token.If at i then
-              if anyExpOkay restriction then
+              if anyOkay restriction then
                 consume_expIfThenElse infdict (tok i) (i+1)
               else
                 error
@@ -955,7 +953,7 @@ struct
                   }
 
             else if isReserved Token.Raise at i then
-              if anyExpOkay restriction then
+              if anyOkay restriction then
                 consume_expRaise infdict (i+1)
               else
                 error
@@ -965,7 +963,7 @@ struct
                   }
 
             else if isReserved Token.Fn at i then
-              if anyExpOkay restriction then
+              if anyOkay restriction then
                 consume_expFn infdict (i+1)
               else
                 error
@@ -1011,26 +1009,26 @@ struct
               (false, (i, exp))
 
             else if
-              anyExpOkay restriction
+              anyOkay restriction
               andalso isReserved Token.Colon at i
             then
               (true, consume_expTyped exp (i+1))
 
             else if
-              anyExpOkay restriction
+              anyOkay restriction
               andalso isReserved Token.Handle at i
             then
               (true, consume_expHandle infdict exp (i+1))
 
             else if
-              anyExpOkay restriction
+              anyOkay restriction
               andalso (isReserved Token.Andalso at i
               orelse isReserved Token.Orelse at i)
             then
               (true, consume_expAndalsoOrOrelse infdict exp (i+1))
 
             else if
-              infExpOkay restriction
+              infOkay restriction
               andalso Ast.Exp.isInfExp exp
               andalso check Token.isValueIdentifier at i
               andalso InfixDict.contains infdict (tok i)
@@ -1038,7 +1036,7 @@ struct
               (true, consume_expInfix infdict exp (i+1))
 
             else if
-              appExpOkay restriction
+              appOkay restriction
             then
               (true, consume_expApp infdict exp i)
 
@@ -1142,7 +1140,7 @@ struct
         *)
       and consume_matchElem infdict i =
         let
-          val (i, pat) = consume_pat {nonAtomicOkay=true} infdict i
+          val (i, pat) = consume_pat infdict NoRestriction i
           val (i, arrow) = parse_reserved Token.FatArrow i
           val (i, exp) = consume_exp infdict NoRestriction i
         in
@@ -1197,7 +1195,7 @@ struct
           (* val _ = print ("infix\n") *)
 
           val id = tok (i-1)
-          val (i, exp2) = consume_exp infdict InfExpRestriction i
+          val (i, exp2) = consume_exp infdict InfRestriction i
         in
           ( i
           , makeInfixExp infdict (exp1, id, exp2)
@@ -1213,7 +1211,7 @@ struct
         let
           (* val _ = print ("app\n") *)
 
-          val (i, rightExp) = consume_exp infdict AtExpRestriction i
+          val (i, rightExp) = consume_exp infdict AtRestriction i
         in
           ( i
           , Ast.Exp.App

@@ -28,6 +28,30 @@ struct
   structure Pat =
   struct
     open AstType.Pat
+
+    fun isAtPat pat =
+      case pat of
+        Wild _ => true
+      | Const _ => true
+      | Unit _ => true
+      | Ident _ => true
+      | List _ => true
+      | Tuple _ => true
+      | Record _ => true
+      | Parens _ => true
+      | _ => false
+
+    fun isAppPat pat =
+      isAtPat pat orelse
+      (case pat of
+        Con _ => true
+      | _ => false)
+
+    fun isInfPat pat =
+      isAppPat pat orelse
+      (case pat of
+        Infix _ => true
+      | _ => false)
   end
 
   structure Exp =

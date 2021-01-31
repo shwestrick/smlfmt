@@ -179,6 +179,16 @@ struct
     | FatArrow => "=>"
     | Arrow => "->"
     | Hash => "#"
+    | OpenParen => "("
+    | CloseParen => ")"
+    | OpenSquareBracket => "["
+    | CloseSquareBracket => "]"
+    | OpenCurlyBracket => "{"
+    | CloseCurlyBracket => "}"
+    | Semicolon => ";"
+    | Underscore => "_"
+    | DotDotDot => "..."
+    | Comma => ","
     (** Core *)
     | Abstype => "abstype"
     | And => "and"
@@ -223,7 +233,6 @@ struct
     | Structure => "structure"
     | Where => "where"
 
-    | _ => raise Fail "Bug: Token.reservedToString: missing something..."
 
   fun reservedOrIdentifier src =
     case tryReserved src of
