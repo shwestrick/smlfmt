@@ -521,6 +521,13 @@ struct
               andalso InfixDict.contains infdict (tok i)
             then
               (true, consume_patInfix infdict pat (tok i) (i+1))
+
+            else if
+              anyOkay restriction
+              andalso isReserved Token.Colon at i
+            then
+              (true, consume_patTyped infdict pat (tok i) (i+1))
+
             else
               (false, (i, pat))
         in
@@ -528,6 +535,23 @@ struct
             consume_afterPat infdict restriction pat i
           else
             (i, pat)
+        end
+
+
+      (** pat : ty
+        *      ^
+        *)
+      and consume_patTyped infdict pat colon i =
+        let
+          val (i, ty) = consume_ty {permitArrows=true} i
+        in
+          ( i
+          , Ast.Pat.Typed
+              { pat = pat
+              , colon = colon
+              , ty = ty
+              }
+          )
         end
 
 
@@ -635,7 +659,7 @@ struct
           end
 
 
-      fun consume_dec infdict i =
+      and consume_dec infdict i =
         let
           fun consume_maybeSemicolon (i, infdict) =
             if isReserved Token.Semicolon at i then

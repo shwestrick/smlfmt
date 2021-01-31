@@ -13,4 +13,9 @@ val ( (a, b, c)
 val [(x), (1,2,3), "hello", Option.NONE] =
   [ 0, (1,2,3), "hello", NONE ]
 
-val 1 :: 2 :: 3 :: nil = [1,2,3]
+val 1 :: 2 :: (3:int) :: nil = [1,2,3]
+
+(** this is strange, but legit... *)
+type 'a :: = 'a list
+type 'a nil = 'a
+val 1 :: 2 :: []:int :: nil = [1,2]
