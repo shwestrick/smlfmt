@@ -282,6 +282,14 @@ struct
           ++ space ++ showPat atpat
       | Typed {pat, ty, ...} =>
           showPat pat ++ space ++ text ":" ++ space ++ showTy ty
+      | Layered {opp, id, ty, pat, ...} =>
+          separateWithSpaces
+            [ Option.map (fn _ => text "op") opp
+            , SOME (text (Token.toString id))
+            , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
+            , SOME (text "as")
+            , SOME (showPat pat)
+            ]
       | Infix {left, id, right} =>
           parensAround (group (
             showPat left ++ space ++ text (Token.toString id)

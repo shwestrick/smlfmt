@@ -29,22 +29,46 @@ struct
   struct
     open AstType.Pat
 
-    fun isIdent pat =
+    fun okayForConPat pat =
       case pat of
         Ident _ => true
       | _ => false
 
-    (* fun isValueIdentifier pat =
+    fun unpackForConPat pat =
+      case pat of
+        Ident {opp, id} => {opp=opp, id=id}
+      | _ => raise Fail "Bug: Ast.Pat.unpackForConPat: invalid argument"
+
+    fun isValueIdentifier pat =
       case pat of
         Ident {id, ...} =>
           Token.isValueIdentifierNoEqual (MaybeLong.getToken id)
       | _ => false
 
-    fun isLongIdentifier pat =
+    fun okayForAsPat pat =
+      isValueIdentifier pat
+      orelse
       case pat of
-        Ident {id, ...} =>
-          Token.isLongIdentifier (MaybeLong.getToken id)
-      | _ => false *)
+        Typed {pat, ...} =>
+          isValueIdentifier pat
+      | _ => false
+
+    (** Not that the unpacked id has to be a "short" identifer. We could
+      * check this here for sanity...
+      *)
+    fun unpackForAsPat pat =
+      case pat of
+        Ident {opp, id} =>
+          { opp = opp
+          , id = MaybeLong.getToken id
+          , ty = NONE
+          }
+      | Typed {pat = Ident {opp, id}, colon, ty} =>
+          { opp = opp
+          , id = MaybeLong.getToken id
+          , ty = SOME {colon = colon, ty = ty}
+          }
+      | _ => raise Fail "Bug: Ast.Pat.unpackForAsPat: invalid argument"
 
     fun isAtPat pat =
       case pat of

@@ -23,6 +23,9 @@ val xx =
   | Option.SOME (SOME NONE) => "what"
   | SOME _ => "goodbye"
 
+val x as SOME y : int option = SOME 5
+val SOME (op!! : int * int -> int as f) = SOME op+
+
 val 1 :: 2 :: (3:int) :: nil = [1,2,3]
 
 (** this is strange, but legit... *)

@@ -508,17 +508,10 @@ struct
           val (again, (i, pat)) =
             if
               appOkay restriction
-              andalso Ast.Pat.isIdent pat
+              andalso Ast.Pat.okayForConPat pat
               andalso check Token.isAtPatStartToken at i
             then
-              let
-                val (opp, longvid) =
-                  case pat of
-                    Ast.Pat.Ident {opp, id} => (opp, id)
-                  | _ => raise Fail "Bug: Parser.parse.consume_afterPat"
-              in
-                (true, consume_patCon infdict opp longvid i)
-              end
+              (true, consume_patCon infdict (Ast.Pat.unpackForConPat pat) i)
 
             else if
               (** Annoying edge case with '='... we can use it in an infix
@@ -537,10 +530,17 @@ struct
               (true, consume_patInfix infdict pat (tok i) (i+1))
 
             else if
-              anyOkay restriction
-              andalso isReserved Token.Colon at i
+              isReserved Token.Colon at i
+              andalso anyOkay restriction
             then
               (true, consume_patTyped infdict pat (tok i) (i+1))
+
+            else if
+              isReserved Token.As at i
+              andalso anyOkay restriction
+              andalso Ast.Pat.okayForAsPat pat
+            then
+              (true, consume_patAs infdict (Ast.Pat.unpackForAsPat pat) (tok i) (i+1))
 
             else
               (false, (i, pat))
@@ -552,17 +552,36 @@ struct
         end
 
 
+      (** [op]vid[: ty] as pat
+        *                 ^
+        *)
+      and consume_patAs infdict {opp, id, ty} ass i =
+        let
+          val (i, pat) = consume_pat infdict NoRestriction i
+        in
+          ( i
+          , Ast.Pat.Layered
+              { opp = opp
+              , id = id
+              , ty = ty
+              , ass = ass
+              , pat = pat
+              }
+          )
+        end
+
+
       (** [op]longvid atpat
         *            ^
         *)
-      and consume_patCon infdict opp longvid i =
+      and consume_patCon infdict {opp, id} i =
         let
           val (i, atpat) = consume_pat infdict AtRestriction i
         in
           ( i
           , Ast.Pat.Con
               { opp = opp
-              , id = longvid
+              , id = id
               , atpat = atpat
               }
           )

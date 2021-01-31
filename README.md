@@ -88,7 +88,7 @@ Patterns:
 - [x] list sugar (`[a, b, c]`)
 - [ ] records
 - [x] type annotations (e.g. `x: ty`)
-- [ ] layered patterns (e.g. `x as (a, b)`)
+- [x] layered patterns (e.g. `x as (a, b)`)
 
 Types:
 - [x] type variables (e.g. `'a`)
