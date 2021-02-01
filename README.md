@@ -105,7 +105,7 @@ Expressions
 - [x] sequences (i.e. `(a; b; c)`)
 - [x] list sugar
 - [ ] records
-- [ ] record selectors
+- [x] record selectors
 - [x] identifiers
 - [x] `op` identifiers
 - [x] let-in-end
