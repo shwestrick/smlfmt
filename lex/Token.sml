@@ -353,6 +353,12 @@ struct
       IntegerConstant => not (isHexIntegerConstant tok)
     | _ => false
 
+  fun isRecordLabel tok =
+    case getClass tok of
+      Identifier => Source.nth (getSource tok) 0 <> #"'"
+    | IntegerConstant => Source.nth (getSource tok) 0 <> #"0"
+    | _ => false
+
   val decStartTokens =
     [ Abstype
     , Datatype

@@ -457,6 +457,16 @@ struct
             , explain = NONE
             }
 
+      fun parse_recordLabel i =
+        if check Token.isRecordLabel at i then
+          (i+1, tok i)
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Expected record label."
+            , explain = NONE
+            }
+
 
       fun consume_opvid infdict i =
         let
@@ -1015,7 +1025,8 @@ struct
               consume_expValueIdentifier infdict NONE i
             else if isReserved Token.Case at i then
               consume_expCase infdict (i+1)
-
+            else if isReserved Token.Hash at i then
+              consume_expSelect (tok i) (i+1)
             else if isReserved Token.If at i then
               if anyOkay restriction then
                 consume_expIfThenElse infdict (tok i) (i+1)
@@ -1121,6 +1132,22 @@ struct
             consume_afterExp infdict restriction exp i
           else
             (i, exp)
+        end
+
+
+      (** # lab
+        *  ^
+        *)
+      and consume_expSelect hash i =
+        let
+          val (i, lab) = parse_recordLabel i
+        in
+          ( i
+          , Ast.Exp.Select
+              { hash = hash
+              , label = lab
+              }
+          )
         end
 
 

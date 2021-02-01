@@ -321,6 +321,8 @@ struct
           sequence "(" ";" ")" (Seq.map showExp elems)
       | List {elems, ...} =>
           sequence "[" "," "]" (Seq.map showExp elems)
+      | Select {label, ...} =>
+          text "#" ++ space ++ text (Token.toString label)
       | App {left, right} =>
           group (showExp left $$ (spaces 2 ++ showExp right))
       | Infix {left, id, right} =>
