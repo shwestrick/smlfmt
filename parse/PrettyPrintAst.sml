@@ -321,6 +321,17 @@ struct
           sequence "(" ";" ")" (Seq.map showExp elems)
       | List {elems, ...} =>
           sequence "[" "," "]" (Seq.map showExp elems)
+      | Record {elems, ...} =>
+          let
+            fun showRow {lab, exp, ...} =
+              group (
+                (text (Token.toString lab) ++ space ++ text "=")
+                $$
+                (spaces 2 ++ showExp exp)
+              )
+          in
+            sequence "{" "," "}" (Seq.map showRow elems)
+          end
       | Select {label, ...} =>
           text "#" ++ space ++ text (Token.toString label)
       | App {left, right} =>

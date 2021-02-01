@@ -1017,6 +1017,8 @@ struct
               consume_expParensOrTupleOrUnitOrSequence infdict (tok i) (i+1)
             else if isReserved Token.OpenSquareBracket at i then
               consume_expListLiteral infdict (i+1)
+            else if isReserved Token.OpenCurlyBracket at i then
+              consume_expRecord infdict (tok i) (i+1)
             else if isReserved Token.Let at i then
               consume_expLetInEnd infdict (i+1)
             else if isReserved Token.Op at i then
@@ -1132,6 +1134,43 @@ struct
             consume_afterExp infdict restriction exp i
           else
             (i, exp)
+        end
+
+
+      (** { label = exp [, ...] }
+        *  ^
+        *)
+      and consume_expRecord infdict left i =
+        let
+          fun parseElem i =
+            let
+              val (i, lab) = parse_recordLabel i
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, exp) = consume_exp infdict NoRestriction i
+            in
+              ( i
+              , { lab = lab
+                , eq = eq
+                , exp = exp
+                }
+              )
+            end
+
+            val (i, {elems, delims}) =
+              parse_oneOrMoreDelimitedByReserved
+                {parseElem = parseElem, delim = Token.Comma}
+                i
+
+            val (i, right) = parse_reserved Token.CloseCurlyBracket i
+        in
+          ( i
+          , Ast.Exp.Record
+              { left = left
+              , elems = elems
+              , delims = delims
+              , right = right
+              }
+          )
         end
 
 

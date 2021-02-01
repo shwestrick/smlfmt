@@ -104,7 +104,7 @@ Expressions
 - [x] parentheses
 - [x] sequences (i.e. `(a; b; c)`)
 - [x] list sugar
-- [ ] records
+- [x] records
 - [x] record selectors
 - [x] identifiers
 - [x] `op` identifiers

@@ -36,4 +36,5 @@ val x =
       else
         "case 2 2"
   , #1 (#2 ("hello", ("yeah", 5)))
+  , #hello {hello = List.foldl op+ 0 [1,2,3], world = "world"}
   )
