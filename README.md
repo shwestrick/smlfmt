@@ -86,7 +86,7 @@ Patterns:
 - [x] constructed values (e.g. `Node (a, b)`)
 - [x] infixed constructed values (e.g. `x :: xs`)
 - [x] list sugar (`[a, b, c]`)
-- [ ] records
+- [x] records
 - [x] type annotations (e.g. `x: ty`)
 - [x] layered patterns (e.g. `x as (a, b)`)
 

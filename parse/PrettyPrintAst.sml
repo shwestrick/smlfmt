@@ -282,6 +282,23 @@ struct
           sequence "(" "," ")" (Seq.map showPat elems)
       | List {elems, ...} =>
           sequence "[" "," "]" (Seq.map showPat elems)
+      | Record {elems, ...} =>
+          let
+            fun showPatRow patrow =
+              case patrow of
+                DotDotDot _ => text "..."
+              | LabEqPat {lab, pat, ...} =>
+                  text (Token.toString lab) ++ space ++ text "="
+                  ++ space ++ showPat pat
+              | LabAsPat {id, ty, aspat} =>
+                  separateWithSpaces
+                    [ SOME (text (Token.toString id))
+                    , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
+                    , Option.map (fn {pat, ...} => text "as" ++ space ++ showPat pat) aspat
+                    ]
+          in
+            sequence "{" "," "}" (Seq.map showPatRow elems)
+          end
       | Con {opp, id, atpat} =>
           (if Option.isSome opp then text "op " else empty)
           ++ text (Token.toString (Ast.MaybeLong.getToken id))
@@ -302,8 +319,6 @@ struct
             $$
             showPat right
           ))
-      | _ =>
-          text "<pat>"
     end
 
 

@@ -110,7 +110,24 @@ struct
     *)
   structure Pat =
   struct
-    datatype pat =
+
+    datatype patrow =
+      DotDotDot of Token.t  (** can only appear at end of record pattern *)
+
+    | LabEqPat of
+        { lab: Token.t
+        , eq: Token.t
+        , pat: pat
+        }
+
+    | LabAsPat of
+        { id: Token.t
+        , ty: {colon: Token.t, ty: Ty.t} option
+        , aspat: {ass: Token.t, pat: pat} option
+        }
+
+
+    and pat =
       Wild of Token.t
 
     | Const of Token.t
@@ -145,8 +162,8 @@ struct
     (** { lab = pat, ..., lab = pat } *)
     | Record of
         { left: Token.t
-        , elems: {lab: Token.t, eq: Token.t, pat: pat} Seq.t
-        , delims: Token.t Seq.t  (** Gotta remember the commas too! *)
+        , elems: patrow Seq.t
+        , delims: Token.t Seq.t
         , right: Token.t
         }
 

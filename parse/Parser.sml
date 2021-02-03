@@ -497,6 +497,8 @@ struct
               consume_patParensOrTupleOrUnit infdict (tok i) (i+1)
             else if isReserved Token.OpenSquareBracket at i then
               consume_patListLiteral infdict (tok i) (i+1)
+            else if isReserved Token.OpenCurlyBracket at i then
+              consume_patRecord infdict (tok i) (i+1)
             else
               nyi "consume_pat" i
         in
@@ -560,6 +562,100 @@ struct
           else
             (i, pat)
         end
+
+
+      (** { patrow [, ...] }
+        *  ^
+        *)
+      and consume_patRecord infdict leftBracket i =
+        let
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = consume_patRow infdict, delim = Token.Comma}
+              i
+
+          val (i, rightBracket) = parse_reserved Token.CloseCurlyBracket i
+        in
+          ( i
+          , Ast.Pat.Record
+              { left = leftBracket
+              , elems = elems
+              , delims = delims
+              , right = rightBracket
+              }
+          )
+        end
+
+
+      (** A patrow is one of:
+        *   ...
+        *   lab = pat
+        *   vid[: ty] [as pat]
+        *)
+      and consume_patRow infdict i =
+        if isReserved Token.DotDotDot at i then
+          if isReserved Token.CloseCurlyBracket at (i+1) then
+            (i+1, Ast.Pat.DotDotDot (tok i))
+          else
+            error
+              { pos = Token.getSource (tok i)
+              , what = "Unexpected token."
+              , explain = SOME "This can only appear at the end of the record."
+              }
+        else if check Token.isRecordLabel at i
+                andalso isReserved Token.Equal at (i+1) then
+          let
+            val (i, lab) = (i+1, tok i)
+            val (i, eq) = (i+1, tok i)
+            val (i, pat) = consume_pat infdict NoRestriction i
+          in
+            ( i
+            , Ast.Pat.LabEqPat
+                { lab = lab
+                , eq = eq
+                , pat = pat
+                }
+            )
+          end
+        else if check Token.isValueIdentifierNoEqual at i then
+          let
+            val (i, vid) = (i+1, tok i)
+            val (i, ty) =
+              if not (isReserved Token.Colon at i) then
+                (i, NONE)
+              else
+                let
+                  val (i, colon) = (i+1, tok i)
+                  val (i, ty) = consume_ty {permitArrows=true} i
+                in
+                  (i, SOME {colon=colon, ty=ty})
+                end
+
+            val (i, aspat) =
+              if not (isReserved Token.As at i) then
+                (i, NONE)
+              else
+                let
+                  val (i, ass) = (i+1, tok i)
+                  val (i, pat) = consume_pat infdict NoRestriction i
+                in
+                  (i, SOME {ass=ass, pat=pat})
+                end
+          in
+            ( i
+            , Ast.Pat.LabAsPat
+                { id = vid
+                , ty = ty
+                , aspat = aspat
+                }
+            )
+          end
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Invalid token. Expected row of record pattern."
+            , explain = NONE
+            }
 
 
       (** [op]vid[: ty] as pat

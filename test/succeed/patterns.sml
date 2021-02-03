@@ -32,3 +32,10 @@ val 1 :: 2 :: (3:int) :: nil = [1,2,3]
 type 'a :: = 'a list
 type 'a nil = 'a
 val 1 :: 2 :: []:int :: nil = [1,2]
+
+
+val {x, y: int option as SOME (z: int), a = "hello"} =
+  { x = 1
+  , y = SOME 2
+  , a = "hello"
+  }
