@@ -1479,6 +1479,8 @@ struct
               in
                 consume_tyParensOrSequence leftParen [ty] [] i
               end
+            else if isReserved Token.OpenCurlyBracket at i then
+              consume_tyRecord (tok i) (i+1)
             else if check Token.isMaybeLongIdentifier at i then
               ( i+1
               , Ast.Ty.Con
@@ -1526,6 +1528,42 @@ struct
             (i, ty)
         end
 
+
+      (** { label: ty [, ...] }
+        *  ^
+        *)
+      and consume_tyRecord leftBracket i =
+        let
+          fun parseElem i =
+            let
+              val (i, lab) = parse_recordLabel i
+              val (i, colon) = parse_reserved Token.Colon i
+              val (i, ty) = consume_ty {permitArrows = true} i
+            in
+              ( i
+              , { lab = lab
+                , colon = colon
+                , ty = ty
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.Comma}
+              i
+
+          val (i, rightBracket) = parse_reserved Token.CloseCurlyBracket i
+        in
+          ( i
+          , Ast.Ty.Record
+              { left = leftBracket
+              , elems = elems
+              , delims = delims
+              , right = rightBracket
+              }
+          )
+        end
 
 
       (** ty -> ty

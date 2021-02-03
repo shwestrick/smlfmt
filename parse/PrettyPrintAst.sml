@@ -83,11 +83,17 @@ struct
           in
             Seq.iterate op++ begin (Seq.map f (Seq.drop elems 1))
           end
+      | Record {elems, ...} =>
+          let
+            fun showElem {lab, ty, ...} =
+              text (Token.toString lab) ++ space ++ text ":"
+              ++ space ++ showTy ty
+          in
+            sequence "{" "," "}" (Seq.map showElem elems)
+          end
       | Arrow {from, to, ...} =>
           (* parensAround *)
             (showTy from ++ space ++ text "->" ++ space ++ showTy to)
-      | _ =>
-        text "<ty>"
     end
 
   fun showDec dec =

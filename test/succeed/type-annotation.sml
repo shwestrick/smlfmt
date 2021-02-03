@@ -12,3 +12,8 @@ val g = Substring.splitl : (char -> bool) -> sb -> sb * sb
 
 type ('a, 'b) thing = 'a * 'a * 'b
 val h = (5, 6, "hello"): (int, string) thing
+
+val x: {a: string, b: ('a, 'b) thing -> 'a} =
+  { a = "hello": string
+  , b = fn (foo, _, _) => foo
+  } : {a: string, b: ('a, 'b) thing -> 'a}

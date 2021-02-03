@@ -96,7 +96,7 @@ Types:
 - [x] products
 - [x] arrows
 - [x] parentheses
-- [ ] records
+- [x] records
 
 Expressions
 - [x] constants (unit, strings, chars, integers, etc.)
