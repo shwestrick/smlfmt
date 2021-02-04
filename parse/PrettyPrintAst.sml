@@ -244,6 +244,31 @@ struct
             text "nonfix" ++ space ++ ids
           end
 
+      | DecException {elems, ...} =>
+          let
+            fun showExbind exbind =
+              case exbind of
+                ExnNew {opp, id, arg} =>
+                  separateWithSpaces
+                    [ Option.map (fn _ => text "op") opp
+                    , SOME (text (Token.toString id))
+                    , Option.map (fn {ty, ...} =>
+                        text "of" ++ space ++ showTy ty) arg
+                    ]
+              | ExnReplicate {opp, left_id, right_id, ...} =>
+                  separateWithSpaces
+                    [ Option.map (fn _ => text "op") opp
+                    , SOME (text (Token.toString left_id))
+                    , SOME (text "=")
+                    , SOME (text (Token.toString (Ast.MaybeLong.getToken right_id)))
+                    ]
+
+            fun mk (i, x) =
+              (if i = 0 then text "exception" else text "and")
+              ++ space ++ showExbind x
+          in
+            Seq.iterate op$$ empty (Seq.mapIdx mk elems)
+          end
 
       | DecMultiple {elems, delims} =>
           let
@@ -261,6 +286,8 @@ struct
       | _ =>
           text "<dec>"
     end
+
+
 
   and showPat pat =
     let

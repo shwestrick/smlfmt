@@ -132,7 +132,7 @@ Declarations:
 - [x] multiple declarations in sequence
 - [ ] datatypes
 - [ ] datatype replications (e.g. `datatype x = datatype y`)
-- [ ] exceptions
+- [x] exceptions
 - [ ] open structure
 - [ ] local-in-end
 - [ ] abstype

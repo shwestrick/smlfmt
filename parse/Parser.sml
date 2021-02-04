@@ -873,8 +873,84 @@ struct
           consume_decNonfix (i+1, infdict)
         else if isReserved Token.Fun at i then
           consume_decFun (i+1, infdict)
+        else if isReserved Token.Exception at i then
+          consume_decException (tok i) (i+1, infdict)
         else
           nyi "consume_oneDec" i
+
+
+      (** exception exbind
+        *          ^
+        *)
+      and consume_decException exceptionn (i, infdict) =
+        let
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = consume_decExbind infdict, delim = Token.And}
+              i
+        in
+          ( (i, infdict)
+          , Ast.Exp.DecException
+              { exceptionn = exceptionn
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
+      (**  [op] vid [of ty]
+        * ^
+        *
+        * OR
+        *
+        *  [op] vid = [op] longvid
+        * ^
+        *)
+      and consume_decExbind infdict i =
+        let
+          val (i, opp) = consume_maybeReserved Token.Op i
+          val (i, vid) = parse_vid i
+        in
+          if isReserved Token.Of at i then
+            let
+              val (i, off) = (i+1, tok i)
+              val (i, ty) = consume_ty {permitArrows=true} i
+            in
+              ( i
+              , Ast.Exp.ExnNew
+                  { opp = opp
+                  , id = vid
+                  , arg = SOME {off = off, ty = ty}
+                  }
+              )
+            end
+
+          else if isReserved Token.Equal at i then
+            let
+              val (i, eq) = (i+1, tok i)
+              val (i, opp) = consume_maybeReserved Token.Op i
+              val (i, longvid) = parse_longvid i
+            in
+              ( i
+              , Ast.Exp.ExnReplicate
+                  { opp = opp
+                  , left_id = vid
+                  , eq = eq
+                  , right_id = longvid
+                  }
+              )
+            end
+
+          else
+            ( i
+            , Ast.Exp.ExnNew
+                { opp = opp
+                , id = vid
+                , arg = NONE
+                }
+            )
+        end
 
 
       (** fun tyvarseq [op]vid atpat ... atpat [: ty] = exp [| ...] [and ...]
