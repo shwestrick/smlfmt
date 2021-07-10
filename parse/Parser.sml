@@ -519,13 +519,6 @@ struct
         let
           val (again, (i, pat)) =
             if
-              appOkay restriction
-              andalso Ast.Pat.okayForConPat pat
-              andalso check Token.isAtPatStartToken at i
-            then
-              (true, consume_patCon infdict (Ast.Pat.unpackForConPat pat) i)
-
-            else if
               (** Annoying edge case with '='... we can use it in an infix
                 * expression as an equality predicate, but it is NEVER valid as
                 * an infix constructor, because SML forbids rebinding '=' in
@@ -542,6 +535,14 @@ struct
               (true, consume_patInfix infdict pat (tok i) (i+1))
 
             else if
+r             appOkay restriction
+              andalso Ast.Pat.okayForConPat pat
+              andalso check Token.isAtPatStartToken at i
+            then
+              (true, consume_patCon infdict (Ast.Pat.unpackForConPat pat) i)
+
+            else if
+
               isReserved Token.Colon at i
               andalso anyOkay restriction
             then
