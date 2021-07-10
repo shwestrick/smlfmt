@@ -535,7 +535,7 @@ struct
               (true, consume_patInfix infdict pat (tok i) (i+1))
 
             else if
-r             appOkay restriction
+              appOkay restriction
               andalso Ast.Pat.okayForConPat pat
               andalso check Token.isAtPatStartToken at i
             then
