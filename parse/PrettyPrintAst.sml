@@ -270,6 +270,19 @@ struct
             Seq.iterate op$$ empty (Seq.mapIdx mk elems)
           end
 
+      | DecLocal {left_dec, right_dec, ...} =>
+          group (
+            text "local"
+            $$
+            (spaces 2 ++ showDec left_dec)
+            $$
+            text "in"
+            $$
+            (spaces 2 ++ showDec right_dec)
+            $$
+            text "end"
+          )
+
       | DecMultiple {elems, delims} =>
           let
             fun f i =
