@@ -1112,37 +1112,42 @@ struct
         end
 
 
-      (** type tyvars tycon = ty
+      (** type tyvars tycon = ty [and tyvars tycon = ty ...]
         *     ^
-        *
-        * TODO: implement possible [and type tyvars tycon = ty and ...]
         *)
       and consume_decType (i, infdict) =
         let
           val typee = tok (i-1)
-          val (i, tyvars) = parse_tyvars i
-          val (i, tycon) =
-            if check Token.isTyCon at i then
-              (i+1, tok i)
-            else
-              error
-                { pos = Token.getSource (tok i)
-                , what = "Unexpected token. Invalid type constructor."
-                , explain = NONE
-                }
 
-          val (i, eq) = parse_reserved Token.Equal i
-          val (i, ty) = consume_ty {permitArrows=true} i
+          fun parseElem i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) =
+                if check Token.isTyCon at i then
+                  (i+1, tok i)
+                else
+                  error
+                    { pos = Token.getSource (tok i)
+                    , what = "Unexpected token. Invalid type constructor."
+                    , explain = NONE
+                    }
 
-          val typbind =
-            { delims = Seq.empty ()
-            , elems = Seq.singleton
-                { tyvars = tyvars
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, ty) = consume_ty {permitArrows=true} i
+            in
+              ( i
+              , { tyvars = tyvars
                 , tycon = tycon
                 , eq = eq
                 , ty = ty
                 }
-            }
+              )
+            end
+
+          val (i, typbind) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.And}
+              i
         in
           ( (i, infdict)
           , Ast.Exp.DecType
