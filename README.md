@@ -124,9 +124,9 @@ Declarations:
 - [x] value bindings (not mutually-recursive)
 - [x] mutually-recursive values
 - [x] type bindings (not mutually-recursive)
-- [ ] mutually-recursive types
+- [x] mutually-recursive types
 - [x] function value bindings (not mutually-recursive, single pattern set)
-- [ ] multiple pattern-sets for `fun`
+- [x] multiple pattern-sets for `fun`
 - [x] mutually-recursive function value bindings
 - [x] local infix directives (`infix`, `infixr`, `nonfix`)
 - [x] multiple declarations in sequence
@@ -134,5 +134,5 @@ Declarations:
 - [ ] datatype replications (e.g. `datatype x = datatype y`)
 - [x] exceptions
 - [ ] open structure
-- [ ] local-in-end
+- [x] local-in-end
 - [ ] abstype
