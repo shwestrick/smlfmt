@@ -1097,10 +1097,8 @@ struct
         end
 
 
-      (** type tyvars tycon = ty
+      (** type tyvars tycon = ty [and tyvars tycon = ty ...]
         *     ^
-        *
-        * TODO: implement possible [and type tyvars tycon = ty and ...]
         *)
       and consume_decType (i, infdict) =
         let
