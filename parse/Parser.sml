@@ -875,6 +875,8 @@ struct
           consume_decFun (i+1, infdict)
         else if isReserved Token.Exception at i then
           consume_decException (tok i) (i+1, infdict)
+        else if isReserved Token.Local at i then
+          consume_decLocal (i+1, infdict)
         else
           nyi "consume_oneDec" i
 
@@ -1015,6 +1017,30 @@ struct
               { funn = funn
               , tyvars = tyvars
               , fvalbind = fvalbind
+              }
+          )
+        end
+
+      (** local dec1 in dec2 end
+        *      ^
+        *)
+      and consume_decLocal (i, infdict) =
+        let
+          val original_infdict = infdict
+
+          val locall = tok (i-1)
+          val (i, infdict, dec1) = consume_dec infdict i
+          val (i, inn) = parse_reserved Token.In i
+          val (i, _, dec2) = consume_dec infdict i
+          val (i, endd) = parse_reserved Token.End i
+        in
+          ( (i, original_infdict)
+          , Ast.Exp.DecLocal
+              { locall = locall
+              , left_dec = dec1
+              , inn = inn
+              , right_dec = dec2
+              , endd = endd
               }
           )
         end
