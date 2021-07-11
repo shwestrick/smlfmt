@@ -959,11 +959,12 @@ struct
         *)
       and consume_decFun (i, infdict) =
         let
-          (** [op]vid atpat .... atpat [: ty] = exp *)
+          (** [op]vid atpat .... atpat [: ty] = exp [| ...] *)
           fun parseElem i =
             let
               val (_, {vid = func_name, ...}) = consume_opvid infdict i
 
+              (** [op]vid atpat ... atpat [: ty] = exp *)
               fun parseBranch vid i =
                 let
                   val (i, {opp, vid}) = consume_opvid infdict i
