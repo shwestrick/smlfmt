@@ -956,57 +956,70 @@ struct
 
       (** fun tyvarseq [op]vid atpat ... atpat [: ty] = exp [| ...] [and ...]
         *    ^
-        *
-        * TODO: implement multiple func definitions separated by '|'s, and
-        * mutually recursive definitions separated by 'and's.
         *)
       and consume_decFun (i, infdict) =
         let
           (** [op]vid atpat .... atpat [: ty] = exp *)
           fun parseElem i =
             let
-              val (i, {opp, vid}) = consume_opvid infdict i
+              val (_, {vid = func_name, ...}) = consume_opvid infdict i
 
-              (** arg patterns continue until we see
-                * ':' (type annotation) or
-                * '=' (end of args, beginning of function body)
-                *)
-              val (i, args) =
-                parse_while
-                  (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
-                  (consume_pat infdict AtRestriction)
+              fun parseBranch vid i =
+                let
+                  val (i, {opp, vid}) = consume_opvid infdict i
+
+                  (** arg patterns continue until we see
+                    * ':' (type annotation) or
+                    * '=' (end of args, beginning of function body)
+                    *)
+                  val (i, args) =
+                    parse_while
+                      (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
+                      (consume_pat infdict AtRestriction)
+                      i
+
+                  val (i, ty) =
+                    if not (isReserved Token.Colon at i) then
+                      (i, NONE)
+                    else
+                      let
+                        val colon = tok i
+                        val (i, ty) = consume_ty {permitArrows=true} (i+1)
+                      in
+                        (i, SOME {colon = colon, ty = ty})
+                      end
+                  val (i, eq) = parse_reserved Token.Equal i
+                  val (i, exp) = consume_exp infdict NoRestriction i
+                in
+                  if not (Token.same (func_name, vid)) then
+                    error
+                      { pos = Token.getSource vid
+                      , what = "Function name does not match."
+                      , explain = SOME ("Expected identifier `" ^ Token.toString
+                                  func_name ^ "`.")
+                      }
+                  else
+                    ( i
+                    , { opp = opp
+                      , id = vid
+                      , args = args
+                      , ty = ty
+                      , eq = eq
+                      , exp = exp
+                      }
+                    )
+                end
+              val (i, func_def) =
+                parse_oneOrMoreDelimitedByReserved
+                  {parseElem = parseBranch func_name, delim = Token.Bar}
                   i
-
-              val (i, ty) =
-                if not (isReserved Token.Colon at i) then
-                  (i, NONE)
-                else
-                  let
-                    val colon = tok i
-                    val (i, ty) = consume_ty {permitArrows=true} (i+1)
-                  in
-                    (i, SOME {colon = colon, ty = ty})
-                  end
-              val (i, eq) = parse_reserved Token.Equal i
-              val (i, exp) = consume_exp infdict NoRestriction i
             in
-              ( i
-              , { delims = Seq.empty () (** '|' delimiters *)
-                , elems = Seq.singleton
-                    { opp = opp
-                    , id = vid
-                    , args = args
-                    , ty = ty
-                    , eq = eq
-                    , exp = exp
-                    }
-                }
-              )
+              (i, func_def)
             end
 
           val funn = tok (i-1)
           val (i, tyvars) = parse_tyvars i
-          val (i, fvalbind as {elems, delims}) =
+          val (i, fvalbind) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = parseElem, delim = Token.And}
               i
