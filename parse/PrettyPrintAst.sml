@@ -187,20 +187,39 @@ struct
             Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
           end
 
-      | DecType {typee, typbind={elems, ...}} =>
+      | DecType {typbind={elems, ...}, ...} =>
           let
             val {tyvars, tycon, ty, ...} = Seq.nth elems 0
+
+            fun mk {tyvars, tycon, ty, ...} =
+              group (
+                separateWithSpaces
+                  [ SOME (text "and")
+                  , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
+                  , SOME (text (Token.toString tycon))
+                  , SOME (text "=")
+                  ]
+                $$
+                (spaces 2 ++ showTy ty)
+              )
+
+            val first =
+              let
+                val {tyvars, tycon, ty, ...} = Seq.nth elems 0
+              in
+                group (
+                  separateWithSpaces
+                    [ SOME (text "type")
+                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
+                    , SOME (text (Token.toString tycon))
+                    , SOME (text "=")
+                    ]
+                  $$
+                  (spaces 2 ++ showTy ty)
+                )
+              end
           in
-            group (
-              separateWithSpaces
-                [ SOME (text "type")
-                , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                , SOME (text (Token.toString tycon))
-                , SOME (text "=")
-                ]
-              $$
-              (spaces 2 ++ showTy ty)
-            )
+            Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
           end
 
       | DecInfix {precedence, elems, ...} =>
