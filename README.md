@@ -107,7 +107,7 @@ Expressions
 - [x] handle exception
 - [x] raise exception
 - [x] if-then-else
-- [ ] while-do
+- [x] while-do
 
 Declarations:
 - [x] value bindings (not mutually-recursive)

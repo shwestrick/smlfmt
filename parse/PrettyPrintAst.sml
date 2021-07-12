@@ -448,6 +448,19 @@ struct
             (spaces 2 ++ showExp exp3)
           )
 
+      | While {exp1, exp2, ...} =>
+          group (
+            group (
+              text "while"
+              $$
+              (spaces 2 ++ showExp exp1)
+              $$
+              text "do"
+            )
+            $$
+            (spaces 2 ++ showExp exp2)
+          )
+
       | Raise {exp, ...} =>
           group (text "raise" $$ (spaces 2 ++ showExp exp))
 
@@ -570,9 +583,6 @@ struct
               text "end"
             )
           end
-
-      | _ =>
-          text "<exp>"
     end
 
 

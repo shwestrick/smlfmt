@@ -1277,6 +1277,16 @@ struct
                   , explain = SOME "Try using parentheses: (fn ... => ...)"
                   }
 
+            else if isReserved Token.While at i then
+              if anyOkay restriction then
+                consume_expWhile infdict (i+1)
+              else
+                error
+                  { pos = Token.getSource (tok i)
+                  , what = "Unexpected beginning of while-loop."
+                  , explain = SOME "Try using parentheses: (while ... do ...)"
+                  }
+
             else
               nyi "consume_exp" i
         in
@@ -1660,6 +1670,29 @@ struct
           (i, result)
         end
 
+
+      (** while exp1 do exp2
+        *      ^
+        *)
+      and consume_expWhile infdict i =
+        let
+          val whilee = tok (i-1)
+          val (i, exp1) = consume_exp infdict NoRestriction i
+          val (i, doo) = parse_reserved Token.Do i
+          val (i, exp2) = consume_exp infdict NoRestriction i
+
+          val result =
+            Ast.Exp.While
+              { whilee = whilee
+              , exp1 = exp1
+              , doo = doo
+              , exp2 = exp2
+              }
+
+          val result = FixExpPrecedence.maybeRotateLeft result
+        in
+          (i, result)
+        end
 
 
       (** exp : ty
