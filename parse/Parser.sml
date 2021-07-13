@@ -507,7 +507,7 @@ struct
 
           val (i, typbind) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseElem, delim = Token.Bar}
+              {parseElem = parseElem, delim = Token.And}
               i
         in
           (i, typbind)
