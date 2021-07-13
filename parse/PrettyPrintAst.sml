@@ -137,9 +137,32 @@ struct
 
       | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
           let
-            fun mk {elems=innerElems, delims} =
+            fun mkClause {opp, id, args, ty, eq, exp} =
               let
-                val {opp, id, args, ty, eq, exp} = Seq.nth innerElems 0
+                val prettyArgs =
+                  Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
+                    (showPat (Seq.nth args 0))
+                    (Seq.drop args 1)
+              in
+                spaces 2
+                ++
+                group (
+                    separateWithSpaces
+                      [ SOME (text "|")
+                      , Option.map (fn _ => text "op") opp
+                      , SOME (text (Token.toString id))
+                      , SOME prettyArgs
+                      , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
+                      , SOME (text "=")
+                      ]
+                    $$
+                    (spaces 2 ++ showExp exp)
+                  )
+            end
+
+            fun mkFirstClause mark {opp, id, args, ty, eq, exp} =
+              (* mark is true if this is the first fun declaration *)
+              let
                 val prettyArgs =
                   Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
                     (showPat (Seq.nth args 0))
@@ -147,31 +170,7 @@ struct
               in
                 group (
                   separateWithSpaces
-                    [ SOME (text "and")
-                    , Option.map (fn _ => text "op") opp
-                    , SOME (text (Token.toString id))
-                    , SOME prettyArgs
-                    , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
-                    , SOME (text "=")
-                    ]
-                  $$
-                  (spaces 2 ++ showExp exp)
-                )
-              end
-
-
-            val first =
-              let
-                val {elems=innerElems, ...} = Seq.nth elems 0
-                val {opp, id, args, ty, eq, exp} = Seq.nth innerElems 0
-                val prettyArgs =
-                  Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
-                    (showPat (Seq.nth args 0))
-                    (Seq.drop args 1)
-              in
-                group (
-                  separateWithSpaces
-                    [ SOME (text "fun")
+                    [ SOME (text (if mark then "fun" else "and"))
                     , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
                     , Option.map (fn _ => text "op") opp
                     , SOME (text (Token.toString id))
@@ -183,8 +182,14 @@ struct
                   (spaces 2 ++ showExp exp)
                 )
               end
+
+            fun mkFunction mark {elems=innerElems, delims} =
+              (* mark is if it's the first function! *)
+              Seq.iterate op$$ (mkFirstClause mark (Seq.nth innerElems 0))
+              (Seq.map mkClause (Seq.drop innerElems 1))
           in
-            Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
+            Seq.iterate op$$ (mkFunction true (Seq.nth elems 0)) (Seq.map
+            (mkFunction false) (Seq.drop elems 1))
           end
 
       | DecType {typbind={elems, ...}, ...} =>
