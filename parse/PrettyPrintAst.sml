@@ -238,10 +238,33 @@ struct
                   )
                 )
               end
+
+            fun show_withtypee {withtypee, typbind = {elems, ...}} =
+              let
+                fun mk mark {tyvars, tycon, eq, ty} =
+                  group (
+                    separateWithSpaces
+                      [ SOME (text (if mark then "withtypee" else "and"))
+                      , SOME (text (Token.toString tycon))
+                      , SOME (text "=")
+                      , SOME (showTy ty)
+                      ]
+                  )
+              in
+                Seq.iterate op$$
+                  (mk true (Seq.nth elems 0))
+                  (Seq.map (mk false) (Seq.drop elems 1))
+              end
+
+            val datbinds =
+              Seq.iterate op$$
+                (show_datbind true (Seq.nth elems 0))
+                (Seq.map (show_datbind false) (Seq.drop elems 1))
           in
-            Seq.iterate op$$
-              (show_datbind true (Seq.nth elems 0))
-              (Seq.map (show_datbind false) (Seq.drop elems 1))
+            case withtypee of
+              SOME result =>
+                datbinds $$ show_withtypee result
+            | _ => datbinds
           end
 
       | DecInfix {precedence, elems, ...} =>
