@@ -233,7 +233,7 @@ struct
     type datbind =
       { elems:
         { tyvars: Token.t SyntaxSeq.t
-        , tycon: MaybeLong.t
+        , tycon: Token.t
         , eq: Token.t
         , elems:
             { opp: Token.t option
@@ -474,7 +474,7 @@ struct
         , eq: Token.t
         , right_datatypee: Token.t
         , right_id: MaybeLong.t
-        }
+       }
 
     (** abstype datbind [withtype typbind] with dec end *)
     | DecAbstype of

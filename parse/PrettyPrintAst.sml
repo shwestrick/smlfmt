@@ -222,6 +222,70 @@ struct
             Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
           end
 
+      | DecDatatype {datbind = {elems, ...}, withtypee, ...} =>
+          let
+            fun showCon {opp, id, arg} =
+              group (
+                separateWithSpaces
+                  [ Option.map (fn _ => text "op") opp
+                  , SOME (text (Token.toString id))
+                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+                  ]
+              )
+
+            fun show_datbind mark {tyvars, tycon, elems, ...} =
+              let
+                val initial =
+                  group (
+                    separateWithSpaces
+                      [ SOME (text (if mark then "datatype" else "and"))
+                      , SOME (text (Token.toString tycon))
+                      , SOME (text "=")
+                      ]
+                  )
+              in
+                group (
+                  initial
+                  $$
+                  (spaces 2 ++
+                    group (
+                      Seq.iterate
+                        (fn (prev, next) => prev $$ text "|" ++ space ++ next)
+                        (spaces 2 ++ showCon (Seq.nth elems 0))
+                        (Seq.map showCon (Seq.drop elems 1))
+                    )
+                  )
+                )
+              end
+
+            fun show_withtypee {withtypee, typbind = {elems, ...}} =
+              let
+                fun mk mark {tyvars, tycon, eq, ty} =
+                  group (
+                    separateWithSpaces
+                      [ SOME (text (if mark then "withtypee" else "and"))
+                      , SOME (text (Token.toString tycon))
+                      , SOME (text "=")
+                      , SOME (showTy ty)
+                      ]
+                  )
+              in
+                Seq.iterate op$$
+                  (mk true (Seq.nth elems 0))
+                  (Seq.map (mk false) (Seq.drop elems 1))
+              end
+
+            val datbinds =
+              Seq.iterate op$$
+                (show_datbind true (Seq.nth elems 0))
+                (Seq.map (show_datbind false) (Seq.drop elems 1))
+          in
+            case withtypee of
+              SOME result =>
+                datbinds $$ show_withtypee result
+            | _ => datbinds
+          end
+
       | DecInfix {precedence, elems, ...} =>
           let
             val ids =

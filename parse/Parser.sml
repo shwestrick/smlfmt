@@ -478,7 +478,98 @@ struct
         end
 
 
-      fun consume_pat infdict restriction i =
+      fun parse_typbind i =
+        let
+          fun parseElem i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) =
+                if check Token.isTyCon at i then
+                  (i+1, tok i)
+                else
+                  error
+                    { pos = Token.getSource (tok i)
+                    , what = "Unexpected token. Invalid type constructor."
+                    , explain = NONE
+                    }
+
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, ty) = consume_ty {permitArrows=true} i
+            in
+              ( i
+              , { tyvars = tyvars
+                , tycon = tycon
+                , eq = eq
+                , ty = ty
+                }
+              )
+            end
+
+          val (i, typbind) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.And}
+              i
+        in
+          (i, typbind)
+        end
+
+
+      and parse_datbind i =
+        let
+          fun parseConbind i =
+            let
+              val (i, opp) = consume_maybeReserved Token.Op i
+              val (i, id) = parse_vid i
+              val (i, arg) =
+                if not (isReserved Token.Of at i) then
+                  (i, NONE)
+                else
+                  let
+                    val off = tok i
+                    val (i, ty) = consume_ty {permitArrows=true} (i+1)
+                  in
+                    (i, SOME {off = off, ty = ty})
+                  end
+            in
+              ( i
+              , { opp = opp
+                , id = id
+                , arg = arg
+                }
+              )
+            end
+
+          fun parseElem i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) = parse_vid i
+              val (i, eq) = parse_reserved Token.Equal i
+
+              val (i, {elems, delims}) =
+                parse_oneOrMoreDelimitedByReserved
+                  {parseElem = parseConbind, delim = Token.Bar}
+                  i
+            in
+              ( i
+              , { tyvars = tyvars
+                , tycon = tycon
+                , eq = eq
+                , elems = elems
+                , delims = delims
+                }
+              )
+            end
+
+          val (i, datbind) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.And}
+              i
+        in
+          (i, datbind)
+        end
+
+
+      and consume_pat infdict restriction i =
         let
           val (i, pat) =
             if isReserved Token.Underscore at i then
@@ -878,6 +969,8 @@ struct
           consume_decException (tok i) (i+1, infdict)
         else if isReserved Token.Local at i then
           consume_decLocal (i+1, infdict)
+        else if isReserved Token.Datatype at i then
+          consume_decDatatypeDeclarationOrReplication (i+1, infdict)
         else
           nyi "consume_oneDec" i
 
@@ -1144,36 +1237,7 @@ struct
       and consume_decType (i, infdict) =
         let
           val typee = tok (i-1)
-
-          fun parseElem i =
-            let
-              val (i, tyvars) = parse_tyvars i
-              val (i, tycon) =
-                if check Token.isTyCon at i then
-                  (i+1, tok i)
-                else
-                  error
-                    { pos = Token.getSource (tok i)
-                    , what = "Unexpected token. Invalid type constructor."
-                    , explain = NONE
-                    }
-
-              val (i, eq) = parse_reserved Token.Equal i
-              val (i, ty) = consume_ty {permitArrows=true} i
-            in
-              ( i
-              , { tyvars = tyvars
-                , tycon = tycon
-                , eq = eq
-                , ty = ty
-                }
-              )
-            end
-
-          val (i, typbind) =
-            parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseElem, delim = Token.And}
-              i
+          val (i, typbind) = parse_typbind i
         in
           ( (i, infdict)
           , Ast.Exp.DecType
@@ -1182,6 +1246,64 @@ struct
               }
           )
         end
+
+
+      (** datatype datbind <withtype typbind>
+        *         ^
+        * OR
+        * datatype tycon = datatype longtycon
+        *         ^
+        *)
+      and consume_decDatatypeDeclarationOrReplication (i, infdict) =
+        if (
+          isReserved Token.OpenParen at i (* datatype ('a, ...) foo *)
+          orelse check Token.isTyVar at i (* datatype 'a foo *)
+          orelse ( (* datatype foo = A *)
+            check Token.isValueIdentifierNoEqual at i
+            andalso isReserved Token.Equal at (i+1)
+            andalso not (isReserved Token.Datatype at (i+2))
+          )
+        ) then
+          let
+            val datatypee = tok (i-1)
+            val (i, datbind) = parse_datbind i
+            val (i, withtypee) =
+              if not (isReserved Token.Withtype at i) then
+                (i, NONE)
+              else
+                let
+                  val withtypee = tok i
+                  val (i, typbind) = parse_typbind (i+1)
+                in
+                  (i, SOME {withtypee = withtypee, typbind = typbind})
+                end
+          in
+            ( (i, infdict)
+            , Ast.Exp.DecDatatype
+              { datatypee = datatypee
+              , datbind = datbind
+              , withtypee = withtypee
+              }
+            )
+          end
+        else
+          let
+            val left_datatypee = tok (i-1)
+            val (i, left_id) = parse_vid i
+            val (i, eq) = parse_reserved Token.Equal i
+            val (i, right_datatypee) = parse_reserved Token.Datatype i
+            val (i, right_id) = parse_longvid i
+          in
+            ( (i, infdict)
+            , Ast.Exp.DecReplicateDatatype
+              { left_datatypee = left_datatypee
+              , left_id = left_id
+              , eq = eq
+              , right_datatypee = right_datatypee
+              , right_id = right_id
+              }
+            )
+          end
 
 
       (** val tyvarseq [rec] pat = exp [and [rec] pat = exp ...]
