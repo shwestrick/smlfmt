@@ -119,8 +119,8 @@ Declarations:
 - [x] mutually-recursive function value bindings
 - [x] local infix directives (`infix`, `infixr`, `nonfix`)
 - [x] multiple declarations in sequence
-- [ ] datatypes
-- [ ] datatype replications (e.g. `datatype x = datatype y`)
+- [x] datatypes
+- [x] datatype replications (e.g. `datatype x = datatype y`)
 - [x] exceptions
 - [ ] open structure
 - [x] local-in-end
