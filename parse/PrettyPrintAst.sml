@@ -203,6 +203,47 @@ struct
             )
           end
 
+      | DecDatatype {datbind = {elems, ...}, withtypee, ...} =>
+          let
+            fun showCon {opp, id, arg} =
+              group (
+                separateWithSpaces
+                  [ Option.map (fn _ => text "op") opp
+                  , SOME (text (Token.toString id))
+                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+                  ]
+              )
+
+            fun show_datbind mark {tyvars, tycon, elems, ...} =
+              let
+                val initial =
+                  group (
+                    separateWithSpaces
+                      [ SOME (text (if mark then "datatype" else "and"))
+                      , SOME (text (Token.toString tycon))
+                      , SOME (text "=")
+                      ]
+                  )
+              in
+                group (
+                  initial
+                  $$
+                  (spaces 2 ++
+                    group (
+                      Seq.iterate
+                        (fn (prev, next) => prev $$ text "|" ++ space ++ next)
+                        (spaces 2 ++ showCon (Seq.nth elems 0))
+                        (Seq.map showCon (Seq.drop elems 1))
+                    )
+                  )
+                )
+              end
+          in
+            Seq.iterate op$$
+              (show_datbind true (Seq.nth elems 0))
+              (Seq.map (show_datbind false) (Seq.drop elems 1))
+          end
+
       | DecInfix {precedence, elems, ...} =>
           let
             val ids =
