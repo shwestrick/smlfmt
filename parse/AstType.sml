@@ -554,6 +554,78 @@ struct
   end
 
 
+  (** =======================================================================
+    * Module Signatures
+    *)
+  structure SigExp =
+  struct
+
+    datatype spec =
+    (** val vid : ty [and vid : ty and ...] *)
+      Val of
+        { vall: Token.t
+        , elems:
+            { vid: Token.t
+            , colon: Token.t
+            , ty: Ty.t
+            }
+        (** 'and' delimiters between mutually recursive values *)
+        , delims: Token.t Seq.t
+        }
+
+    (** type tyvarseq tycon [and tyvarseq tycon ...] *)
+    | Type of
+        { typee: Token.t
+        , elems:
+            { tyvars: Token.t SyntaxSeq.t
+            , tycon: Token.t
+            }
+        (** 'and' delimiters between mutually recursive types *)
+        , delims: Token.t Seq.t
+        }
+
+    (** eqtype tyvarseq tycon [and tyvarseq tycon ...] *)
+    | Eqtype of
+        { eqtypee: Token.t
+        , elems:
+            { tyvars: Token.t SyntaxSeq.t
+            , tycon: Token.t
+            }
+        (** 'and' delimiters between mutually recursive types *)
+        , delims: Token.t Seq.t
+        }
+
+    (** TODO finish 'spec' type *)
+
+
+
+    datatype sigexp =
+      Ident of MaybeLong.t
+
+    (** sig spec end *)
+    | Spec of
+        { sigg: Token.t
+        , spec: spec
+        , endd: Token.t
+        }
+
+    (** sigexp where type tyvarseq tycon = ty [where type ...] *)
+    | WhereType of
+        { sigexp: sigexp
+        , elems:
+            { wheree: Token.t
+            , typee: Token.t
+            , tyvars: Token.t SyntaxSeq.t
+            , tycon: MaybeLong.t
+            , eq: Token.t
+            , ty: Ty.t
+            } Seq.t
+        }
+
+    (** TODO finish 'sigexp' type *)
+
+  end
+
 
   datatype ast =
     Dec of Exp.dec
