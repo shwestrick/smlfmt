@@ -2161,7 +2161,7 @@ struct
             , explain = SOME "Invalid start of top-level declaration!"
             }
     in
-      Ast.Dec topdec
+      Ast.Ast (Seq.singleton (Ast.StrDec (Ast.Str.Dec topdec)))
     end
 
 

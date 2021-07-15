@@ -655,7 +655,20 @@ struct
     end
 
 
-  fun pretty ast =
-    case ast of Ast.Dec d => PrettySimpleDoc.toString (showDec d)
+  fun pretty (Ast.Ast tds) =
+    if Seq.length tds = 0 then
+      ""
+    else
+      let
+        fun showOne td =
+          case td of
+            Ast.StrDec (Ast.Str.Dec d) => showDec d
+          | _ => raise Fail "Not yet implemented!"
+
+        val all = Seq.map showOne tds
+        val doc = Seq.iterate op$$ (Seq.nth all 0) (Seq.drop all 1)
+      in
+        PD.toString doc
+      end
 
 end

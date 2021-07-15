@@ -557,7 +557,7 @@ struct
   (** =======================================================================
     * Module Signatures
     *)
-  structure SigExp =
+  structure Sig =
   struct
 
     datatype spec =
@@ -609,7 +609,12 @@ struct
         , endd: Token.t
         }
 
-    (** sigexp where type tyvarseq tycon = ty [where type ...] *)
+    (** sigexp where type tyvarseq tycon = ty [where type ...]
+      *
+      * NOTE: permitted to do 'and type' instead of 'where type' if it is
+      * not the first in the sequence, for example
+      * sig ... end where type ... and type ...
+      *)
     | WhereType of
         { sigexp: sigexp
         , elems:
@@ -624,11 +629,56 @@ struct
 
     (** TODO finish 'sigexp' type *)
 
+
+    (** TODO finish *)
+    datatype sigdec = SD
+
   end
 
 
+  (** =======================================================================
+    * Module Structures
+    *)
+  structure Str =
+  struct
+
+    (** TODO: finish *)
+    datatype strexp = SE
+
+    (** TODO: finish *)
+    datatype strdec =
+      Dec of Exp.dec
+
+  end
+
+
+  (** =======================================================================
+    * Module Functors
+    *)
+  structure Fun =
+  struct
+
+    (** TODO: finish *)
+    datatype funexp = FE
+    datatype fundec = FD
+
+  end
+
+
+  (** =======================================================================
+    * Top-level. Programs are sequences of top-level declarations.
+    * Something a little cumbersome: strdec permits standard declarations too,
+    * of values, types, etc. IMO this doesn't align with anyone's intuitive
+    * understanding of the language, but (I suppose) it is somewhat convenient
+    * for avoid unnecessary ambiguity in the grammar.
+    *)
+  datatype topdec =
+    SigDec of Sig.sigdec
+  | StrDec of Str.strdec
+  | FunDec of Fun.fundec
+
   datatype ast =
-    Dec of Exp.dec
+    Ast of topdec Seq.t
 
   type t = ast
 
