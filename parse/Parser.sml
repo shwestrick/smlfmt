@@ -2186,8 +2186,10 @@ struct
         *)
       fun consume_sigExpWhereType sigexp infdict i =
         let
-          fun nextIsWhereOrAnd i =
-            isReserved Token.Where at i orelse isReserved Token.And at i
+          fun nextIsWhereOrAndType i =
+            (isReserved Token.Where at i orelse isReserved Token.And at i)
+            andalso
+            (isReserved Token.Type at i+1)
 
           fun parseOne i =
             let
@@ -2210,7 +2212,7 @@ struct
             end
 
           val (i, elems) =
-            parse_while nextIsWhereOrAnd parseOne i
+            parse_while nextIsWhereOrAndType parseOne i
         in
           ( i
           , Ast.Sig.WhereType
@@ -2266,19 +2268,42 @@ struct
       fun consume_sigDec (i, infdict) : ((int * InfixDict.t) * Ast.topdec) =
         let
           val signaturee = tok (i-1)
-          val (i, sigid) = parse_sigid i
-          val (i, eq) = parse_reserved Token.Equal i
-          val (i, sigexp) = consume_sigExp infdict i
+
+          fun parseOne i =
+            let
+              val (i, sigid) = parse_sigid i
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, sigexp) = consume_sigExp infdict i
+
+              val result: Ast.topdec =
+                Ast.SigDec (Ast.Sig.Signature
+                  { signaturee = signaturee
+                  , elems = Seq.singleton
+                      { ident = sigid
+                      , eq = eq
+                      , sigexp = sigexp
+                      }
+                  , delims = Seq.empty ()
+                  })
+            in
+              ( i
+              , { ident = sigid
+                , eq = eq
+                , sigexp = sigexp
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
 
           val result: Ast.topdec =
             Ast.SigDec (Ast.Sig.Signature
               { signaturee = signaturee
-              , elems = Seq.singleton
-                  { ident = sigid
-                  , eq = eq
-                  , sigexp = sigexp
-                  }
-              , delims = Seq.empty ()
+              , elems = elems
+              , delims = delims
               })
         in
           ((i, infdict), result)
