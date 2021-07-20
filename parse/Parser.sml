@@ -340,6 +340,28 @@ struct
         end
 
 
+      (** parse_oneOrMoreWhile:
+        *   's peeker -> ('s, 'a) parser -> ('s, 'a Seq.t) parser
+        *)
+      fun parse_oneOrMoreWhile continue parse state =
+        let
+          fun loop elems state =
+            let
+              val (state, elem) = parse state
+              val elems = elem :: elems
+            in
+              if not (continue state) then
+                (state, elems)
+              else
+                loop elems state
+            end
+
+          val (state, elems) = loop [] state
+        in
+          (state, seqFromRevList elems)
+        end
+
+
 (*
       (** parse_interleaveWhile
         *   { parseElem: ('s, 'a) parser
@@ -2212,7 +2234,7 @@ struct
             end
 
           val (i, elems) =
-            parse_while nextIsWhereOrAndType parseOne i
+            parse_oneOrMoreWhile nextIsWhereOrAndType parseOne i
         in
           ( i
           , Ast.Sig.WhereType
