@@ -488,21 +488,35 @@ struct
         end
 
 
+      fun parse_tycon i =
+        if check Token.isTyCon at i then
+          (i+1, tok i)
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token. Invalid type constructor."
+            , explain = NONE
+            }
+
+
+      fun parse_maybelongtycon i =
+        if check Token.isMaybeLongTyCon at i then
+          (i+1, Ast.MaybeLong.make (tok i))
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token. Invalid (possibly qualified)\
+                     \ type constructor."
+            , explain = NONE
+            }
+
+
       fun parse_typbind i =
         let
           fun parseElem i =
             let
               val (i, tyvars) = parse_tyvars i
-              val (i, tycon) =
-                if check Token.isTyCon at i then
-                  (i+1, tok i)
-                else
-                  error
-                    { pos = Token.getSource (tok i)
-                    , what = "Unexpected token. Invalid type constructor."
-                    , explain = NONE
-                    }
-
+              val (i, tycon) = parse_tycon i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, ty) = consume_ty {permitArrows=true} i
             in
@@ -2168,16 +2182,43 @@ struct
 
 
       (** sigexp where type tyvarseq tycon = ty [and/where type ...]
-        *             ^
+        *       ^
         *)
-      (* fun consume_sigExpWhereType sigexp infdict i =
+      fun consume_sigExpWhereType sigexp infdict i =
         let
-          val wheree = tok (i-1)
-          val typee = parse_reserved Token.Type i
-        in
-          ???
-        end *)
+          fun nextIsWhereOrAnd i =
+            isReserved Token.Where at i orelse isReserved Token.And at i
 
+          fun parseOne i =
+            let
+              val (i, wheree) = (i+1, tok i)
+              val (i, typee) = parse_reserved Token.Type i
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) = parse_maybelongtycon i
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, ty) = consume_ty {permitArrows=true} i
+            in
+              ( i
+              , { wheree = wheree
+                , typee = typee
+                , tyvars = tyvars
+                , tycon = tycon
+                , eq = eq
+                , ty = ty
+                }
+              )
+            end
+
+          val (i, elems) =
+            parse_while nextIsWhereOrAnd parseOne i
+        in
+          ( i
+          , Ast.Sig.WhereType
+              { sigexp = sigexp
+              , elems = elems
+              }
+          )
+        end
 
 
       (** sig spec end
@@ -2211,9 +2252,9 @@ struct
                 (i, Ast.Sig.Ident sigid)
               end
         in
-          (* if isReserved Token.Where at i then
-            consume_sigExpWhereType sigexp infdict (i+1)
-          else *)
+          if isReserved Token.Where at i then
+            consume_sigExpWhereType sigexp infdict i
+          else
             (i, sigexp)
         end
 
