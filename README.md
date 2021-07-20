@@ -128,7 +128,7 @@ Declarations:
 
 Signature Expressions:
 - [x] identifiers (`signature X = Y`)
-- [ ] sig-end (`sig ... end`)
+- [x] sig-end (`sig ... end`)
 - [x] where-type realizations (e.g. `S where type a = b`)
 
 Signature Specifications:
