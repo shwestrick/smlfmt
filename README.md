@@ -63,8 +63,6 @@ ANSI escapes, e.g. iTerm2 on macOS.
 
 ## Core Parsing TODO
 
-Progress on the core language (no modules yet):
-
 Patterns:
 - [x] wildcard (`_`)
 - [x] constants (unit, strings, chars, integers, etc.)
@@ -122,6 +120,47 @@ Declarations:
 - [x] datatypes
 - [x] datatype replications (e.g. `datatype x = datatype y`)
 - [x] exceptions
-- [ ] open structure
 - [x] local-in-end
-- [ ] abstype
+- [ ] **open structure**
+- [ ] **abstype**
+
+## Module Parsing TODO
+
+Signature Expressions:
+- [x] identifiers (`signature X = Y`)
+- [ ] sig-end (`sig ... end`)
+- [ ] where-type realizations (e.g. `S where type a = b`)
+
+Signature Specifications:
+- [ ] value
+- [ ] type
+- [ ] eqtype
+- [ ] datatypes
+- [ ] datatype replications
+- [ ] exceptions
+- [ ] structures (`structure X: S`)
+- [ ] include
+- [ ] multiple specs in sequence
+- [ ] sharing-type (e.g. `spec sharing type a = b = c`)
+
+Structure Expressions
+- [ ] identifiers
+- [ ] struct-end
+- [ ] transparent constraint
+- [ ] opaque constraint
+- [ ] functor application
+- [ ] let-in-end
+
+Top-level "strdecs":
+- [x] core language declarations
+- [ ] structures (`structure X = ...`)
+- [ ] local-in-end
+- [ ] multiple strdecs in sequence
+
+Other Top-level Declarations:
+- [x] signatures (`signature X = ...`)
+- [ ] functors (`functor F(...) = ...`)
+- [x] multiple in sequence
+
+Derived Forms
+- TODO...
