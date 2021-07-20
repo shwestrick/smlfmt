@@ -561,8 +561,10 @@ struct
   struct
 
     datatype spec =
+      EmptySpec
+
     (** val vid : ty [and vid : ty and ...] *)
-      Val of
+    | Val of
         { vall: Token.t
         , elems:
             { vid: Token.t

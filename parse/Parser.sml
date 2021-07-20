@@ -2162,11 +2162,59 @@ struct
         * Modules
         *)
 
+
+      fun consume_sigSpec infdict i =
+        (i, Ast.Sig.EmptySpec)
+
+
+      (** sigexp where type tyvarseq tycon = ty [and/where type ...]
+        *             ^
+        *)
+      (* fun consume_sigExpWhereType sigexp infdict i =
+        let
+          val wheree = tok (i-1)
+          val typee = parse_reserved Token.Type i
+        in
+          ???
+        end *)
+
+
+
+      (** sig spec end
+        *    ^
+        *)
+      fun consume_sigExpSigEnd infdict i =
+        let
+          val sigg = tok (i-1)
+          val (i, spec) = consume_sigSpec infdict i
+          val (i, endd) = parse_reserved Token.End i
+        in
+          ( i
+          , Ast.Sig.Spec
+              { sigg = sigg
+              , spec = spec
+              , endd = endd
+              }
+          )
+        end
+
+
       fun consume_sigExp infdict i =
         let
-          val (i, sigid) = parse_sigid i
+          val (i, sigexp) =
+            if isReserved Token.Sig at i then
+              consume_sigExpSigEnd infdict (i+1)
+            else
+              let
+                val (i, sigid) = parse_sigid i
+              in
+                (i, Ast.Sig.Ident sigid)
+              end
         in
-          (i, Ast.Sig.Ident sigid)
+          (* if isReserved Token.Where at i then
+            consume_sigExpWhereType sigexp infdict (i+1)
+          else *)
+            (i, sigexp)
         end
 
       (** signature sigid = sigexp [and ...]
