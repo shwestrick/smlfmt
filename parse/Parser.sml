@@ -2284,8 +2284,6 @@ struct
 
       (** signature sigid = sigexp [and ...]
         *          ^
-        *
-        * TODO parse multiple 'and ...'
         *)
       fun consume_sigDec (i, infdict) : ((int * InfixDict.t) * Ast.topdec) =
         let
@@ -2296,17 +2294,6 @@ struct
               val (i, sigid) = parse_sigid i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, sigexp) = consume_sigExp infdict i
-
-              val result: Ast.topdec =
-                Ast.SigDec (Ast.Sig.Signature
-                  { signaturee = signaturee
-                  , elems = Seq.singleton
-                      { ident = sigid
-                      , eq = eq
-                      , sigexp = sigexp
-                      }
-                  , delims = Seq.empty ()
-                  })
             in
               ( i
               , { ident = sigid
