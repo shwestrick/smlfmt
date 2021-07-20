@@ -655,6 +655,10 @@ struct
     end
 
 
+  fun showSigDec (Ast.Sig.Signature {elems, delims, ...}) =
+    text "<sigdec>"
+
+
   fun pretty (Ast.Ast tds) =
     if Seq.length tds = 0 then
       ""
@@ -663,6 +667,7 @@ struct
         fun showOne td =
           case td of
             Ast.StrDec (Ast.Str.Dec d) => showDec d
+          | Ast.SigDec d => showSigDec d
           | _ => raise Fail "Not yet implemented!"
 
         val all = Seq.map showOne tds

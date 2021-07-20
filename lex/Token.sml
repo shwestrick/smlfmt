@@ -298,6 +298,21 @@ struct
     | LongIdentifier => true
     | _ => false
 
+  (** alphanumeric, not starting with prime *)
+  fun isStrIdentifier tok =
+    let
+      val src = getSource tok
+    in
+      case getClass tok of
+        Identifier =>
+          Source.nth src 0 <> #"'"
+          andalso
+          Util.all (0, Source.length src) (fn i =>
+            LexUtils.isAlphaNumPrimeOrUnderscore (Source.nth src i))
+
+      | _ => false
+    end
+
   (** tyvars are small identifiers that begin with a prime *)
   fun isTyVar tok =
     case getClass tok of
@@ -373,10 +388,31 @@ struct
     , Local
     ]
 
+  val strDecStartTokens =
+    [ Structure
+    , Local
+    ]
+
+  val sigDecStartTokens =
+    [ Signature
+    ]
+
   fun isDecStartToken tok =
     case getClass tok of
       Reserved rc =>
         List.exists (fn rc' => rc = rc') decStartTokens
+    | _ => false
+
+  fun isStrDecStartToken tok =
+    case getClass tok of
+      Reserved rc =>
+        List.exists (fn rc' => rc = rc') strDecStartTokens
+    | _ => false
+
+  fun isSigDecStartToken tok =
+    case getClass tok of
+      Reserved rc =>
+        List.exists (fn rc' => rc = rc') sigDecStartTokens
     | _ => false
 
   fun classToString class =
@@ -427,6 +463,10 @@ struct
     *)
   fun endsCurrentExp tok =
     isDecStartToken tok
+    orelse
+    isStrDecStartToken tok
+    orelse
+    isSigDecStartToken tok
     orelse
     case getClass tok of
       Reserved rc =>

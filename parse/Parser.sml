@@ -390,6 +390,16 @@ struct
             , explain = NONE
             }
 
+      fun parse_sigid i =
+        if check Token.isStrIdentifier at i then
+          (i+1, tok i)
+        else
+          error
+            { pos = Token.getSource (tok i)
+            , what = "Expected structure or signature identifier."
+            , explain = SOME "Must be alphanumeric, and cannot start with a\
+                             \ prime (')"
+            }
 
       fun parse_tyvars i =
         if check Token.isTyVar at i then
@@ -2148,9 +2158,68 @@ struct
               end
           end
 
+      (** ====================================================================
+        * Modules
+        *)
+
+      fun consume_sigExp infdict i =
+        let
+          val (i, sigid) = parse_sigid i
+        in
+          (i, Ast.Sig.Ident sigid)
+        end
+
+      (** signature sigid = sigexp [and ...]
+        *          ^
+        *
+        * TODO parse multiple 'and ...'
+        *)
+      fun consume_sigDec (i, infdict) : ((int * InfixDict.t) * Ast.topdec) =
+        let
+          val signaturee = tok (i-1)
+          val (i, sigid) = parse_sigid i
+          val (i, eq) = parse_reserved Token.Equal i
+          val (i, sigexp) = consume_sigExp infdict i
+
+          val result: Ast.topdec =
+            Ast.SigDec (Ast.Sig.Signature
+              { signaturee = signaturee
+              , elems = Seq.singleton
+                  { ident = sigid
+                  , eq = eq
+                  , sigexp = sigexp
+                  }
+              , delims = Seq.empty ()
+              })
+        in
+          ((i, infdict), result)
+        end
+
+      (** ====================================================================
+        * Top-level
+        *)
+
+      fun consume_topDecOne (i, infdict): ((int * InfixDict.t) * Ast.topdec) =
+        if isReserved Token.Signature at i then
+          consume_sigDec (i+1, infdict)
+        else
+          let
+            val (i, infdict, dec) = consume_dec infdict i
+          in
+            ( (i, infdict)
+            , Ast.StrDec (Ast.Str.Dec dec)
+            )
+          end
 
       val infdict = InfixDict.initialTopLevel
-      val (i, _, topdec) = consume_dec infdict 0
+
+      val ((i, _), topdecs) =
+        parse_while
+          (fn (i, _) => i < numToks)
+          consume_topDecOne
+          (0, infdict)
+
+      (* val (i, _, topdec) = consume_dec infdict 0 *)
 
       val _ =
         if i >= numToks then ()
@@ -2161,7 +2230,7 @@ struct
             , explain = SOME "Invalid start of top-level declaration!"
             }
     in
-      Ast.Ast (Seq.singleton (Ast.StrDec (Ast.Str.Dec topdec)))
+      Ast.Ast topdecs
     end
 
 

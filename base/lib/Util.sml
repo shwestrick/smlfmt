@@ -56,6 +56,8 @@ sig
   val tick: timer -> string -> timer
 
   val splitLast: 'a list -> ('a list * 'a) option
+
+  val all: (int * int) -> (int -> bool) -> bool
 end =
 struct
 
@@ -120,6 +122,14 @@ struct
   fun foreach s f =
     ForkJoin.parfor 4096 (0, ArraySlice.length s)
     (fn i => f (i, ArraySlice.sub (s, i)))
+
+  fun all (lo, hi) f =
+    let
+      fun allFrom i =
+        (i >= hi) orelse (f i andalso allFrom (i+1))
+    in
+      allFrom lo
+    end
 
   fun copyListIntoArray xs arr i =
     case xs of

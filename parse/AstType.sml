@@ -600,7 +600,7 @@ struct
 
 
     datatype sigexp =
-      Ident of MaybeLong.t
+      Ident of Token.t
 
     (** sig spec end *)
     | Spec of
@@ -630,8 +630,20 @@ struct
     (** TODO finish 'sigexp' type *)
 
 
-    (** TODO finish *)
-    datatype sigdec = SD
+    datatype sigdec =
+
+    (** signature sigid = sigexp [and ...] *)
+      Signature of
+        { signaturee: Token.t
+        , elems:
+            { ident: Token.t
+            , eq: Token.t
+            , sigexp: sigexp
+            } Seq.t
+
+        (** 'and' between elems *)
+        , delims: Token.t Seq.t
+        }
 
   end
 
