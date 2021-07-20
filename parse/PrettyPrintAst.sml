@@ -655,8 +655,66 @@ struct
     end
 
 
+
+  fun showSpec spec =
+    case spec of
+      Ast.Sig.EmptySpec =>
+        empty
+
+    | _ =>
+        text "<spec>"
+
+
+
+  fun showSigExp sigexp =
+    case sigexp of
+      Ast.Sig.Ident id =>
+        text (Token.toString id)
+
+    | Ast.Sig.Spec {spec, ...} =>
+        group (
+          text "sig"
+          $$
+          (spaces 2 ++ showSpec spec)
+          $$
+          text "end"
+        )
+
+    | Ast.Sig.WhereType {sigexp, elems} =>
+        let
+          val se = showSigExp sigexp
+
+          fun showElem {wheree, tyvars, tycon, ty, ...} =
+            separateWithSpaces
+              [ SOME (text (Token.toString wheree)) (** this could be 'and' *)
+              , SOME (text "type")
+              , maybeShowSyntaxSeq tyvars (text o Token.toString)
+              , SOME (text (Token.toString (Ast.MaybeLong.getToken tycon)))
+              , SOME (text "=")
+              , SOME (showTy ty)
+              ]
+        in
+          Seq.iterate op$$ se (Seq.map showElem elems)
+        end
+
+    (* | _ =>
+        text "<sigexp>" *)
+
+
   fun showSigDec (Ast.Sig.Signature {elems, delims, ...}) =
-    text "<sigdec>"
+    let
+      fun showOne isFirst {ident, sigexp, ...} =
+        group (
+          (text (if isFirst then "signature" else "and")
+          ++ space ++ text (Token.toString ident) ++ space ++ text "=")
+          $$
+          (spaces 2 ++ showSigExp sigexp)
+        )
+    in
+      Seq.iterate op$$
+        (showOne true (Seq.nth elems 0))
+        (Seq.map (showOne false) (Seq.drop elems 1))
+    end
 
 
   fun pretty (Ast.Ast tds) =
