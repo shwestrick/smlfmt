@@ -132,7 +132,7 @@ Signature Expressions:
 - [x] where-type realizations (e.g. `S where type a = b`)
 
 Signature Specifications:
-- [ ] value
+- [x] value
 - [ ] type
 - [ ] eqtype
 - [ ] datatypes

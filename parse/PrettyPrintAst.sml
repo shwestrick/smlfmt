@@ -661,6 +661,19 @@ struct
       Ast.Sig.EmptySpec =>
         empty
 
+    | Ast.Sig.Val {elems, ...} =>
+        let
+          fun showOne first {vid, ty, ...} =
+            text (if first then "val" else "and")
+            ++ space ++
+            text (Token.toString vid) ++ space ++ text ":" ++ space
+            ++ showTy ty
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
     | _ =>
         text "<spec>"
 

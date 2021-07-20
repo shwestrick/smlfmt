@@ -570,7 +570,7 @@ struct
             { vid: Token.t
             , colon: Token.t
             , ty: Ty.t
-            }
+            } Seq.t
         (** 'and' delimiters between mutually recursive values *)
         , delims: Token.t Seq.t
         }

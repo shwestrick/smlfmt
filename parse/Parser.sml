@@ -2199,8 +2199,47 @@ struct
         *)
 
 
+      (** val vid : ty [and ...]
+        *    ^
+        *)
+      fun consume_sigSpecVal infdict i =
+        let
+          val vall = tok (i-1)
+
+          fun parseOne i =
+            let
+              val (i, vid) = parse_vid i
+              val (i, colon) = parse_reserved Token.Colon i
+              val (i, ty) = consume_ty {permitArrows=true} i
+            in
+              ( i
+              , { vid = vid
+                , colon = colon
+                , ty = ty
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( i
+          , Ast.Sig.Val
+              { vall = vall
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
       fun consume_sigSpec infdict i =
-        (i, Ast.Sig.EmptySpec)
+        if isReserved Token.Val at i then
+          consume_sigSpecVal infdict (i+1)
+        else
+          (i, Ast.Sig.EmptySpec)
 
 
       (** sigexp where type tyvarseq tycon = ty [and/where type ...]

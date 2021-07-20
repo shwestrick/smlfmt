@@ -2,7 +2,12 @@ signature S = SEQUENCE
 val x = 5
 signature X = Y
 
-signature Foo = sig end
+signature Foo =
+sig
+  val x: int
+  and y: string -> real * real
+  and z: 'a -> int -> real
+end
 signature Bar = Foo where type 'a t = 'a list -> 'a -> 'a
 
 
