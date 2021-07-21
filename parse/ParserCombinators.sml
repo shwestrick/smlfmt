@@ -22,7 +22,7 @@ sig
     ('s, 'a) parser * ('s, 'b) parser
     -> ('s, ('a * 'b)) parser
 
-  val whilee:
+  val zeroOrMoreWhile:
     's peeker
     -> ('s, 'a) parser
     -> ('s, 'a Seq.t) parser
@@ -106,7 +106,7 @@ struct
     end
 
 
-  fun whilee continue parse state =
+  fun zeroOrMoreWhile continue parse state =
     let
       fun loop elems state =
         if not (continue state) then (state, elems) else

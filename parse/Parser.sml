@@ -248,8 +248,8 @@ struct
         PC.oneOrMoreDelimitedByReserved toks x i
       fun parse_two (p1, p2) state =
         PC.two (p1, p2) state
-      fun parse_while c p s =
-        PC.whilee c p s
+      fun parse_zeroOrMoreWhile c p s =
+        PC.zeroOrMoreWhile c p s
       fun parse_oneOrMoreWhile c p s =
         PC.oneOrMoreWhile c p s
 
@@ -819,7 +819,7 @@ struct
             * declarations can affect local infixity.
             *)
           val ((i, infdict), decs) =
-            parse_while
+            parse_zeroOrMoreWhile
               (fn (i, _) => check Token.isDecStartToken at i)
               (parse_two (consume_oneDec, consume_maybeSemicolon))
               (i, infdict)
@@ -967,7 +967,7 @@ struct
                     * '=' (end of args, beginning of function body)
                     *)
                   val (i, args) =
-                    parse_while
+                    parse_zeroOrMoreWhile
                       (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
                       (consume_pat infdict AtRestriction)
                       i
@@ -2228,7 +2228,7 @@ struct
       val infdict = InfixDict.initialTopLevel
 
       val ((i, _), topdecs) =
-        parse_while
+        parse_zeroOrMoreWhile
           (fn (i, _) => i < numToks)
           consume_topDecOne
           (0, infdict)
