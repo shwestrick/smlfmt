@@ -21,9 +21,6 @@ struct
       }
 
 
-  fun seqFromRevList list = Seq.rev (Seq.fromList list)
-
-
   (** ========================================================================
     * Handle infix expressions and patterns by rotating AST according to
     * operator precedence.
@@ -243,40 +240,8 @@ struct
             , explain = NONE
             }
 
-      (** parse_zeroOrMoreDelimitedByReserved
-        *   { parseElem: (int, 'a) parser
-        *   , delim: Token.reserved
-        *   , shouldStop: int peeker
-        *   }
-        *   -> (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
-        *)
-      fun parse_zeroOrMoreDelimitedByReserved
-          {parseElem: (int, 'a) parser, delim: Token.reserved, shouldStop}
-          i =
-        let
-          fun loop elems delims i =
-            if shouldStop i then
-              (i, elems, delims)
-            else
-              let
-                val (i, elem) = parseElem i
-                val elems = elem :: elems
-              in
-                if isReserved delim at i then
-                  loop elems (tok i :: delims) (i+1)
-                else
-                  (i, elems, delims)
-              end
-
-          val (i, elems, delims) = loop [] [] i
-        in
-          ( i
-          , { elems = seqFromRevList elems
-            , delims = seqFromRevList delims
-            }
-          )
-        end
-
+      val parse_zeroOrMoreDelimitedByReserved =
+        ParserCombinators.zeroOrMoreDelimitedByReserved toks
 
       (** parse_oneOrMoreDelimitedByReserved
         *   {parseElem: (int, 'a) parser, delim: Token.reserved} ->
@@ -300,8 +265,8 @@ struct
           val (i, elems, delims) = loop [] [] i
         in
           ( i
-          , { elems = seqFromRevList elems
-            , delims = seqFromRevList delims
+          , { elems = Seq.fromRevList elems
+            , delims = Seq.fromRevList delims
             }
           )
         end
@@ -336,7 +301,7 @@ struct
 
           val (state, elems) = loop [] state
         in
-          (state, seqFromRevList elems)
+          (state, Seq.fromRevList elems)
         end
 
 
@@ -358,7 +323,7 @@ struct
 
           val (state, elems) = loop [] state
         in
-          (state, seqFromRevList elems)
+          (state, Seq.fromRevList elems)
         end
 
 
@@ -1217,7 +1182,7 @@ struct
             if check Token.isValueIdentifier at i then
               loop (tok i :: acc) (i+1)
             else
-              (i, seqFromRevList acc)
+              (i, Seq.fromRevList acc)
 
           val (i, elems) = loop [] i
 
@@ -1256,7 +1221,7 @@ struct
             if check Token.isValueIdentifier at i then
               loop (tok i :: acc) (i+1)
             else
-              (i, seqFromRevList acc)
+              (i, Seq.fromRevList acc)
 
           val (i, elems) = loop [] i
 
@@ -2018,8 +1983,8 @@ struct
           else
             ( i
             , Ast.Ty.Tuple
-                { elems = seqFromRevList tys
-                , delims = seqFromRevList delims
+                { elems = Seq.fromRevList tys
+                , delims = Seq.fromRevList delims
                 }
             )
         end
@@ -2078,8 +2043,8 @@ struct
                     , args =
                         Ast.SyntaxSeq.Many
                           { left = leftParen
-                          , elems = seqFromRevList tys
-                          , delims = seqFromRevList delims
+                          , elems = Seq.fromRevList tys
+                          , delims = Seq.fromRevList delims
                           , right = rightParen
                           }
                     }

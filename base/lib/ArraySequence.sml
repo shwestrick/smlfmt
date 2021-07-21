@@ -99,6 +99,10 @@ struct
     tabulate (fn i => nth s (length s - 1 - i)) (length s)
 
 
+  (** TODO make faster *)
+  fun fromRevList list = rev (fromList list)
+
+
   fun append (s, t) =
     let
       val (ns, nt) = (length s, length t)

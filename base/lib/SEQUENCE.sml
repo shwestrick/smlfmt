@@ -24,6 +24,7 @@ sig
   val singleton: 'a -> 'a seq
   val tabulate: (int -> 'a) -> int -> 'a seq
   val fromList: 'a list -> 'a seq
+  val fromRevList: 'a list -> 'a seq
 
   val rev: 'a seq -> 'a seq
   val append: 'a seq * 'a seq -> 'a seq
