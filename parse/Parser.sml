@@ -240,36 +240,10 @@ struct
             , explain = NONE
             }
 
-      val parse_zeroOrMoreDelimitedByReserved =
-        ParserCombinators.zeroOrMoreDelimitedByReserved toks
-
-      (** parse_oneOrMoreDelimitedByReserved
-        *   {parseElem: (int, 'a) parser, delim: Token.reserved} ->
-        *   (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
-        *)
-      fun parse_oneOrMoreDelimitedByReserved
-          {parseElem: (int, 'a) parser, delim: Token.reserved}
-          i =
-        let
-          fun loop elems delims i =
-            let
-              val (i, elem) = parseElem i
-              val elems = elem :: elems
-            in
-              if isReserved delim at i then
-                loop elems (tok i :: delims) (i+1)
-              else
-                (i, elems, delims)
-            end
-
-          val (i, elems, delims) = loop [] [] i
-        in
-          ( i
-          , { elems = Seq.fromRevList elems
-            , delims = Seq.fromRevList delims
-            }
-          )
-        end
+      fun parse_zeroOrMoreDelimitedByReserved x i =
+        ParserCombinators.zeroOrMoreDelimitedByReserved toks x i
+      fun parse_oneOrMoreDelimitedByReserved x i =
+        ParserCombinators.oneOrMoreDelimitedByReserved toks x i
 
 
       (** parse_two:
