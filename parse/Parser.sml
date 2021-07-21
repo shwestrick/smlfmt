@@ -10,6 +10,8 @@ sig
 end =
 struct
 
+  structure PC = ParserCombinators
+
   exception Error of LineError.t
 
   fun error {what, pos, explain} =
@@ -241,105 +243,16 @@ struct
             }
 
       fun parse_zeroOrMoreDelimitedByReserved x i =
-        ParserCombinators.zeroOrMoreDelimitedByReserved toks x i
+        PC.zeroOrMoreDelimitedByReserved toks x i
       fun parse_oneOrMoreDelimitedByReserved x i =
-        ParserCombinators.oneOrMoreDelimitedByReserved toks x i
-
-
-      (** parse_two:
-        *   ('s, 'a) parser * ('s, 'b) parser
-        *   -> ('s, ('a * 'b)) parser
-        *)
+        PC.oneOrMoreDelimitedByReserved toks x i
       fun parse_two (p1, p2) state =
-        let
-          val (state, elem1) = p1 state
-          val (state, elem2) = p2 state
-        in
-          (state, (elem1, elem2))
-        end
+        PC.two (p1, p2) state
+      fun parse_while c p s =
+        PC.whilee c p s
+      fun parse_oneOrMoreWhile c p s =
+        PC.oneOrMoreWhile c p s
 
-
-      (** parse_while:
-        *   's peeker -> ('s, 'a) parser -> ('s, 'a Seq.t) parser
-        *)
-      fun parse_while continue parse state =
-        let
-          fun loop elems state =
-            if not (continue state) then (state, elems) else
-            let
-              val (state, elem) = parse state
-              val elems = elem :: elems
-            in
-              loop elems state
-            end
-
-          val (state, elems) = loop [] state
-        in
-          (state, Seq.fromRevList elems)
-        end
-
-
-      (** parse_oneOrMoreWhile:
-        *   's peeker -> ('s, 'a) parser -> ('s, 'a Seq.t) parser
-        *)
-      fun parse_oneOrMoreWhile continue parse state =
-        let
-          fun loop elems state =
-            let
-              val (state, elem) = parse state
-              val elems = elem :: elems
-            in
-              if not (continue state) then
-                (state, elems)
-              else
-                loop elems state
-            end
-
-          val (state, elems) = loop [] state
-        in
-          (state, Seq.fromRevList elems)
-        end
-
-
-(*
-      (** parse_interleaveWhile
-        *   { parseElem: ('s, 'a) parser
-        *   , parseDelim: ('s, 'b) parser
-        *   , continue: 's peeker
-        *   } ->
-        *   ('s, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
-        *)
-      fun parse_interleaveWhile
-          {parseElem: ('s, 'a) parser, parseDelim: ('s, 'b) parser, continue}
-          state =
-        let
-          fun loopElem elems delims state =
-            if continue state then (state, elems, delims) else
-            let
-              val (state, elem) = parseElem state
-              val elems = elem :: elems
-            in
-              loopDelim elems delims state
-            end
-
-          and loopDelim elems delims state =
-            if continue state then (state, elems, delims) else
-            let
-              val (state, delim) = parseDelim state
-              val delims = delim :: delims
-            in
-              loopElem elems delims state
-            end
-
-          val (state, elems, delims) = loopElem [] [] state
-        in
-          ( state
-          , { elems = seqFromRevList elems
-            , delims = seqFromRevList delims
-            }
-          )
-        end
-*)
 
       fun parse_tyvar i =
         if check Token.isTyVar at i then
