@@ -11,17 +11,11 @@ end =
 struct
 
   structure PC = ParserCombinators
+  structure PS = ParseSimple
+  exception Error = PS.Error
 
-  exception Error of LineError.t
-
-  fun error {what, pos, explain} =
-    raise Error
-      { header = "PARSE ERROR"
-      , pos = pos
-      , what = what
-      , explain = explain
-      }
-
+  fun error (info as {what, pos, explain}) =
+    PS.error info
 
   (** ========================================================================
     * Handle infix expressions and patterns by rotating AST according to
@@ -227,20 +221,22 @@ struct
       fun is c = check (fn t => c = Token.getClass t)
       fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
-      (** parse_reserved:
-        *   Token.reserved -> (int, Token.t) parser
-        *)
+
       fun parse_reserved rc i =
-        if isReserved rc at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what =
-                "Unexpected token. Expected to see "
-                ^ "'" ^ Token.reservedToString rc ^ "'"
-            , explain = NONE
-            }
+        PS.reserved toks rc i
+      fun parse_tyvar i =
+        PS.tyvar toks i
+      fun parse_sigid i =
+        PS.sigid toks i
+      fun parse_maybeReserved rc i =
+        PS.maybeReserved toks rc i
+      fun parse_vid i =
+        PS.vid toks i
+      fun parse_longvid i =
+        PS.longvid toks i
+      fun parse_recordLabel i =
+        PS.recordLabel toks i
+
 
       fun parse_zeroOrMoreDelimitedByReserved x i =
         PC.zeroOrMoreDelimitedByReserved toks x i
@@ -253,27 +249,6 @@ struct
       fun parse_oneOrMoreWhile c p s =
         PC.oneOrMoreWhile c p s
 
-
-      fun parse_tyvar i =
-        if check Token.isTyVar at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Expected tyvar."
-            , explain = NONE
-            }
-
-      fun parse_sigid i =
-        if check Token.isStrIdentifier at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Expected structure or signature identifier."
-            , explain = SOME "Must be alphanumeric, and cannot start with a\
-                             \ prime (')"
-            }
 
       fun parse_tyvars i =
         if check Token.isTyVar at i then
@@ -302,13 +277,6 @@ struct
           end
 
 
-      fun consume_maybeReserved rc i =
-        if isReserved rc at i then
-          (i+1, SOME (tok i))
-        else
-          (i, NONE)
-
-
       fun check_normalOrOpInfix infdict opp vid =
         if InfixDict.contains infdict vid andalso not (Option.isSome opp) then
           error
@@ -320,41 +288,9 @@ struct
           ()
 
 
-      fun parse_vid i =
-        if check Token.isValueIdentifier at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Unexpected token. Expected value identifier."
-            , explain = NONE
-            }
-
-
-      fun parse_longvid i =
-        if check Token.isMaybeLongIdentifier at i then
-          (i+1, Ast.MaybeLong.make (tok i))
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Expected (possibly long) value identifier."
-            , explain = NONE
-            }
-
-      fun parse_recordLabel i =
-        if check Token.isRecordLabel at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Expected record label."
-            , explain = NONE
-            }
-
-
       fun consume_opvid infdict i =
         let
-          val (i, opp) = consume_maybeReserved Token.Op i
+          val (i, opp) = parse_maybeReserved Token.Op i
           val (i, vid) = parse_vid i
           val _ = check_normalOrOpInfix infdict opp vid
         in
@@ -416,7 +352,7 @@ struct
         let
           fun parseConbind i =
             let
-              val (i, opp) = consume_maybeReserved Token.Op i
+              val (i, opp) = parse_maybeReserved Token.Op i
               val (i, id) = parse_vid i
               val (i, arg) =
                 if not (isReserved Token.Of at i) then
@@ -903,7 +839,7 @@ struct
         *)
       and consume_decExbind infdict i =
         let
-          val (i, opp) = consume_maybeReserved Token.Op i
+          val (i, opp) = parse_maybeReserved Token.Op i
           val (i, vid) = parse_vid i
         in
           if isReserved Token.Of at i then
@@ -923,7 +859,7 @@ struct
           else if isReserved Token.Equal at i then
             let
               val (i, eq) = (i+1, tok i)
-              val (i, opp) = consume_maybeReserved Token.Op i
+              val (i, opp) = parse_maybeReserved Token.Op i
               val (i, longvid) = parse_longvid i
             in
               ( i
@@ -1214,7 +1150,7 @@ struct
             *)
           fun parseElem i =
             let
-              val (i, recc) = consume_maybeReserved Token.Rec i
+              val (i, recc) = parse_maybeReserved Token.Rec i
               val (i, pat) = consume_pat infdict NoRestriction i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, exp) = consume_exp infdict NoRestriction i

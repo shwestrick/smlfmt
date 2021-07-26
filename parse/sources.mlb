@@ -8,6 +8,7 @@ local
   FixExpPrecedence.sml
   InfixDict.sml
   ParserCombinators.sml
+  ParseSimple.sml
   Parser.sml
 in
   structure Parser
