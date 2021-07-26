@@ -236,7 +236,10 @@ struct
         PS.longvid toks i
       fun parse_recordLabel i =
         PS.recordLabel toks i
-
+      fun parse_tycon i =
+        PS.tycon toks i
+      fun parse_maybeLongTycon i =
+        PS.maybeLongTycon toks i
 
       fun parse_zeroOrMoreDelimitedByReserved x i =
         PC.zeroOrMoreDelimitedByReserved toks x i
@@ -296,29 +299,6 @@ struct
         in
           (i, {opp = opp, vid = vid})
         end
-
-
-      fun parse_tycon i =
-        if check Token.isTyCon at i then
-          (i+1, tok i)
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Unexpected token. Invalid type constructor."
-            , explain = NONE
-            }
-
-
-      fun parse_maybelongtycon i =
-        if check Token.isMaybeLongTyCon at i then
-          (i+1, Ast.MaybeLong.make (tok i))
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Unexpected token. Invalid (possibly qualified)\
-                     \ type constructor."
-            , explain = NONE
-            }
 
 
       fun parse_typbind i =
@@ -2045,7 +2025,7 @@ struct
               val (i, wheree) = (i+1, tok i)
               val (i, typee) = parse_reserved Token.Type i
               val (i, tyvars) = parse_tyvars i
-              val (i, tycon) = parse_maybelongtycon i
+              val (i, tycon) = parse_maybeLongTycon i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, ty) = consume_ty {permitArrows=true} i
             in

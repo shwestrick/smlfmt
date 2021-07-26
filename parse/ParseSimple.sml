@@ -22,6 +22,8 @@ sig
   val vid: tokens -> (int, Token.t) parser
   val longvid: tokens -> (int, Ast.MaybeLong.t) parser
   val recordLabel: tokens -> (int, Token.t) parser
+  val tycon: tokens -> (int, Token.t) parser
+  val maybeLongTycon: tokens -> (int, Ast.MaybeLong.t) parser
 end =
 struct
 
@@ -125,6 +127,29 @@ struct
       error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Expected record label."
+        , explain = NONE
+        }
+
+
+  fun tycon toks i =
+    if check toks Token.isTyCon i then
+      (i+1, Seq.nth toks i)
+    else
+      error
+        { pos = Token.getSource (Seq.nth toks i)
+        , what = "Unexpected token. Invalid type constructor."
+        , explain = NONE
+        }
+
+
+  fun maybeLongTycon toks i =
+    if check toks Token.isMaybeLongTyCon i then
+      (i+1, Ast.MaybeLong.make (Seq.nth toks i))
+    else
+      error
+        { pos = Token.getSource (Seq.nth toks i)
+        , what = "Unexpected token. Invalid (possibly qualified)\
+                 \ type constructor."
         , explain = NONE
         }
 
