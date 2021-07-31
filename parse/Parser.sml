@@ -386,7 +386,9 @@ struct
         end
 
 
-      and consume_pat infdict restriction i =
+      (** ================================================================= *)
+
+      fun consume_pat infdict restriction i =
         let
           val (i, pat) =
             if isReserved Token.Underscore at i then
@@ -724,7 +726,9 @@ struct
           end
 
 
-      and consume_dec infdict i =
+      (** ================================================================= *)
+
+      fun consume_dec infdict i =
         let
           fun consume_maybeSemicolon (i, infdict) =
             if isReserved Token.Semicolon at i then
