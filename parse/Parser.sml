@@ -240,6 +240,9 @@ struct
         PS.tycon toks i
       fun parse_maybeLongTycon i =
         PS.maybeLongTycon toks i
+      fun parse_ty i =
+        ParseTy.ty toks i
+
 
       fun parse_zeroOrMoreDelimitedByReserved x i =
         PC.zeroOrMoreDelimitedByReserved toks x i
@@ -308,7 +311,7 @@ struct
               val (i, tyvars) = parse_tyvars i
               val (i, tycon) = parse_tycon i
               val (i, eq) = parse_reserved Token.Equal i
-              val (i, ty) = consume_ty {permitArrows=true} i
+              val (i, ty) = parse_ty i
             in
               ( i
               , { tyvars = tyvars
@@ -340,7 +343,7 @@ struct
                 else
                   let
                     val off = tok i
-                    val (i, ty) = consume_ty {permitArrows=true} (i+1)
+                    val (i, ty) = parse_ty (i+1)
                   in
                     (i, SOME {off = off, ty = ty})
                   end
@@ -532,7 +535,7 @@ struct
               else
                 let
                   val (i, colon) = (i+1, tok i)
-                  val (i, ty) = consume_ty {permitArrows=true} i
+                  val (i, ty) = parse_ty i
                 in
                   (i, SOME {colon=colon, ty=ty})
                 end
@@ -605,7 +608,7 @@ struct
         *)
       and consume_patTyped infdict pat colon i =
         let
-          val (i, ty) = consume_ty {permitArrows=true} i
+          val (i, ty) = parse_ty i
         in
           ( i
           , Ast.Pat.Typed
@@ -825,7 +828,7 @@ struct
           if isReserved Token.Of at i then
             let
               val (i, off) = (i+1, tok i)
-              val (i, ty) = consume_ty {permitArrows=true} i
+              val (i, ty) = parse_ty i
             in
               ( i
               , Ast.Exp.ExnNew
@@ -894,7 +897,7 @@ struct
                     else
                       let
                         val colon = tok i
-                        val (i, ty) = consume_ty {permitArrows=true} (i+1)
+                        val (i, ty) = parse_ty (i+1)
                       in
                         (i, SOME {colon = colon, ty = ty})
                       end
@@ -1639,7 +1642,7 @@ struct
           (* val _ = print ("typed\n") *)
 
           val colon = tok (i-1)
-          val (i, ty) = consume_ty {permitArrows=true} i
+          val (i, ty) = parse_ty i
         in
           ( i
           , Ast.Exp.Typed
@@ -1651,214 +1654,7 @@ struct
         end
 
 
-
-      and consume_ty restriction i =
-        let
-          val (i, ty) =
-            if check Token.isTyVar at i then
-              ( i+1
-              , Ast.Ty.Var (tok i)
-              )
-            else if isReserved Token.OpenParen at i then
-              let
-                val leftParen = tok i
-                val (i, ty) = consume_ty {permitArrows=true} (i+1)
-              in
-                consume_tyParensOrSequence leftParen [ty] [] i
-              end
-            else if isReserved Token.OpenCurlyBracket at i then
-              consume_tyRecord (tok i) (i+1)
-            else if check Token.isMaybeLongIdentifier at i then
-              ( i+1
-              , Ast.Ty.Con
-                  { id = Ast.MaybeLong.make (tok i)
-                  , args = Ast.SyntaxSeq.Empty
-                  }
-              )
-            else
-              nyi "consume_ty" i
-        in
-          consume_afterTy restriction ty i
-        end
-
-
-      (** ty
-        *   ^
-        *
-        * Multiple possibilities for what could be found after a type:
-        *   ty -> ty        -- function type
-        *   ty longtycon    -- type constructor
-        *   ty * ...        -- tuple
-        *)
-      and consume_afterTy (restriction as {permitArrows: bool}) ty i =
-        let
-          val (again, (i, ty)) =
-            if check Token.isMaybeLongTyCon at i then
-              ( true
-              , ( i+1
-                , Ast.Ty.Con
-                    { id = Ast.MaybeLong.make (tok i)
-                    , args = Ast.SyntaxSeq.One ty
-                    }
-                )
-              )
-            else if permitArrows andalso isReserved Token.Arrow at i then
-              (true, consume_tyArrow ty (i+1))
-            else if check Token.isStar at i then
-              (true, consume_tyTuple [ty] [] (i+1))
-            else
-              (false, (i, ty))
-        in
-          if again then
-            consume_afterTy restriction ty i
-          else
-            (i, ty)
-        end
-
-
-      (** { label: ty [, ...] }
-        *  ^
-        *)
-      and consume_tyRecord leftBracket i =
-        let
-          fun parseElem i =
-            let
-              val (i, lab) = parse_recordLabel i
-              val (i, colon) = parse_reserved Token.Colon i
-              val (i, ty) = consume_ty {permitArrows = true} i
-            in
-              ( i
-              , { lab = lab
-                , colon = colon
-                , ty = ty
-                }
-              )
-            end
-
-          val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseElem, delim = Token.Comma}
-              i
-
-          val (i, rightBracket) = parse_reserved Token.CloseCurlyBracket i
-        in
-          ( i
-          , Ast.Ty.Record
-              { left = leftBracket
-              , elems = elems
-              , delims = delims
-              , right = rightBracket
-              }
-          )
-        end
-
-
-      (** ty -> ty
-        *      ^
-        *)
-      and consume_tyArrow fromTy i =
-        let
-          val arrow = tok (i-1)
-          val (i, toTy) = consume_ty {permitArrows=true} i
-        in
-          ( i
-          , Ast.Ty.Arrow
-              { from = fromTy
-              , arrow = arrow
-              , to = toTy
-              }
-          )
-        end
-
-
-      (** [... *] ty * ...
-        *             ^
-        *)
-      and consume_tyTuple tys delims i =
-        let
-          val star = tok (i-1)
-          val (i, ty) = consume_ty {permitArrows=false} i
-          val tys = ty :: tys
-          val delims = star :: delims
-        in
-          if check Token.isStar at i then
-            consume_tyTuple tys delims (i+1)
-          else
-            ( i
-            , Ast.Ty.Tuple
-                { elems = Seq.fromRevList tys
-                , delims = Seq.fromRevList delims
-                }
-            )
-        end
-
-
-      (** ( ty )
-        *     ^
-        * OR
-        * ( ty [, ty ...] ) longtycon
-        *     ^
-        *)
-      and consume_tyParensOrSequence leftParen tys delims i =
-        if isReserved Token.CloseParen at i then
-          consume_tyEndParensOrSequence leftParen tys delims (i+1)
-        else if isReserved Token.Comma at i then
-          let
-            val comma = tok i
-            val (i, ty) = consume_ty {permitArrows=true} (i+1)
-          in
-            consume_tyParensOrSequence leftParen (ty :: tys) (comma :: delims) i
-          end
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Unexpected token."
-            , explain = NONE
-            }
-
-
-
-      (** ( ty )
-        *       ^
-        * OR
-        * ( ty, ... ) longtycon
-        *            ^
-        *)
-      and consume_tyEndParensOrSequence leftParen tys delims i =
-        let
-          val rightParen = tok (i-1)
-        in
-          case (tys, delims) of
-            ([ty], []) =>
-              ( i
-              , Ast.Ty.Parens
-                  { left = leftParen
-                  , ty = ty
-                  , right = rightParen
-                  }
-              )
-
-          | _ =>
-              if check Token.isMaybeLongTyCon at i then
-                ( i+1
-                , Ast.Ty.Con
-                    { id = Ast.MaybeLong.make (tok i)
-                    , args =
-                        Ast.SyntaxSeq.Many
-                          { left = leftParen
-                          , elems = Seq.fromRevList tys
-                          , delims = Seq.fromRevList delims
-                          , right = rightParen
-                          }
-                    }
-                )
-              else
-                error
-                  { pos = Token.getSource (tok i)
-                  , what = "Unexpected token."
-                  , explain = SOME "Expected to see a type constructor."
-                  }
-        end
+      (** ================================================================= *)
 
 
       (** let dec in exp [; exp ...] end
@@ -1978,7 +1774,7 @@ struct
             let
               val (i, vid) = parse_vid i
               val (i, colon) = parse_reserved Token.Colon i
-              val (i, ty) = consume_ty {permitArrows=true} i
+              val (i, ty) = parse_ty i
             in
               ( i
               , { vid = vid
@@ -2027,7 +1823,7 @@ struct
               val (i, tyvars) = parse_tyvars i
               val (i, tycon) = parse_maybeLongTycon i
               val (i, eq) = parse_reserved Token.Equal i
-              val (i, ty) = consume_ty {permitArrows=true} i
+              val (i, ty) = parse_ty i
             in
               ( i
               , { wheree = wheree

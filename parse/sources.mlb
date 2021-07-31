@@ -9,6 +9,7 @@ local
   InfixDict.sml
   ParserCombinators.sml
   ParseSimple.sml
+  ParseTy.sml
   Parser.sml
 in
   structure Parser
