@@ -702,6 +702,23 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
+    | Ast.Module.Structure {elems, ...} =>
+        let
+          fun showOne first {id, sigexp, ...} =
+            group (
+              separateWithSpaces
+                [ SOME (text (if first then "structure" else "and"))
+                , SOME (text (Token.toString id))
+                , SOME (text ":") ]
+              $$
+              spaces 2 ++ showSigExp sigexp
+            )
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
     | Ast.Module.Multiple {elems, delims} =>
         let
           fun showOne i =
@@ -717,7 +734,7 @@ struct
 
 
 
-  fun showSigExp sigexp =
+  and showSigExp sigexp =
     case sigexp of
       Ast.Module.Ident id =>
         text (Token.toString id)

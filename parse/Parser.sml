@@ -1870,13 +1870,52 @@ struct
           )
         end
 
-      fun consume_oneSigSpec infdict i =
+
+      (** structure strid : sigexp [and ...]
+        *          ^
+        *)
+      fun consume_sigSpecStructure infdict i =
+        let
+          val structuree = tok (i-1)
+
+          fun parseOne i =
+            let
+              val (i, id) = parse_vid i
+              val (i, colon) = parse_reserved Token.Colon i
+              val (i, sigexp) = consume_sigExp infdict i
+            in
+              ( i
+              , { id = id
+                , colon = colon
+                , sigexp = sigexp
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( i
+          , Ast.Module.Structure
+              { structuree = structuree
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
+      and consume_oneSigSpec infdict i =
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
         else if isReserved Token.Type at i then
           consume_sigSpecType infdict (i+1)
         else if isReserved Token.Eqtype at i then
           consume_sigSpecEqtype infdict (i+1)
+        else if isReserved Token.Structure at i then
+          consume_sigSpecStructure infdict (i+1)
         else
           nyi "consume_oneSigSpec" i
 
@@ -1928,7 +1967,7 @@ struct
       (** sigexp where type tyvarseq tycon = ty [and/where type ...]
         *       ^
         *)
-      fun consume_sigExpWhereType sigexp infdict i =
+      and consume_sigExpWhereType sigexp infdict i =
         let
           fun nextIsWhereOrAndType i =
             (isReserved Token.Where at i orelse isReserved Token.And at i)
@@ -1970,7 +2009,7 @@ struct
       (** sig spec end
         *    ^
         *)
-      fun consume_sigExpSigEnd infdict i =
+      and consume_sigExpSigEnd infdict i =
         let
           val sigg = tok (i-1)
           val (i, spec) = consume_sigSpec infdict i
@@ -1986,7 +2025,7 @@ struct
         end
 
 
-      fun consume_sigExp infdict i =
+      and consume_sigExp infdict i =
         let
           val (i, sigexp) =
             if isReserved Token.Sig at i then

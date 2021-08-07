@@ -11,4 +11,19 @@ signature FOO =
     eqtype 'a functions
     and are
     and ('a, 'b) values
+
+    structure Module : MODULE
+    and ModuleNameAgain : REALLYLONGSIGNATURENAME
+    and Stack :
+      sig
+        type 'a t
+
+        val empty : 'a t
+        val push : 'a -> 'a t -> 'a t
+        val pop : 'a t -> ('a * 'a t) option
+      end
+    and Stack :
+      sig
+        type 'a t
+      end where type 'a t = int
   end
