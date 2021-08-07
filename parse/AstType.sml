@@ -581,7 +581,7 @@ struct
         , elems:
             { tyvars: Token.t SyntaxSeq.t
             , tycon: Token.t
-            }
+            } Seq.t
         (** 'and' delimiters between mutually recursive types *)
         , delims: Token.t Seq.t
         }
@@ -595,6 +595,12 @@ struct
             }
         (** 'and' delimiters between mutually recursive types *)
         , delims: Token.t Seq.t
+        }
+
+    (** spec [[;] spec ...] *)
+    | Multiple of
+        { elems: spec Seq.t
+        , delims: Token.t option Seq.t
         }
 
     (** TODO finish 'spec' type *)

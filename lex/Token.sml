@@ -397,6 +397,16 @@ struct
     [ Signature
     ]
 
+  val sigSpecStartTokens =
+    [ Val
+    , Type
+    , Eqtype
+    , Datatype
+    , Exception
+    , Structure
+    , Include
+    ]
+
   fun isDecStartToken tok =
     case getClass tok of
       Reserved rc =>
@@ -413,6 +423,12 @@ struct
     case getClass tok of
       Reserved rc =>
         List.exists (fn rc' => rc = rc') sigDecStartTokens
+    | _ => false
+
+  fun isSigSpecStartToken tok =
+    case getClass tok of
+      Reserved rc =>
+        List.exists (fn rc' => rc = rc') sigSpecStartTokens
     | _ => false
 
   fun classToString class =

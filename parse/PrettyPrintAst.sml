@@ -674,6 +674,30 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
+    | Ast.Sig.Type {elems, ...} =>
+        let
+          fun showOne first {tyvars, tycon} =
+            separateWithSpaces
+              [ SOME (text (if first then "type" else "and"))
+              , maybeShowSyntaxSeq tyvars (text o Token.toString)
+              , SOME (text (Token.toString tycon))
+              ]
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Multiple {elems, delims} =>
+        let
+          fun showOne i =
+            showSpec (Seq.nth elems i)
+            ++
+            (if Option.isSome (Seq.nth delims i) then text ";" else empty)
+        in
+          Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ showOne i)
+        end
+
     | _ =>
         text "<spec>"
 
