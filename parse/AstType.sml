@@ -668,8 +668,6 @@ struct
         , delims: Token.t option Seq.t
         }
 
-    (** TODO finish 'spec' type *)
-
 
 
     and sigexp =

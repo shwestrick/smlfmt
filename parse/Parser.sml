@@ -386,6 +386,63 @@ struct
         end
 
 
+      fun parse_datdesc i =
+        let
+          fun parse_condesc i =
+            let
+              val (i, vid) = parse_vid i
+              val (i, arg) =
+                if not (isReserved Token.Of at i) then
+                  (i, NONE)
+                else
+                  let
+                    val off = tok i
+                    val (i, ty) = parse_ty (i+1)
+                  in
+                    (i, SOME {off = off, ty = ty})
+                  end
+            in
+              ( i
+              , { vid = vid
+                , arg = arg
+                }
+              )
+            end
+
+          fun parseElem i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) = parse_vid i
+              val (i, eq) = parse_reserved Token.Equal i
+
+              val (i, {elems, delims}) =
+                parse_oneOrMoreDelimitedByReserved
+                  {parseElem = parse_condesc, delim = Token.Bar}
+                  i
+            in
+              ( i
+              , { tyvars = tyvars
+                , tycon = tycon
+                , eq = eq
+                , elems = elems
+                , delims = delims
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.And}
+              i
+        in
+          ( i
+          , { elems = elems
+            , delims = delims
+            }
+          )
+        end
+
+
       (** ================================================================= *)
 
       fun consume_pat infdict restriction i =
@@ -1870,6 +1927,55 @@ struct
           )
         end
 
+
+      (** datatype datdesc
+        *         ^
+        * OR
+        * datatype tycon = datatype longtycon
+        *         ^
+        *)
+      fun consume_sigSpecDatatypeDeclarationOrReplication infdict i =
+        if (
+          isReserved Token.OpenParen at i (* datatype ('a, ...) foo *)
+          orelse check Token.isTyVar at i (* datatype 'a foo *)
+          orelse ( (* datatype foo = A *)
+            check Token.isValueIdentifierNoEqual at i
+            andalso isReserved Token.Equal at (i+1)
+            andalso not (isReserved Token.Datatype at (i+2))
+          )
+        ) then
+          let
+            val datatypee = tok (i-1)
+            val (i, {elems, delims}) = parse_datdesc i
+          in
+            ( i
+            , Ast.Module.Datatype
+              { datatypee = datatypee
+              , elems = elems
+              , delims = delims
+              }
+            )
+          end
+        else
+          let
+            val left_datatypee = tok (i-1)
+            val (i, left_id) = parse_vid i
+            val (i, eq) = parse_reserved Token.Equal i
+            val (i, right_datatypee) = parse_reserved Token.Datatype i
+            val (i, right_id) = parse_longvid i
+          in
+            ( i
+            , Ast.Module.ReplicateDatatype
+              { left_datatypee = left_datatypee
+              , left_id = left_id
+              , eq = eq
+              , right_datatypee = right_datatypee
+              , right_id = right_id
+              }
+            )
+          end
+
+
       fun consume_oneSigSpec infdict i =
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
@@ -1877,6 +1983,8 @@ struct
           consume_sigSpecType infdict (i+1)
         else if isReserved Token.Eqtype at i then
           consume_sigSpecEqtype infdict (i+1)
+        else if isReserved Token.Datatype at i then
+          consume_sigSpecDatatypeDeclarationOrReplication infdict (i+1)
         else
           nyi "consume_oneSigSpec" i
 
