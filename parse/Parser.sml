@@ -1886,7 +1886,7 @@ struct
             | _ =>
                 makeSpecMultiple ()
         in
-          (i, infdict, result)
+          (i, result)
         end
 
 
@@ -1938,7 +1938,7 @@ struct
       fun consume_sigExpSigEnd infdict i =
         let
           val sigg = tok (i-1)
-          val (i, infdict, spec) = consume_sigSpec infdict i
+          val (i, spec) = consume_sigSpec infdict i
           val (i, endd) = parse_reserved Token.End i
         in
           ( i
