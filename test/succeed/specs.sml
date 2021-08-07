@@ -25,4 +25,8 @@ signature FOO =
     datatype foo = datatype foo2
     datatype foo = datatype A.B.foo
     datatype foo = datatype A.B.LongNameHereGoesToSomething.foo
+
+    exception NotFound
+    and Fail of string
+    and Failure
   end

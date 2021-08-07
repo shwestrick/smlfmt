@@ -760,6 +760,22 @@ struct
             )
         )
 
+    | Ast.Module.Exception {elems, ...} =>
+        let
+          fun showOne first {vid, arg} =
+              group (
+                separateWithSpaces
+                  [ SOME (text (if first then "exception" else "and"))
+                  , SOME (text (Token.toString vid))
+                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+                  ]
+              )
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
     | Ast.Module.Multiple {elems, delims} =>
         let
           fun showOne i =

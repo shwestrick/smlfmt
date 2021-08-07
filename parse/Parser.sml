@@ -1976,6 +1976,48 @@ struct
           end
 
 
+      (** exception vid [of ty] [and vid [of ty] ...]
+        *          ^
+        *)
+      fun consume_sigSpecException infdict i =
+        let
+          val exceptionn = tok (i-1)
+          fun parseOne i =
+            let
+              val (i, vid) = parse_vid i
+              val (i, arg) =
+                if not (isReserved Token.Of at i) then
+                  (i, NONE)
+                else
+                  let
+                    val off = tok i
+                    val (i, ty) = parse_ty (i+1)
+                  in
+                    (i, SOME {off = off, ty = ty})
+                  end
+            in
+              ( i
+              , { vid = vid
+                , arg = arg
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( i
+          , Ast.Module.Exception
+              { exceptionn = exceptionn
+              , elems = elems
+              , delims= delims
+              }
+          )
+        end
+
+
       fun consume_oneSigSpec infdict i =
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
@@ -1985,6 +2027,8 @@ struct
           consume_sigSpecEqtype infdict (i+1)
         else if isReserved Token.Datatype at i then
           consume_sigSpecDatatypeDeclarationOrReplication infdict (i+1)
+        else if isReserved Token.Exception at i then
+          consume_sigSpecException infdict (i+1)
         else
           nyi "consume_oneSigSpec" i
 
