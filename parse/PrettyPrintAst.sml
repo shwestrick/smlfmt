@@ -712,8 +712,8 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ showOne i)
         end
 
-    (*| _ =>
-        text "<spec>"*)
+    | _ =>
+        text "<spec>"
 
 
 

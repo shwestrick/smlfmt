@@ -597,6 +597,71 @@ struct
         , delims: Token.t Seq.t
         }
 
+    (** datatype tyvarseq tycon = condesc [and tyvarseq tycon ...] *)
+    | Datatype of
+        { datatypee: Token.t
+        , elems:
+            { tyvars: Token.t SyntaxSeq.t
+            , tycon: Token.t
+            , eq: Token.t
+            , elems:
+                { vid: Token.t
+                , arg: {off: Token.t, ty: Ty.t} option
+                } Seq.t
+            (** '|' delimiters between clauses *)
+            , delims: Token.t Seq.t
+            } Seq.t
+        (** 'and' delimiters between mutually recursive datatypes *)
+        , delims: Token.t Seq.t
+        }
+
+    (** datatype tycon = datatype longtycon *)
+    | ReplicateDatatype of
+        { left_datatypee: Token.t
+        , left_id: Token.t
+        , eq: Token.t
+        , right_datatypee: Token.t
+        , right_id: MaybeLong.t
+        }
+
+    (** exception vid [of ty] [and vid [of ty] ...] *)
+    | Exception of
+        { exceptionn: Token.t
+        , elems:
+            { vid: Token.t
+            , arg: {off: Token.t, ty: Ty.t} option
+            } Seq.t
+        (** 'and' delimiters between exceptions *)
+        , delims: Token.t Seq.t
+        }
+
+    (** structure strid : sigexp [and strid : sigep ...] *)
+    | Structure of
+        { structuree: Token.t
+        , elems:
+            { id: Token.t
+            , colon: Token.t
+            , sigexp: sigexp
+            } Seq.t
+        , delims: Token.t Seq.t
+        }
+
+    (** include sigexp *)
+    | Include of
+        { includee: Token.t
+        , sigexp: sigexp
+        }
+
+    (** spec sharing type longtycon1 = ... = longtyconn *)
+    | Sharing of
+        { spec: spec
+        , sharingg: Token.t
+        , typee: Token.t
+        , elems: MaybeLong.t Seq.t
+        (** the '=' delimiters between longtycons *)
+        , delims: Token.t Seq.t
+        }
+
     (** spec [[;] spec ...] *)
     | Multiple of
         { elems: spec Seq.t
@@ -607,7 +672,7 @@ struct
 
 
 
-    datatype sigexp =
+    and sigexp =
       Ident of Token.t
 
     (** sig spec end *)
@@ -638,7 +703,7 @@ struct
     (** TODO finish 'sigexp' type *)
 
 
-    datatype sigdec =
+    and sigdec =
 
     (** signature sigid = sigexp [and ...] *)
       Signature of
@@ -655,7 +720,6 @@ struct
 
   end
 
-
   (** =======================================================================
     * Module Structures
     *)
@@ -664,6 +728,8 @@ struct
 
     (** TODO: finish *)
     datatype strexp = SE
+
+
 
     (** TODO: finish *)
     datatype strdec =
