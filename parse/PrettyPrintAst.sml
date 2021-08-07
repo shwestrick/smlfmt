@@ -658,10 +658,10 @@ struct
 
   fun showSpec spec =
     case spec of
-      Ast.Sig.EmptySpec =>
+      Ast.Module.EmptySpec =>
         empty
 
-    | Ast.Sig.Val {elems, ...} =>
+    | Ast.Module.Val {elems, ...} =>
         let
           fun showOne first {vid, ty, ...} =
             text (if first then "val" else "and")
@@ -674,7 +674,7 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Sig.Type {elems, ...} =>
+    | Ast.Module.Type {elems, ...} =>
         let
           fun showOne first {tyvars, tycon} =
             separateWithSpaces
@@ -688,7 +688,7 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Sig.Eqtype {elems, ...} =>
+    | Ast.Module.Eqtype {elems, ...} =>
         let
           fun showOne first {tyvars, tycon} =
             separateWithSpaces
@@ -702,7 +702,7 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Sig.Multiple {elems, delims} =>
+    | Ast.Module.Multiple {elems, delims} =>
         let
           fun showOne i =
             showSpec (Seq.nth elems i)
@@ -712,17 +712,17 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ showOne i)
         end
 
-    (*| _ =>
-        text "<spec>"*)
+    | _ =>
+        text "<spec>"
 
 
 
   fun showSigExp sigexp =
     case sigexp of
-      Ast.Sig.Ident id =>
+      Ast.Module.Ident id =>
         text (Token.toString id)
 
-    | Ast.Sig.Spec {spec, ...} =>
+    | Ast.Module.Spec {spec, ...} =>
         group (
           text "sig"
           $$
@@ -731,7 +731,7 @@ struct
           text "end"
         )
 
-    | Ast.Sig.WhereType {sigexp, elems} =>
+    | Ast.Module.WhereType {sigexp, elems} =>
         let
           val se = showSigExp sigexp
 
@@ -752,7 +752,7 @@ struct
         text "<sigexp>" *)
 
 
-  fun showSigDec (Ast.Sig.Signature {elems, delims, ...}) =
+  fun showSigDec (Ast.Module.Signature {elems, delims, ...}) =
     let
       fun showOne isFirst {ident, sigexp, ...} =
         group (
@@ -775,7 +775,7 @@ struct
       let
         fun showOne td =
           case td of
-            Ast.StrDec (Ast.Str.Dec d) => showDec d
+            Ast.StrDec (Ast.Module.Dec d) => showDec d
           | Ast.SigDec d => showSigDec d
           | _ => raise Fail "Not yet implemented!"
 
