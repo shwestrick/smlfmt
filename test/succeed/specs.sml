@@ -26,4 +26,16 @@ signature FOO =
       sig
         type 'a t
       end where type 'a t = int
+
+    include FOO
+    include
+      sig
+        type 'a t
+
+        val instance : 'a t
+      end
+    include
+      sig
+        type 'a t
+      end where type 'a t = string
   end

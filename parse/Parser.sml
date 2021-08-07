@@ -1907,6 +1907,23 @@ struct
         end
 
 
+      (** include sigexp
+        *        ^
+        *)
+      and consume_sigSpecInclude infdict i =
+        let
+          val includee = tok (i-1)
+          val (i, sigexp) = consume_sigExp infdict i
+        in
+          ( i
+          , Ast.Module.Include
+              { includee = includee
+              , sigexp = sigexp
+              }
+          )
+        end
+
+
       and consume_oneSigSpec infdict i =
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
@@ -1916,6 +1933,8 @@ struct
           consume_sigSpecEqtype infdict (i+1)
         else if isReserved Token.Structure at i then
           consume_sigSpecStructure infdict (i+1)
+        else if isReserved Token.Include at i then
+          consume_sigSpecInclude infdict (i+1)
         else
           nyi "consume_oneSigSpec" i
 

@@ -719,6 +719,14 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
+    | Ast.Module.Include {sigexp, ...} =>
+        group (
+          text "include"
+          $$
+          spaces 2 ++
+            showSigExp sigexp
+        )
+
     | Ast.Module.Multiple {elems, delims} =>
         let
           fun showOne i =
