@@ -688,6 +688,20 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
+    | Ast.Sig.Eqtype {elems, ...} =>
+        let
+          fun showOne first {tyvars, tycon} =
+            separateWithSpaces
+              [ SOME (text (if first then "eqtype" else "and"))
+              , maybeShowSyntaxSeq tyvars (text o Token.toString)
+              , SOME (text (Token.toString tycon))
+              ]
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
     | Ast.Sig.Multiple {elems, delims} =>
         let
           fun showOne i =
@@ -698,8 +712,8 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ showOne i)
         end
 
-    | _ =>
-        text "<spec>"
+    (*| _ =>
+        text "<spec>"*)
 
 
 

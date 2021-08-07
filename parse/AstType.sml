@@ -592,7 +592,7 @@ struct
         , elems:
             { tyvars: Token.t SyntaxSeq.t
             , tycon: Token.t
-            }
+            } Seq.t
         (** 'and' delimiters between mutually recursive types *)
         , delims: Token.t Seq.t
         }

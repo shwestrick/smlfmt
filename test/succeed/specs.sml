@@ -7,4 +7,8 @@ signature FOO =
     and bar
     and 'a baz
     and ('a, 'b) bat
+
+    eqtype 'a functions
+    and are
+    and ('a, 'b) values
   end

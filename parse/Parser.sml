@@ -1837,11 +1837,46 @@ struct
         end
 
 
+      (** eqtype tyvars tycon [and ...]
+        *       ^
+        *)
+      fun consume_sigSpecEqtype infdict i =
+        let
+          val eqtypee = tok (i-1)
+
+          fun parseOne i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) = parse_tycon i
+            in
+              ( i
+              , { tyvars =  tyvars
+                , tycon = tycon
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( i
+          , Ast.Sig.Eqtype
+              { eqtypee = eqtypee
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
       fun consume_oneSigSpec infdict i =
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
         else if isReserved Token.Type at i then
           consume_sigSpecType infdict (i+1)
+        else if isReserved Token.Eqtype at i then
+          consume_sigSpecEqtype infdict (i+1)
         else
           nyi "consume_oneSigSpec" i
 
