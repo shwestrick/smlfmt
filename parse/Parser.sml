@@ -1803,11 +1803,126 @@ struct
         end
 
 
-      fun consume_sigSpec infdict i =
+      (** type tyvarseq tycon [and ...]
+        *     ^
+        *)
+      fun consume_sigSpecType infdict i =
+        let
+          val typee = tok (i-1)
+
+          fun parseOne i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) = parse_tycon i
+            in
+              ( i
+              , { tyvars = tyvars
+                , tycon = tycon
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( i
+          , Ast.Sig.Type
+              { typee = typee
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
+      (** eqtype tyvars tycon [and ...]
+        *       ^
+        *)
+      fun consume_sigSpecEqtype infdict i =
+        let
+          val eqtypee = tok (i-1)
+
+          fun parseOne i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) = parse_tycon i
+            in
+              ( i
+              , { tyvars =  tyvars
+                , tycon = tycon
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( i
+          , Ast.Sig.Eqtype
+              { eqtypee = eqtypee
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+      fun consume_oneSigSpec infdict i =
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
+        else if isReserved Token.Type at i then
+          consume_sigSpecType infdict (i+1)
+        else if isReserved Token.Eqtype at i then
+          consume_sigSpecEqtype infdict (i+1)
         else
-          (i, Ast.Sig.EmptySpec)
+          nyi "consume_oneSigSpec" i
+
+
+      and consume_sigSpec infdict i =
+        let
+          fun consume_maybeSemicolon i =
+            if isReserved Token.Semicolon at i then
+              (i+1, SOME (tok i))
+            else
+              (i, NONE)
+
+          val (i, specs) =
+            parse_zeroOrMoreWhile
+              (fn i => check Token.isSigSpecStartToken at i)
+              ( parse_two
+                ( consume_oneSigSpec infdict
+                , consume_maybeSemicolon
+                )
+              )
+              i
+
+          fun makeSpecMultiple () =
+            Ast.Sig.Multiple
+              { elems = Seq.map #1 specs
+              , delims = Seq.map #2 specs
+              }
+
+          val result =
+            case Seq.length specs of
+              0 =>
+                Ast.Sig.EmptySpec
+            | 1 =>
+                let
+                  val (spec, semicolon) = Seq.nth specs 0
+                in
+                  if isSome semicolon then
+                    makeSpecMultiple ()
+                  else
+                    spec
+                end
+            | _ =>
+                makeSpecMultiple ()
+        in
+          (i, result)
+        end
 
 
       (** sigexp where type tyvarseq tycon = ty [and/where type ...]
