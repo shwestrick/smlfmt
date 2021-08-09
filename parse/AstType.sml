@@ -759,6 +759,8 @@ struct
     * Top-level. Programs are sequences of top-level declarations.
     * Something a little cumbersome: strdec permits standard declarations too,
     * of values, types, etc. IMO this doesn't align with anyone's intuitive
+    * understanding of the language, but (I suppose) it is somewhat convenient
+    * for avoid unnecessary ambiguity in the grammar.
     *)
   datatype topdec =
     SigDec of Sig.sigdec
