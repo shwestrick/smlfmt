@@ -29,4 +29,23 @@ signature FOO =
     exception NotFound
     and Fail of string
     and Failure
+
+    structure Module : MODULE
+    and ModuleNameAgain : REALLYLONGSIGNATURENAME
+    and Stack :
+      sig
+        type 'a t
+
+        val empty : 'a t
+        val push : 'a -> 'a t -> 'a t
+        val pop : 'a t -> ('a * 'a t) option
+      end
+    and Stack :
+      sig
+        type 'a t
+      end where type 'a t = int
+
+    include FOO
+    include TESTSIGNATUREREALLYLONGNAME
+
   end

@@ -1851,7 +1851,7 @@ struct
               i
         in
           ( i
-          , Ast.Module.Val
+          , Ast.Sig.Val
               { vall = vall
               , elems = elems
               , delims = delims
@@ -1885,7 +1885,7 @@ struct
               i
         in
           ( i
-          , Ast.Module.Type
+          , Ast.Sig.Type
               { typee = typee
               , elems = elems
               , delims = delims
@@ -1919,7 +1919,7 @@ struct
               i
         in
           ( i
-          , Ast.Module.Eqtype
+          , Ast.Sig.Eqtype
               { eqtypee = eqtypee
               , elems = elems
               , delims = delims
@@ -1949,7 +1949,7 @@ struct
             val (i, {elems, delims}) = parse_datdesc i
           in
             ( i
-            , Ast.Module.Datatype
+            , Ast.Sig.Datatype
               { datatypee = datatypee
               , elems = elems
               , delims = delims
@@ -1965,7 +1965,7 @@ struct
             val (i, right_id) = parse_longvid i
           in
             ( i
-            , Ast.Module.ReplicateDatatype
+            , Ast.Sig.ReplicateDatatype
               { left_datatypee = left_datatypee
               , left_id = left_id
               , eq = eq
@@ -2009,7 +2009,7 @@ struct
               i
         in
           ( i
-          , Ast.Module.Exception
+          , Ast.Sig.Exception
               { exceptionn = exceptionn
               , elems = elems
               , delims= delims
@@ -2018,7 +2018,60 @@ struct
         end
 
 
-      fun consume_oneSigSpec infdict i =
+      (** structure strid : sigexp [and ...]
+        *          ^
+        *)
+      fun consume_sigSpecStructure infdict i =
+        let
+          val structuree = tok (i-1)
+
+          fun parseOne i =
+            let
+              val (i, id) = parse_vid i
+              val (i, colon) = parse_reserved Token.Colon i
+              val (i, sigexp) = consume_sigExp infdict i
+            in
+              ( i
+              , { id = id
+                , colon = colon
+                , sigexp = sigexp
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( i
+          , Ast.Sig.Structure
+              { structuree = structuree
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
+      (** include sigexp
+        *        ^
+        *)
+      and consume_sigSpecInclude infdict i =
+        let
+          val includee = tok (i-1)
+          val (i, sigexp) = consume_sigExp infdict i
+        in
+          ( i
+          , Ast.Sig.Include
+              { includee = includee
+              , sigexp = sigexp
+              }
+          )
+        end
+
+
+      and consume_oneSigSpec infdict i =
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
         else if isReserved Token.Type at i then
@@ -2029,6 +2082,10 @@ struct
           consume_sigSpecDatatypeDeclarationOrReplication infdict (i+1)
         else if isReserved Token.Exception at i then
           consume_sigSpecException infdict (i+1)
+        else if isReserved Token.Structure at i then
+          consume_sigSpecStructure infdict (i+1)
+        else if isReserved Token.Include at i then
+          consume_sigSpecInclude infdict (i+1)
         else
           nyi "consume_oneSigSpec" i
 
@@ -2052,7 +2109,7 @@ struct
               i
 
           fun makeSpecMultiple () =
-            Ast.Module.Multiple
+            Ast.Sig.Multiple
               { elems = Seq.map #1 specs
               , delims = Seq.map #2 specs
               }
@@ -2060,7 +2117,7 @@ struct
           val result =
             case Seq.length specs of
               0 =>
-                Ast.Module.EmptySpec
+                Ast.Sig.EmptySpec
             | 1 =>
                 let
                   val (spec, semicolon) = Seq.nth specs 0
@@ -2080,7 +2137,7 @@ struct
       (** sigexp where type tyvarseq tycon = ty [and/where type ...]
         *       ^
         *)
-      fun consume_sigExpWhereType sigexp infdict i =
+      and consume_sigExpWhereType sigexp infdict i =
         let
           fun nextIsWhereOrAndType i =
             (isReserved Token.Where at i orelse isReserved Token.And at i)
@@ -2111,7 +2168,7 @@ struct
             parse_oneOrMoreWhile nextIsWhereOrAndType parseOne i
         in
           ( i
-          , Ast.Module.WhereType
+          , Ast.Sig.WhereType
               { sigexp = sigexp
               , elems = elems
               }
@@ -2122,14 +2179,14 @@ struct
       (** sig spec end
         *    ^
         *)
-      fun consume_sigExpSigEnd infdict i =
+      and consume_sigExpSigEnd infdict i =
         let
           val sigg = tok (i-1)
           val (i, spec) = consume_sigSpec infdict i
           val (i, endd) = parse_reserved Token.End i
         in
           ( i
-          , Ast.Module.Spec
+          , Ast.Sig.Spec
               { sigg = sigg
               , spec = spec
               , endd = endd
@@ -2138,7 +2195,7 @@ struct
         end
 
 
-      fun consume_sigExp infdict i =
+      and consume_sigExp infdict i =
         let
           val (i, sigexp) =
             if isReserved Token.Sig at i then
@@ -2147,7 +2204,7 @@ struct
               let
                 val (i, sigid) = parse_sigid i
               in
-                (i, Ast.Module.Ident sigid)
+                (i, Ast.Sig.Ident sigid)
               end
         in
           if isReserved Token.Where at i then
@@ -2183,7 +2240,7 @@ struct
               i
 
           val result: Ast.topdec =
-            Ast.SigDec (Ast.Module.Signature
+            Ast.SigDec (Ast.Sig.Signature
               { signaturee = signaturee
               , elems = elems
               , delims = delims
@@ -2204,7 +2261,7 @@ struct
             val (i, infdict, dec) = consume_dec infdict i
           in
             ( (i, infdict)
-            , Ast.StrDec (Ast.Module.Dec dec)
+            , Ast.StrDec (Ast.Str.Dec dec)
             )
           end
 

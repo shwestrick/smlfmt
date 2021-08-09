@@ -660,10 +660,10 @@ struct
 
   fun showSpec spec =
     case spec of
-      Ast.Module.EmptySpec =>
+      Ast.Sig.EmptySpec =>
         empty
 
-    | Ast.Module.Val {elems, ...} =>
+    | Ast.Sig.Val {elems, ...} =>
         let
           fun showOne first {vid, ty, ...} =
             text (if first then "val" else "and")
@@ -676,7 +676,7 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Module.Type {elems, ...} =>
+    | Ast.Sig.Type {elems, ...} =>
         let
           fun showOne first {tyvars, tycon} =
             separateWithSpaces
@@ -690,7 +690,7 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Module.Eqtype {elems, ...} =>
+    | Ast.Sig.Eqtype {elems, ...} =>
         let
           fun showOne first {tyvars, tycon} =
             separateWithSpaces
@@ -704,7 +704,7 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Module.Datatype {elems, ...} =>
+    | Ast.Sig.Datatype {elems, ...} =>
         let
           fun showCon {vid, arg} =
               group (
@@ -745,7 +745,7 @@ struct
             (Seq.map (show_datdesc false) (Seq.drop elems 1))
         end
 
-    | Ast.Module.ReplicateDatatype {left_id, right_id, ...} =>
+    | Ast.Sig.ReplicateDatatype {left_id, right_id, ...} =>
         group (
           separateWithSpaces
             [ SOME (text "datatype")
@@ -760,7 +760,7 @@ struct
             )
         )
 
-    | Ast.Module.Exception {elems, ...} =>
+    | Ast.Sig.Exception {elems, ...} =>
         let
           fun showOne first {vid, arg} =
               group (
@@ -776,7 +776,32 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Module.Multiple {elems, delims} =>
+    | Ast.Sig.Structure {elems, ...} =>
+        let
+          fun showOne first {id, sigexp, ...} =
+            group (
+              separateWithSpaces
+                [ SOME (text (if first then "structure" else "and"))
+                , SOME (text (Token.toString id))
+                , SOME (text ":") ]
+              $$
+              spaces 2 ++ showSigExp sigexp
+            )
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Include {sigexp, ...} =>
+        group (
+          text "include"
+          $$
+          spaces 2 ++
+            showSigExp sigexp
+        )
+
+    | Ast.Sig.Multiple {elems, delims} =>
         let
           fun showOne i =
             showSpec (Seq.nth elems i)
@@ -791,12 +816,12 @@ struct
 
 
 
-  fun showSigExp sigexp =
+  and showSigExp sigexp =
     case sigexp of
-      Ast.Module.Ident id =>
+      Ast.Sig.Ident id =>
         text (Token.toString id)
 
-    | Ast.Module.Spec {spec, ...} =>
+    | Ast.Sig.Spec {spec, ...} =>
         group (
           text "sig"
           $$
@@ -805,7 +830,7 @@ struct
           text "end"
         )
 
-    | Ast.Module.WhereType {sigexp, elems} =>
+    | Ast.Sig.WhereType {sigexp, elems} =>
         let
           val se = showSigExp sigexp
 
@@ -826,7 +851,7 @@ struct
         text "<sigexp>" *)
 
 
-  fun showSigDec (Ast.Module.Signature {elems, delims, ...}) =
+  fun showSigDec (Ast.Sig.Signature {elems, delims, ...}) =
     let
       fun showOne isFirst {ident, sigexp, ...} =
         group (
@@ -849,7 +874,7 @@ struct
       let
         fun showOne td =
           case td of
-            Ast.StrDec (Ast.Module.Dec d) => showDec d
+            Ast.StrDec (Ast.Str.Dec d) => showDec d
           | Ast.SigDec d => showSigDec d
           | _ => raise Fail "Not yet implemented!"
 
