@@ -1928,7 +1928,6 @@ struct
         end
 
 
-<<<<<<< HEAD
       (** datatype datdesc
         *         ^
         * OR

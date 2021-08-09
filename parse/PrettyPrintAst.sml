@@ -704,7 +704,6 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-<<<<<<< HEAD
     | Ast.Sig.Datatype {elems, ...} =>
         let
           fun showCon {vid, arg} =
@@ -778,9 +777,6 @@ struct
         end
 
     | Ast.Sig.Structure {elems, ...} =>
-=======
-    | Ast.Module.Structure {elems, ...} =>
->>>>>>> f55722e (added structure specs)
         let
           fun showOne first {id, sigexp, ...} =
             group (
@@ -797,7 +793,6 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-<<<<<<< HEAD
     | Ast.Sig.Include {sigexp, ...} =>
         group (
           text "include"
@@ -807,9 +802,6 @@ struct
         )
 
     | Ast.Sig.Multiple {elems, delims} =>
-=======
-    | Ast.Module.Multiple {elems, delims} =>
->>>>>>> f55722e (added structure specs)
         let
           fun showOne i =
             showSpec (Seq.nth elems i)
