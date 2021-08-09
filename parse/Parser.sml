@@ -1794,7 +1794,7 @@ struct
               i
         in
           ( i
-          , Ast.Sig.Val
+          , Ast.Module.Val
               { vall = vall
               , elems = elems
               , delims = delims
@@ -1828,7 +1828,7 @@ struct
               i
         in
           ( i
-          , Ast.Sig.Type
+          , Ast.Module.Type
               { typee = typee
               , elems = elems
               , delims = delims
@@ -1862,7 +1862,7 @@ struct
               i
         in
           ( i
-          , Ast.Sig.Eqtype
+          , Ast.Module.Eqtype
               { eqtypee = eqtypee
               , elems = elems
               , delims = delims
@@ -1900,7 +1900,7 @@ struct
               i
 
           fun makeSpecMultiple () =
-            Ast.Sig.Multiple
+            Ast.Module.Multiple
               { elems = Seq.map #1 specs
               , delims = Seq.map #2 specs
               }
@@ -1908,7 +1908,7 @@ struct
           val result =
             case Seq.length specs of
               0 =>
-                Ast.Sig.EmptySpec
+                Ast.Module.EmptySpec
             | 1 =>
                 let
                   val (spec, semicolon) = Seq.nth specs 0
@@ -1959,7 +1959,7 @@ struct
             parse_oneOrMoreWhile nextIsWhereOrAndType parseOne i
         in
           ( i
-          , Ast.Sig.WhereType
+          , Ast.Module.WhereType
               { sigexp = sigexp
               , elems = elems
               }
@@ -1977,7 +1977,7 @@ struct
           val (i, endd) = parse_reserved Token.End i
         in
           ( i
-          , Ast.Sig.Spec
+          , Ast.Module.Spec
               { sigg = sigg
               , spec = spec
               , endd = endd
@@ -1995,7 +1995,7 @@ struct
               let
                 val (i, sigid) = parse_sigid i
               in
-                (i, Ast.Sig.Ident sigid)
+                (i, Ast.Module.Ident sigid)
               end
         in
           if isReserved Token.Where at i then
@@ -2031,7 +2031,7 @@ struct
               i
 
           val result: Ast.topdec =
-            Ast.SigDec (Ast.Sig.Signature
+            Ast.SigDec (Ast.Module.Signature
               { signaturee = signaturee
               , elems = elems
               , delims = delims
@@ -2052,7 +2052,7 @@ struct
             val (i, infdict, dec) = consume_dec infdict i
           in
             ( (i, infdict)
-            , Ast.StrDec (Ast.Str.Dec dec)
+            , Ast.StrDec (Ast.Module.Dec dec)
             )
           end
 

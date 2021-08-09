@@ -555,9 +555,9 @@ struct
 
 
   (** =======================================================================
-    * Module Signatures
+    * Module Structures and Signatures
     *)
-  structure Sig =
+  structure Module =
   struct
 
     datatype spec =
@@ -703,6 +703,7 @@ struct
     (** TODO finish 'sigexp' type *)
 
 
+
     and sigdec =
 
     (** signature sigid = sigexp [and ...] *)
@@ -718,7 +719,6 @@ struct
         , delims: Token.t Seq.t
         }
 
-  end
 
   (** =======================================================================
     * Module Structures
@@ -727,7 +727,9 @@ struct
   struct
 
     (** TODO: finish *)
-    datatype strexp = SE
+    and strexp = SE
+
+
 
 
 
@@ -759,8 +761,8 @@ struct
     * for avoid unnecessary ambiguity in the grammar.
     *)
   datatype topdec =
-    SigDec of Sig.sigdec
-  | StrDec of Str.strdec
+    SigDec of Module.sigdec
+  | StrDec of Module.strdec
   | FunDec of Fun.fundec
 
   datatype ast =
