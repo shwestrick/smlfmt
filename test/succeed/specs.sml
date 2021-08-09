@@ -46,10 +46,6 @@ signature FOO =
       end where type 'a t = int
 
     include FOO
-<<<<<<< HEAD
-    include TESTSIGNATUREREALLYLONGNAME
-
-=======
     include
       sig
         type 'a t
@@ -60,5 +56,5 @@ signature FOO =
       sig
         type 'a t
       end where type 'a t = string
->>>>>>> f5a847e (added include spec)
+
   end
