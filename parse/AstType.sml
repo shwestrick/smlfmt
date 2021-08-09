@@ -729,8 +729,6 @@ struct
     (** TODO: finish *)
     datatype strexp = SE
 
-
-
     (** TODO: finish *)
     datatype strdec =
       Dec of Exp.dec
