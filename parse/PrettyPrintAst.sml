@@ -244,6 +244,7 @@ struct
                   group (
                     separateWithSpaces
                       [ SOME (text (if mark then "datatype" else "and"))
+                      , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
                       , SOME (text (Token.toString tycon))
                       , SOME (text "=")
                       ]
@@ -269,6 +270,7 @@ struct
                   group (
                     separateWithSpaces
                       [ SOME (text (if mark then "withtypee" else "and"))
+                      , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
                       , SOME (text (Token.toString tycon))
                       , SOME (text "=")
                       , SOME (showTy ty)
@@ -702,6 +704,103 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
+    | Ast.Sig.Datatype {elems, ...} =>
+        let
+          fun showCon {vid, arg} =
+              group (
+                separateWithSpaces
+                  [ SOME (text (Token.toString vid))
+                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+                  ]
+              )
+
+          fun show_datdesc mark {tyvars, tycon, elems, ...} =
+            let
+              val initial =
+                group (
+                  separateWithSpaces
+                    [ SOME (text (if mark then "datatype" else "and"))
+                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
+                    , SOME (text (Token.toString tycon))
+                    , SOME (text "=")
+                    ]
+                )
+            in
+              group (
+                initial
+                $$
+                (spaces 2 ++
+                  group (
+                    Seq.iterate
+                      (fn (prev, next) => prev $$ text "|" ++ space ++ next)
+                      (spaces 2 ++ showCon (Seq.nth elems 0))
+                      (Seq.map showCon (Seq.drop elems 1))
+                  )
+                )
+              )
+            end
+        in
+          Seq.iterate op$$
+            (show_datdesc true (Seq.nth elems 0))
+            (Seq.map (show_datdesc false) (Seq.drop elems 1))
+        end
+
+    | Ast.Sig.ReplicateDatatype {left_id, right_id, ...} =>
+        group (
+          separateWithSpaces
+            [ SOME (text "datatype")
+            , SOME (text (Token.toString left_id))
+            , SOME (text "=")
+            ]
+          $$
+          spaces 2 ++
+            ( text "datatype"
+              ++ space ++
+              text (Token.toString (Ast.MaybeLong.getToken right_id))
+            )
+        )
+
+    | Ast.Sig.Exception {elems, ...} =>
+        let
+          fun showOne first {vid, arg} =
+              group (
+                separateWithSpaces
+                  [ SOME (text (if first then "exception" else "and"))
+                  , SOME (text (Token.toString vid))
+                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+                  ]
+              )
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Structure {elems, ...} =>
+        let
+          fun showOne first {id, sigexp, ...} =
+            group (
+              separateWithSpaces
+                [ SOME (text (if first then "structure" else "and"))
+                , SOME (text (Token.toString id))
+                , SOME (text ":") ]
+              $$
+              spaces 2 ++ showSigExp sigexp
+            )
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Include {sigexp, ...} =>
+        group (
+          text "include"
+          $$
+          spaces 2 ++
+            showSigExp sigexp
+        )
+
     | Ast.Sig.Multiple {elems, delims} =>
         let
           fun showOne i =
@@ -712,12 +811,12 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ showOne i)
         end
 
-    (*| _ =>
-        text "<spec>"*)
+    | _ =>
+        text "<spec>"
 
 
 
-  fun showSigExp sigexp =
+  and showSigExp sigexp =
     case sigexp of
       Ast.Sig.Ident id =>
         text (Token.toString id)
