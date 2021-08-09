@@ -2086,8 +2086,6 @@ struct
           consume_sigSpecStructure infdict (i+1)
         else if isReserved Token.Include at i then
           consume_sigSpecInclude infdict (i+1)
-        else if isReserved Token.Datatype at i then
-          consume_sigSpecDatatypeDeclarationOrReplication infdict (i+1)
         else
           nyi "consume_oneSigSpec" i
 
