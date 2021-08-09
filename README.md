@@ -133,14 +133,14 @@ Signature Expressions:
 
 Signature Specifications:
 - [x] value
-- [ ] type
-- [ ] eqtype
-- [ ] datatypes
-- [ ] datatype replications
-- [ ] exceptions
-- [ ] structures (`structure X: S`)
-- [ ] include
-- [ ] multiple specs in sequence
+- [x] type
+- [x] eqtype
+- [x] datatypes
+- [x] datatype replications
+- [x] exceptions
+- [x] structures (`structure X: S`)
+- [x] include
+- [x] multiple specs in sequence
 - [ ] sharing-type (e.g. `spec sharing type a = b = c`)
 
 Structure Expressions
