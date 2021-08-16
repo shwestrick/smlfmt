@@ -5,11 +5,13 @@ Ast.sml
 PrettyPrintAst.sml
 
 local
+  ExpPatRestriction.sml
   FixExpPrecedence.sml
   InfixDict.sml
   ParserCombinators.sml
   ParseSimple.sml
   ParseTy.sml
+  ParsePat.sml
   Parser.sml
 in
   structure Parser

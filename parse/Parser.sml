@@ -12,7 +12,11 @@ struct
 
   structure PC = ParserCombinators
   structure PS = ParseSimple
+  structure PT = ParseTy
+  structure PP = ParsePat
   exception Error = PS.Error
+
+  structure Restriction = ExpPatRestriction
 
   fun error (info as {what, pos, explain}) =
     PS.error info
@@ -65,47 +69,6 @@ struct
     end
 
 
-  fun makeInfixPat infdict (left, id, right) =
-    let
-      val hp = InfixDict.higherPrecedence infdict
-      val sp = InfixDict.samePrecedence infdict
-      val aLeft = InfixDict.associatesLeft infdict
-      val aRight = InfixDict.associatesRight infdict
-
-      fun bothLeft (x, y) = aLeft x andalso aLeft y
-      fun bothRight (x, y) = aRight x andalso aRight y
-
-      val default =
-        Ast.Pat.Infix
-          { left = left
-          , id = id
-          , right = right
-          }
-    in
-      case right of
-        Ast.Pat.Infix {left=rLeft, id=rId, right=rRight} =>
-          if hp (rId, id) orelse (sp (rId, id) andalso bothRight (rId, id)) then
-            default
-          else if hp (id, rId) orelse (sp (rId, id) andalso bothLeft (rId, id)) then
-            Ast.Pat.Infix
-              { left = makeInfixPat infdict (left, id, rLeft)
-              , id = rId
-              , right = rRight
-              }
-          else
-            error
-              { pos = Token.getSource rId
-              , what = "Ambiguous infix pattern."
-              , explain =
-                  SOME "You are not allowed to mix left- and right-associative \
-                       \operators of same precedence"
-              }
-
-      | _ =>
-          default
-    end
-
-
   fun updateInfixDict infdict dec =
     let
       fun parsePrec p =
@@ -146,40 +109,11 @@ struct
         raise Fail "Bug: Parser.updateInfixDict: argument is not an infixity dec"
     end
 
-
-  (** ========================================================================
-    * Expression/Pattern hierarchy
-    *
-    * This just implements a dumb little ordering:
-    *   AtExp/Pat < AppExp/Pat < InfExp/Pat < Exp/Pat
-    * and then e.g. `appOkay r` checks `AppExp < r`
-    *)
-
-  datatype exp_restrict =
-    AtRestriction    (* AtExp/Pat *)
-  | AppRestriction   (* AppExp/Pat *)
-  | InfRestriction   (* InfExp/Pat *)
-  | NoRestriction    (* Exp *)
-  fun appOkay restrict =
-    case restrict of
-      AtRestriction => false
-    | _ => true
-  fun infOkay restrict =
-    case restrict of
-      AtRestriction => false
-    | AppRestriction => false
-    | _ => true
-  fun anyOkay restrict =
-    case restrict of
-      NoRestriction => true
-    | _ => false
-
   (** ========================================================================
     *)
 
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
-
 
   fun parse src =
     let
@@ -241,7 +175,9 @@ struct
       fun parse_maybeLongTycon i =
         PS.maybeLongTycon toks i
       fun parse_ty i =
-        ParseTy.ty toks i
+        PT.ty toks i
+      fun parse_pat infdict restriction i =
+        PP.pat toks infdict restriction i
 
 
       fun parse_zeroOrMoreDelimitedByReserved x i =
@@ -445,342 +381,7 @@ struct
 
       (** ================================================================= *)
 
-      fun consume_pat infdict restriction i =
-        let
-          val (i, pat) =
-            if isReserved Token.Underscore at i then
-              ( i+1
-              , Ast.Pat.Wild (tok i)
-              )
-            else if check Token.isPatternConstant at i then
-              ( i+1
-              , Ast.Pat.Const (tok i)
-              )
-            else if check Token.isMaybeLongIdentifier at i then
-              consume_patValueIdentifier infdict NONE i
-            else if isReserved Token.Op at i then
-              consume_patValueIdentifier infdict (SOME (tok i)) (i+1)
-            else if isReserved Token.OpenParen at i then
-              consume_patParensOrTupleOrUnit infdict (tok i) (i+1)
-            else if isReserved Token.OpenSquareBracket at i then
-              consume_patListLiteral infdict (tok i) (i+1)
-            else if isReserved Token.OpenCurlyBracket at i then
-              consume_patRecord infdict (tok i) (i+1)
-            else
-              nyi "consume_pat" i
-        in
-          consume_afterPat infdict restriction pat i
-        end
 
-
-      (** pat
-        *    ^
-        *
-        * Multiple possibilities for what could be found after a pattern:
-        *   [op]longvid atpat     -- identifiers might actually be constructors
-        *   pat vid pat           -- infix constructor pattern
-        *   pat : ty              -- type annotation
-        *   [op]vid[: ty] as pat  -- layered
-        *)
-      and consume_afterPat infdict restriction pat i =
-        let
-          val (again, (i, pat)) =
-            if
-              (** Annoying edge case with '='... we can use it in an infix
-                * expression as an equality predicate, but it is NEVER valid as
-                * an infix constructor, because SML forbids rebinding '=' in
-                * any program.
-                *
-                * Note to language designers... this is strange. Why not just
-                * use something reasonable like "==" for equality predicate?
-                * It makes the language more readable too...
-                *)
-              infOkay restriction
-              andalso check Token.isValueIdentifierNoEqual at i
-              andalso InfixDict.contains infdict (tok i)
-            then
-              (true, consume_patInfix infdict pat (tok i) (i+1))
-
-            else if
-              appOkay restriction
-              andalso Ast.Pat.okayForConPat pat
-              andalso check Token.isAtPatStartToken at i
-            then
-              (true, consume_patCon infdict (Ast.Pat.unpackForConPat pat) i)
-
-            else if
-
-              isReserved Token.Colon at i
-              andalso anyOkay restriction
-            then
-              (true, consume_patTyped infdict pat (tok i) (i+1))
-
-            else if
-              isReserved Token.As at i
-              andalso anyOkay restriction
-              andalso Ast.Pat.okayForAsPat pat
-            then
-              (true, consume_patAs infdict (Ast.Pat.unpackForAsPat pat) (tok i) (i+1))
-
-            else
-              (false, (i, pat))
-        in
-          if again then
-            consume_afterPat infdict restriction pat i
-          else
-            (i, pat)
-        end
-
-
-      (** { patrow [, ...] }
-        *  ^
-        *)
-      and consume_patRecord infdict leftBracket i =
-        let
-          val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedByReserved
-              {parseElem = consume_patRow infdict, delim = Token.Comma}
-              i
-
-          val (i, rightBracket) = parse_reserved Token.CloseCurlyBracket i
-        in
-          ( i
-          , Ast.Pat.Record
-              { left = leftBracket
-              , elems = elems
-              , delims = delims
-              , right = rightBracket
-              }
-          )
-        end
-
-
-      (** A patrow is one of:
-        *   ...
-        *   lab = pat
-        *   vid[: ty] [as pat]
-        *)
-      and consume_patRow infdict i =
-        if isReserved Token.DotDotDot at i then
-          if isReserved Token.CloseCurlyBracket at (i+1) then
-            (i+1, Ast.Pat.DotDotDot (tok i))
-          else
-            error
-              { pos = Token.getSource (tok i)
-              , what = "Unexpected token."
-              , explain = SOME "This can only appear at the end of the record."
-              }
-        else if check Token.isRecordLabel at i
-                andalso isReserved Token.Equal at (i+1) then
-          let
-            val (i, lab) = (i+1, tok i)
-            val (i, eq) = (i+1, tok i)
-            val (i, pat) = consume_pat infdict NoRestriction i
-          in
-            ( i
-            , Ast.Pat.LabEqPat
-                { lab = lab
-                , eq = eq
-                , pat = pat
-                }
-            )
-          end
-        else if check Token.isValueIdentifierNoEqual at i then
-          let
-            val (i, vid) = (i+1, tok i)
-            val (i, ty) =
-              if not (isReserved Token.Colon at i) then
-                (i, NONE)
-              else
-                let
-                  val (i, colon) = (i+1, tok i)
-                  val (i, ty) = parse_ty i
-                in
-                  (i, SOME {colon=colon, ty=ty})
-                end
-
-            val (i, aspat) =
-              if not (isReserved Token.As at i) then
-                (i, NONE)
-              else
-                let
-                  val (i, ass) = (i+1, tok i)
-                  val (i, pat) = consume_pat infdict NoRestriction i
-                in
-                  (i, SOME {ass=ass, pat=pat})
-                end
-          in
-            ( i
-            , Ast.Pat.LabAsPat
-                { id = vid
-                , ty = ty
-                , aspat = aspat
-                }
-            )
-          end
-        else
-          error
-            { pos = Token.getSource (tok i)
-            , what = "Invalid token. Expected row of record pattern."
-            , explain = NONE
-            }
-
-
-      (** [op]vid[: ty] as pat
-        *                 ^
-        *)
-      and consume_patAs infdict {opp, id, ty} ass i =
-        let
-          val (i, pat) = consume_pat infdict NoRestriction i
-        in
-          ( i
-          , Ast.Pat.Layered
-              { opp = opp
-              , id = id
-              , ty = ty
-              , ass = ass
-              , pat = pat
-              }
-          )
-        end
-
-
-      (** [op]longvid atpat
-        *            ^
-        *)
-      and consume_patCon infdict {opp, id} i =
-        let
-          val (i, atpat) = consume_pat infdict AtRestriction i
-        in
-          ( i
-          , Ast.Pat.Con
-              { opp = opp
-              , id = id
-              , atpat = atpat
-              }
-          )
-        end
-
-
-      (** pat : ty
-        *      ^
-        *)
-      and consume_patTyped infdict pat colon i =
-        let
-          val (i, ty) = parse_ty i
-        in
-          ( i
-          , Ast.Pat.Typed
-              { pat = pat
-              , colon = colon
-              , ty = ty
-              }
-          )
-        end
-
-
-      (** pat vid pat
-        *        ^
-        *)
-      and consume_patInfix infdict leftPat vid i =
-        let
-          val (i, rightPat) = consume_pat infdict InfRestriction i
-        in
-          ( i
-          , makeInfixPat infdict (leftPat, vid, rightPat)
-          )
-        end
-
-
-      (** [op] longvid
-        *     ^
-        *)
-      and consume_patValueIdentifier infdict opp i =
-        let
-          val (i, vid) = parse_longvid i
-          val _ = check_normalOrOpInfix infdict opp (Ast.MaybeLong.getToken vid)
-        in
-          ( i
-          , Ast.Pat.Ident
-              { opp = opp
-              , id = vid
-              }
-          )
-        end
-
-
-      (** [ ... ]
-        *  ^
-        *)
-      and consume_patListLiteral infdict openBracket i =
-        let
-          fun finish elems delims closeBracket =
-            Ast.Pat.List
-              { left = openBracket
-              , right = closeBracket
-              , elems = elems
-              , delims = delims
-              }
-        in
-          if isReserved Token.CloseSquareBracket at i then
-            (i+1, finish (Seq.empty ()) (Seq.empty ()) (tok i))
-          else
-            let
-              val parseElem = consume_pat infdict NoRestriction
-              val (i, {elems, delims}) =
-                parse_oneOrMoreDelimitedByReserved
-                  {parseElem = parseElem, delim = Token.Comma}
-                  i
-              val (i, closeBracket) =
-                parse_reserved Token.CloseSquareBracket i
-            in
-              (i, finish elems delims closeBracket)
-            end
-        end
-
-
-      (** ( )
-        *  ^
-        * OR
-        * ( pat )
-        *  ^
-        * OR
-        * ( pat, pat [, pat ...] )
-        *  ^
-        *)
-      and consume_patParensOrTupleOrUnit infdict leftParen i =
-        if isReserved Token.CloseParen at i then
-          ( i+1
-          , Ast.Pat.Unit
-              { left = leftParen
-              , right = tok i
-              }
-          )
-        else
-          let
-            val parseElem = consume_pat infdict NoRestriction
-            val (i, {elems, delims}) =
-              parse_oneOrMoreDelimitedByReserved
-                {parseElem = parseElem, delim = Token.Comma}
-                i
-            val (i, rightParen) = parse_reserved Token.CloseParen i
-            val result =
-              if Seq.length elems = 1 then
-                Ast.Pat.Parens
-                  { left = leftParen
-                  , pat = Seq.nth elems 0
-                  , right = rightParen
-                  }
-              else
-                Ast.Pat.Tuple
-                  { left = leftParen
-                  , elems = elems
-                  , delims = delims
-                  , right = rightParen
-                  }
-          in
-            (i, result)
-          end
 
 
       (** ================================================================= *)
@@ -949,7 +550,7 @@ struct
                   val (i, args) =
                     parse_zeroOrMoreWhile
                       (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
-                      (consume_pat infdict AtRestriction)
+                      (parse_pat infdict Restriction.At)
                       i
 
                   val (i, ty) =
@@ -963,7 +564,7 @@ struct
                         (i, SOME {colon = colon, ty = ty})
                       end
                   val (i, eq) = parse_reserved Token.Equal i
-                  val (i, exp) = consume_exp infdict NoRestriction i
+                  val (i, exp) = consume_exp infdict Restriction.None i
                 in
                   if not (Token.same (func_name, vid)) then
                     error
@@ -1195,9 +796,9 @@ struct
           fun parseElem i =
             let
               val (i, recc) = parse_maybeReserved Token.Rec i
-              val (i, pat) = consume_pat infdict NoRestriction i
+              val (i, pat) = parse_pat infdict Restriction.None i
               val (i, eq) = parse_reserved Token.Equal i
-              val (i, exp) = consume_exp infdict NoRestriction i
+              val (i, exp) = consume_exp infdict Restriction.None i
             in
               ( i
               , { recc = recc
@@ -1248,7 +849,7 @@ struct
             else if isReserved Token.Hash at i then
               consume_expSelect (tok i) (i+1)
             else if isReserved Token.If at i then
-              if anyOkay restriction then
+              if Restriction.anyOkay restriction then
                 consume_expIfThenElse infdict (tok i) (i+1)
               else
                 error
@@ -1258,7 +859,7 @@ struct
                   }
 
             else if isReserved Token.Raise at i then
-              if anyOkay restriction then
+              if Restriction.anyOkay restriction then
                 consume_expRaise infdict (i+1)
               else
                 error
@@ -1268,7 +869,7 @@ struct
                   }
 
             else if isReserved Token.Fn at i then
-              if anyOkay restriction then
+              if Restriction.anyOkay restriction then
                 consume_expFn infdict (i+1)
               else
                 error
@@ -1278,7 +879,7 @@ struct
                   }
 
             else if isReserved Token.While at i then
-              if anyOkay restriction then
+              if Restriction.anyOkay restriction then
                 consume_expWhile infdict (i+1)
               else
                 error
@@ -1324,26 +925,26 @@ struct
               (false, (i, exp))
 
             else if
-              anyOkay restriction
+              Restriction.anyOkay restriction
               andalso isReserved Token.Colon at i
             then
               (true, consume_expTyped exp (i+1))
 
             else if
-              anyOkay restriction
+              Restriction.anyOkay restriction
               andalso isReserved Token.Handle at i
             then
               (true, consume_expHandle infdict exp (i+1))
 
             else if
-              anyOkay restriction
+              Restriction.anyOkay restriction
               andalso (isReserved Token.Andalso at i
               orelse isReserved Token.Orelse at i)
             then
               (true, consume_expAndalsoOrOrelse infdict exp (i+1))
 
             else if
-              infOkay restriction
+              Restriction.infOkay restriction
               andalso Ast.Exp.isInfExp exp
               andalso check Token.isValueIdentifier at i
               andalso InfixDict.contains infdict (tok i)
@@ -1351,7 +952,7 @@ struct
               (true, consume_expInfix infdict exp (i+1))
 
             else if
-              appOkay restriction
+              Restriction.appOkay restriction
             then
               (true, consume_expApp infdict exp i)
 
@@ -1374,7 +975,7 @@ struct
             let
               val (i, lab) = parse_recordLabel i
               val (i, eq) = parse_reserved Token.Equal i
-              val (i, exp) = consume_exp infdict NoRestriction i
+              val (i, exp) = consume_exp infdict Restriction.None i
             in
               ( i
               , { lab = lab
@@ -1420,11 +1021,11 @@ struct
 
       and consume_expIfThenElse infdict iff i =
         let
-          val (i, exp1) = consume_exp infdict NoRestriction i
+          val (i, exp1) = consume_exp infdict Restriction.None i
           val (i, thenn) = parse_reserved Token.Then i
-          val (i, exp2) = consume_exp infdict NoRestriction i
+          val (i, exp2) = consume_exp infdict Restriction.None i
           val (i, elsee) = parse_reserved Token.Else i
-          val (i, exp3) = consume_exp infdict NoRestriction i
+          val (i, exp3) = consume_exp infdict Restriction.None i
 
           val result =
             Ast.Exp.IfThenElse
@@ -1465,7 +1066,7 @@ struct
             (i+1, finish (Seq.empty ()) (Seq.empty ()) (tok i))
           else
             let
-              val parseElem = consume_exp infdict NoRestriction
+              val parseElem = consume_exp infdict Restriction.None
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
                   {parseElem = parseElem, delim = Token.Comma}
@@ -1484,7 +1085,7 @@ struct
       and consume_expCase infdict i =
         let
           val casee = tok (i-1)
-          val (i, exp) = consume_exp infdict NoRestriction i
+          val (i, exp) = consume_exp infdict Restriction.None i
           val (i, off) = parse_reserved Token.Of i
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
@@ -1508,9 +1109,9 @@ struct
         *)
       and consume_matchElem infdict i =
         let
-          val (i, pat) = consume_pat infdict NoRestriction i
+          val (i, pat) = parse_pat infdict Restriction.None i
           val (i, arrow) = parse_reserved Token.FatArrow i
-          val (i, exp) = consume_exp infdict NoRestriction i
+          val (i, exp) = consume_exp infdict Restriction.None i
         in
           (i, {pat=pat, arrow=arrow, exp=exp})
         end
@@ -1563,7 +1164,7 @@ struct
           (* val _ = print ("infix\n") *)
 
           val id = tok (i-1)
-          val (i, exp2) = consume_exp infdict InfRestriction i
+          val (i, exp2) = consume_exp infdict Restriction.Inf i
         in
           ( i
           , makeInfixExp infdict (exp1, id, exp2)
@@ -1579,7 +1180,7 @@ struct
         let
           (* val _ = print ("app\n") *)
 
-          val (i, rightExp) = consume_exp infdict AtRestriction i
+          val (i, rightExp) = consume_exp infdict Restriction.At i
         in
           ( i
           , Ast.Exp.App
@@ -1596,7 +1197,7 @@ struct
       and consume_expRaise infdict i =
         let
           val raisee = tok (i-1)
-          val (i, exp) = consume_exp infdict NoRestriction i
+          val (i, exp) = consume_exp infdict Restriction.None i
 
           val result =
             Ast.Exp.Raise
@@ -1646,7 +1247,7 @@ struct
       and consume_expAndalsoOrOrelse infdict exp1 i =
         let
           val junct = tok (i-1)
-          val (i, exp2) = consume_exp infdict NoRestriction i
+          val (i, exp2) = consume_exp infdict Restriction.None i
 
           val result =
             if Token.isAndalso junct then
@@ -1677,9 +1278,9 @@ struct
       and consume_expWhile infdict i =
         let
           val whilee = tok (i-1)
-          val (i, exp1) = consume_exp infdict NoRestriction i
+          val (i, exp1) = consume_exp infdict Restriction.None i
           val (i, doo) = parse_reserved Token.Do i
-          val (i, exp2) = consume_exp infdict NoRestriction i
+          val (i, exp2) = consume_exp infdict Restriction.None i
 
           val result =
             Ast.Exp.While
@@ -1727,7 +1328,7 @@ struct
           val (i, infdict, dec) = consume_dec infdict i
           val (i, inn) = parse_reserved Token.In i
 
-          val parseElem = consume_exp infdict NoRestriction
+          val parseElem = consume_exp infdict Restriction.None
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = parseElem, delim = Token.Semicolon}
@@ -1767,7 +1368,7 @@ struct
           )
         else
           let
-            val parseElem = consume_exp infdict NoRestriction
+            val parseElem = consume_exp infdict Restriction.None
             val (i, exp) = parseElem i
           in
             if isReserved Token.CloseParen at i then
