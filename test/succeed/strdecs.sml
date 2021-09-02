@@ -44,7 +44,4 @@ structure X =
      val x: t = 5
      datatype P = L | R)
 
-(** uncomment this as soon as sequenced multiple strdecs are added to
-  * to parser.
-  *)
-(* structure S = F (structure X:Foo = X val hello: string = "hello") *)
+structure S = F (structure X:Foo = X val hello: string = "hello")

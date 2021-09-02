@@ -759,9 +759,11 @@ struct
 
     (** TODO: finish *)
     and strdec =
-      CoreDec of Exp.dec
+      DecEmpty
 
-    | Structure of
+    | DecCore of Exp.dec
+
+    | DecStructure of
         { structuree: Token.t
         , elems:
             { strid: Token.t
@@ -775,6 +777,11 @@ struct
 
         (** 'and' between elems *)
         , delims: Token.t Seq.t
+        }
+
+    | DecMultiple of
+        { elems: strdec Seq.t
+        , delims: Token.t option Seq.t
         }
 
   end

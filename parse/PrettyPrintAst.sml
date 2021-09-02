@@ -866,6 +866,23 @@ struct
         (Seq.map (showOne false) (Seq.drop elems 1))
     end
 
+  fun showStrDec d =
+    case d of
+      Ast.Str.DecCore d =>
+        showDec d
+
+    | Ast.Str.DecMultiple {elems, delims} =>
+        let
+          fun f i =
+            showStrDec (Seq.nth elems i)
+            ++
+            (if Option.isSome (Seq.nth delims i) then text ";" else empty)
+        in
+          Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
+        end
+
+    | _ => text "<strdec>"
+
 
   fun pretty (Ast.Ast tds) =
     if Seq.length tds = 0 then
@@ -874,8 +891,7 @@ struct
       let
         fun showOne td =
           case td of
-            Ast.StrDec (Ast.Str.CoreDec d) => showDec d
-          | Ast.StrDec _ => text "<strdec>"
+            Ast.StrDec d => showStrDec d
           | Ast.SigDec d => showSigDec d
           | _ => raise Fail "Not yet implemented!"
 

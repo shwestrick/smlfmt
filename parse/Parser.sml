@@ -728,7 +728,7 @@ struct
               i
         in
           ( i
-          , Ast.Str.Structure
+          , Ast.Str.DecStructure
               { structuree = structuree
               , elems = elems
               , delims = delims
@@ -737,7 +737,8 @@ struct
         end
 
 
-      and consume_strdec (i, infdict) : ((int * InfixDict.t) * Ast.Str.strdec) =
+      and consume_exactlyOneStrdec (i, infdict)
+          : ((int * InfixDict.t) * Ast.Str.strdec) =
         if isReserved Token.Structure i then
           let
             val (i, dec) = consume_strdecStructure infdict (tok i) (i+1)
@@ -747,12 +748,61 @@ struct
         else
           let
             val ((i, infdict), dec) =
-              ParseExpAndDec.dec toks (i, infdict)
+              ParseExpAndDec.dec {forceExactlyOne=true} toks (i, infdict)
           in
             ( (i, infdict)
-            , Ast.Str.CoreDec dec
+            , Ast.Str.DecCore dec
             )
           end
+
+
+      and consume_strdec (i, infdict) =
+        let
+          fun consume_maybeSemicolon (i, infdict) =
+            if isReserved Token.Semicolon i then
+              ((i+1, infdict), SOME (tok i))
+            else
+              ((i, infdict), NONE)
+
+          fun continue (i, _) =
+            check Token.isDecStartToken i orelse
+            check Token.isStrDecStartToken i
+
+          (** While we see a strdec start-token, parse pairs of
+            *   (dec, semicolon option)
+            * The "state" in this computation is a pair (i, infdict), because
+            * declarations can affect local infixity.
+            *)
+          val ((i, infdict), strdecs) =
+            parse_zeroOrMoreWhile
+              continue
+              (parse_two (consume_exactlyOneStrdec, consume_maybeSemicolon))
+              (i, infdict)
+
+          fun makeDecMultiple () =
+            Ast.Str.DecMultiple
+              { elems = Seq.map #1 strdecs
+              , delims = Seq.map #2 strdecs
+              }
+
+          val result =
+            case Seq.length strdecs of
+              0 =>
+                Ast.Str.DecEmpty
+            | 1 =>
+                let
+                  val (dec, semicolon) = Seq.nth strdecs 0
+                in
+                  if isSome semicolon then
+                    makeDecMultiple ()
+                  else
+                    dec
+                end
+            | _ =>
+                makeDecMultiple ()
+        in
+          ((i, infdict), result)
+        end
 
       (** ====================================================================
         * Functors

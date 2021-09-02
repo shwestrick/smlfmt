@@ -8,7 +8,9 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val dec: tokens -> (int * InfixDict.t, Ast.Exp.dec) parser
+  val dec: {forceExactlyOne: bool}
+        -> tokens
+        -> (int * InfixDict.t, Ast.Exp.dec) parser
 end =
 struct
 
@@ -116,7 +118,7 @@ struct
     *)
 
 
-  fun dec toks (start, infdict) =
+  fun dec {forceExactlyOne} toks (start, infdict) =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -1295,7 +1297,10 @@ struct
           end
 
     in
-      consume_dec (start, infdict)
+      if forceExactlyOne then
+        consume_oneDec (start, infdict)
+      else
+        consume_dec (start, infdict)
     end
 
 end
