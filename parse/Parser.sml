@@ -611,21 +611,43 @@ struct
 
       (** funid ( strexp )
         *        ^
+        * OR
+        *
+        * funid ( strdec )
+        *        ^
         *)
       and consume_strexpFunApp infdict funid lparen i =
-        let
-          val (i, strexp) = consume_strexp infdict i
-          val (i, rparen) = parse_reserved Token.CloseParen i
-        in
-          ( i
-          , Ast.Str.FunApp
-              { funid = funid
-              , lparen = lparen
-              , strexp = strexp
-              , rparen = rparen
-              }
-          )
-        end
+        if
+          check Token.isDecStartToken i orelse
+          check Token.isStrDecStartToken i
+        then
+          let
+            val ((i, _), strdec) = consume_strdec (i, infdict)
+            val (i, rparen) = parse_reserved Token.CloseParen i
+          in
+            ( i
+            , Ast.Str.FunAppDec
+                { funid = funid
+                , lparen = lparen
+                , strdec = strdec
+                , rparen = rparen
+                }
+            )
+          end
+        else
+          let
+            val (i, strexp) = consume_strexp infdict i
+            val (i, rparen) = parse_reserved Token.CloseParen i
+          in
+            ( i
+            , Ast.Str.FunAppExp
+                { funid = funid
+                , lparen = lparen
+                , strexp = strexp
+                , rparen = rparen
+                }
+            )
+          end
 
 
       and consume_strexp infdict i =

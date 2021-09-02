@@ -38,3 +38,13 @@ structure S =
 
 structure S = F(X)
 structure T :> Y = Fun (struct type t = int val x: int = 5 end) : X
+
+structure X =
+  F (type t = int
+     val x: t = 5
+     datatype P = L | R)
+
+(** uncomment this as soon as sequenced multiple strdecs are added to
+  * to parser.
+  *)
+(* structure S = F (structure X:Foo = X val hello: string = "hello") *)

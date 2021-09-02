@@ -148,7 +148,7 @@ Structure Expressions
 - [x] struct-end
 - [x] transparent constraint
 - [x] opaque constraint
-- [ ] functor application
+- [x] functor application
 - [ ] let-in-end
 
 Top-level "strdecs":

@@ -742,10 +742,17 @@ struct
         , sigexp: Sig.sigexp
         }
 
-    | FunApp of
+    | FunAppExp of
         { funid: Token.t
         , lparen: Token.t
         , strexp: strexp
+        , rparen: Token.t
+        }
+
+    | FunAppDec of
+        { funid: Token.t
+        , lparen: Token.t
+        , strdec: strdec
         , rparen: Token.t
         }
 
