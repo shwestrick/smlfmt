@@ -1,3 +1,8 @@
+(** Copyright (c) 2020-2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure ParseTy:
 sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser

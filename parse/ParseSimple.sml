@@ -1,9 +1,10 @@
-(** Copyright (c) 2020 Sam Westrick
+(** Copyright (c) 2020-2021 Sam Westrick
   * See the file LICENSE for details.
   *
   * This structure implements a lot of the "simple" parser functions, to
   * avoid cluttering the main Parser implementation.
   *)
+
 structure ParseSimple:
 sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser

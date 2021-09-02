@@ -1,9 +1,15 @@
+(** Copyright (c) 2020-2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (** Expression/Pattern hierarchy
   *
   * This just implements a silly little ordering:
   *   AtExp/Pat < AppExp/Pat < InfExp/Pat < Exp/Pat
   * and then e.g. `appOkay r` checks `AppExp < r`
   *)
+
 structure ExpPatRestriction =
 struct
 
