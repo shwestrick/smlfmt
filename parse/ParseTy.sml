@@ -13,8 +13,6 @@ struct
   type ('a, 'b) parser = ('a, 'b) PC.parser
   type tokens = Token.t Seq.t
 
-  fun error (info as {what, pos, explain}) =
-    PS.error info
 
   fun ty toks start =
     let
@@ -55,7 +53,7 @@ struct
                   }
               )
             else
-              error
+              ParserUtils.error
                 { pos = Token.getSource (tok i)
                 , what = "Parser bug!"
                 , explain = NONE
@@ -193,7 +191,7 @@ struct
             parse_tyParensOrSequence leftParen (ty :: tys) (comma :: delims) i
           end
         else
-          error
+          ParserUtils.error
             { pos = Token.getSource (tok i)
             , what = "Unexpected token."
             , explain = NONE
@@ -236,7 +234,7 @@ struct
                     }
                 )
               else
-                error
+                ParserUtils.error
                   { pos = Token.getSource (tok i)
                   , what = "Unexpected token."
                   , explain = SOME "Expected to see a type constructor."

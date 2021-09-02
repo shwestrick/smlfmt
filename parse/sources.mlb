@@ -9,6 +9,7 @@ local
   FixExpPrecedence.sml
   InfixDict.sml
   ParserCombinators.sml
+  ParserUtils.sml
   ParseSimple.sml
   ParseTy.sml
   ParsePat.sml

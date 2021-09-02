@@ -9,10 +9,6 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type 'a peeker = 'a ParserCombinators.peeker
 
-  exception Error of LineError.t
-
-  val error: {what: string, pos: Source.t, explain: string option} -> 'a
-
   type tokens = Token.t Seq.t
 
   val reserved: tokens -> Token.reserved -> (int, Token.t) parser
@@ -32,17 +28,6 @@ struct
   type 'a peeker = 'a ParserCombinators.peeker
   type tokens = Token.t Seq.t
 
-  exception Error of LineError.t
-
-
-  fun error {what, pos, explain} =
-    raise Error
-      { header = "PARSE ERROR"
-      , pos = pos
-      , what = what
-      , explain = explain
-      }
-
 
   fun check toks f i =
     let
@@ -61,7 +46,7 @@ struct
     if isReserved toks rc i then
       (i+1, Seq.nth toks i)
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what =
             "Unexpected token. Expected to see "
@@ -81,7 +66,7 @@ struct
     if check toks Token.isTyVar i then
       (i+1, Seq.nth toks i)
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Expected tyvar."
         , explain = NONE
@@ -92,7 +77,7 @@ struct
     if check toks Token.isStrIdentifier i then
       (i+1, Seq.nth toks i)
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Expected structure or signature identifier."
         , explain = SOME "Must be alphanumeric, and cannot start with a\
@@ -104,7 +89,7 @@ struct
     if check toks Token.isValueIdentifier i then
       (i+1, Seq.nth toks i)
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Unexpected token. Expected value identifier."
         , explain = NONE
@@ -115,7 +100,7 @@ struct
     if check toks Token.isMaybeLongIdentifier i then
       (i+1, Ast.MaybeLong.make (Seq.nth toks i))
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Expected (possibly long) value identifier."
         , explain = NONE
@@ -125,7 +110,7 @@ struct
     if check toks Token.isRecordLabel i then
       (i+1, Seq.nth toks i)
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Expected record label."
         , explain = NONE
@@ -136,7 +121,7 @@ struct
     if check toks Token.isTyCon i then
       (i+1, Seq.nth toks i)
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Unexpected token. Invalid type constructor."
         , explain = NONE
@@ -147,7 +132,7 @@ struct
     if check toks Token.isMaybeLongTyCon i then
       (i+1, Ast.MaybeLong.make (Seq.nth toks i))
     else
-      error
+      ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Unexpected token. Invalid (possibly qualified)\
                  \ type constructor."

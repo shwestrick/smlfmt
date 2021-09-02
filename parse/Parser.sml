@@ -14,12 +14,10 @@ struct
   structure PS = ParseSimple
   structure PT = ParseTy
   structure PP = ParsePat
-  exception Error = PS.Error
+  exception Error = ParserUtils.Error
 
   structure Restriction = ExpPatRestriction
 
-  fun error (info as {what, pos, explain}) =
-    PS.error info
 
   (** ========================================================================
     * Handle infix expressions and patterns by rotating AST according to
@@ -56,7 +54,7 @@ struct
               , right = rRight
               }
           else
-            error
+            ParserUtils.error
               { pos = Token.getSource rId
               , what = "Ambiguous infix expression."
               , explain =
@@ -194,22 +192,11 @@ struct
         PC.oneOrMoreWhile c p s
 
 
-      fun check_normalOrOpInfix infdict opp vid =
-        if InfixDict.contains infdict vid andalso not (Option.isSome opp) then
-          error
-            { pos = Token.getSource vid
-            , what = "Infix identifier not prefaced by 'op'"
-            , explain = NONE
-            }
-        else
-          ()
-
-
       fun consume_opvid infdict i =
         let
           val (i, opp) = parse_maybeReserved Token.Op i
           val (i, vid) = parse_vid i
-          val _ = check_normalOrOpInfix infdict opp vid
+          val _ = ParserUtils.errorIfInfixNotOpped infdict opp vid
         in
           (i, {opp = opp, vid = vid})
         end
@@ -542,7 +529,7 @@ struct
                   val (i, exp) = consume_exp infdict Restriction.None i
                 in
                   if not (Token.same (func_name, vid)) then
-                    error
+                    ParserUtils.error
                       { pos = Token.getSource vid
                       , what = "Function name does not match."
                       , explain = SOME ("Expected identifier `" ^ Token.toString
@@ -631,7 +618,7 @@ struct
 
           val result =
             if Seq.length elems = 0 then
-              error
+              ParserUtils.error
                 { pos = Token.getSource (tok i)
                 , what = "Unexpected token. Missing identifier."
                 , explain = NONE
@@ -670,7 +657,7 @@ struct
 
           val result =
             if Seq.length elems = 0 then
-              error
+              ParserUtils.error
                 { pos = Token.getSource (tok i)
                 , what = "Unexpected token. Missing identifier."
                 , explain = NONE
@@ -827,7 +814,7 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expIfThenElse infdict (tok i) (i+1)
               else
-                error
+                ParserUtils.error
                   { pos = Token.getSource (tok i)
                   , what = "Unexpected if-then-else expression."
                   , explain = SOME "Try using parentheses: (if ... then ... else ...)"
@@ -837,7 +824,7 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expRaise infdict (i+1)
               else
-                error
+                ParserUtils.error
                   { pos = Token.getSource (tok i)
                   , what = "Unexpected raise exception."
                   , explain = SOME "Try using parentheses: (raise ...)"
@@ -847,7 +834,7 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expFn infdict (i+1)
               else
-                error
+                ParserUtils.error
                   { pos = Token.getSource (tok i)
                   , what = "Unexpected beginning of anonymous function."
                   , explain = SOME "Try using parentheses: (fn ... => ...)"
@@ -857,7 +844,7 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expWhile infdict (i+1)
               else
-                error
+                ParserUtils.error
                   { pos = Token.getSource (tok i)
                   , what = "Unexpected beginning of while-loop."
                   , explain = SOME "Try using parentheses: (while ... do ...)"
@@ -1119,7 +1106,8 @@ struct
       and consume_expValueIdentifier infdict opp i =
         let
           val (i, vid) = parse_longvid i
-          val _ = check_normalOrOpInfix infdict opp (Ast.MaybeLong.getToken vid)
+          val _ = ParserUtils.errorIfInfixNotOpped
+            infdict opp (Ast.MaybeLong.getToken vid)
         in
           ( i
           , Ast.Exp.Ident
@@ -1362,7 +1350,7 @@ struct
                   else if isReserved Token.Semicolon at i then
                     Token.Semicolon
                   else
-                    error
+                    ParserUtils.error
                       { pos = Token.getSource leftParen
                       , what = "Unmatched paren."
                       , explain = NONE
@@ -1854,7 +1842,7 @@ struct
       val _ =
         if i >= numToks then ()
         else
-          error
+          ParserUtils.error
             { pos = Token.getSource (tok i)
             , what = "Unexpected token."
             , explain = SOME "Invalid start of top-level declaration!"

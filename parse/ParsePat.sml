@@ -19,10 +19,6 @@ struct
   type tokens = Token.t Seq.t
 
 
-  fun error (info as {what, pos, explain}) =
-    PS.error info
-
-
   fun makeInfixPat infdict (left, id, right) =
     let
       val hp = InfixDict.higherPrecedence infdict
@@ -51,7 +47,7 @@ struct
               , right = rRight
               }
           else
-            error
+            ParserUtils.error
               { pos = Token.getSource rId
               , what = "Ambiguous infix pattern."
               , explain =
@@ -62,17 +58,6 @@ struct
       | _ =>
           default
     end
-
-
-  fun check_normalOrOpInfix infdict opp vid =
-    if InfixDict.contains infdict vid andalso not (Option.isSome opp) then
-      error
-        { pos = Token.getSource vid
-        , what = "Infix identifier not prefaced by 'op'"
-        , explain = NONE
-        }
-    else
-      ()
 
 
   fun pat toks infdict restriction start =
@@ -114,7 +99,7 @@ struct
             else if isReserved Token.OpenCurlyBracket i then
               consume_patRecord infdict (tok i) (i+1)
             else
-              error
+              ParserUtils.error
                 { pos = Token.getSource (tok i)
                 , what = "Parser bug!"
                 , explain = NONE
@@ -216,7 +201,7 @@ struct
           if isReserved Token.CloseCurlyBracket (i+1) then
             (i+1, Ast.Pat.DotDotDot (tok i))
           else
-            error
+            ParserUtils.error
               { pos = Token.getSource (tok i)
               , what = "Unexpected token."
               , explain = SOME "This can only appear at the end of the record."
@@ -270,7 +255,7 @@ struct
             )
           end
         else
-          error
+          ParserUtils.error
             { pos = Token.getSource (tok i)
             , what = "Invalid token. Expected row of record pattern."
             , explain = NONE
@@ -349,7 +334,8 @@ struct
       and consume_patValueIdentifier infdict opp i =
         let
           val (i, vid) = parse_longvid i
-          val _ = check_normalOrOpInfix infdict opp (Ast.MaybeLong.getToken vid)
+          val _ = ParserUtils.errorIfInfixNotOpped
+            infdict opp (Ast.MaybeLong.getToken vid)
         in
           ( i
           , Ast.Pat.Ident
