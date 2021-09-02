@@ -585,24 +585,33 @@ struct
 
       (** structure strid = strexp [and strid = ...]
         *          ^
-        *
-        * TODO: multiple strbinds delimited by 'and'
         *)
       fun consume_strbind infdict structuree i =
         let
-          val (i, strid) = parse_strid i
-          val (i, eq) = parse_reserved Token.Equal i
-          val (i, strexp) = consume_strexp infdict i
+          fun parseOne i =
+            let
+              val (i, strid) = parse_strid i
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, strexp) = consume_strexp infdict i
+            in
+              ( i
+              , { strid = strid
+                , eq = eq
+                , strexp = strexp
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
         in
           ( i
           , Ast.Str.Structure
               { structuree = structuree
-              , elems = Seq.singleton
-                  { strid = strid
-                  , eq = eq
-                  , strexp = strexp
-                  }
-              , delims = Seq.empty ()
+              , elems = elems
+              , delims = delims
               }
           )
         end
