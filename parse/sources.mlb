@@ -13,6 +13,7 @@ local
   ParseSimple.sml
   ParseTy.sml
   ParsePat.sml
+  ParseExpAndDec.sml
   Parser.sml
 in
   structure Parser

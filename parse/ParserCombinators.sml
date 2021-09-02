@@ -1,3 +1,8 @@
+(** Copyright (c) 2020-2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure ParserCombinators:
 sig
   type ('state, 'result) parser = 'state -> ('state * 'result)
