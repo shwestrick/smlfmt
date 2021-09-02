@@ -7,6 +7,14 @@ sig
   val x: int
   and y: string -> real * real
   and z: 'a -> int -> real
+
+  include X
+
+  datatype xx = Foo of 'a | Bar
+  datatype zz = datatype xx
+  datatype aa = datatype y
+  datatype bb = Foo | Bar
+
 end
 signature Bar = Foo where type 'a t = 'a list -> 'a -> 'a
 
