@@ -139,12 +139,8 @@ struct
 
       fun parse_reserved rc i =
         PS.reserved toks rc i
-      fun parse_tyvar i =
-        PS.tyvar toks i
       fun parse_tyvars i =
         PS.tyvars toks i
-      fun parse_sigid i =
-        PS.sigid toks i
       fun parse_maybeReserved rc i =
         PS.maybeReserved toks rc i
       fun parse_vid i =
@@ -155,8 +151,6 @@ struct
         PS.recordLabel toks i
       fun parse_tycon i =
         PS.tycon toks i
-      fun parse_maybeLongTycon i =
-        PS.maybeLongTycon toks i
       fun parse_ty i =
         PT.ty toks i
       fun parse_pat infdict restriction i =
@@ -171,8 +165,6 @@ struct
         PC.two (p1, p2) state
       fun parse_zeroOrMoreWhile c p s =
         PC.zeroOrMoreWhile c p s
-      fun parse_oneOrMoreWhile c p s =
-        PC.oneOrMoreWhile c p s
 
 
       fun consume_opvid infdict i =
