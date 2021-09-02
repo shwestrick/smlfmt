@@ -866,10 +866,69 @@ struct
         (Seq.map (showOne false) (Seq.drop elems 1))
     end
 
-  fun showStrDec d =
+
+  fun showStrExp e =
+    case e of
+      Ast.Str.Ident id =>
+        text (Token.toString (Ast.MaybeLong.getToken id))
+
+    | Ast.Str.Struct {strdec, ...} =>
+        group (
+          text "struct"
+          $$
+          (spaces 2 ++ showStrDec strdec)
+          $$
+          text "end"
+        )
+
+    | Ast.Str.Constraint {strexp, colon, sigexp} =>
+        showStrExp strexp
+        ++ space ++ text (Token.toString colon)
+        ++ space ++ showSigExp sigexp
+
+    | Ast.Str.FunAppExp {funid, strexp, ...} =>
+        text (Token.toString funid) ++ space
+        ++ parensAround (showStrExp strexp)
+
+    | Ast.Str.FunAppDec {funid, strdec, ...} =>
+        text (Token.toString funid) ++ space
+        ++ parensAround (showStrDec strdec)
+
+    (* | _ => text "<strexp>" *)
+
+
+  and showStrDec d =
     case d of
-      Ast.Str.DecCore d =>
+      Ast.Str.DecEmpty =>
+        empty
+
+    | Ast.Str.DecCore d =>
         showDec d
+
+    | Ast.Str.DecStructure {elems, ...} =>
+        let
+          fun maybeShowConstraint constraint =
+            case constraint of
+              NONE => NONE
+            | SOME {colon, sigexp} =>
+                SOME (text (Token.toString colon) ++ space ++ showSigExp sigexp)
+
+          fun showOne isFirst {strid, constraint, strexp, ...} =
+            group (
+              separateWithSpaces
+                [ SOME (text (if isFirst then "structure" else "and"))
+                , SOME (text (Token.toString strid))
+                , maybeShowConstraint constraint
+                , SOME (text "=")
+                ]
+              $$
+              (spaces 2 ++ showStrExp strexp)
+            )
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
 
     | Ast.Str.DecMultiple {elems, delims} =>
         let
@@ -881,7 +940,7 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
         end
 
-    | _ => text "<strdec>"
+    (* | _ => text "<strdec>" *)
 
 
   fun pretty (Ast.Ast tds) =
