@@ -564,20 +564,37 @@ struct
         end
 
       (** ====================================================================
-        * Structures and normal declarations
+        * Structures and core declarations
         *
         * In the grammar, these are "strdecs" which include e.g.
         *   structure X = ...
         *   local <strdec> in <strdec> end
-        * as well as normal declarations including e.g.
+        * as well as core declarations including e.g.
         *   val x = ...
         *   infix ...
         *   type ...
         *)
 
 
-      fun consume_strexp infdict i =
-        if check Token.isMaybeLongStrIdentifier i then
+      fun consume_strexpStruct infdict structt i : (int * Ast.Str.strexp) =
+        let
+          val ((i, _), strdec) = consume_strdec (i, infdict)
+          val (i, endd) = parse_reserved Token.End i
+        in
+          ( i
+          , Ast.Str.Struct
+              { structt = structt
+              , strdec = strdec
+              , endd = endd
+              }
+          )
+        end
+
+
+      and consume_strexp infdict i =
+        if isReserved Token.Struct i then
+          consume_strexpStruct infdict (tok i) (i+1)
+        else if check Token.isMaybeLongStrIdentifier i then
           (i+1, Ast.Str.Ident (Ast.MaybeLong.make (tok i)))
         else
           nyi "consume_strexp" i
@@ -589,7 +606,7 @@ struct
         *   : sigexp       (transparent ascription)
         *   :> sigexp      (opaque ascription)
         *)
-      fun consume_strbind infdict structuree i =
+      and consume_strdecStructure infdict structuree i =
         let
           fun parse_maybeAscription infdict i =
             if isReserved Token.Colon i orelse isReserved Token.ColonArrow i then
@@ -633,14 +650,12 @@ struct
         end
 
 
-      fun consume_strdec (i, infdict) =
+      and consume_strdec (i, infdict) : ((int * InfixDict.t) * Ast.Str.strdec) =
         if isReserved Token.Structure i then
           let
-            val (i, dec) = consume_strbind infdict (tok i) (i+1)
+            val (i, dec) = consume_strdecStructure infdict (tok i) (i+1)
           in
-            ( (i, infdict)
-            , Ast.StrDec dec
-            )
+            ((i, infdict), dec)
           end
         else
           let
@@ -648,7 +663,7 @@ struct
               ParseExpAndDec.dec toks (i, infdict)
           in
             ( (i, infdict)
-            , Ast.StrDec (Ast.Str.Dec dec)
+            , Ast.Str.CoreDec dec
             )
           end
 
@@ -670,7 +685,11 @@ struct
           consume_fundec infdict (i+1)
         else if check Token.isStrDecStartToken at i orelse
                 check Token.isDecStartToken at i then
-          consume_strdec (i, infdict)
+          let
+            val (xx, strdec) = consume_strdec (i, infdict)
+          in
+            (xx, Ast.StrDec strdec)
+          end
         else
           ParserUtils.error
             { pos = Token.getSource (tok i)

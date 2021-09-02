@@ -730,10 +730,16 @@ struct
     datatype strexp =
       Ident of MaybeLong.t
 
+    | Struct of
+        { structt: Token.t
+        , strdec: strdec
+        , endd: Token.t
+        }
+
 
     (** TODO: finish *)
-    datatype strdec =
-      Dec of Exp.dec
+    and strdec =
+      CoreDec of Exp.dec
 
     | Structure of
         { structuree: Token.t

@@ -874,7 +874,7 @@ struct
       let
         fun showOne td =
           case td of
-            Ast.StrDec (Ast.Str.Dec d) => showDec d
+            Ast.StrDec (Ast.Str.CoreDec d) => showDec d
           | Ast.StrDec _ => text "<strdec>"
           | Ast.SigDec d => showSigDec d
           | _ => raise Fail "Not yet implemented!"

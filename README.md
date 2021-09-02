@@ -145,7 +145,7 @@ Signature Specifications:
 
 Structure Expressions
 - [x] identifiers
-- [ ] struct-end
+- [x] struct-end
 - [ ] transparent constraint
 - [ ] opaque constraint
 - [ ] functor application
