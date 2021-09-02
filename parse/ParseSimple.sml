@@ -17,6 +17,7 @@ sig
   val tyvar: tokens -> (int, Token.t) parser
   val tyvars: tokens -> (int, Token.t Ast.SyntaxSeq.t) parser
   val sigid: tokens -> (int, Token.t) parser
+  val strid: tokens -> (int, Token.t) parser
   val vid: tokens -> (int, Token.t) parser
   val longvid: tokens -> (int, Ast.MaybeLong.t) parser
   val recordLabel: tokens -> (int, Token.t) parser
@@ -74,13 +75,25 @@ struct
         }
 
 
+  fun strid toks i =
+    if check toks Token.isStrIdentifier i then
+      (i+1, Seq.nth toks i)
+    else
+      ParserUtils.error
+        { pos = Token.getSource (Seq.nth toks i)
+        , what = "Expected structure identifier."
+        , explain = SOME "Must be alphanumeric, and cannot start with a\
+                         \ prime (')"
+        }
+
+
   fun sigid toks i =
     if check toks Token.isStrIdentifier i then
       (i+1, Seq.nth toks i)
     else
       ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
-        , what = "Expected structure or signature identifier."
+        , what = "Expected signature identifier."
         , explain = SOME "Must be alphanumeric, and cannot start with a\
                          \ prime (')"
         }

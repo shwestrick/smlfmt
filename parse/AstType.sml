@@ -727,11 +727,25 @@ struct
   struct
 
     (** TODO: finish *)
-    datatype strexp = SE
+    datatype strexp =
+      Ident of MaybeLong.t
+
 
     (** TODO: finish *)
     datatype strdec =
       Dec of Exp.dec
+
+    | Structure of
+        { structuree: Token.t
+        , elems:
+            { strid: Token.t
+            , eq: Token.t
+            , strexp: strexp
+            } Seq.t
+
+        (** 'and' between elems *)
+        , delims: Token.t Seq.t
+        }
 
   end
 

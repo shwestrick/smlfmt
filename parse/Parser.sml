@@ -53,6 +53,8 @@ struct
         PS.tyvars toks i
       fun parse_sigid i =
         PS.sigid toks i
+      fun parse_strid i =
+        PS.strid toks i
       fun parse_vid i =
         PS.vid toks i
       fun parse_longvid i =
@@ -562,12 +564,59 @@ struct
         end
 
       (** ====================================================================
-        * Top-level
+        * Structures and normal declarations
+        *
+        * In the grammar, these are "strdecs" which include e.g.
+        *   structure X = ...
+        *   local <strdec> in <strdec> end
+        * as well as normal declarations including e.g.
+        *   val x = ...
+        *   infix ...
+        *   type ...
         *)
 
-      fun consume_topDecOne (i, infdict): ((int * InfixDict.t) * Ast.topdec) =
-        if isReserved Token.Signature at i then
-          consume_sigDec (i+1, infdict)
+
+      fun consume_strexp infdict i =
+        if check Token.isMaybeLongStrIdentifier i then
+          (i+1, Ast.Str.Ident (Ast.MaybeLong.make (tok i)))
+        else
+          nyi "consume_strexp" i
+
+
+      (** structure strid = strexp [and strid = ...]
+        *          ^
+        *
+        * TODO: multiple strbinds delimited by 'and'
+        *)
+      fun consume_strbind infdict structuree i =
+        let
+          val (i, strid) = parse_strid i
+          val (i, eq) = parse_reserved Token.Equal i
+          val (i, strexp) = consume_strexp infdict i
+        in
+          ( i
+          , Ast.Str.Structure
+              { structuree = structuree
+              , elems = Seq.singleton
+                  { strid = strid
+                  , eq = eq
+                  , strexp = strexp
+                  }
+              , delims = Seq.empty ()
+              }
+          )
+        end
+
+
+      fun consume_strdec (i, infdict) =
+        if isReserved Token.Structure i then
+          let
+            val (i, dec) = consume_strbind infdict (tok i) (i+1)
+          in
+            ( (i, infdict)
+            , Ast.StrDec dec
+            )
+          end
         else
           let
             val ((i, infdict), dec) =
@@ -577,6 +626,32 @@ struct
             , Ast.StrDec (Ast.Str.Dec dec)
             )
           end
+
+      (** ====================================================================
+        * Functors
+        *)
+
+      fun consume_fundec infdict i =
+        nyi "consume_fundec" i
+
+      (** ====================================================================
+        * Top-level
+        *)
+
+      fun consume_topDecOne (i, infdict): ((int * InfixDict.t) * Ast.topdec) =
+        if isReserved Token.Signature at i then
+          consume_sigDec (i+1, infdict)
+        else if isReserved Token.Functor at i then
+          consume_fundec infdict (i+1)
+        else if check Token.isStrDecStartToken at i orelse
+                check Token.isDecStartToken at i then
+          consume_strdec (i, infdict)
+        else
+          ParserUtils.error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token."
+            , explain = SOME "Invalid start of top-level declaration."
+            }
 
       val infdict = InfixDict.initialTopLevel
 

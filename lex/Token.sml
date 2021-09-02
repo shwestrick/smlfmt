@@ -1,4 +1,4 @@
-(** Copyright (c) 2020 Sam Westrick
+(** Copyright (c) 2020-2021 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -312,6 +312,9 @@ struct
 
       | _ => false
     end
+
+  fun isMaybeLongStrIdentifier tok =
+    isStrIdentifier tok orelse isLongIdentifier tok
 
   (** tyvars are small identifiers that begin with a prime *)
   fun isTyVar tok =

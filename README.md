@@ -144,7 +144,7 @@ Signature Specifications:
 - [ ] sharing-type (e.g. `spec sharing type a = b = c`)
 
 Structure Expressions
-- [ ] identifiers
+- [x] identifiers
 - [ ] struct-end
 - [ ] transparent constraint
 - [ ] opaque constraint
