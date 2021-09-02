@@ -141,7 +141,10 @@ Signature Specifications:
 - [x] structures (`structure X: S`)
 - [x] include
 - [x] multiple specs in sequence
+- [ ] include multiple (`include A B C`)
+- [ ] type abbreviations (e.g. `type t = string`)
 - [ ] sharing-type (e.g. `spec sharing type a = b = c`)
+- [ ] sharing (e.g. `spec sharing X = Y`)
 
 Structure Expressions
 - [x] identifiers
@@ -152,15 +155,14 @@ Structure Expressions
 - [ ] let-in-end
 
 Top-level "strdecs":
+- [x] multiple strdecs in sequence
 - [x] core language declarations
 - [x] structures (e.g. `structure X: S = ...`)
 - [ ] local-in-end
-- [x] multiple strdecs in sequence
 
 Other Top-level Declarations:
+- [x] multiple top-level in sequence
 - [x] signatures (`signature X = ...`)
-- [ ] functors (`functor F(...) = ...`)
-- [x] multiple in sequence
-
-Derived Forms
-- TODO...
+- [ ] basic functors (e.g. `functor F(X:S) = ...`)
+- [ ] functors on specs (e.g. `functor F(type t val x: t) = ...`)
+- [ ] functor constraints (e.g. `functor F(X:S) : T = ...`)
