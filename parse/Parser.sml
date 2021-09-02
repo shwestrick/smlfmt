@@ -160,6 +160,8 @@ struct
         PS.reserved toks rc i
       fun parse_tyvar i =
         PS.tyvar toks i
+      fun parse_tyvars i =
+        PS.tyvars toks i
       fun parse_sigid i =
         PS.sigid toks i
       fun parse_maybeReserved rc i =
@@ -190,33 +192,6 @@ struct
         PC.zeroOrMoreWhile c p s
       fun parse_oneOrMoreWhile c p s =
         PC.oneOrMoreWhile c p s
-
-
-      fun parse_tyvars i =
-        if check Token.isTyVar at i then
-          (i+1, Ast.SyntaxSeq.One (tok i))
-        else if not (isReserved Token.OpenParen at i
-                     andalso check Token.isTyVar at (i+1)) then
-          (i, Ast.SyntaxSeq.Empty)
-        else
-          let
-            val (i, openParen) = (i+1, tok i)
-            val (i, {elems, delims}) =
-              parse_oneOrMoreDelimitedByReserved
-                {parseElem = parse_tyvar, delim = Token.Comma}
-                i
-            val (i, closeParen) =
-              parse_reserved Token.CloseParen i
-          in
-            ( i
-            , Ast.SyntaxSeq.Many
-                { left = openParen
-                , right = closeParen
-                , elems = elems
-                , delims = delims
-                }
-            )
-          end
 
 
       fun check_normalOrOpInfix infdict opp vid =

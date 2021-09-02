@@ -18,6 +18,7 @@ sig
   val reserved: tokens -> Token.reserved -> (int, Token.t) parser
   val maybeReserved: tokens -> Token.reserved -> (int, Token.t option) parser
   val tyvar: tokens -> (int, Token.t) parser
+  val tyvars: tokens -> (int, Token.t Ast.SyntaxSeq.t) parser
   val sigid: tokens -> (int, Token.t) parser
   val vid: tokens -> (int, Token.t) parser
   val longvid: tokens -> (int, Ast.MaybeLong.t) parser
@@ -152,5 +153,32 @@ struct
                  \ type constructor."
         , explain = NONE
         }
+
+
+  fun tyvars toks i =
+    if check toks Token.isTyVar i then
+      (i+1, Ast.SyntaxSeq.One (Seq.nth toks i))
+    else if not (isReserved toks Token.OpenParen i
+                 andalso check toks Token.isTyVar (i+1)) then
+      (i, Ast.SyntaxSeq.Empty)
+    else
+      let
+        val (i, openParen) = (i+1, Seq.nth toks i)
+        val (i, {elems, delims}) =
+          ParserCombinators.oneOrMoreDelimitedByReserved
+            toks
+            {parseElem = tyvar toks, delim = Token.Comma}
+            i
+        val (i, closeParen) = reserved toks Token.CloseParen i
+      in
+        ( i
+        , Ast.SyntaxSeq.Many
+            { left = openParen
+            , right = closeParen
+            , elems = elems
+            , delims = delims
+            }
+        )
+      end
 
 end
