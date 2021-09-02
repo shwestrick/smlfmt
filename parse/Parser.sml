@@ -583,19 +583,35 @@ struct
           nyi "consume_strexp" i
 
 
-      (** structure strid = strexp [and strid = ...]
+      (** structure strid [ascription] = strexp [and strid = ...]
         *          ^
+        * where the optional ascription is either
+        *   : sigexp       (transparent ascription)
+        *   :> sigexp      (opaque ascription)
         *)
       fun consume_strbind infdict structuree i =
         let
+          fun parse_maybeAscription infdict i =
+            if isReserved Token.Colon i orelse isReserved Token.ColonArrow i then
+              let
+                val (i, colon) = (i+1, tok i)
+                val (i, sigexp) = consume_sigExp infdict i
+              in
+                (i, SOME {colon = colon, sigexp = sigexp})
+              end
+            else
+              (i, NONE)
+
           fun parseOne i =
             let
               val (i, strid) = parse_strid i
+              val (i, ascription) = parse_maybeAscription infdict i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, strexp) = consume_strexp infdict i
             in
               ( i
               , { strid = strid
+                , ascription = ascription
                 , eq = eq
                 , strexp = strexp
                 }

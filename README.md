@@ -153,7 +153,7 @@ Structure Expressions
 
 Top-level "strdecs":
 - [x] core language declarations
-- [x] structures (`structure X = ...`)
+- [x] structures (e.g. `structure X: S = ...`)
 - [ ] local-in-end
 - [ ] multiple strdecs in sequence
 

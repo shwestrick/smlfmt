@@ -739,6 +739,10 @@ struct
         { structuree: Token.t
         , elems:
             { strid: Token.t
+            , ascription:
+                { colon: Token.t      (** either : or :> *)
+                , sigexp: Sig.sigexp
+                } option
             , eq: Token.t
             , strexp: strexp
             } Seq.t
