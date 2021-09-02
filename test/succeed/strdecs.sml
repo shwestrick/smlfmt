@@ -27,3 +27,11 @@ end =
 struct
   fun hello x = print (x ^ "\n")
 end
+
+signature X = sig type t end
+signature Y = sig end
+
+structure S :> Y =
+  struct type t = int end : sig type t end : sig end
+structure S =
+  struct type t = int end : X : Y

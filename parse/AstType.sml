@@ -736,6 +736,12 @@ struct
         , endd: Token.t
         }
 
+    | Constraint of
+        { strexp: strexp
+        , colon: Token.t    (** either : or :> *)
+        , sigexp: Sig.sigexp
+        }
+
 
     (** TODO: finish *)
     and strdec =
@@ -745,7 +751,7 @@ struct
         { structuree: Token.t
         , elems:
             { strid: Token.t
-            , ascription:
+            , constraint:
                 { colon: Token.t      (** either : or :> *)
                 , sigexp: Sig.sigexp
                 } option

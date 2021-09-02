@@ -576,7 +576,25 @@ struct
         *)
 
 
-      fun consume_strexpStruct infdict structt i : (int * Ast.Str.strexp) =
+      (** strexp : sigexp
+        *         ^
+        * also handles opaque constraints (strexp :> sigexp)
+        *)
+      fun consume_strexpConstraint infdict strexp colon i =
+        let
+          val (i, sigexp) = consume_sigExp infdict i
+        in
+          ( i
+          , Ast.Str.Constraint
+              { strexp = strexp
+              , colon = colon
+              , sigexp = sigexp
+              }
+          )
+        end
+
+
+      and consume_strexpStruct infdict structt i : (int * Ast.Str.strexp) =
         let
           val ((i, _), strdec) = consume_strdec (i, infdict)
           val (i, endd) = parse_reserved Token.End i
@@ -592,23 +610,44 @@ struct
 
 
       and consume_strexp infdict i =
-        if isReserved Token.Struct i then
-          consume_strexpStruct infdict (tok i) (i+1)
-        else if check Token.isMaybeLongStrIdentifier i then
-          (i+1, Ast.Str.Ident (Ast.MaybeLong.make (tok i)))
-        else
-          nyi "consume_strexp" i
+        let
+          val (i, strexp) =
+            if isReserved Token.Struct i then
+              consume_strexpStruct infdict (tok i) (i+1)
+            else if check Token.isMaybeLongStrIdentifier i then
+              (i+1, Ast.Str.Ident (Ast.MaybeLong.make (tok i)))
+            else
+              nyi "consume_strexp" i
+        in
+          consume_afterStrexp infdict strexp i
+        end
 
 
-      (** structure strid [ascription] = strexp [and strid = ...]
+      and consume_afterStrexp infdict strexp i =
+        let
+          val (again, (i, strexp)) =
+            if isReserved Token.Colon i orelse isReserved Token.ColonArrow i
+            then
+              (true, consume_strexpConstraint infdict strexp (tok i) (i+1))
+            else
+              (false, (i, strexp))
+        in
+          if again then
+            consume_afterStrexp infdict strexp i
+          else
+            (i, strexp)
+        end
+
+
+      (** structure strid [constraint] = strexp [and strid = ...]
         *          ^
-        * where the optional ascription is either
-        *   : sigexp       (transparent ascription)
-        *   :> sigexp      (opaque ascription)
+        * where the optional constraint is either
+        *   : sigexp       (transparent constraint)
+        *   :> sigexp      (opaque constraint)
         *)
       and consume_strdecStructure infdict structuree i =
         let
-          fun parse_maybeAscription infdict i =
+          fun parse_maybeConstraint infdict i =
             if isReserved Token.Colon i orelse isReserved Token.ColonArrow i then
               let
                 val (i, colon) = (i+1, tok i)
@@ -622,13 +661,13 @@ struct
           fun parseOne i =
             let
               val (i, strid) = parse_strid i
-              val (i, ascription) = parse_maybeAscription infdict i
+              val (i, constraint) = parse_maybeConstraint infdict i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, strexp) = consume_strexp infdict i
             in
               ( i
               , { strid = strid
-                , ascription = ascription
+                , constraint = constraint
                 , eq = eq
                 , strexp = strexp
                 }
