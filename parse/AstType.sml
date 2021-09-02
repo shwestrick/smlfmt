@@ -742,6 +742,13 @@ struct
         , sigexp: Sig.sigexp
         }
 
+    | FunApp of
+        { funid: Token.t
+        , lparen: Token.t
+        , strexp: strexp
+        , rparen: Token.t
+        }
+
 
     (** TODO: finish *)
     and strdec =

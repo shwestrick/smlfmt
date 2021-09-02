@@ -609,11 +609,37 @@ struct
         end
 
 
+      (** funid ( strexp )
+        *        ^
+        *)
+      and consume_strexpFunApp infdict funid lparen i =
+        let
+          val (i, strexp) = consume_strexp infdict i
+          val (i, rparen) = parse_reserved Token.CloseParen i
+        in
+          ( i
+          , Ast.Str.FunApp
+              { funid = funid
+              , lparen = lparen
+              , strexp = strexp
+              , rparen = rparen
+              }
+          )
+        end
+
+
       and consume_strexp infdict i =
         let
           val (i, strexp) =
             if isReserved Token.Struct i then
               consume_strexpStruct infdict (tok i) (i+1)
+
+            else if
+              check Token.isStrIdentifier i andalso
+              isReserved Token.OpenParen (i+1)
+            then
+              consume_strexpFunApp infdict (tok i) (tok (i+1)) (i+2)
+
             else if check Token.isMaybeLongStrIdentifier i then
               (i+1, Ast.Str.Ident (Ast.MaybeLong.make (tok i)))
             else

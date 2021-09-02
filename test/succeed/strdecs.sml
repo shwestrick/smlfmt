@@ -35,3 +35,6 @@ structure S :> Y =
   struct type t = int end : sig type t end : sig end
 structure S =
   struct type t = int end : X : Y
+
+structure S = F(X)
+structure T :> Y = Fun (struct type t = int val x: int = 5 end) : X
