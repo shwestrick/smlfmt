@@ -117,6 +117,33 @@ struct
   (** ========================================================================
     *)
 
+  (** TODO: clean this shit up. This is a total mess.
+    * See use in afterExp, below.
+    *)
+  fun endsCurrentExp infdict restrict tok =
+    Token.endsCurrentExp tok
+    orelse
+    ( not (Restriction.infOkay restrict)
+      andalso Token.isValueIdentifier tok
+      andalso InfixDict.contains infdict tok
+    )
+    orelse
+    ( not (Restriction.anyOkay restrict)
+      andalso
+      case Token.getClass tok of
+        Token.Reserved rc =>
+          List.exists (fn rc' => rc = rc')
+            [ Token.Colon
+            , Token.Handle
+            , Token.Andalso
+            , Token.Orelse
+            ]
+      | _ => false
+    )
+
+  (** ========================================================================
+    *)
+
 
   fun dec {forceExactlyOne} toks (start, infdict) =
     let
@@ -795,26 +822,23 @@ struct
           val (again, (i, exp)) =
             if
               i >= numToks orelse
-              check Token.endsCurrentExp at i
+              check (endsCurrentExp infdict restriction) at i
             then
               (false, (i, exp))
 
             else if
-              Restriction.anyOkay restriction
-              andalso isReserved Token.Colon at i
+              isReserved Token.Colon at i
             then
               (true, consume_expTyped exp (i+1))
 
             else if
-              Restriction.anyOkay restriction
-              andalso isReserved Token.Handle at i
+              isReserved Token.Handle at i
             then
               (true, consume_expHandle infdict exp (i+1))
 
             else if
-              Restriction.anyOkay restriction
-              andalso (isReserved Token.Andalso at i
-              orelse isReserved Token.Orelse at i)
+              isReserved Token.Andalso at i
+              orelse isReserved Token.Orelse at i
             then
               (true, consume_expAndalsoOrOrelse infdict exp (i+1))
 
@@ -836,6 +860,13 @@ struct
         in
           if again then
             consume_afterExp infdict restriction exp i
+
+          (** TODO: check this. This feels like a hack. Perhaps afterExp
+            * actually doesn't need the restriction at all?
+            *)
+          else if not (Restriction.anyOkay restriction) then
+            consume_afterExp infdict (Restriction.bumpUp restriction) exp i
+
           else
             (i, exp)
         end

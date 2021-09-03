@@ -35,4 +35,11 @@ struct
       None => true
     | _ => false
 
+  fun bumpUp r =
+    case r of
+      At => App
+    | App => Inf
+    | Inf => None
+    | None => None
+
 end

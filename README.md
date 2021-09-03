@@ -2,16 +2,16 @@
 
 A custom lexer/parser for Standard ML with the goal of providing
 better error messages. Perhaps it could also eventually provide SML tooling
-such as linting and autoformatting. It would be great also to have a
-comprehensive language server for SML.
+such as linting, autoformatting or even a language server.
 
 ## Current Status
 
-The lexer is done, and now we're working on the parser. See the TODO list below.
+The lexer is done, and now we're working on the parser. It's nearly
+done--see the TODO list below.
 
 For files that pass through lexing successfully, you will see a bit of syntax
-highlighting in the output. Files that are parsed successfully will be then
-also be pretty-printed.
+highlighting in the output. Files that are parsed successfully are
+also pretty-printed.
 
 ## Examples
 
@@ -50,12 +50,12 @@ Perhaps you meant: ...
 
 ## Build and run
 
-You'll need [`mlton`](http://mlton.org/) installed.
+You need [`mlton`](http://mlton.org/) installed.
 
 Do `make` and then pass a `.sml` file, for example:
 ```
 $ make
-$ ./main lex/Lexer.sml
+$ ./main lex/Token.sml
 ```
 
 To see syntax highlighting, you'll need a terminal that supports colors via
