@@ -1003,6 +1003,7 @@ struct
           case td of
             Ast.StrDec d => showStrDec d
           | Ast.SigDec d => showSigDec d
+          | Ast.FunDec d => text "<functor>"
           | _ => raise Fail "Not yet implemented!"
 
         val all = Seq.map showOne tds

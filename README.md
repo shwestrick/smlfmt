@@ -163,6 +163,6 @@ Top-level "strdecs":
 Other Top-level Declarations:
 - [x] multiple top-level in sequence
 - [x] signatures (`signature X = ...`)
-- [ ] basic functors (e.g. `functor F(X:S) = ...`)
-- [ ] functors on specs (e.g. `functor F(type t val x: t) = ...`)
-- [ ] functor constraints (e.g. `functor F(X:S) : T = ...`)
+- [x] basic functors (e.g. `functor F(X:S) = ...`)
+- [x] functors on specs (e.g. `functor F(type t val x: t) = ...`)
+- [x] functor constraints (e.g. `functor F(X:S) : T = ...`)

@@ -812,6 +812,7 @@ struct
     datatype funarg =
       ArgIdent of
         { strid: Token.t
+        , colon: Token.t
         , sigexp: Sig.sigexp
         }
 
@@ -824,7 +825,7 @@ struct
         , elems:
             { funid: Token.t
             , lparen: Token.t
-            , arg: funarg
+            , funarg: funarg
             , rparen: Token.t
             , constraint:
                 { colon: Token.t      (** either : or :> *)

@@ -55,6 +55,8 @@ struct
         PS.sigid toks i
       fun parse_strid i =
         PS.strid toks i
+      fun parse_funid i =
+        PS.funid toks i
       fun parse_vid i =
         PS.vid toks i
       fun parse_longvid i =
@@ -860,8 +862,88 @@ struct
         * Functors
         *)
 
-      fun consume_fundec infdict i =
-        nyi "consume_fundec" i
+      (** functor funid ( arg ) [constraint] = strexp [and ...]
+        *        ^
+        *
+        * arg can be one of the following:
+        *   sigid : sigexp
+        *   spec
+        *
+        * constraint can be one of these:
+        *   : sigexp
+        *   :> sigexp
+        *)
+      fun consume_fundec infdict functorr i =
+        let
+          fun parse_maybeConstraint infdict i =
+            if isReserved Token.Colon i orelse isReserved Token.ColonArrow i then
+              let
+                val (i, colon) = (i+1, tok i)
+                val (i, sigexp) = consume_sigExp infdict i
+              in
+                (i, SOME {colon = colon, sigexp = sigexp})
+              end
+            else
+              (i, NONE)
+
+          fun parse_funarg infdict i =
+            if not (check Token.isStrIdentifier i) then
+              let
+                val (i, spec) = consume_sigSpec infdict i
+              in
+                (i, Ast.Fun.ArgSpec spec)
+              end
+            else
+              let
+                val (i, strid) = (i+1, tok i)
+                val (i, colon) = parse_reserved Token.Colon i
+                val (i, sigexp) = consume_sigExp infdict i
+              in
+                ( i
+                , Ast.Fun.ArgIdent
+                    { strid = strid
+                    , colon = colon
+                    , sigexp = sigexp
+                    }
+                )
+              end
+
+          fun parseOne i =
+            let
+              val (i, funid) = parse_funid i
+              val (i, lparen) = parse_reserved Token.OpenParen i
+              val (i, funarg) = parse_funarg infdict i
+              val (i, rparen) = parse_reserved Token.CloseParen i
+              val (i, constraint) = parse_maybeConstraint infdict i
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, strexp) = consume_strexp infdict i
+            in
+              ( i
+              , { funid = funid
+                , lparen = lparen
+                , funarg = funarg
+                , rparen = rparen
+                , constraint = constraint
+                , eq = eq
+                , strexp = strexp
+                }
+              )
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseOne, delim = Token.And}
+              i
+        in
+          ( (i, infdict)
+          , Ast.FunDec (Ast.Fun.DecFunctor
+              { functorr = functorr
+              , elems = elems
+              , delims = delims
+              })
+          )
+        end
+
 
       (** ====================================================================
         * Top-level
@@ -871,7 +953,7 @@ struct
         if isReserved Token.Signature at i then
           consume_sigDec (i+1, infdict)
         else if isReserved Token.Functor at i then
-          consume_fundec infdict (i+1)
+          consume_fundec infdict (tok i) (i+1)
         else if check Token.isStrDecStartToken at i orelse
                 check Token.isDecStartToken at i then
           let
