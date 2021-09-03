@@ -158,7 +158,7 @@ Top-level "strdecs":
 - [x] multiple strdecs in sequence
 - [x] core language declarations
 - [x] structures (e.g. `structure X: S = ...`)
-- [ ] local-in-end
+- [x] local-in-end
 
 Other Top-level Declarations:
 - [x] multiple top-level in sequence

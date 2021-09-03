@@ -763,6 +763,30 @@ struct
         end
 
 
+      (** local strdec in strdec end
+        *      ^
+        *)
+      and consume_strdecLocalInEnd locall (i, infdict) =
+        let
+          val original_infdict = infdict
+
+          val ((i, infdict), strdec1) = consume_strdec (i, infdict)
+          val (i, inn) = parse_reserved Token.In i
+          val ((i, _), strdec2) = consume_strdec (i, infdict)
+          val (i, endd) = parse_reserved Token.End i
+        in
+          ( (i, original_infdict)   (** TODO: check this? *)
+          , Ast.Str.LocalInEnd
+              { locall = locall
+              , strdec1 = strdec1
+              , inn = inn
+              , strdec2 = strdec2
+              , endd = endd
+              }
+          )
+        end
+
+
       and consume_exactlyOneStrdec (i, infdict)
           : ((int * InfixDict.t) * Ast.Str.strdec) =
         if isReserved Token.Structure i then
@@ -771,6 +795,8 @@ struct
           in
             ((i, infdict), dec)
           end
+        else if isReserved Token.Local i then
+          consume_strdecLocalInEnd (tok i) (i+1, infdict)
         else
           let
             val ((i, infdict), dec) =

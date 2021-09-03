@@ -66,3 +66,10 @@ structure Foobar =
       end
     end
   end
+
+local
+  structure X = Y
+  structure Z :> S = let structure A = B in B :> S end
+in
+structure Foo = F(structure X = X structure Y = Z)
+end

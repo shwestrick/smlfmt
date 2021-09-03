@@ -792,6 +792,14 @@ struct
         , delims: Token.t option Seq.t
         }
 
+    | LocalInEnd of
+        { locall: Token.t
+        , strdec1: strdec
+        , inn: Token.t
+        , strdec2: strdec
+        , endd: Token.t
+        }
+
   end
 
 

@@ -967,6 +967,30 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
         end
 
+    | Ast.Str.LocalInEnd {strdec1, strdec2, ...} =>
+        let
+          val topPart =
+            text "local"
+            $$
+            (spaces 2 ++ showStrDec strdec1)
+            $$
+            text "in"
+
+          val topPart =
+            if Ast.Str.isMultipleDecs strdec1 then
+              topPart
+            else
+              group topPart
+        in
+          group (
+            topPart
+            $$
+            (spaces 2 ++ group (showStrDec strdec2))
+            $$
+            text "end"
+          )
+        end
+
     (* | _ => text "<strdec>" *)
 
 
