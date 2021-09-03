@@ -45,3 +45,24 @@ structure X =
      datatype P = L | R)
 
 structure S = F (structure X:Foo = X val hello: string = "hello")
+
+structure Foobar =
+  let
+    structure Hello :>
+    sig
+      val hello: string -> unit
+    end =
+    struct
+      fun hello x = print (x ^ "\n")
+    end
+
+    structure Goodbye = G (structure X:Foo = Hello val hello: string = "hello")
+  in
+    let in
+      struct
+        type t = string
+        fun hello (x: t) : unit = Hello.hello
+        val goodbye = Goodbye.hello
+      end
+    end
+  end

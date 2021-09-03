@@ -894,6 +894,33 @@ struct
         text (Token.toString funid) ++ space
         ++ parensAround (showStrDec strdec)
 
+    | Ast.Str.LetInEnd {strdec, strexp, ...} =>
+        let
+          val prettyDec = showStrDec strdec
+          val prettyExp = showStrExp strexp
+
+          val topPart =
+            text "let"
+            $$
+            (spaces 2 ++ prettyDec)
+            $$
+            text "in"
+
+          val topPart =
+            if Ast.Str.isMultipleDecs strdec then
+              topPart
+            else
+              group topPart
+        in
+          group (
+            topPart
+            $$
+            (spaces 2 ++ group (prettyExp))
+            $$
+            text "end"
+          )
+        end
+
     (* | _ => text "<strexp>" *)
 
 

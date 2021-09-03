@@ -132,4 +132,16 @@ struct
       | _ => false
   end
 
+
+  structure Str =
+  struct
+    open AstType.Str
+
+    fun isMultipleDecs dec =
+      case dec of
+        DecMultiple {elems, ...} =>
+          Seq.length elems > 1
+      | _ => false
+  end
+
 end

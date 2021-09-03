@@ -756,6 +756,14 @@ struct
         , rparen: Token.t
         }
 
+    | LetInEnd of
+        { lett: Token.t
+        , strdec: strdec
+        , inn: Token.t
+        , strexp: strexp
+        , endd: Token.t
+        }
+
 
     (** TODO: finish *)
     and strdec =

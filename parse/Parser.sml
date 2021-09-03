@@ -650,6 +650,28 @@ struct
           end
 
 
+      (** let strdec in strexp end
+        *    ^
+        *)
+      and consume_strexpLetInEnd infdict lett i =
+        let
+          val ((i, infdict'), strdec) = consume_strdec (i, infdict)
+          val (i, inn) = parse_reserved Token.In i
+          val (i, strexp) = consume_strexp infdict' i
+          val (i, endd) = parse_reserved Token.End i
+        in
+          ( i
+          , Ast.Str.LetInEnd
+              { lett = lett
+              , strdec = strdec
+              , inn = inn
+              , strexp = strexp
+              , endd = endd
+              }
+          )
+        end
+
+
       and consume_strexp infdict i =
         let
           val (i, strexp) =
@@ -664,6 +686,10 @@ struct
 
             else if check Token.isMaybeLongStrIdentifier i then
               (i+1, Ast.Str.Ident (Ast.MaybeLong.make (tok i)))
+
+            else if isReserved Token.Let i then
+              consume_strexpLetInEnd infdict (tok i) (i+1)
+
             else
               nyi "consume_strexp" i
         in

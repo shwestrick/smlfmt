@@ -152,7 +152,7 @@ Structure Expressions
 - [x] transparent constraint
 - [x] opaque constraint
 - [x] functor application
-- [ ] let-in-end
+- [x] let-in-end
 
 Top-level "strdecs":
 - [x] multiple strdecs in sequence
