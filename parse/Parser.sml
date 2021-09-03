@@ -776,7 +776,7 @@ struct
           val (i, endd) = parse_reserved Token.End i
         in
           ( (i, original_infdict)   (** TODO: check this? *)
-          , Ast.Str.LocalInEnd
+          , Ast.Str.DecLocalInEnd
               { locall = locall
               , strdec1 = strdec1
               , inn = inn

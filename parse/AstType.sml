@@ -792,7 +792,7 @@ struct
         , delims: Token.t option Seq.t
         }
 
-    | LocalInEnd of
+    | DecLocalInEnd of
         { locall: Token.t
         , strdec1: strdec
         , inn: Token.t
@@ -809,9 +809,33 @@ struct
   structure Fun =
   struct
 
-    (** TODO: finish *)
-    datatype funexp = FE
-    datatype fundec = FD
+    datatype funarg =
+      ArgIdent of
+        { strid: Token.t
+        , sigexp: Sig.sigexp
+        }
+
+    | ArgSpec of Sig.spec
+
+
+    datatype fundec =
+      DecFunctor of
+        { functorr: Token.t
+        , elems:
+            { funid: Token.t
+            , lparen: Token.t
+            , arg: funarg
+            , rparen: Token.t
+            , constraint:
+                { colon: Token.t      (** either : or :> *)
+                , sigexp: Sig.sigexp
+                } option
+            , eq: Token.t
+            , strexp: Str.strexp
+            } Seq.t
+        (** 'and' between elems *)
+        , delims: Token.t Seq.t
+        }
 
   end
 

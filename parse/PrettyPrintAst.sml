@@ -967,7 +967,7 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
         end
 
-    | Ast.Str.LocalInEnd {strdec1, strdec2, ...} =>
+    | Ast.Str.DecLocalInEnd {strdec1, strdec2, ...} =>
         let
           val topPart =
             text "local"
