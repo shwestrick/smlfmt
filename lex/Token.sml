@@ -296,6 +296,7 @@ struct
     case getClass tok of
       Identifier => true
     | LongIdentifier => true
+    | Reserved Equal => true (** annoying edge case *)
     | _ => false
 
   (** alphanumeric, not starting with prime *)
