@@ -46,9 +46,9 @@ struct
     * for each expression:
     *
     *   1. Precedence level? (We'll use a total order)
-    *   2. It's left-side expression (if there is one) and how to replace it
+    *   2. Its left-side expression (if there is one) and how to replace it
     *   with some other expression.
-    *   3. It's right-side expression (if there is one) and how to replace it
+    *   3. Its right-side expression (if there is one) and how to replace it
     *   with some other expression.
     *
     * This gives us a pretty simple and straightforward implementation of
