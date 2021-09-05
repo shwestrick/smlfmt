@@ -486,7 +486,7 @@ struct
       | Select {label, ...} =>
           text "#" ++ space ++ text (Token.toString label)
       | App {left, right} =>
-          group (showExp left $$ (spaces 2 ++ showExp right))
+          parensAround (group (showExp left $$ (spaces 2 ++ showExp right)))
       | Infix {left, id, right} =>
           parensAround (group (
             showExp left ++ space ++ text (Token.toString id)

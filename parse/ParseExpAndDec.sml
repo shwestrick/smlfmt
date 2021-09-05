@@ -860,13 +860,6 @@ struct
         in
           if again then
             consume_afterExp infdict restriction exp i
-
-          (** TODO: check this. This feels like a hack. Perhaps afterExp
-            * actually doesn't need the restriction at all?
-            *)
-          else if not (Restriction.anyOkay restriction) then
-            consume_afterExp infdict (Restriction.bumpUp restriction) exp i
-
           else
             (i, exp)
         end
