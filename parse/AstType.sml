@@ -22,6 +22,7 @@ struct
     type t
     val make: Token.t -> t
     val getToken: t -> Token.t
+    val isLong: t -> bool
   end =
   struct
     type t = Token.t
@@ -34,6 +35,8 @@ struct
                     ^ Token.classToString (Token.getClass tok) ^ ")")
 
     fun getToken tok = tok
+
+    fun isLong tok = Token.isLongIdentifier tok
   end
 
 

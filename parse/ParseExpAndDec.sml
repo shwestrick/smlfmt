@@ -438,11 +438,12 @@ struct
           (** [op]vid atpat .... atpat [: ty] = exp [| ...] *)
           fun parseElem i =
             let
-              val (_, {vid = func_name, ...}) = consume_opvid infdict i
+              (* val (_, {vid = func_name, ...}) = consume_opvid infdict i *)
 
               (** [op]vid atpat ... atpat [: ty] = exp *)
-              fun parseBranch vid i =
+              fun parseBranch (*vid*) i =
                 let
+                  (*
                   val (i, {opp, vid}) = consume_opvid infdict i
 
                   (** arg patterns continue until we see
@@ -454,6 +455,10 @@ struct
                       (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
                       (parse_pat infdict Restriction.At)
                       i
+                  *)
+
+                  val (i, fname_args) =
+                    ParseFunNameArgs.fname_args toks infdict i
 
                   val (i, ty) =
                     if not (isReserved Token.Colon at i) then
@@ -468,6 +473,7 @@ struct
                   val (i, eq) = parse_reserved Token.Equal i
                   val (i, exp) = consume_exp infdict Restriction.None i
                 in
+                  (*
                   if not (Token.same (func_name, vid)) then
                     ParserUtils.error
                       { pos = Token.getSource vid
@@ -475,14 +481,14 @@ struct
                       , explain = SOME ("Expected identifier `" ^ Token.toString
                                   func_name ^ "`.")
                       }
-                  else
+                  else *)
                     ( i
-                    , { fname_args =
-                          Ast.Exp.PrefixedFun
+                    , { fname_args = fname_args
+                          (*Ast.Exp.PrefixedFun
                             { opp = opp
                             , id = vid
                             , args = args
-                            }
+                            }*)
                       , ty = ty
                       , eq = eq
                       , exp = exp
@@ -491,7 +497,7 @@ struct
                 end
               val (i, func_def) =
                 parse_oneOrMoreDelimitedByReserved
-                  {parseElem = parseBranch func_name, delim = Token.Bar}
+                  {parseElem = parseBranch (*func_name*), delim = Token.Bar}
                   i
             in
               (i, func_def)

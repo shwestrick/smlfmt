@@ -93,6 +93,24 @@ struct
       (case pat of
         Infix _ => true
       | _ => false)
+
+    fun leftMostToken pat =
+      case pat of
+        Wild t => t
+      | Unit {left, ...} => left
+      | Const t => t
+      | Ident {opp, id} =>
+          (case opp of SOME t => t | NONE => MaybeLong.getToken id)
+      | List {left, ...} => left
+      | Tuple {left, ...} => left
+      | Record {left, ...} => left
+      | Parens {left, ...} => left
+      | Con {opp, id, ...} =>
+          (case opp of SOME t => t | NONE => MaybeLong.getToken id)
+      | Infix {left, ...} => leftMostToken left
+      | Typed {pat, ...} => leftMostToken pat
+      | Layered {opp, id, ...} =>
+          (case opp of SOME t => t | NONE => id)
   end
 
   structure Exp =
