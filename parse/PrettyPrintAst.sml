@@ -137,12 +137,51 @@ struct
 
       | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
           let
+            fun showArgs args =
+              Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
+                (showPat (Seq.nth args 0))
+                (Seq.drop args 1)
+
+            fun showFNameArgs xx =
+              case xx of
+                PrefixedFun {opp, id, args} =>
+                  separateWithSpaces
+                    [ Option.map (fn _ => text "op") opp
+                    , SOME (text (Token.toString id))
+                    , SOME (showArgs args)
+                    ]
+              | _ => text "<fnameargs>"
+
+            fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
+              text ":" ++ space ++ showTy ty
+
+            fun showClause isFirstFun isFirstClause {fname_args, ty, exp, ...} =
+              let
+                val front =
+                  if isFirstFun andalso isFirstClause then
+                    "fun"
+                  else if not isFirstFun andalso isFirstClause then
+                    "and"
+                  else
+                    "  |"
+              in
+                group (
+                  separateWithSpaces
+                    [ SOME (text front)
+                    , SOME (showFNameArgs fname_args)
+                    , Option.map showColonTy ty
+                    , SOME (text "=")
+                    ]
+                  $$
+                  (spaces 2 ++ showExp exp)
+                )
+              end
+
+(*
             fun mkClause {opp, id, args, ty, eq, exp} =
               let
-                val prettyArgs =
-                  Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
-                    (showPat (Seq.nth args 0))
-                    (Seq.drop args 1)
+                val prettyArgs = showArgs args
+
               in
                 spaces 2
                 ++
@@ -159,7 +198,8 @@ struct
                     (spaces 2 ++ showExp exp)
                   )
             end
-
+            *)
+(*
             fun mkFirstClause mark {opp, id, args, ty, eq, exp} =
               (* mark is true if this is the first fun declaration *)
               let
@@ -182,11 +222,13 @@ struct
                   (spaces 2 ++ showExp exp)
                 )
               end
+*)
 
-            fun mkFunction mark {elems=innerElems, delims} =
-              (* mark is if it's the first function! *)
-              Seq.iterate op$$ (mkFirstClause mark (Seq.nth innerElems 0))
-              (Seq.map mkClause (Seq.drop innerElems 1))
+            fun mkFunction isFirstFun {elems=innerElems, delims} =
+              Seq.iterate op$$
+                (showClause isFirstFun true (Seq.nth innerElems 0))
+                (Seq.map (showClause isFirstFun false)
+                  (Seq.drop innerElems 1))
           in
             Seq.iterate op$$ (mkFunction true (Seq.nth elems 0)) (Seq.map
             (mkFunction false) (Seq.drop elems 1))

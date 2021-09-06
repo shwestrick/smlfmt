@@ -477,9 +477,12 @@ struct
                       }
                   else
                     ( i
-                    , { opp = opp
-                      , id = vid
-                      , args = args
+                    , { fname_args =
+                          Ast.Exp.PrefixedFun
+                            { opp = opp
+                            , id = vid
+                            , args = args
+                            }
                       , ty = ty
                       , eq = eq
                       , exp = exp

@@ -249,12 +249,48 @@ struct
       }
 
 
+    (** Functions can be defined either in prefix style
+      *
+      *   fun [op]name arg1 arg2 arg3 ... [: ty] = ...
+      *
+      * or in infix style
+      *
+      *   fun arg1 name arg2 [: ty] = ...
+      *   fun (arg1 name arg2) arg3 ... [: ty] = ...
+      *
+      * In the infix style, it's a bit annoying, because if there are
+      * additional curried arguments then there needs to be parentheses
+      * around the infix part.
+      *
+      * Note that the arguments always must be atomic patterns
+      *)
+    datatype fname_args =
+      PrefixedFun of
+        { opp: Token.t option
+        , id: Token.t
+        , args: Pat.t Seq.t
+        }
+
+    | InfixedFun of
+        { larg: Pat.t
+        , id: Token.t
+        , rarg: Pat.t
+        }
+
+    | CurriedInfixedFun of
+        { lparen: Token.t
+        , larg: Pat.t
+        , id: Token.t
+        , rarg: Pat.t
+        , rparen: Token.t
+        , args: Pat.t Seq.t
+        }
+
+
     type 'exp fvalbind =
       { elems:
           { elems:
-              { opp: Token.t option
-              , id: Token.t
-              , args: Pat.t Seq.t  (** NOTE: must be atomic patterns *)
+              { fname_args: fname_args
               , ty: {colon: Token.t, ty: Ty.t} option
               , eq: Token.t
               , exp: 'exp
