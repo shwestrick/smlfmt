@@ -438,25 +438,9 @@ struct
           (** [op]vid atpat .... atpat [: ty] = exp [| ...] *)
           fun parseElem i =
             let
-              (* val (_, {vid = func_name, ...}) = consume_opvid infdict i *)
-
               (** [op]vid atpat ... atpat [: ty] = exp *)
               fun parseBranch (*vid*) i =
                 let
-                  (*
-                  val (i, {opp, vid}) = consume_opvid infdict i
-
-                  (** arg patterns continue until we see
-                    * ':' (type annotation) or
-                    * '=' (end of args, beginning of function body)
-                    *)
-                  val (i, args) =
-                    parse_zeroOrMoreWhile
-                      (fn i => not (isReserved Token.Colon at i orelse isReserved Token.Equal at i))
-                      (parse_pat infdict Restriction.At)
-                      i
-                  *)
-
                   val (i, fname_args) =
                     ParseFunNameArgs.fname_args toks infdict i
 
@@ -473,31 +457,17 @@ struct
                   val (i, eq) = parse_reserved Token.Equal i
                   val (i, exp) = consume_exp infdict Restriction.None i
                 in
-                  (*
-                  if not (Token.same (func_name, vid)) then
-                    ParserUtils.error
-                      { pos = Token.getSource vid
-                      , what = "Function name does not match."
-                      , explain = SOME ("Expected identifier `" ^ Token.toString
-                                  func_name ^ "`.")
-                      }
-                  else *)
-                    ( i
-                    , { fname_args = fname_args
-                          (*Ast.Exp.PrefixedFun
-                            { opp = opp
-                            , id = vid
-                            , args = args
-                            }*)
-                      , ty = ty
-                      , eq = eq
-                      , exp = exp
-                      }
-                    )
+                  ( i
+                  , { fname_args = fname_args
+                    , ty = ty
+                    , eq = eq
+                    , exp = exp
+                    }
+                  )
                 end
               val (i, func_def) =
                 parse_oneOrMoreDelimitedByReserved
-                  {parseElem = parseBranch (*func_name*), delim = Token.Bar}
+                  {parseElem = parseBranch, delim = Token.Bar}
                   i
             in
               (i, func_def)
@@ -509,6 +479,8 @@ struct
             parse_oneOrMoreDelimitedByReserved
               {parseElem = parseElem, delim = Token.And}
               i
+
+          val _ = Ast.Exp.checkValidFValBind fvalbind ParserUtils.error
         in
           ( (i, infdict)
           , Ast.Exp.DecFun
@@ -518,6 +490,7 @@ struct
               }
           )
         end
+
 
       (** local dec1 in dec2 end
         *      ^

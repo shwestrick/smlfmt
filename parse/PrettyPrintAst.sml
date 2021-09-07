@@ -138,9 +138,17 @@ struct
       | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
           let
             fun showArgs args =
+              if Seq.length args = 0 then empty else
               Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
                 (showPat (Seq.nth args 0))
                 (Seq.drop args 1)
+
+            fun showInfixed larg id rarg =
+              showPat larg
+              ++ space
+              ++ text (Token.toString id)
+              ++ space
+              ++ showPat rarg
 
             fun showFNameArgs xx =
               case xx of
@@ -150,7 +158,13 @@ struct
                     , SOME (text (Token.toString id))
                     , SOME (showArgs args)
                     ]
-              | _ => text "<fnameargs>"
+              | InfixedFun {larg, id, rarg} =>
+                  showInfixed larg id rarg
+              | CurriedInfixedFun {larg, id, rarg, args, ...} =>
+                  separateWithSpaces
+                    [ SOME (parensAround (showInfixed larg id rarg))
+                    , SOME (showArgs args)
+                    ]
 
             fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
               text ":" ++ space ++ showTy ty
@@ -176,53 +190,6 @@ struct
                   (spaces 2 ++ showExp exp)
                 )
               end
-
-(*
-            fun mkClause {opp, id, args, ty, eq, exp} =
-              let
-                val prettyArgs = showArgs args
-
-              in
-                spaces 2
-                ++
-                group (
-                    separateWithSpaces
-                      [ SOME (text "|")
-                      , Option.map (fn _ => text "op") opp
-                      , SOME (text (Token.toString id))
-                      , SOME prettyArgs
-                      , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
-                      , SOME (text "=")
-                      ]
-                    $$
-                    (spaces 2 ++ showExp exp)
-                  )
-            end
-            *)
-(*
-            fun mkFirstClause mark {opp, id, args, ty, eq, exp} =
-              (* mark is true if this is the first fun declaration *)
-              let
-                val prettyArgs =
-                  Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
-                    (showPat (Seq.nth args 0))
-                    (Seq.drop args 1)
-              in
-                group (
-                  separateWithSpaces
-                    [ SOME (text (if mark then "fun" else "and"))
-                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                    , Option.map (fn _ => text "op") opp
-                    , SOME (text (Token.toString id))
-                    , SOME prettyArgs
-                    , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
-                    , SOME (text "=")
-                    ]
-                  $$
-                  (spaces 2 ++ showExp exp)
-                )
-              end
-*)
 
             fun mkFunction isFirstFun {elems=innerElems, delims} =
               Seq.iterate op$$
@@ -1046,7 +1013,7 @@ struct
             Ast.StrDec d => showStrDec d
           | Ast.SigDec d => showSigDec d
           | Ast.FunDec d => text "<functor>"
-          | _ => raise Fail "Not yet implemented!"
+          (* | _ => raise Fail "Not yet implemented!" *)
 
         val all = Seq.map showOne tds
         val doc = Seq.iterate op$$ (Seq.nth all 0) (Seq.drop all 1)
