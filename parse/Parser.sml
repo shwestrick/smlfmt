@@ -65,6 +65,8 @@ struct
         PS.tycon toks i
       fun parse_maybeLongTycon i =
         PS.maybeLongTycon toks i
+      fun parse_maybeLongStrid i =
+        PS.maybeLongStrid toks i
       fun parse_ty i =
         PT.ty toks i
 
@@ -489,23 +491,91 @@ struct
         end
 
 
+      (** spec sharing longstrid = ... = longstrid
+        *             ^
+        *)
+      and consume_sigSharing infdict spec sharingg i =
+        let
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parse_maybeLongStrid, delim = Token.Equal}
+              i
+        in
+          ( i
+          , Ast.Sig.Sharing
+              { spec = spec
+              , sharingg = sharingg
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
+      (** spec sharing type longtycon = ... = longtycon
+        *                  ^
+        *)
+      and consume_sigSharingType infdict spec sharingg typee i =
+        let
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parse_maybeLongTycon, delim = Token.Equal}
+              i
+        in
+          ( i
+          , Ast.Sig.SharingType
+              { spec = spec
+              , sharingg = sharingg
+              , typee = typee
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
       and consume_oneSigSpec infdict i =
-        if isReserved Token.Val at i then
-          consume_sigSpecVal infdict (i+1)
-        else if isReserved Token.Type at i then
-          consume_sigSpecTypeOrAbbreviation infdict (tok i) (i+1)
-        else if isReserved Token.Eqtype at i then
-          consume_sigSpecEqtype infdict (i+1)
-        else if isReserved Token.Datatype at i then
-          consume_sigSpecDatatypeDeclarationOrReplication infdict (i+1)
-        else if isReserved Token.Exception at i then
-          consume_sigSpecException infdict (i+1)
-        else if isReserved Token.Structure at i then
-          consume_sigSpecStructure infdict (i+1)
-        else if isReserved Token.Include at i then
-          consume_sigSpecInclude infdict (i+1)
-        else
-          nyi "consume_oneSigSpec" i
+        let
+          val (i, spec) =
+            if isReserved Token.Val at i then
+              consume_sigSpecVal infdict (i+1)
+            else if isReserved Token.Type at i then
+              consume_sigSpecTypeOrAbbreviation infdict (tok i) (i+1)
+            else if isReserved Token.Eqtype at i then
+              consume_sigSpecEqtype infdict (i+1)
+            else if isReserved Token.Datatype at i then
+              consume_sigSpecDatatypeDeclarationOrReplication infdict (i+1)
+            else if isReserved Token.Exception at i then
+              consume_sigSpecException infdict (i+1)
+            else if isReserved Token.Structure at i then
+              consume_sigSpecStructure infdict (i+1)
+            else if isReserved Token.Include at i then
+              consume_sigSpecInclude infdict (i+1)
+            else
+              nyi "consume_oneSigSpec" i
+        in
+          consume_afterSigSpec infdict spec i
+        end
+
+
+
+      and consume_afterSigSpec infdict spec i =
+        let
+          val (again, (i, spec)) =
+            if isReserved Token.Sharing i then
+              if isReserved Token.Type (i+1) then
+                (true, consume_sigSharingType infdict
+                         spec (tok i) (tok (i+1)) (i+2))
+              else
+                (true, consume_sigSharing infdict spec (tok i) (i+1))
+            else
+              (false, (i, spec))
+        in
+          if again then
+            consume_afterSigSpec infdict spec i
+          else
+            (i, spec)
+        end
 
 
       and consume_sigSpec infdict i =

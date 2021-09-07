@@ -48,6 +48,8 @@ signature FOO =
       sig
         type 'a t
       end where type 'a t = int
+    sharing type Stack.t = int = Int64.int
+    sharing Module.Stack = Stack
 
     include FOO
     include
@@ -64,4 +66,5 @@ signature FOO =
     include BAR where type t = unit
 
     include X Y Z
+    sharing X.Y = Z = This'.is.Str
   end

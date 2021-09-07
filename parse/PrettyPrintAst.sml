@@ -846,8 +846,27 @@ struct
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ showOne i)
         end
 
-    | _ =>
-        text "<spec>"
+    | Ast.Sig.Sharing {spec, elems, ...} =>
+        group (
+          showSpec spec
+          $$
+          (text "sharing" ++ space ++
+            Seq.iterate (fn (a, b) => a ++ space ++ text "=" ++ space ++ b)
+              (text (Token.toString (Ast.MaybeLong.getToken (Seq.nth elems 0))))
+              (Seq.map (text o Token.toString o Ast.MaybeLong.getToken) (Seq.drop elems 1)))
+        )
+
+    | Ast.Sig.SharingType {spec, elems, ...} =>
+        group (
+          showSpec spec
+          $$
+          (text "sharing type" ++ space ++
+            Seq.iterate (fn (a, b) => a ++ space ++ text "=" ++ space ++ b)
+              (text (Token.toString (Ast.MaybeLong.getToken (Seq.nth elems 0))))
+              (Seq.map (text o Token.toString o Ast.MaybeLong.getToken) (Seq.drop elems 1)))
+        )
+
+    | _ => text "<spec>"
 
 
 

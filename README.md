@@ -143,8 +143,8 @@ Signature Specifications:
 - [x] multiple specs in sequence
 - [x] include multiple (`include A B C`)
 - [x] type abbreviations (e.g. `type t = string`)
-- [ ] sharing-type (e.g. `spec sharing type a = b = c`)
-- [ ] sharing (e.g. `spec sharing X = Y`)
+- [x] sharing-type (e.g. `spec sharing type a = b = c`)
+- [x] sharing (e.g. `spec sharing X = Y`)
 
 Structure Expressions
 - [x] identifiers

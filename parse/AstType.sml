@@ -710,12 +710,21 @@ struct
         }
 
     (** spec sharing type longtycon1 = ... = longtyconn *)
-    | Sharing of
+    | SharingType of
         { spec: spec
         , sharingg: Token.t
         , typee: Token.t
         , elems: MaybeLong.t Seq.t
         (** the '=' delimiters between longtycons *)
+        , delims: Token.t Seq.t
+        }
+
+    (** spec sharing longstrid = ... = longstrid *)
+    | Sharing of
+        { spec: spec
+        , sharingg: Token.t
+        , elems: MaybeLong.t Seq.t
+        (** the '=' delimiters between longstrids *)
         , delims: Token.t Seq.t
         }
 

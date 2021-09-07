@@ -24,6 +24,7 @@ sig
   val recordLabel: tokens -> (int, Token.t) parser
   val tycon: tokens -> (int, Token.t) parser
   val maybeLongTycon: tokens -> (int, Ast.MaybeLong.t) parser
+  val maybeLongStrid: tokens -> (int, Ast.MaybeLong.t) parser
 end =
 struct
 
@@ -163,6 +164,18 @@ struct
         { pos = Token.getSource (Seq.nth toks i)
         , what = "Unexpected token. Invalid (possibly qualified)\
                  \ type constructor."
+        , explain = NONE
+        }
+
+
+  fun maybeLongStrid toks i =
+    if check toks Token.isMaybeLongStrIdentifier i then
+      (i+1, Ast.MaybeLong.make (Seq.nth toks i))
+    else
+      ParserUtils.error
+        { pos = Token.getSource (Seq.nth toks i)
+        , what = "Unexpected token. Invalid (possibly qualified)\
+                 \ structure identifier."
         , explain = NONE
         }
 
