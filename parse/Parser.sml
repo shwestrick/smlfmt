@@ -372,18 +372,45 @@ struct
 
       (** include sigexp
         *        ^
+        * OR
+        * include sigid ... sigid
+        *        ^
         *)
       and consume_sigSpecInclude infdict i =
         let
           val includee = tok (i-1)
           val (i, sigexp) = consume_sigExp infdict i
+
+          fun makeInclude i =
+            ( i
+            , Ast.Sig.Include
+                { includee = includee
+                , sigexp = sigexp
+                }
+            )
+
+          fun makeIncludeIds firstId i =
+            let
+              val (i, ids) =
+                PC.zeroOrMoreWhile
+                (check Token.isStrIdentifier)
+                (fn i => (i+1, tok i))
+                i
+            in
+              ( i
+              , Ast.Sig.IncludeIds
+                  { includee = includee
+                  , sigids = Seq.append (Seq.singleton firstId, ids)
+                  }
+              )
+            end
+
         in
-          ( i
-          , Ast.Sig.Include
-              { includee = includee
-              , sigexp = sigexp
-              }
-          )
+          case sigexp of
+            Ast.Sig.Ident id =>
+              makeIncludeIds id i
+          | _ =>
+              makeInclude i
         end
 
 

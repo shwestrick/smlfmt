@@ -816,6 +816,10 @@ struct
             showSigExp sigexp
         )
 
+    | Ast.Sig.IncludeIds {sigids, ...} =>
+        Seq.iterate (fn (a, b) => a ++ space ++ text (Token.toString b))
+          (text "include") sigids
+
     | Ast.Sig.Multiple {elems, delims} =>
         let
           fun showOne i =

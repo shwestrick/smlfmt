@@ -141,7 +141,7 @@ Signature Specifications:
 - [x] structures (`structure X: S`)
 - [x] include
 - [x] multiple specs in sequence
-- [ ] include multiple (`include A B C`)
+- [x] include multiple (`include A B C`)
 - [ ] type abbreviations (e.g. `type t = string`)
 - [ ] sharing-type (e.g. `spec sharing type a = b = c`)
 - [ ] sharing (e.g. `spec sharing X = Y`)

@@ -691,6 +691,12 @@ struct
         , sigexp: sigexp
         }
 
+    (** include sigid ... sigid *)
+    | IncludeIds of
+        { includee: Token.t
+        , sigids: Token.t Seq.t
+        }
+
     (** spec sharing type longtycon1 = ... = longtyconn *)
     | Sharing of
         { spec: spec

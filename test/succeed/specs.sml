@@ -57,4 +57,7 @@ signature FOO =
         type 'a t
       end where type 'a t = string
 
+    include BAR where type t = unit
+
+    include X Y Z
   end
