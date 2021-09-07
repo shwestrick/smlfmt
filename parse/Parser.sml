@@ -552,7 +552,11 @@ struct
             else if isReserved Token.Include at i then
               consume_sigSpecInclude infdict (i+1)
             else
-              nyi "consume_oneSigSpec" i
+              ParserUtils.error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token."
+                , explain = SOME "Expected element of signature."
+                }
         in
           consume_afterSigSpec infdict spec i
         end
@@ -865,7 +869,11 @@ struct
               consume_strexpLetInEnd infdict (tok i) (i+1)
 
             else
-              nyi "consume_strexp" i
+              ParserUtils.error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token."
+                , explain = SOME "Expected structure expression."
+                }
         in
           consume_afterStrexp infdict strexp i
         end

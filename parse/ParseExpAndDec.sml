@@ -834,7 +834,11 @@ struct
                   }
 
             else
-              nyi "consume_exp" i
+              ParserUtils.error
+                { pos = Token.getSource (tok i)
+                , what = "Unexpected token."
+                , explain = SOME "Expected beginning of expression."
+                }
         in
           consume_afterExp infdict restriction exp i
         end
