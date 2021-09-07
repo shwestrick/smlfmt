@@ -354,8 +354,48 @@ struct
           consume_decDatatypeDeclarationOrReplication (i+1, infdict)
         else if isReserved Token.Open at i then
           consume_decOpen (tok i) (i+1, infdict)
+        else if isReserved Token.Abstype at i then
+          consume_decAbstype (tok i) (i+1, infdict)
         else
-          nyi "consume_oneDec" i
+          ParserUtils.error
+            { pos = Token.getSource (tok i)
+            , what = "Unexpected token."
+            , explain = SOME "Expected to see the beginning of a declaration."
+            }
+
+
+      (** abstype datbind [withtype typbind] with dec end
+        *        ^
+        *)
+      and consume_decAbstype abstypee (i, infdict) =
+        let
+          val (i, datbind) = parse_datbind i
+          val (i, withtypeClause) =
+            if isReserved Token.Withtype i then
+              let
+                val (i, withtypee) = (i+1, tok i)
+                val (i, typbind) = parse_typbind i
+              in
+                (i, SOME {withtypee=withtypee, typbind=typbind})
+              end
+            else
+              (i, NONE)
+
+          val (i, withh) = parse_reserved Token.With i
+          val ((i, _), dec) = consume_dec (i, infdict)
+          val (i, endd) = parse_reserved Token.End i
+        in
+          ( (i, infdict)
+          , Ast.Exp.DecAbstype
+              { abstypee = abstypee
+              , datbind = datbind
+              , withtypee = withtypeClause
+              , withh = withh
+              , dec = dec
+              , endd = endd
+              }
+          )
+        end
 
 
       (** open longstrid ... longstrid

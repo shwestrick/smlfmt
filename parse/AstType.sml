@@ -520,6 +520,7 @@ struct
         { abstypee: Token.t
         , datbind: datbind
         , withtypee: {withtypee: Token.t, typbind: typbind} option
+        , withh: Token.t
         , dec: dec
         , endd: Token.t
         }

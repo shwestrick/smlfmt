@@ -122,7 +122,7 @@ Declarations:
 - [x] exceptions
 - [x] local-in-end
 - [x] open structure
-- [ ] **abstype**
+- [x] abstype
 
 ## Module Parsing TODO
 
