@@ -1130,6 +1130,43 @@ struct
     (* | _ => text "<strdec>" *)
 
 
+  fun showFunArg fa =
+    case fa of
+      Ast.Fun.ArgSpec spec => showSpec spec
+    | Ast.Fun.ArgIdent {strid, sigexp, ...} =>
+        group (
+          text (Token.toString strid)
+          ++ space ++ text ":" ++ space ++
+          showSigExp sigexp
+        )
+
+  fun showFunDec (Ast.Fun.DecFunctor {elems, ...}) =
+    let
+      fun showFunctor isFirst {funid, funarg, constraint, strexp, ...} =
+        group (
+          group (
+            group (
+              text (if isFirst then "functor" else "and")
+              ++ space ++
+              text (Token.toString funid)
+              ++ space ++ text "(" ++ showFunArg funarg ++ text ")"
+            )
+            $$
+            (case constraint of NONE => empty | SOME {colon, sigexp} =>
+              spaces 2 ++ text (Token.toString colon) ++ showSigExp sigexp)
+            ++
+            space ++ text "="
+          )
+          $$
+          showStrExp strexp
+        )
+    in
+      Seq.iterate op$$
+        (showFunctor true (Seq.nth elems 0))
+        (Seq.map (showFunctor false) (Seq.drop elems 1))
+    end
+
+
   fun pretty (Ast.Ast tds) =
     if Seq.length tds = 0 then
       ""
@@ -1139,7 +1176,7 @@ struct
           case td of
             Ast.StrDec d => showStrDec d
           | Ast.SigDec d => showSigDec d
-          | Ast.FunDec d => text "<functor>"
+          | Ast.FunDec d => showFunDec d
           (* | _ => raise Fail "Not yet implemented!" *)
 
         val all = Seq.map showOne tds
