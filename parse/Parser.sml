@@ -176,37 +176,112 @@ struct
         end
 
 
-      (** type tyvarseq tycon [and ...]
-        *     ^
+      (** type tyvarseq tycon = ty [and ...]
+        *                         ^
         *)
-      fun consume_sigSpecType infdict i =
-        let
-          val typee = tok (i-1)
+      fun consume_sigSpecTypeAbbreviation infdict typee firstElem i =
+        if not (isReserved Token.And i) then
+          ( i
+          , Ast.Sig.TypeAbbreviation
+              { typee = typee
+              , elems = Seq.singleton firstElem
+              , delims = Seq.empty ()
+              }
+          )
+        else
+          let
+            val (i, firstDelim) = (i+1, tok i)
 
-          fun parseOne i =
-            let
-              val (i, tyvars) = parse_tyvars i
-              val (i, tycon) = parse_tycon i
-            in
-              ( i
-              , { tyvars = tyvars
-                , tycon = tycon
+            fun parseOne i =
+              let
+                val (i, tyvars) = parse_tyvars i
+                val (i, tycon) = parse_tycon i
+                val (i, eq) = parse_reserved Token.Equal i
+                val (i, ty) = parse_ty i
+              in
+                ( i
+                , { tyvars = tyvars
+                  , tycon = tycon
+                  , eq = eq
+                  , ty = ty
+                  }
+                )
+              end
+
+            val (i, {elems, delims}) =
+              parse_oneOrMoreDelimitedByReserved
+                {parseElem = parseOne, delim = Token.And}
+                i
+          in
+            ( i
+            , Ast.Sig.TypeAbbreviation
+                { typee = typee
+                , elems = Seq.append (Seq.singleton firstElem, elems)
+                , delims = Seq.append (Seq.singleton firstDelim, delims)
                 }
-              )
-            end
+            )
+          end
 
-          val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
-        in
+
+      (** type tyvarseq tycon [and ...]
+        *                    ^
+        *)
+      fun consume_sigSpecType infdict typee firstElem i =
+        if not (isReserved Token.And i) then
           ( i
           , Ast.Sig.Type
               { typee = typee
-              , elems = elems
-              , delims = delims
+              , elems = Seq.singleton firstElem
+              , delims = Seq.empty ()
               }
           )
+        else
+          let
+            val (i, firstDelim) = (i+1, tok i)
+
+            fun parseOne i =
+              let
+                val (i, tyvars) = parse_tyvars i
+                val (i, tycon) = parse_tycon i
+              in
+                ( i
+                , { tyvars = tyvars
+                  , tycon = tycon
+                  }
+                )
+              end
+
+            val (i, {elems, delims}) =
+              parse_oneOrMoreDelimitedByReserved
+                {parseElem = parseOne, delim = Token.And}
+                i
+          in
+            ( i
+            , Ast.Sig.Type
+                { typee = typee
+                , elems = Seq.append (Seq.singleton firstElem, elems)
+                , delims = Seq.append (Seq.singleton firstDelim, delims)
+                }
+            )
+          end
+
+
+      fun consume_sigSpecTypeOrAbbreviation infdict typee i =
+        let
+          val (i, tyvars) = parse_tyvars i
+          val (i, tycon) = parse_tycon i
+        in
+          if isReserved Token.Equal i then
+            let
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, ty) = parse_ty i
+            in
+              consume_sigSpecTypeAbbreviation infdict
+                typee {tyvars=tyvars, tycon=tycon, eq=eq, ty=ty} i
+            end
+          else
+            consume_sigSpecType infdict
+              typee {tyvars=tyvars, tycon=tycon} i
         end
 
 
@@ -418,7 +493,7 @@ struct
         if isReserved Token.Val at i then
           consume_sigSpecVal infdict (i+1)
         else if isReserved Token.Type at i then
-          consume_sigSpecType infdict (i+1)
+          consume_sigSpecTypeOrAbbreviation infdict (tok i) (i+1)
         else if isReserved Token.Eqtype at i then
           consume_sigSpecEqtype infdict (i+1)
         else if isReserved Token.Datatype at i then

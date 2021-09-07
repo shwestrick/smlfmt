@@ -12,6 +12,10 @@ signature FOO =
     and are
     and ('a, 'b) values
 
+    type baz = int
+    type foo = baz bar
+    and 'a bar = unit -> 'a
+
     datatype 'a foo = A
     and 'a bar = A of int
     and 'a bat = A of int | B of string

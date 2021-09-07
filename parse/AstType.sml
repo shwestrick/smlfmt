@@ -625,6 +625,18 @@ struct
         , delims: Token.t Seq.t
         }
 
+    | TypeAbbreviation of
+        { typee: Token.t
+        , elems:
+            { tyvars: Token.t SyntaxSeq.t
+            , tycon: Token.t
+            , eq: Token.t
+            , ty: Ty.t
+            } Seq.t
+        (** 'and' delimiters between mutually recursive types *)
+        , delims: Token.t Seq.t
+        }
+
     (** eqtype tyvarseq tycon [and tyvarseq tycon ...] *)
     | Eqtype of
         { eqtypee: Token.t

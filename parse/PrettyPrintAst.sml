@@ -705,6 +705,22 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
+    | Ast.Sig.TypeAbbreviation {elems, ...} =>
+        let
+          fun showOne first {tyvars, tycon, ty, ...} =
+            separateWithSpaces
+              [ SOME (text (if first then "type" else "and"))
+              , maybeShowSyntaxSeq tyvars (text o Token.toString)
+              , SOME (text (Token.toString tycon))
+              , SOME (text "=")
+              , SOME (showTy ty)
+              ]
+        in
+          Seq.iterate op$$
+            (showOne true (Seq.nth elems 0))
+            (Seq.map (showOne false) (Seq.drop elems 1))
+        end
+
     | Ast.Sig.Eqtype {elems, ...} =>
         let
           fun showOne first {tyvars, tycon} =
