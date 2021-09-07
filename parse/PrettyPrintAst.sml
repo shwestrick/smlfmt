@@ -395,6 +395,12 @@ struct
       | DecEmpty =>
           empty
 
+      | DecOpen {elems, ...} =>
+          Seq.iterate
+            (fn (a, b) => a ++ space ++ b)
+            (text "open")
+            (Seq.map (text o Token.toString o Ast.MaybeLong.getToken) elems)
+
       | _ =>
           text "<dec>"
     end

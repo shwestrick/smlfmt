@@ -352,8 +352,29 @@ struct
           consume_decLocal (i+1, infdict)
         else if isReserved Token.Datatype at i then
           consume_decDatatypeDeclarationOrReplication (i+1, infdict)
+        else if isReserved Token.Open at i then
+          consume_decOpen (tok i) (i+1, infdict)
         else
           nyi "consume_oneDec" i
+
+
+      (** open longstrid ... longstrid
+        *     ^
+        *)
+      and consume_decOpen openn (i, infdict) =
+        let
+          val (i, elems) =
+            PC.oneOrMoreWhile (check Token.isMaybeLongStrIdentifier)
+              (fn i => (i+1, Ast.MaybeLong.make (tok i)))
+              i
+        in
+          ( (i, infdict)
+          , Ast.Exp.DecOpen
+              { openn = openn
+              , elems = elems
+              }
+          )
+        end
 
 
       (** exception exbind

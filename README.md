@@ -121,7 +121,7 @@ Declarations:
 - [x] datatype replications (e.g. `datatype x = datatype y`)
 - [x] exceptions
 - [x] local-in-end
-- [ ] **open structure**
+- [x] open structure
 - [ ] **abstype**
 
 ## Module Parsing TODO
