@@ -4,16 +4,6 @@ A custom lexer/parser for Standard ML with the goal of providing
 better error messages. Perhaps it could also eventually provide SML tooling
 such as linting, autoformatting or even a language server.
 
-## Current Status
-
-Lexer and parser are done! (There may be some bugs to iron out, though.)
-
-For files that pass through lexing successfully, you will see a bit of syntax
-highlighting in the output. Files that are parsed successfully are
-also pretty-printed.
-
-Next, we are working on good error reporting...
-
 ## Examples
 
 ```
@@ -59,5 +49,14 @@ $ make
 $ ./main lex/Token.sml
 ```
 
-To see syntax highlighting, you'll need a terminal that supports colors via
+For files that pass through lexing successfully, you will see a bit of syntax
+highlighting in the output. Files that are parsed successfully are
+also pretty-printed.
+
+To see syntax highlighting, you need a terminal that supports colors via
 ANSI escapes, e.g. iTerm2 on macOS.
+
+### Command-line options
+
+Passing `--errors-only` will prevent any output except for a lex/parse error,
+if there is one. Files that successfully parse will have no output.
