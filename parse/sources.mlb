@@ -16,6 +16,7 @@ local
   ParsePat.sml
   ParseFunNameArgs.sml
   ParseExpAndDec.sml
+  ParseSigExpAndSpec.sml
   Parser.sml
 in
   structure Parser
