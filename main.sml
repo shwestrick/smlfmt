@@ -109,34 +109,51 @@ fun loop (wholeSrc, i) (toks, j) =
     end
 
 
-val infile = List.hd (CommandLine.arguments ())
+val errorsOnly = CommandLineArgs.parseFlag "errors-only"
+val infile = List.hd (CommandLineArgs.positional ())
 val source = Source.loadFromFile (FilePath.fromUnixPath infile)
 
-val toks =
-  Lexer.tokens source
-  handle Lexer.Error e =>
-    ( print (LineError.show e)
-    ; OS.Process.exit OS.Process.failure
-    )
+fun vprint msg =
+  if errorsOnly then () else print msg
 
-val _ = loop (source, 0) (toks, 0)
-val _ = print "\nLexing succeeded.\n"
-val _ = print "Parsing...\n\n"
+
+val _ =
+  if errorsOnly then () else
+  let
+    val toks =
+      Lexer.tokens source
+      handle Lexer.Error e =>
+        ( print (LineError.show e)
+        ; OS.Process.exit OS.Process.failure
+        )
+
+  in
+    loop (source, 0) (toks, 0);
+    print "\nLexing succeeded.\n"
+  end
+
+
+val _ = vprint "Parsing...\n\n"
 
 val ast =
   Parser.parse source
-  handle (exn as Parser.Error e) =>
-    ( print (LineError.show e)
-    ; let
-        val hist = MLton.Exn.history exn
-      in
-        if List.null hist then () else
-        print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist))
-      end
-    ; OS.Process.exit OS.Process.failure
-    )
+  handle exn =>
+    let
+      val e =
+        case exn of
+          Parser.Error e => e
+        | Lexer.Error e => e
+        | other => raise other
+
+      val hist = MLton.Exn.history exn
+    in
+      print (LineError.show e);
+      if List.null hist then () else
+        print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
+      OS.Process.exit OS.Process.failure
+    end
 
 val _ =
-  print (PrettyPrintAst.pretty ast ^ "\n")
+  vprint (PrettyPrintAst.pretty ast ^ "\n")
 
-val _ = print "\nParsing succeeded.\n"
+val _ = vprint "\nParsing succeeded.\n"
