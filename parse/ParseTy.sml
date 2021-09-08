@@ -53,7 +53,7 @@ struct
             else if check Token.isMaybeLongIdentifier i then
               ( i+1
               , Ast.Ty.Con
-                  { id = Ast.MaybeLong.make (tok i)
+                  { id = MaybeLongToken.make (tok i)
                   , args = Ast.SyntaxSeq.Empty
                   }
               )
@@ -83,7 +83,7 @@ struct
               ( true
               , ( i+1
                 , Ast.Ty.Con
-                    { id = Ast.MaybeLong.make (tok i)
+                    { id = MaybeLongToken.make (tok i)
                     , args = Ast.SyntaxSeq.One ty
                     }
                 )
@@ -228,7 +228,7 @@ struct
               if check Token.isMaybeLongTyCon i then
                 ( i+1
                 , Ast.Ty.Con
-                    { id = Ast.MaybeLong.make (tok i)
+                    { id = MaybeLongToken.make (tok i)
                     , args =
                         Ast.SyntaxSeq.Many
                           { left = leftParen

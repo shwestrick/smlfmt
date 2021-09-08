@@ -14,32 +14,6 @@
 structure AstType =
 struct
 
-  (** A maybe-long thing can be prefaced by structure identifiers, like
-    * `Hello.World.thing` but also just `thing` (which has no qualifiers)
-    *)
-  structure MaybeLong :>
-  sig
-    type t
-    val make: Token.t -> t
-    val getToken: t -> Token.t
-    val isLong: t -> bool
-  end =
-  struct
-    type t = Token.t
-
-    fun make (tok: Token.t) : t =
-      if Token.isMaybeLongIdentifier tok then
-        tok
-      else
-        raise Fail ("Ast.MaybeLong.make: given non-identifier ("
-                    ^ Token.classToString (Token.getClass tok) ^ ")")
-
-    fun getToken tok = tok
-
-    fun isLong tok = Token.isLongIdentifier tok
-  end
-
-
   (** Used for syntactic classes that look like:
     *
     *   Xseq  ::=               -- empty
@@ -87,7 +61,7 @@ struct
     (** tyseq longtycon *)
     | Con of
         { args: ty SyntaxSeq.t
-        , id: MaybeLong.t
+        , id: MaybeLongToken.t
         }
 
     (** ty -> ty *)
@@ -143,7 +117,7 @@ struct
     (** [op] longvid *)
     | Ident of
         { opp: Token.t option
-        , id: MaybeLong.t
+        , id: MaybeLongToken.t
         }
 
     (** [ pat, ..., pat ] *)
@@ -180,7 +154,7 @@ struct
     (** [op] longvid atpat *)
     | Con of
         { opp: Token.t option
-        , id: MaybeLong.t
+        , id: MaybeLongToken.t
         , atpat: pat
         }
 
@@ -316,7 +290,7 @@ struct
     (** [op] longvid *)
     | Ident of
         { opp: Token.t option
-        , id: MaybeLong.t
+        , id: MaybeLongToken.t
         }
 
     (** { lab = pat, ..., lab = pat } *)
@@ -512,7 +486,7 @@ struct
         , left_id: Token.t
         , eq: Token.t
         , right_datatypee: Token.t
-        , right_id: MaybeLong.t
+        , right_id: MaybeLongToken.t
        }
 
     (** abstype datbind [withtype typbind] with dec end *)
@@ -545,7 +519,7 @@ struct
     (** open longstrid [longstrid ...] *)
     | DecOpen of
         { openn: Token.t
-        , elems: MaybeLong.t Seq.t
+        , elems: MaybeLongToken.t Seq.t
         }
 
     (** dec [[;] dec ...] *)
@@ -588,7 +562,7 @@ struct
         { opp: Token.t option
         , left_id: Token.t
         , eq: Token.t
-        , right_id: MaybeLong.t
+        , right_id: MaybeLongToken.t
         }
 
   end
@@ -673,7 +647,7 @@ struct
         , left_id: Token.t
         , eq: Token.t
         , right_datatypee: Token.t
-        , right_id: MaybeLong.t
+        , right_id: MaybeLongToken.t
         }
 
     (** exception vid [of ty] [and vid [of ty] ...] *)
@@ -715,7 +689,7 @@ struct
         { spec: spec
         , sharingg: Token.t
         , typee: Token.t
-        , elems: MaybeLong.t Seq.t
+        , elems: MaybeLongToken.t Seq.t
         (** the '=' delimiters between longtycons *)
         , delims: Token.t Seq.t
         }
@@ -724,7 +698,7 @@ struct
     | Sharing of
         { spec: spec
         , sharingg: Token.t
-        , elems: MaybeLong.t Seq.t
+        , elems: MaybeLongToken.t Seq.t
         (** the '=' delimiters between longstrids *)
         , delims: Token.t Seq.t
         }
@@ -759,7 +733,7 @@ struct
             { wheree: Token.t
             , typee: Token.t
             , tyvars: Token.t SyntaxSeq.t
-            , tycon: MaybeLong.t
+            , tycon: MaybeLongToken.t
             , eq: Token.t
             , ty: Ty.t
             } Seq.t
@@ -795,7 +769,7 @@ struct
 
     (** TODO: finish *)
     datatype strexp =
-      Ident of MaybeLong.t
+      Ident of MaybeLongToken.t
 
     | Struct of
         { structt: Token.t

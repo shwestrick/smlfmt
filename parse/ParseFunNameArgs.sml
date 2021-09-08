@@ -112,8 +112,8 @@ struct
             curriedInfix lp left id right rp i
 
         | Ast.Pat.Ident {opp, id} =>
-            if not (Ast.MaybeLong.isLong id) then
-              prefixedFun opp (Ast.MaybeLong.getToken id) i
+            if not (MaybeLongToken.isLong id) then
+              prefixedFun opp (MaybeLongToken.getToken id) i
             else
               err ()
 

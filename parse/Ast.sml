@@ -10,11 +10,6 @@ struct
 
   open AstType
 
-  structure MaybeLong =
-  struct
-    open AstType.MaybeLong
-  end
-
   structure SyntaxSeq =
   struct
     open AstType.SyntaxSeq
@@ -42,7 +37,7 @@ struct
     fun isValueIdentifier pat =
       case pat of
         Ident {id, ...} =>
-          Token.isValueIdentifierNoEqual (MaybeLong.getToken id)
+          Token.isValueIdentifierNoEqual (MaybeLongToken.getToken id)
       | _ => false
 
     fun okayForAsPat pat =
@@ -60,12 +55,12 @@ struct
       case pat of
         Ident {opp, id} =>
           { opp = opp
-          , id = MaybeLong.getToken id
+          , id = MaybeLongToken.getToken id
           , ty = NONE
           }
       | Typed {pat = Ident {opp, id}, colon, ty} =>
           { opp = opp
-          , id = MaybeLong.getToken id
+          , id = MaybeLongToken.getToken id
           , ty = SOME {colon = colon, ty = ty}
           }
       | _ => raise Fail "Bug: Ast.Pat.unpackForAsPat: invalid argument"
@@ -100,13 +95,13 @@ struct
       | Unit {left, ...} => left
       | Const t => t
       | Ident {opp, id} =>
-          (case opp of SOME t => t | NONE => MaybeLong.getToken id)
+          (case opp of SOME t => t | NONE => MaybeLongToken.getToken id)
       | List {left, ...} => left
       | Tuple {left, ...} => left
       | Record {left, ...} => left
       | Parens {left, ...} => left
       | Con {opp, id, ...} =>
-          (case opp of SOME t => t | NONE => MaybeLong.getToken id)
+          (case opp of SOME t => t | NONE => MaybeLongToken.getToken id)
       | Infix {left, ...} => leftMostToken left
       | Typed {pat, ...} => leftMostToken pat
       | Layered {opp, id, ...} =>

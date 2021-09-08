@@ -405,7 +405,7 @@ struct
         let
           val (i, elems) =
             PC.oneOrMoreWhile (check Token.isMaybeLongStrIdentifier)
-              (fn i => (i+1, Ast.MaybeLong.make (tok i)))
+              (fn i => (i+1, MaybeLongToken.make (tok i)))
               i
         in
           ( (i, infdict)
@@ -1091,7 +1091,7 @@ struct
         let
           val (i, vid) = parse_longvid i
           val _ = ParserUtils.errorIfInfixNotOpped
-            infdict opp (Ast.MaybeLong.getToken vid)
+            infdict opp (MaybeLongToken.getToken vid)
         in
           ( i
           , Ast.Exp.Ident

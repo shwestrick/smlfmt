@@ -67,12 +67,12 @@ struct
           text (Token.toString tok)
       | Con {args = Ast.SyntaxSeq.Empty, id} =>
           (* text "CON" ++ parensAround *)
-            (text (Token.toString (Ast.MaybeLong.getToken id)))
+            (text (Token.toString (MaybeLongToken.getToken id)))
       | Con {args, id} =>
           (* text "CON" ++ parensAround *)
           (separateWithSpaces
             [ maybeShowSyntaxSeq args showTy
-            , SOME (text (Token.toString (Ast.MaybeLong.getToken id)))
+            , SOME (text (Token.toString (MaybeLongToken.getToken id)))
             ])
       | Parens {ty, ...} =>
           parensAround (showTy ty)
@@ -359,7 +359,7 @@ struct
                     [ Option.map (fn _ => text "op") opp
                     , SOME (text (Token.toString left_id))
                     , SOME (text "=")
-                    , SOME (text (Token.toString (Ast.MaybeLong.getToken right_id)))
+                    , SOME (text (Token.toString (MaybeLongToken.getToken right_id)))
                     ]
 
             fun mk (i, x) =
@@ -399,7 +399,7 @@ struct
           Seq.iterate
             (fn (a, b) => a ++ space ++ b)
             (text "open")
-            (Seq.map (text o Token.toString o Ast.MaybeLong.getToken) elems)
+            (Seq.map (text o Token.toString o MaybeLongToken.getToken) elems)
 
       | DecAbstype {datbind = {elems, ...}, withtypee, dec, ...} =>
           (** TODO clean up: lots of copy-paste from DecDatatype *)
@@ -502,7 +502,7 @@ struct
           text "()"
       | Ident {opp, id} =>
           (if Option.isSome opp then text "op " else empty)
-          ++ text (Token.toString (Ast.MaybeLong.getToken id))
+          ++ text (Token.toString (MaybeLongToken.getToken id))
       | Parens {pat, ...} =>
           parensAround (showPat pat)
       | Tuple {elems, ...} =>
@@ -528,7 +528,7 @@ struct
           end
       | Con {opp, id, atpat} =>
           (if Option.isSome opp then text "op " else empty)
-          ++ text (Token.toString (Ast.MaybeLong.getToken id))
+          ++ text (Token.toString (MaybeLongToken.getToken id))
           ++ space ++ showPat atpat
       | Typed {pat, ty, ...} =>
           showPat pat ++ space ++ text ":" ++ space ++ showTy ty
@@ -560,7 +560,7 @@ struct
           text "()"
       | Ident {opp, id} =>
           (if Option.isSome opp then text "op " else empty)
-          ++ text (Token.toString (Ast.MaybeLong.getToken id))
+          ++ text (Token.toString (MaybeLongToken.getToken id))
       | Parens {exp, ...} =>
           parensAround (showExp exp)
       | Tuple {elems, ...} =>
@@ -869,7 +869,7 @@ struct
           spaces 2 ++
             ( text "datatype"
               ++ space ++
-              text (Token.toString (Ast.MaybeLong.getToken right_id))
+              text (Token.toString (MaybeLongToken.getToken right_id))
             )
         )
 
@@ -934,8 +934,8 @@ struct
           $$
           (text "sharing" ++ space ++
             Seq.iterate (fn (a, b) => a ++ space ++ text "=" ++ space ++ b)
-              (text (Token.toString (Ast.MaybeLong.getToken (Seq.nth elems 0))))
-              (Seq.map (text o Token.toString o Ast.MaybeLong.getToken) (Seq.drop elems 1)))
+              (text (Token.toString (MaybeLongToken.getToken (Seq.nth elems 0))))
+              (Seq.map (text o Token.toString o MaybeLongToken.getToken) (Seq.drop elems 1)))
         )
 
     | Ast.Sig.SharingType {spec, elems, ...} =>
@@ -944,8 +944,8 @@ struct
           $$
           (text "sharing type" ++ space ++
             Seq.iterate (fn (a, b) => a ++ space ++ text "=" ++ space ++ b)
-              (text (Token.toString (Ast.MaybeLong.getToken (Seq.nth elems 0))))
-              (Seq.map (text o Token.toString o Ast.MaybeLong.getToken) (Seq.drop elems 1)))
+              (text (Token.toString (MaybeLongToken.getToken (Seq.nth elems 0))))
+              (Seq.map (text o Token.toString o MaybeLongToken.getToken) (Seq.drop elems 1)))
         )
 
     (* | _ => text "<spec>" *)
@@ -975,7 +975,7 @@ struct
               [ SOME (text (Token.toString wheree)) (** this could be 'and' *)
               , SOME (text "type")
               , maybeShowSyntaxSeq tyvars (text o Token.toString)
-              , SOME (text (Token.toString (Ast.MaybeLong.getToken tycon)))
+              , SOME (text (Token.toString (MaybeLongToken.getToken tycon)))
               , SOME (text "=")
               , SOME (showTy ty)
               ]
@@ -1006,7 +1006,7 @@ struct
   fun showStrExp e =
     case e of
       Ast.Str.Ident id =>
-        text (Token.toString (Ast.MaybeLong.getToken id))
+        text (Token.toString (MaybeLongToken.getToken id))
 
     | Ast.Str.Struct {strdec, ...} =>
         group (

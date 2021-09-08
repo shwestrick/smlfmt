@@ -340,7 +340,7 @@ struct
         let
           val (i, vid) = parse_longvid i
           val _ = ParserUtils.errorIfInfixNotOpped
-            infdict opp (Ast.MaybeLong.getToken vid)
+            infdict opp (MaybeLongToken.getToken vid)
         in
           ( i
           , Ast.Pat.Ident

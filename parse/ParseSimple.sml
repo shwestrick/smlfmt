@@ -20,11 +20,11 @@ sig
   val strid: tokens -> (int, Token.t) parser
   val funid: tokens -> (int, Token.t) parser
   val vid: tokens -> (int, Token.t) parser
-  val longvid: tokens -> (int, Ast.MaybeLong.t) parser
+  val longvid: tokens -> (int, MaybeLongToken.t) parser
   val recordLabel: tokens -> (int, Token.t) parser
   val tycon: tokens -> (int, Token.t) parser
-  val maybeLongTycon: tokens -> (int, Ast.MaybeLong.t) parser
-  val maybeLongStrid: tokens -> (int, Ast.MaybeLong.t) parser
+  val maybeLongTycon: tokens -> (int, MaybeLongToken.t) parser
+  val maybeLongStrid: tokens -> (int, MaybeLongToken.t) parser
 end =
 struct
 
@@ -126,7 +126,7 @@ struct
 
   fun longvid toks i =
     if check toks Token.isMaybeLongIdentifier i then
-      (i+1, Ast.MaybeLong.make (Seq.nth toks i))
+      (i+1, MaybeLongToken.make (Seq.nth toks i))
     else
       ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
@@ -158,7 +158,7 @@ struct
 
   fun maybeLongTycon toks i =
     if check toks Token.isMaybeLongTyCon i then
-      (i+1, Ast.MaybeLong.make (Seq.nth toks i))
+      (i+1, MaybeLongToken.make (Seq.nth toks i))
     else
       ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)
@@ -170,7 +170,7 @@ struct
 
   fun maybeLongStrid toks i =
     if check toks Token.isMaybeLongStrIdentifier i then
-      (i+1, Ast.MaybeLong.make (Seq.nth toks i))
+      (i+1, MaybeLongToken.make (Seq.nth toks i))
     else
       ParserUtils.error
         { pos = Token.getSource (Seq.nth toks i)

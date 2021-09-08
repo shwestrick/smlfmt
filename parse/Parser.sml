@@ -863,7 +863,7 @@ struct
               consume_strexpFunApp infdict (tok i) (tok (i+1)) (i+2)
 
             else if check Token.isMaybeLongStrIdentifier i then
-              (i+1, Ast.Str.Ident (Ast.MaybeLong.make (tok i)))
+              (i+1, Ast.Str.Ident (MaybeLongToken.make (tok i)))
 
             else if isReserved Token.Let i then
               consume_strexpLetInEnd infdict (tok i) (i+1)
