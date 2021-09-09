@@ -41,6 +41,17 @@ fun tokColor class =
   | Token.Identifier =>
       darkgreen
 
+fun tokColorMLB class =
+  case class of
+    MLBToken.MLBPath =>
+      lightblue
+  | MLBToken.SMLPath =>
+      red
+  | MLBToken.Reserved _ =>
+      TC.bold ^ blue
+  | MLBToken.SML c =>
+      tokColor c
+
 fun printLegend () =
   let
     val classes =
@@ -88,7 +99,7 @@ fun printLegend () =
   * Parse input file and color it.
   *)
 
-fun loop (wholeSrc, i) (toks, j) =
+fun loop tokColor (wholeSrc, i) (toks, j) =
   if i >= Source.length wholeSrc then
     ()
   else if
@@ -96,7 +107,7 @@ fun loop (wholeSrc, i) (toks, j) =
     Source.absoluteStartOffset (WithSource.srcOf (Seq.nth toks j)) > i
   then
     ( TextIO.output1 (TextIO.stdOut, Source.nth wholeSrc i)
-    ; loop (wholeSrc, i+1) (toks, j)
+    ; loop tokColor (wholeSrc, i+1) (toks, j)
     )
   else
     let
@@ -105,7 +116,7 @@ fun loop (wholeSrc, i) (toks, j) =
       print (tokColor class);
       print (Source.toString thisSrc);
       print TC.reset;
-      loop (wholeSrc, Source.absoluteEndOffset thisSrc) (toks, j+1)
+      loop tokColor (wholeSrc, Source.absoluteEndOffset thisSrc) (toks, j+1)
     end
 
 
@@ -116,44 +127,79 @@ val source = Source.loadFromFile (FilePath.fromUnixPath infile)
 fun vprint msg =
   if errorsOnly then () else print msg
 
-
-val _ =
-  if errorsOnly then () else
+fun handleLexOrParseError exn =
   let
-    val toks =
-      Lexer.tokens source
-      handle Lexer.Error e =>
-        ( print (LineError.show e)
-        ; OS.Process.exit OS.Process.failure
-        )
-
+    val e =
+      case exn of
+        Parser.Error e => e
+      | Lexer.Error e => e
+      | MLBLexer.Error e => e
+      | other => raise other
+    val hist = MLton.Exn.history exn
   in
-    loop (source, 0) (toks, 0);
-    print "\nLexing succeeded.\n"
+    print (LineError.show e);
+    if List.null hist then () else
+      print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
+    OS.Process.exit OS.Process.failure
   end
 
 
-val _ = vprint "Parsing...\n\n"
+fun doMLB () =
+  let
+    val tokens =
+      MLBLexer.tokens source
+      handle exn => handleLexOrParseError exn
 
-val ast =
-  Parser.parse source
-  handle exn =>
-    let
-      val e =
-        case exn of
-          Parser.Error e => e
-        | Lexer.Error e => e
-        | other => raise other
+    val _ =
+      if errorsOnly then () else
+        loop tokColorMLB (source, 0) (tokens, 0)
+  in
+    () (*vprint "MLB Lexing completed.\n"*)
+  end
 
-      val hist = MLton.Exn.history exn
-    in
-      print (LineError.show e);
-      if List.null hist then () else
-        print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
-      OS.Process.exit OS.Process.failure
-    end
+fun doSML () =
+  let
+    val _ =
+      if errorsOnly then () else
+      let
+        val toks =
+          Lexer.tokens source
+          handle exn => handleLexOrParseError exn
+
+      in
+        loop tokColor (source, 0) (toks, 0);
+        print "\nLexing succeeded.\n"
+      end
+
+
+    val _ = vprint "Parsing...\n\n"
+
+    val ast =
+      Parser.parse source
+      handle exn => handleLexOrParseError exn
+
+    val _ =
+      vprint (PrettyPrintAst.pretty ast ^ "\n")
+
+    val _ = vprint "\nParsing succeeded.\n"
+  in
+    ()
+  end
+
+
+fun extError eo =
+  ( case eo of
+      SOME e => print ("Unsupported file extension: " ^ e ^ "\n")
+    | NONE => print ("Missing file extension\n")
+  ; OS.Process.exit OS.Process.failure
+  )
 
 val _ =
-  vprint (PrettyPrintAst.pretty ast ^ "\n")
-
-val _ = vprint "\nParsing succeeded.\n"
+  case OS.Path.ext infile of
+    SOME "mlb" => doMLB()
+  | SOME e =>
+      if List.exists (fn e' => e = e') ["sml","fun","sig"] then
+        doSML ()
+      else
+        extError (SOME e)
+  | _ => extError NONE

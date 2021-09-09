@@ -20,6 +20,13 @@ end =
 struct
 
   exception Error of LineError.t
+  fun error {what, pos, explain} =
+    raise Error
+      { header = "SYNTAX ERROR"
+      , pos = pos
+      , what = what
+      , explain = explain
+      }
 
   fun success x = SOME x
 
@@ -40,6 +47,42 @@ struct
     , ".sig"
     , ".fun"
     ]
+
+
+  fun extensionOfPathInSource src =
+    let
+      fun findDot i =
+        if i = 0 then
+          NONE
+        else
+          case Source.nth src (i-1) of
+            #"." => SOME (i-1)
+          | #"/" => NONE
+          | _ => findDot (i-1)
+    in
+      case findDot (Source.length src) of
+        SOME i => Source.toString (Source.slice src (i, Source.length src - i))
+      | NONE =>
+          error
+            { pos = src
+            , what = "Path is missing extension."
+            , explain = NONE
+            }
+    end
+
+
+  fun makePath src =
+    case extensionOfPathInSource src of
+      ".mlb" => MLBToken.make src MLBToken.MLBPath
+    | ".sml" => MLBToken.make src MLBToken.SMLPath
+    | ".sig" => MLBToken.make src MLBToken.SMLPath
+    | ".fun" => MLBToken.make src MLBToken.SMLPath
+    | _ =>
+        error
+          { pos = src
+          , what = "Unsupported file extension."
+          , explain = SOME "Valid extensions are: .mlb .sml .sig .fun"
+          }
 
 
   fun next src =
@@ -92,8 +135,18 @@ struct
         then
           success (mkr MLBToken.Ann (i, i+3))
 
+        else if
+          check LexUtils.isValidUnquotedPathChar i
+        then
+          loop_maybePath {start=i} (i+1)
+
+        else if
+          check Char.isSpace i
+        then
+          loop_toplevel (i+1)
+
         else
-          loop_maybePath {start=i} i
+          expectSMLToken (fn _ => true) (sliceFrom i)
 
 
       (** bas
@@ -121,7 +174,16 @@ struct
         *   .mlb .sml .sig .fun
         *)
       and loop_maybePath {start} i =
-        raise Fail "MLBLexer: paths lexing not implemented yet"
+        if check LexUtils.isValidUnquotedPathChar i then
+          loop_maybePath {start=start} (i+1)
+
+        else if
+          Util.exists (start, i) (fn j => is #"." j orelse is #"/" j)
+        then
+          success (makePath (slice (start, i)))
+
+        else
+          expectSMLToken (fn _ => true) (sliceFrom start)
 
     in
       loop_toplevel startOffset

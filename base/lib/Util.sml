@@ -58,6 +58,7 @@ sig
   val splitLast: 'a list -> ('a list * 'a) option
 
   val all: (int * int) -> (int -> bool) -> bool
+  val exists: (int * int) -> (int -> bool) -> bool
 end =
 struct
 
@@ -129,6 +130,14 @@ struct
         (i >= hi) orelse (f i andalso allFrom (i+1))
     in
       allFrom lo
+    end
+
+  fun exists (lo, hi) f =
+    let
+      fun existsFrom i =
+        i < hi andalso (f i orelse existsFrom (i+1))
+    in
+      existsFrom lo
     end
 
   fun copyListIntoArray xs arr i =

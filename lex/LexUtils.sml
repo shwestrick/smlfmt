@@ -1,4 +1,4 @@
-(** Copyright (c) 2020 Sam Westrick
+(** Copyright (c) 2020-2021 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -29,5 +29,11 @@ struct
 
   fun isAlphaNumPrimeOrUnderscore c =
     Char.isAlphaNum c orelse c = #"_" orelse c = #"'"
+
+  val isOtherPathChar =
+    Char.contains "$()_-./"
+
+  fun isValidUnquotedPathChar c =
+    Char.isAlphaNum c orelse isOtherPathChar c
 
 end
