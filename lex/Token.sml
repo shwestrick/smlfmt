@@ -244,6 +244,11 @@ struct
       Reserved _ => true
     | _ => false
 
+  fun isStringConstant tok =
+    case getClass tok of
+      StringConstant => true
+    | _ => false
+
   fun isComment tok =
     case getClass tok of
       Comment => true
