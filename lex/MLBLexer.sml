@@ -41,50 +41,6 @@ struct
           raise Fail "Lexer bug!"
 
 
-  val acceptedExtensions =
-    [ ".mlb"
-    , ".sml"
-    , ".sig"
-    , ".fun"
-    ]
-
-
-  fun extensionOfPathInSource src =
-    let
-      fun findDot i =
-        if i = 0 then
-          NONE
-        else
-          case Source.nth src (i-1) of
-            #"." => SOME (i-1)
-          | #"/" => NONE
-          | _ => findDot (i-1)
-    in
-      case findDot (Source.length src) of
-        SOME i => Source.toString (Source.slice src (i, Source.length src - i))
-      | NONE =>
-          error
-            { pos = src
-            , what = "Path is missing extension."
-            , explain = NONE
-            }
-    end
-
-
-  fun makePath src =
-    case extensionOfPathInSource src of
-      ".mlb" => MLBToken.make src MLBToken.MLBPath
-    | ".sml" => MLBToken.make src MLBToken.SMLPath
-    | ".sig" => MLBToken.make src MLBToken.SMLPath
-    | ".fun" => MLBToken.make src MLBToken.SMLPath
-    | _ =>
-        error
-          { pos = src
-          , what = "Unsupported file extension."
-          , explain = SOME "Valid extensions are: .mlb .sml .sig .fun"
-          }
-
-
   fun next src =
     let
       val startOffset = Source.absoluteStartOffset src
@@ -180,7 +136,14 @@ struct
         else if
           Util.exists (start, i) (fn j => is #"." j orelse is #"/" j)
         then
-          success (makePath (slice (start, i)))
+          case MLBToken.makePath (slice (start, i)) of
+            SOME t => success t
+          | NONE =>
+              error
+                { pos = src
+                , what = "Missing or invalid file extension."
+                , explain = SOME "Valid extensions are: .mlb .sml .sig .fun"
+                }
 
         else
           expectSMLToken (fn _ => true) (sliceFrom start)

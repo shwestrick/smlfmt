@@ -75,4 +75,31 @@ struct
       List.exists (fn c' => c' = c) basDecStartTokens
     end
 
+
+  fun extensionOfPathInSource src =
+    let
+      fun findDot i =
+        if i = 0 then
+          NONE
+        else
+          case Source.nth src (i-1) of
+            #"." => SOME (i-1)
+          | #"/" => NONE
+          | _ => findDot (i-1)
+    in
+      case findDot (Source.length src) of
+        NONE => NONE
+      | SOME i =>
+          SOME (Source.toString (Source.slice src (i, Source.length src - i)))
+    end
+
+
+  fun makePath src =
+    case extensionOfPathInSource src of
+      SOME ".mlb" => SOME (make src MLBPath)
+    | SOME ".sml" => SOME (make src SMLPath)
+    | SOME ".sig" => SOME (make src SMLPath)
+    | SOME ".fun" => SOME (make src SMLPath)
+    | _ => NONE
+
 end
