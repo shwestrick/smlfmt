@@ -121,4 +121,8 @@ struct
       , endd: MLBToken.t
       }
 
+
+  datatype ast = Ast of basdec
+  type t = ast
+
 end

@@ -153,6 +153,10 @@ fun doMLB () =
     val _ =
       if errorsOnly then () else
         loop tokColorMLB (source, 0) (tokens, 0)
+
+    val ast =
+      MLBParser.parse source
+      handle exn => handleLexOrParseError exn
   in
     () (*vprint "MLB Lexing completed.\n"*)
   end

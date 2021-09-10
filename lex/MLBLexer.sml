@@ -131,7 +131,7 @@ struct
 
         else if
           isString "ann" i andalso
-          not (is #"/" (i+3))    (** annoying edge case for paths *)
+          not (check LexUtils.isValidUnquotedPathChar (i+3))
         then
           success (mkr MLBToken.Ann (i, i+3))
 
@@ -155,12 +155,12 @@ struct
       and loop_after_bas i =
         if
           isString "is" i andalso
-          not (is #"/" (i+2))    (** annoying edge case for paths *)
+          not (check LexUtils.isValidUnquotedPathChar (i+2))
         then
           success (mkr MLBToken.Basis (i-3, i+2))
 
         else if
-          not (is #"/" i)
+          not (check LexUtils.isValidUnquotedPathChar i)
         then
           success (mkr MLBToken.Bas (i-3, i))
 

@@ -5,6 +5,9 @@ AstType.sml
 Ast.sml
 PrettyPrintAst.sml
 
+MLBAstType.sml
+MLBAst.sml
+
 local
   ExpPatRestriction.sml
   FixExpPrecedence.sml
@@ -18,6 +21,9 @@ local
   ParseExpAndDec.sml
   ParseSigExpAndSpec.sml
   Parser.sml
+
+  MLBParser.sml
 in
   structure Parser
+  structure MLBParser
 end
