@@ -39,10 +39,16 @@ struct
       }
 
   (** path/to/file.mlb *)
-  | DecPathMLB of MLBToken.t
+  | DecPathMLB of
+      { path: FilePath.t
+      , token: MLBToken.t
+      }
 
   (** path/to/file.{sml,sig,fun} *)
-  | DecPathSML of MLBToken.t
+  | DecPathSML of
+      { path: FilePath.t
+      , token: MLBToken.t
+      }
 
   (** basis basid = basexp [and ...] *)
   | DecBasis of

@@ -136,12 +136,12 @@ struct
         else if
           Util.exists (start, i) (fn j => is #"." j orelse is #"/" j)
         then
-          case MLBToken.makePath (slice (start, i)) of
+          case MLBToken.makePathFromSource (slice (start, i)) of
             SOME t => success t
           | NONE =>
               error
                 { pos = src
-                , what = "Missing or invalid file extension."
+                , what = "Missing or invalid file extension in path."
                 , explain = SOME "Valid extensions are: .mlb .sml .sig .fun"
                 }
 

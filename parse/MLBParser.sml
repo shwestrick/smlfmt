@@ -73,11 +73,59 @@ struct
       fun nyi fname i = nyi_ toks fname i
 
 
+      fun makeSMLPath pathtok pathstr =
+        MLBAst.DecPathSML
+          { token = pathtok
+          , path = FilePath.fromUnixPath pathstr
+          }
+
+      fun makeMLBPath pathtok pathstr =
+        MLBAst.DecPathMLB
+          { token = pathtok
+          , path = FilePath.fromUnixPath pathstr
+          }
+
+
       (**  "path.{sml,mlb,...}"
         * ^
+        *
+        * TODO: this is a bit of a mess. Some repeated but slightly different
+        * behavior from the lexer, which already distinguishes between SML
+        * and MLB paths for unquoted path strings. Perhaps the lexer should be
+        * simplified, and the quoted/unquoted path handling logic should be
+        * unified?
         *)
       fun parse_decPathFromString i =
-        nyi "parse_decPathFromString" i
+        let
+          val thisSrc = MLBToken.getSource (tok i)
+          val n = Source.length thisSrc
+          val _ =
+            if
+              n >= 2 andalso
+              Source.nth thisSrc 0 = #"\"" andalso
+              Source.nth thisSrc (n - 1) = #"\""
+            then
+              ()
+            else
+              raise Fail "MLBParser bug! see parse_decPathFromString: fail 1"
+
+          val pathstr = Source.toString (Source.slice thisSrc (1, n-2))
+        in
+          case MLBToken.makePathFromSourceString thisSrc pathstr of
+            NONE =>
+              ParserUtils.error
+                { pos = MLBToken.getSource (tok i)
+                , what = "Missing or invalid file extension in path."
+                , explain = SOME "Valid extensions are: .mlb .sml .sig .fun"
+                }
+          | SOME pathtok =>
+              if MLBToken.isSMLPath pathtok then
+                (i+1, makeSMLPath pathtok pathstr)
+              else if MLBToken.isMLBPath pathtok then
+                (i+1, makeMLBPath pathtok pathstr)
+              else
+                raise Fail "MLBParser bug! see parse_decPathFromString: fail 2"
+        end
 
 
       (** basis basid = basexp [and ...]
@@ -113,9 +161,13 @@ struct
 
       fun parse_exactlyOneDec i =
         if check MLBToken.isSMLPath i then
-          (i+1, MLBAst.DecPathSML (tok i))
+          ( i+1
+          , makeSMLPath (tok i) (Source.toString (Token.getSource (tok i)))
+          )
         else if check MLBToken.isMLBPath i then
-          (i+1, MLBAst.DecPathMLB (tok i))
+          ( i+1
+          , makeMLBPath (tok i) (Source.toString (Token.getSource (tok i)))
+          )
         else if check MLBToken.isStringConstant i then
           parse_decPathFromString i
         else if isReserved MLBToken.Basis i then

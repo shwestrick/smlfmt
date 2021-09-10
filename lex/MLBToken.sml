@@ -94,12 +94,21 @@ struct
     end
 
 
-  fun makePath src =
+  fun makePathFromSource src =
     case extensionOfPathInSource src of
       SOME ".mlb" => SOME (make src MLBPath)
     | SOME ".sml" => SOME (make src SMLPath)
     | SOME ".sig" => SOME (make src SMLPath)
     | SOME ".fun" => SOME (make src SMLPath)
+    | _ => NONE
+
+
+  fun makePathFromSourceString src str =
+    case OS.Path.ext str of
+      SOME "mlb" => SOME (make src MLBPath)
+    | SOME "sml" => SOME (make src SMLPath)
+    | SOME "sig" => SOME (make src SMLPath)
+    | SOME "fun" => SOME (make src SMLPath)
     | _ => NONE
 
 end
