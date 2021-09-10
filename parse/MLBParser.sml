@@ -111,6 +111,29 @@ struct
         }
 
 
+  fun parse_basid toks i =
+    if checkSML toks Token.isStrIdentifier i then
+      (i+1, Seq.nth toks i)
+    else
+      ParserUtils.error
+        { pos = MLBToken.getSource (Seq.nth toks i)
+        , what = "Expected basis identifier."
+        , explain = SOME "Must be alphanumeric, and cannot start with a\
+                         \ prime (')"
+        }
+
+
+  fun parse_stringConstant toks i =
+    if checkSML toks Token.isStringConstant i then
+      (i+1, Seq.nth toks i)
+    else
+      ParserUtils.error
+        { pos = MLBToken.getSource (Seq.nth toks i)
+        , what = "Expected string literal."
+        , explain = NONE
+        }
+
+
   fun parse_oneOrMoreDelimitedBySMLReserved (toks: tokens) {parseElem, delim} i =
     let
       val numToks = Seq.length toks
@@ -143,7 +166,7 @@ struct
     nyi_ toks "basexp" start
 
 
-  fun basdec toks start =
+  and basdec toks start =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -214,22 +237,51 @@ struct
       (** basis basid = basexp [and ...]
         *      ^
         *)
-      fun parse_decBasis basiss i =
-        nyi "parse_decBasis" i
+      fun parse_decBasis basis i =
+        let
+          fun parseElem i =
+            let
+              val (i, basid) = parse_basid toks i
+              val (i, eq) = parse_SMLReserved toks Token.Equal i
+              val (i, basexp) = basexp toks i
+            in
+              (i, {basid=basid, eq=eq, basexp=basexp})
+            end
 
-
-      (** ann "annotation" [...] in basdec end
-        *    ^
-        *)
-      fun parse_decAnn annn i =
-        nyi "parse_decAnn" i
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedBySMLReserved
+              toks
+              {parseElem = parseElem, delim = Token.And}
+              i
+        in
+          ( i
+          , MLBAst.DecBasis
+              { basis = basis
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
 
 
       (** open basid ... basid
         *     ^
         *)
-      fun parse_decOpen annn i =
-        nyi "parse_decOpen" i
+      fun parse_decOpen openn i =
+        let
+          val (i, elems) =
+            ParserCombinators.oneOrMoreWhile
+              (checkSML toks Token.isStrIdentifier)
+              (parse_basid toks)
+              i
+        in
+          ( i
+          , MLBAst.DecOpen
+              { openn = openn
+              , elems = elems
+              }
+          )
+        end
 
 
       (** structure strid [= strid] [and ...]
@@ -346,10 +398,37 @@ struct
         end
 
 
+      (** ann "annotation" [...] in basdec end
+        *    ^
+        *)
+      fun parse_decAnn ann i =
+        let
+          val (i, annotations) =
+            ParserCombinators.oneOrMoreWhile
+              (checkSML toks Token.isStringConstant)
+              (parse_stringConstant toks)
+              i
+
+          val (i, inn) = parse_SMLReserved toks Token.In i
+          val (i, basdec) = parse_dec i
+          val (i, endd) = parse_SMLReserved toks Token.End i
+        in
+          ( i
+          , MLBAst.DecAnn
+              { ann = ann
+              , annotations = annotations
+              , inn = inn
+              , basdec = basdec
+              , endd = endd
+              }
+          )
+        end
+
+
       (** local basdec in basdec end
         *      ^
         *)
-      fun parse_decLocal locall i =
+      and parse_decLocal locall i =
         let
           val (i, basdec1) = parse_dec i
           val (i, inn) = parse_SMLReserved toks Token.In i

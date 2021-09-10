@@ -52,7 +52,7 @@ struct
 
   (** basis basid = basexp [and ...] *)
   | DecBasis of
-      { basiss: MLBToken.t
+      { basis: MLBToken.t
       , elems:
           { basid: MLBToken.t
           , eq: MLBToken.t
