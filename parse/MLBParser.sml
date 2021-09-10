@@ -55,6 +55,18 @@ struct
       raise Fail ("Bug in parser " ^ fname ^ ": position out of bounds??")
 
 
+  fun parse_SMLReserved toks rc i =
+    if isSMLReserved_ toks rc i then
+      (i+1, Seq.nth toks i)
+    else
+      ParserUtils.error
+        { pos = MLBToken.getSource (Seq.nth toks i)
+        , what =
+            "Unexpected token. Expected to see "
+            ^ "'" ^ Token.reservedToString rc ^ "'"
+        , explain = NONE
+        }
+
 
   fun basexp toks start =
     nyi_ toks "basexp" start
@@ -149,8 +161,6 @@ struct
         nyi "parse_decOpen" i
 
 
-      fun parse_decLocal locall i =
-        nyi "parse_decLocal" i
       fun parse_decStructure structuree i =
         nyi "parse_decStructure" i
       fun parse_decSignature signaturee i =
@@ -159,7 +169,29 @@ struct
         nyi "parse_decFunctor" i
 
 
-      fun parse_exactlyOneDec i =
+      (** local basdec in basdec end
+        *      ^
+        *)
+      fun parse_decLocal locall i =
+        let
+          val (i, basdec1) = parse_dec i
+          val (i, inn) = parse_SMLReserved toks Token.In i
+          val (i, basdec2) = parse_dec i
+          val (i, endd) = parse_SMLReserved toks Token.End i
+        in
+          ( i
+          , MLBAst.DecLocalInEnd
+              { locall = locall
+              , basdec1 = basdec1
+              , inn = inn
+              , basdec2 = basdec2
+              , endd = endd
+              }
+          )
+        end
+
+
+      and parse_exactlyOneDec i =
         if check MLBToken.isSMLPath i then
           ( i+1
           , makeSMLPath (tok i) (Source.toString (Token.getSource (tok i)))
@@ -192,7 +224,7 @@ struct
             }
 
 
-      fun parse_dec i =
+      and parse_dec i =
         let
           fun parse_maybeSemicolon i =
             if isSMLReserved Token.Semicolon i then
