@@ -269,10 +269,81 @@ struct
           )
         end
 
+
+      (** signature sigid [= sigid] [and ...]
+        *          ^
+        *)
       fun parse_decSignature signaturee i =
-        nyi "parse_decSignature" i
+        let
+          fun parseElem i =
+            let
+              val (i, sigid) = parse_sigid toks i
+              val (i, eqsigid) =
+                if not (isSMLReserved Token.Equal i) then
+                  (i, NONE)
+                else
+                  let
+                    val (i, eq) = (i+1, tok i)
+                    val (i, sigid) = parse_sigid toks i
+                  in
+                    (i, SOME {eq = eq, sigid = sigid})
+                  end
+            in
+              (i, {sigid = sigid, eqsigid = eqsigid})
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedBySMLReserved
+              toks
+              {parseElem = parseElem, delim = Token.And}
+              i
+        in
+          ( i
+          , MLBAst.DecSignature
+              { signaturee = signaturee
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
+
+      (** functor funid [= funid] [and ...]
+        *        ^
+        *)
       fun parse_decFunctor functorr i =
-        nyi "parse_decFunctor" i
+        let
+          fun parseElem i =
+            let
+              val (i, funid) = parse_funid toks i
+              val (i, eqfunid) =
+                if not (isSMLReserved Token.Equal i) then
+                  (i, NONE)
+                else
+                  let
+                    val (i, eq) = (i+1, tok i)
+                    val (i, funid) = parse_funid toks i
+                  in
+                    (i, SOME {eq = eq, funid = funid})
+                  end
+            in
+              (i, {funid = funid, eqfunid = eqfunid})
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedBySMLReserved
+              toks
+              {parseElem = parseElem, delim = Token.And}
+              i
+        in
+          ( i
+          , MLBAst.DecFunctor
+              { functorr = functorr
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
 
 
       (** local basdec in basdec end

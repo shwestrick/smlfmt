@@ -93,7 +93,7 @@ struct
 
   (** signature sigid [= sigid] [and ...] *)
   | DecSignature of
-      { structuree: MLBToken.t
+      { signaturee: MLBToken.t
       , elems:
           { sigid: MLBToken.t
           , eqsigid:
@@ -107,7 +107,7 @@ struct
 
   (** functor funid [= funid] [and ...] *)
   | DecFunctor of
-      { structuree: MLBToken.t
+      { functorr: MLBToken.t
       , elems:
           { funid: MLBToken.t
           , eqfunid:
