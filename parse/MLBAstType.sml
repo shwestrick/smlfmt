@@ -85,10 +85,10 @@ struct
           , eqstrid:
               { eq: MLBToken.t
               , strid: MLBToken.t
-              }
+              } option
           } Seq.t
       (** 'and' delimiters *)
-      , delims: MLBToken.t
+      , delims: MLBToken.t Seq.t
       }
 
   (** signature sigid [= sigid] [and ...] *)
@@ -102,7 +102,7 @@ struct
               } option
           } Seq.t
       (** 'and' delimiters *)
-      , delims: MLBToken.t
+      , delims: MLBToken.t Seq.t
       }
 
   (** functor funid [= funid] [and ...] *)
@@ -116,7 +116,7 @@ struct
               } option
           } Seq.t
       (** 'and' delimiters *)
-      , delims: MLBToken.t
+      , delims: MLBToken.t Seq.t
       }
 
   | DecAnn of

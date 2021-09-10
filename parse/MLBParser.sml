@@ -68,6 +68,77 @@ struct
         }
 
 
+  fun checkSML toks f i =
+    i < Seq.length toks andalso
+    case MLBToken.getClass (Seq.nth toks i) of
+      MLBToken.SML c => f (Token.make (MLBToken.getSource (Seq.nth toks i)) c)
+    | _ => false
+
+
+  fun parse_strid toks i =
+    if checkSML toks Token.isStrIdentifier i then
+      (i+1, Seq.nth toks i)
+    else
+      ParserUtils.error
+        { pos = MLBToken.getSource (Seq.nth toks i)
+        , what = "Expected structure identifier."
+        , explain = SOME "Must be alphanumeric, and cannot start with a\
+                         \ prime (')"
+        }
+
+
+  fun parse_sigid toks i =
+    if checkSML toks Token.isStrIdentifier i then
+      (i+1, Seq.nth toks i)
+    else
+      ParserUtils.error
+        { pos = MLBToken.getSource (Seq.nth toks i)
+        , what = "Expected signature identifier."
+        , explain = SOME "Must be alphanumeric, and cannot start with a\
+                         \ prime (')"
+        }
+
+
+  fun parse_funid toks i =
+    if checkSML toks Token.isStrIdentifier i then
+      (i+1, Seq.nth toks i)
+    else
+      ParserUtils.error
+        { pos = MLBToken.getSource (Seq.nth toks i)
+        , what = "Expected functor identifier."
+        , explain = SOME "Must be alphanumeric, and cannot start with a\
+                         \ prime (')"
+        }
+
+
+  fun parse_oneOrMoreDelimitedBySMLReserved (toks: tokens) {parseElem, delim} i =
+    let
+      val numToks = Seq.length toks
+      fun tok i = Seq.nth toks i
+      fun isReserved rc =
+        checkSML toks (fn t => Token.Reserved rc = Token.getClass t)
+
+      fun loop elems delims i =
+        let
+          val (i, elem) = parseElem i
+          val elems = elem :: elems
+        in
+          if isReserved delim i then
+            loop elems (tok i :: delims) (i+1)
+          else
+            (i, elems, delims)
+        end
+
+      val (i, elems, delims) = loop [] [] i
+    in
+      ( i
+      , { elems = Seq.fromRevList elems
+        , delims = Seq.fromRevList delims
+        }
+      )
+    end
+
+
   fun basexp toks start =
     nyi_ toks "basexp" start
 
@@ -161,8 +232,43 @@ struct
         nyi "parse_decOpen" i
 
 
+      (** structure strid [= strid] [and ...]
+        *          ^
+        *)
       fun parse_decStructure structuree i =
-        nyi "parse_decStructure" i
+        let
+          fun parseElem i =
+            let
+              val (i, strid) = parse_strid toks i
+              val (i, eqstrid) =
+                if not (isSMLReserved Token.Equal i) then
+                  (i, NONE)
+                else
+                  let
+                    val (i, eq) = (i+1, tok i)
+                    val (i, strid) = parse_strid toks i
+                  in
+                    (i, SOME {eq = eq, strid = strid})
+                  end
+            in
+              (i, {strid = strid, eqstrid = eqstrid})
+            end
+
+          val (i, {elems, delims}) =
+            parse_oneOrMoreDelimitedBySMLReserved
+              toks
+              {parseElem = parseElem, delim = Token.And}
+              i
+        in
+          ( i
+          , MLBAst.DecStructure
+              { structuree = structuree
+              , elems = elems
+              , delims = delims
+              }
+          )
+        end
+
       fun parse_decSignature signaturee i =
         nyi "parse_decSignature" i
       fun parse_decFunctor functorr i =
