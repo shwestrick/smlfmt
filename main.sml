@@ -152,12 +152,25 @@ fun doMLB () =
 
     val _ =
       if errorsOnly then () else
-        loop tokColorMLB (source, 0) (tokens, 0)
+        ( loop tokColorMLB (source, 0) (tokens, 0)
+        ; print "\n"
+        )
 
-    val ast =
-      MLBParser.parse source
+    val allSMLPaths =
+      ParseAllSMLFromMLB.allSMLPaths source
       handle exn => handleLexOrParseError exn
+
+    fun printloop i =
+      if i >= Seq.length allSMLPaths then () else
+      let
+        val p = Seq.nth allSMLPaths i
+      in
+        print ("  " ^ FilePath.toUnixPath p ^ "\n");
+        printloop (i+1)
+      end
   in
+    print "Specifies these SML files:\n";
+    printloop 0;
     () (*vprint "MLB Lexing completed.\n"*)
   end
 

@@ -27,3 +27,5 @@ in
   structure Parser
   structure MLBParser
 end
+
+ParseAllSMLFromMLB.sml
