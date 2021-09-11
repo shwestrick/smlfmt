@@ -163,7 +163,71 @@ struct
 
 
   fun basexp toks start =
-    nyi_ toks "basexp" start
+    let
+      val numToks = Seq.length toks
+      fun tok i = Seq.nth toks i
+      fun check f i = check_ toks f i
+      fun isReserved rc i = isReserved_ toks rc i
+      fun isSMLReserved rc i = isSMLReserved_ toks rc i
+
+
+      (** bas basdec end
+        *    ^
+        *)
+      fun parse_bas bas i =
+        let
+          val (i, basdec) = basdec toks i
+          val (i, endd) = parse_SMLReserved toks Token.End i
+        in
+          ( i
+          , MLBAst.BasEnd
+              { bas = bas
+              , basdec = basdec
+              , endd = endd
+              }
+          )
+        end
+
+
+      (** let basdec in basexp end
+        *    ^
+        *)
+      fun parse_let lett i =
+        let
+          val (i, basdec) = basdec toks i
+          val (i, inn) = parse_SMLReserved toks Token.In i
+          val (i, basexp) = parse_basexp i
+          val (i, endd) = parse_SMLReserved toks Token.End i
+        in
+          ( i
+          , MLBAst.LetInEnd
+              { lett = lett
+              , basdec = basdec
+              , inn = inn
+              , basexp = basexp
+              , endd = endd
+              }
+          )
+        end
+
+
+      and parse_basexp i =
+        if checkSML toks Token.isStrIdentifier i then
+          (i+1, MLBAst.Ident (tok i))
+        else if isReserved MLBToken.Bas i then
+          parse_bas (tok i) (i+1)
+        else if isSMLReserved Token.Let i then
+          parse_let (tok i) (i+1)
+        else
+          ParserUtils.error
+            { pos = MLBToken.getSource (tok i)
+            , what = "Unexpected token."
+            , explain = SOME "Expected beginning of basis expression."
+            }
+
+    in
+      parse_basexp start
+    end
 
 
   and basdec toks start =

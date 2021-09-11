@@ -22,7 +22,7 @@ struct
 
   (** bas basdec end *)
   | BasEnd of
-      { bass: MLBToken.t
+      { bas: MLBToken.t
       , basdec: basdec
       , endd: MLBToken.t
       }
