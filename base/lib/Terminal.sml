@@ -10,16 +10,21 @@ struct
 
   open MLton.Process
 
-  val p = create
-    { path = "/usr/bin/tput"
-    , env = NONE
-    , args = [ "cols" ]
-    , stderr = Param.self
-    , stdin = Param.null
-    , stdout = Param.pipe
-    }
+  val defaultCols = 60
 
-  val currentCols =
-    valOf (Int.fromString (TextIO.inputAll (Child.textIn (getStdout p))))
+  fun currentCols () =
+    let
+      val p = create
+        { path = "/usr/bin/tput"
+        , env = NONE
+        , args = [ "cols" ]
+        , stderr = Param.self
+        , stdin = Param.null
+        , stdout = Param.pipe
+        }
+    in
+      valOf (Int.fromString (TextIO.inputAll (Child.textIn (getStdout p))))
+    end
+    handle _ => defaultCols
 
 end

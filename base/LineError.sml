@@ -37,23 +37,21 @@ struct
     ^ Int.toString col
     ^ ")"
 
-  val desiredWidth = Int.min (Terminal.currentCols, 80)
-
-  fun leftPadWith char str =
+  fun leftPadWith char desiredWidth str =
     if String.size str >= desiredWidth then
       str
     else
       repeatChar (desiredWidth - String.size str) char
       ^ str
 
-  fun rightPadWith char str =
+  fun rightPadWith char desiredWidth str =
     if String.size str >= desiredWidth then
       str
     else
       str
       ^ repeatChar (desiredWidth - String.size str) char
 
-  fun centerPadWith char str =
+  fun centerPadWith char desiredWidth str =
     if String.size str >= desiredWidth then
       str
     else
@@ -67,7 +65,7 @@ struct
         ^ repeatChar rightCount char
       end
 
-  fun justifyWith char (left, right) =
+  fun justifyWith char desiredWidth (left, right) =
     if String.size left + String.size right >= desiredWidth then
       left ^ right
     else
@@ -79,7 +77,7 @@ struct
         ^ right
       end
 
-  fun textWrap str =
+  fun textWrap desiredWidth str =
     let
       fun finishLine ln = String.concatWith " " (List.rev ln)
       fun loop lines (currLine, currLen) toks =
@@ -110,6 +108,9 @@ struct
         if lineNum = lineNum' then ()
         else raise Fail "ShowLineError.show: end of position past end of line"
 
+      val desiredWidth =
+        Int.min (Terminal.currentCols (), 80)
+
       val line = Source.wholeLine pos lineNum
 
       val leftMargin = Int.toString lineNum ^ "| "
@@ -123,9 +124,9 @@ struct
       val extra =
         case extraInfo of
           NONE => ""
-        | SOME info => textWrap info
+        | SOME info => textWrap desiredWidth info
     in
-      justifyWith #"-"
+      justifyWith #"-" desiredWidth
         ( "-- " ^ header ^ " "
         , " " ^ FilePath.toHostPath (Source.fileName pos)
         )

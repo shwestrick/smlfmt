@@ -39,6 +39,7 @@ struct
     in
       List.mapPartial parseLine lines
     end
+    handle _ => []
 
 
   fun lookup pathmap key =
