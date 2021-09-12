@@ -10,15 +10,14 @@ sig
     *)
   (* val parse: Source.t -> Ast.t *)
 
-  val readSMLPathsFromMLB: FilePath.t -> FilePath.t Seq.t
+  val readSMLPathsFromMLB: MLtonPathMap.t -> FilePath.t -> FilePath.t Seq.t
 end =
 struct
 
-  fun readSMLPathsFromMLB mlbPath : FilePath.t Seq.t =
+  fun readSMLPathsFromMLB pathmap mlbPath : FilePath.t Seq.t =
     let
       open MLBAst
 
-      val pathmap = MLtonPathMap.getPathMap ()
       fun expand x = MLtonPathMap.expandPath pathmap x
 
       fun doBasdec relativeDir basdec =

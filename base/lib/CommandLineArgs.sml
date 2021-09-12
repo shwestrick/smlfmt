@@ -12,6 +12,14 @@ sig
   val parseReal: string -> real -> real
   val parseBool: string -> bool -> bool
 
+  (** Look for every instance of -K V and return seq of the Vs.
+    * For example, if this is given on the commandline:
+    *   -arg a -arg b -arg c -arg d
+    * then
+    *   parseStrings "arg" ==> ["a", "b", "c", "d"]
+    *)
+  val parseStrings: string -> string list
+
   (* parseFlag K returns true if --K given on command-line *)
   val parseFlag: string -> bool
 
@@ -55,6 +63,17 @@ struct
       NONE => default
     | SOME [] => die ("Missing argument of \"-" ^ key ^ "\" ")
     | SOME (s :: _) => s
+
+  fun parseStrings key =
+    let
+      fun loop args =
+        case search ("-" ^ key) args of
+          NONE => []
+        | SOME [] => die ("Missing argument of \"-" ^ key ^ "\"")
+        | SOME (v :: args') => v :: loop args'
+    in
+      loop (CommandLine.arguments ())
+    end
 
   fun parseInt key default =
     case search ("-" ^ key) (CommandLine.arguments ()) of

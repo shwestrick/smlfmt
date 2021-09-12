@@ -6,15 +6,32 @@
 structure MLtonPathMap :>
 sig
   type pathmap = (string * FilePath.t) list
+  type t = pathmap
+
   val getPathMap: unit -> pathmap
+  val fromString: string -> pathmap
   val lookup: pathmap -> string -> FilePath.t option
   val expandPath: pathmap -> FilePath.t -> FilePath.t
 end =
 struct
 
   type pathmap = (string * FilePath.t) list
+  type t = pathmap
 
   (** A bit of a hack... *)
+
+
+  fun fromString str =
+    let
+      val lines = String.tokens (fn c => c = #"\n") str
+      fun parseLine ln =
+        case String.tokens Char.isSpace ln of
+          [key, value] => SOME (key, FilePath.fromUnixPath value)
+        | _ => NONE
+    in
+      List.mapPartial parseLine lines
+    end
+
 
   fun getPathMap () =
     let
@@ -30,14 +47,8 @@ struct
         }
 
       val output = TextIO.inputAll (Child.textIn (getStdout p))
-      val lines = String.tokens (fn c => c = #"\n") output
-
-      fun parseLine ln =
-        case String.tokens Char.isSpace ln of
-          [key, value] => SOME (key, FilePath.fromUnixPath value)
-        | _ => NONE
     in
-      List.mapPartial parseLine lines
+      fromString output
     end
     handle _ => []
 
