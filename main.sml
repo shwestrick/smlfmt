@@ -126,8 +126,7 @@ val source = Source.loadFromFile (FilePath.fromUnixPath infile)
 
 val pathmap = MLtonPathMap.getPathMap ()
 val pathmap =
-  List.concat
-    (pathmap :: List.map MLtonPathMap.fromString mlbPathVars)
+  List.concat (List.map MLtonPathMap.fromString mlbPathVars) @ pathmap
 
 fun vprint msg =
   if errorsOnly then () else print msg
@@ -153,7 +152,7 @@ fun doMLB () =
   let
     val tokens =
       MLBLexer.tokens source
-      handle exn => handleLexOrParseError exn
+      (* handle exn => handleLexOrParseError exn *)
 
     val _ =
       if errorsOnly then () else
@@ -171,7 +170,7 @@ fun doMLB () =
 
     val allSMLPaths =
       ParseAllSMLFromMLB.readSMLPathsFromMLB pathmap (FilePath.fromUnixPath infile)
-      handle exn => handleLexOrParseError exn
+      (* handle exn => handleLexOrParseError exn *)
 
     fun printloop i =
       if i >= Seq.length allSMLPaths then () else
@@ -182,10 +181,16 @@ fun doMLB () =
         printloop (i+1)
       end
   in
-    print "Specifies these SML files:\n";
-    printloop 0;
-    () (*vprint "MLB Lexing completed.\n"*)
+    Util.for (0, Seq.length allSMLPaths) (fn i =>
+      ( print ("parsing " ^ FilePath.toUnixPath (Seq.nth allSMLPaths i) ^ "\n")
+      ; Parser.parse (Source.loadFromFile (Seq.nth allSMLPaths i))
+      ; ()
+      )
+    )
+    (* print "Specifies these SML files:\n"; *)
+    (* printloop 0 *)
   end
+  handle exn => handleLexOrParseError exn
 
 fun doSML () =
   let

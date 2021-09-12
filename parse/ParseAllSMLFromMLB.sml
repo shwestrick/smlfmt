@@ -28,12 +28,16 @@ struct
             (doMLB relativeDir path
             handle OS.SysErr (msg, _) =>
               let
-                val fullPath =
-                  FilePath.normalize (FilePath.join (relativeDir, path))
+                val path = expand path
+                val path =
+                  if FilePath.isAbsolute path then
+                    path
+                  else
+                    FilePath.normalize (FilePath.join (relativeDir, path))
               in
                 ParserUtils.error
                   { pos = MLBToken.getSource token
-                  , what = ("Could not open file: " ^ FilePath.toUnixPath fullPath)
+                  , what = ("Could not open file: " ^ FilePath.toUnixPath path)
                   , explain = SOME msg
                   }
               end)
