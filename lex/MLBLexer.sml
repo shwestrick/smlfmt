@@ -92,6 +92,12 @@ struct
           success (mkr MLBToken.Ann (i, i+3))
 
         else if
+          isString "_prim" i andalso
+          not (check LexUtils.isValidUnquotedPathChar (i+5))
+        then
+          success (mkr MLBToken.UnderscorePrim (i, i+5))
+
+        else if
           check LexUtils.isValidUnquotedPathChar i
         then
           loop_maybePath {start=i} (i+1)

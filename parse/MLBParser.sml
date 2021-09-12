@@ -522,6 +522,8 @@ struct
           )
         else if check MLBToken.isStringConstant i then
           parse_decPathFromString i
+        else if isReserved MLBToken.UnderscorePrim i then
+          (i+1, MLBAst.DecUnderscorePrim (tok i))
         else if isReserved MLBToken.Basis i then
           parse_decBasis (tok i) (i+1)
         else if isReserved MLBToken.Ann i then

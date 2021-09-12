@@ -127,6 +127,9 @@ struct
       , endd: MLBToken.t
       }
 
+  (** MLton specific *)
+  | DecUnderscorePrim of MLBToken.t
+
 
   datatype ast = Ast of basdec
   type t = ast

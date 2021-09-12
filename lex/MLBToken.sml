@@ -10,6 +10,7 @@ struct
     Bas
   | Basis
   | Ann
+  | UnderscorePrim  (** This is MLton-specific *)
 
   datatype class =
     SMLPath
@@ -60,6 +61,7 @@ struct
     , MLBPath
     , Reserved Basis
     , Reserved Ann
+    , Reserved UnderscorePrim
     , SML Token.StringConstant
     , SML (Token.Reserved Token.Open)
     , SML (Token.Reserved Token.Local)
