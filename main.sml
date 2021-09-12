@@ -119,33 +119,15 @@ fun loop tokColor (wholeSrc, i) (toks, j) =
       loop tokColor (wholeSrc, Source.absoluteEndOffset thisSrc) (toks, j+1)
     end
 
-
+val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
 val errorsOnly = CommandLineArgs.parseFlag "errors-only"
 val infile = List.hd (CommandLineArgs.positional ())
 val source = Source.loadFromFile (FilePath.fromUnixPath infile)
 
-(*
 val pathmap = MLtonPathMap.getPathMap ()
-  handle exn =>
-    let
-      val hist = MLton.Exn.history exn
-    in
-      print ("Error with pathmap: " ^ exnName exn ^ ": " ^ exnMessage exn ^ "\n");
-      if List.null hist then () else
-        print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist) ^ "\n");
-      OS.Process.exit OS.Process.failure
-    end
-
-val _ =
-  List.app
-    (fn (key, value) => print (key ^ " " ^ FilePath.toUnixPath value ^ "\n"))
-    pathmap
-
-val _ =
-  List.app
-    (fn (k, v) => print (k ^ " " ^ FilePath.toUnixPath (MLtonPathMap.expandPath pathmap v) ^ "\n"))
-    pathmap
-*)
+val pathmap =
+  List.concat
+    (pathmap :: List.map MLtonPathMap.fromString mlbPathVars)
 
 fun vprint msg =
   if errorsOnly then () else print msg
@@ -179,8 +161,16 @@ fun doMLB () =
         ; print "\n"
         )
 
+    val _ =
+      ( print "==== PATH MAP ====\n"
+      ; List.app
+          (fn (key, value) => print (key ^ " " ^ value ^ "\n"))
+          pathmap
+      ; print "==================\n"
+      )
+
     val allSMLPaths =
-      ParseAllSMLFromMLB.readSMLPathsFromMLB (FilePath.fromUnixPath infile)
+      ParseAllSMLFromMLB.readSMLPathsFromMLB pathmap (FilePath.fromUnixPath infile)
       handle exn => handleLexOrParseError exn
 
     fun printloop i =

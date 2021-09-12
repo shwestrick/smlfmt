@@ -38,7 +38,16 @@ struct
                   }
               end)
         | DecPathSML {path, ...} =>
-            Seq.singleton path
+            let
+              val path = expand path
+              val path =
+                if FilePath.isAbsolute path then
+                  path
+                else
+                  FilePath.normalize (FilePath.join (relativeDir, path))
+            in
+              Seq.singleton path
+            end
         | DecBasis {elems, ...} =>
             Seq.flatten (Seq.map (doBasexp relativeDir o #basexp) elems)
         | DecLocalInEnd {basdec1, basdec2, ...} =>
