@@ -7,6 +7,17 @@ such as linting, autoformatting or even a language server.
 ## Examples
 
 ```
+$ ./main test/fail/illegal-begin-fn.sml
+-- PARSE ERROR ------------- test/fail/illegal-begin-fn.sml
+
+Unexpected beginning of anonymous function.
+
+2| val id' = id o fn x => x
+                  ^^
+Try using parentheses: (fn ... => ...)
+```
+
+```
 $ ./main test/fail/reserved-in-long-id.sml
 -- SYNTAX ERROR --------- test/fail/reserved-in-long-id.sml
 
@@ -28,17 +39,6 @@ Invalid real constant.
 After the dot, there needs to be at least one decimal digit.
 ```
 
-```
-$ ./main test/fail/dots.sml
--- SYNTAX ERROR ------------------------ test/fail/dots.sml
-
-Unexpected character.
-
-2| val {z, ..} = yo
-             ^
-Perhaps you meant: ...
-```
-
 ## Build and run
 
 You need [`mlton`](http://mlton.org/) installed.
@@ -51,12 +51,19 @@ $ ./main lex/Token.sml
 
 For files that pass through lexing successfully, you will see a bit of syntax
 highlighting in the output. Files that are parsed successfully are
-also pretty-printed.
+also pretty-printed. To see syntax highlighting, you need a terminal that
+supports colors via ANSI escapes, e.g. iTerm2 on macOS.
 
-To see syntax highlighting, you need a terminal that supports colors via
-ANSI escapes, e.g. iTerm2 on macOS.
+You can also pass a `.mlb` file:
+```
+$ ./main test/succeed/multiple-tests.mlb
+```
+This will find all SML source files specified by the MLB and parse them.
 
 ### Command-line options
 
 Passing `--errors-only` will prevent any output except for a lex/parse error,
 if there is one. Files that successfully parse will have no output.
+
+`-mlb-path-var '<key> <value>'` for handling path variables, similar to
+[MLton's path maps](http://mlton.org/MLBasisPathMap).
