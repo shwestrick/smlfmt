@@ -18,6 +18,9 @@ struct
     let
       open MLBAst
 
+      val pathmap = MLtonPathMap.getPathMap ()
+      fun expand x = MLtonPathMap.expandPath pathmap x
+
       fun doBasdec relativeDir basdec =
         case basdec of
           DecMultiple {elems, ...} =>
@@ -55,12 +58,17 @@ struct
 
       and doMLB relativeDir mlbPath =
         let
-          val fullPath =
-            FilePath.normalize (FilePath.join (relativeDir, mlbPath))
-          val mlbSrc = Source.loadFromFile fullPath
+          val path = expand mlbPath
+          val path =
+            if FilePath.isAbsolute path then
+              path
+            else
+              FilePath.normalize (FilePath.join (relativeDir, path))
+          val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
+          val mlbSrc = Source.loadFromFile path
           val Ast basdec = MLBParser.parse mlbSrc
         in
-          doBasdec (FilePath.dirname fullPath) basdec
+          doBasdec (FilePath.dirname path) basdec
         end
 
     in

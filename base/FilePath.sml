@@ -10,6 +10,10 @@ sig
 
   exception InvalidPathString of string
 
+  (** path/to/file  ==>  ["path", "to", "file"] *)
+  val toFields: filepath -> string list
+  val fromFields: string list -> filepath
+
   val dirname: filepath -> filepath
   val basename: filepath -> filepath
 
@@ -34,6 +38,13 @@ struct
   type t = filepath
 
   exception InvalidPathString of string
+  exception EmptyPath
+
+  fun toFields path = List.rev path
+  fun fromFields fields =
+    case fields of
+      [] => raise EmptyPath
+    | _ => List.rev fields
 
   fun dirname (fields: filepath) =
     case fields of

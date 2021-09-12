@@ -124,6 +124,29 @@ val errorsOnly = CommandLineArgs.parseFlag "errors-only"
 val infile = List.hd (CommandLineArgs.positional ())
 val source = Source.loadFromFile (FilePath.fromUnixPath infile)
 
+(*
+val pathmap = MLtonPathMap.getPathMap ()
+  handle exn =>
+    let
+      val hist = MLton.Exn.history exn
+    in
+      print ("Error with pathmap: " ^ exnName exn ^ ": " ^ exnMessage exn ^ "\n");
+      if List.null hist then () else
+        print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist) ^ "\n");
+      OS.Process.exit OS.Process.failure
+    end
+
+val _ =
+  List.app
+    (fn (key, value) => print (key ^ " " ^ FilePath.toUnixPath value ^ "\n"))
+    pathmap
+
+val _ =
+  List.app
+    (fn (k, v) => print (k ^ " " ^ FilePath.toUnixPath (MLtonPathMap.expandPath pathmap v) ^ "\n"))
+    pathmap
+*)
+
 fun vprint msg =
   if errorsOnly then () else print msg
 
