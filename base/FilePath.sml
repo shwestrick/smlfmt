@@ -1,4 +1,4 @@
-(** Copyright (c) 2020 Sam Westrick
+(** Copyright (c) 2020-2021 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -9,6 +9,17 @@ sig
   type t = filepath
 
   exception InvalidPathString of string
+
+  val dirname: filepath -> filepath
+  val basename: filepath -> filepath
+
+  (** Eliminates redundant fields, e.g.
+    *    ./path/./to/the/../file    ==>    path/to/file
+    *)
+  val normalize: filepath -> filepath
+
+  (** Append filepaths. Doesn't normalize! *)
+  val join: filepath * filepath -> filepath
 
   val fromUnixPath: string -> filepath
   val toUnixPath: filepath -> string
@@ -23,6 +34,30 @@ struct
   type t = filepath
 
   exception InvalidPathString of string
+
+  fun dirname (fields: filepath) =
+    case fields of
+      [] => raise Fail "FilePath bug (dirname: empty path)"
+    | [_] => ["."]
+    | _ :: rest => rest
+
+  fun basename (fields: filepath) =
+    case fields of
+      [] => raise Fail "FilePath bug (basename: empty path)"
+    | name :: _ => [name]
+
+  fun normalize (fields: filepath) =
+    let
+      fun addParent (".", fields) = fields
+        | addParent ("..", fields) = ".." :: fields
+        | addParent (parent, ".." :: fields) = fields
+        | addParent (parent, fields) = parent :: fields
+    in
+      List.rev (List.foldl addParent (basename fields) (dirname fields))
+    end
+
+  fun join (fields1, fields2) =
+    fields2 @ fields1
 
   fun fromUnixPath s =
     if String.size s = 0 then

@@ -7,7 +7,7 @@
   * position (e.g. line-and-column, or character index), take subsequences,
   * etc.
   *)
-structure Source:
+structure Source :>
 sig
   type source
   type t = source

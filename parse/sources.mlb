@@ -23,9 +23,10 @@ local
   Parser.sml
 
   MLBParser.sml
+  ParseAllSMLFromMLB.sml
 in
   structure Parser
   structure MLBParser
+  structure ParseAllSMLFromMLB
 end
 
-ParseAllSMLFromMLB.sml

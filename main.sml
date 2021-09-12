@@ -157,7 +157,7 @@ fun doMLB () =
         )
 
     val allSMLPaths =
-      ParseAllSMLFromMLB.allSMLPaths source
+      ParseAllSMLFromMLB.readSMLPathsFromMLB (FilePath.fromUnixPath infile)
       handle exn => handleLexOrParseError exn
 
     fun printloop i =
