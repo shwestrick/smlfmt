@@ -98,7 +98,7 @@ struct
   fun show {header, content} =
     let
       val desiredWidth =
-        Int.min (Terminal.currentCols (), 60)
+        Int.min (Terminal.currentCols (), 80)
 
       val headerStr =
         TextFormat.rightPadWith #"-" desiredWidth ("-- " ^ header ^ " ")

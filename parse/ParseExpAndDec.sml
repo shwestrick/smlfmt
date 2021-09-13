@@ -1273,6 +1273,19 @@ struct
           val lett = tok (i-1)
           val ((i, infdict), dec) = consume_dec (i, infdict)
           val (i, inn) = parse_reserved Token.In i
+            handle Error.Error _ =>
+            raise Error.Error (Error.ErrorReport
+              { header = "PARSE ERROR"
+              , content =
+                  [ ErrorReport.Paragraph "Unexpected token."
+                  , ErrorReport.SourceReference (Token.getSource (tok i))
+                  , ErrorReport.Paragraph
+                      "Expected to see 'in' or another declaration."
+                  , ErrorReport.Paragraph "The error\
+                      \ occurred inside of this 'let':"
+                  , ErrorReport.SourceReference (Token.getSource lett)
+                  ]
+              })
 
           val parseElem = consume_exp infdict Restriction.None
           val (i, {elems, delims}) =
