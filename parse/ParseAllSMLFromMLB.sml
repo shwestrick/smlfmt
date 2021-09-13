@@ -18,73 +18,69 @@ struct
     let
       open MLBAst
 
-      fun expand x = MLtonPathMap.expandPath pathmap x
+      fun expandAndJoin relativeDir path =
+        let
+          val path = MLtonPathMap.expandPath pathmap path
+        in
+          if FilePath.isAbsolute path then
+            path
+          else
+            FilePath.normalize (FilePath.join (relativeDir, path))
+        end
 
-      fun doBasdec relativeDir basdec =
+
+      fun doBasdec parents relativeDir basdec =
         case basdec of
           DecMultiple {elems, ...} =>
-            Seq.flatten (Seq.map (doBasdec relativeDir) elems)
+            Seq.flatten (Seq.map (doBasdec parents relativeDir) elems)
         | DecPathMLB {path, token} =>
-            (doMLB relativeDir path
+            (doMLB parents relativeDir path
             handle OS.SysErr (msg, _) =>
               let
-                val path = expand path
-                val path =
-                  if FilePath.isAbsolute path then
-                    path
-                  else
-                    FilePath.normalize (FilePath.join (relativeDir, path))
+                val path = expandAndJoin relativeDir path
+                val backtrace =
+                  "Included from: " ^ String.concatWith " -> "
+                    (List.rev (List.map FilePath.toUnixPath parents))
               in
                 ParserUtils.error
                   { pos = MLBToken.getSource token
-                  , what = ("Could not open file: " ^ FilePath.toUnixPath path)
-                  , explain = SOME msg
+                  , what = (msg ^ ": " ^ FilePath.toUnixPath path)
+                  , explain = SOME backtrace
                   }
               end)
         | DecPathSML {path, ...} =>
-            let
-              val path = expand path
-              val path =
-                if FilePath.isAbsolute path then
-                  path
-                else
-                  FilePath.normalize (FilePath.join (relativeDir, path))
-            in
-              Seq.singleton path
-            end
+            Seq.singleton (expandAndJoin relativeDir path)
         | DecBasis {elems, ...} =>
-            Seq.flatten (Seq.map (doBasexp relativeDir o #basexp) elems)
+            Seq.flatten (Seq.map (doBasexp parents relativeDir o #basexp) elems)
         | DecLocalInEnd {basdec1, basdec2, ...} =>
             Seq.append
-              (doBasdec relativeDir basdec1, doBasdec relativeDir basdec2)
+              (doBasdec parents relativeDir basdec1, doBasdec parents relativeDir basdec2)
         | DecAnn {basdec, ...} =>
-            doBasdec relativeDir basdec
+            doBasdec parents relativeDir basdec
         | _ => Seq.empty ()
 
-      and doBasexp relativeDir basexp =
+      and doBasexp parents relativeDir basexp =
         case basexp of
-          BasEnd {basdec, ...} => doBasdec relativeDir basdec
+          BasEnd {basdec, ...} => doBasdec parents relativeDir basdec
         | LetInEnd {basdec, basexp, ...} =>
-            Seq.append (doBasdec relativeDir basdec, doBasexp relativeDir basexp)
+            Seq.append
+              ( doBasdec parents relativeDir basdec
+              , doBasexp parents relativeDir basexp
+              )
         | _ => Seq.empty ()
 
-      and doMLB relativeDir mlbPath =
+      and doMLB parents relativeDir mlbPath =
         let
-          val path = expand mlbPath
-          val path =
-            if FilePath.isAbsolute path then
-              path
-            else
-              FilePath.normalize (FilePath.join (relativeDir, path))
+          val path = expandAndJoin relativeDir mlbPath
           val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
           val mlbSrc = Source.loadFromFile path
           val Ast basdec = MLBParser.parse mlbSrc
         in
-          doBasdec (FilePath.dirname path) basdec
+          doBasdec (path :: parents) (FilePath.dirname path) basdec
         end
 
     in
-      doMLB (FilePath.fromUnixPath ".") mlbPath
+      doMLB [] (FilePath.fromUnixPath ".") mlbPath
     end
 
 end
