@@ -1,41 +1,56 @@
 # parse-sml
 
 A custom lexer/parser for Standard ML with the goal of providing
-better error messages. Perhaps it could also eventually provide SML tooling
-such as linting, autoformatting or even a language server.
+better error messages.
 
 ## Examples
 
 ```
 $ ./main test/fail/illegal-begin-fn.sml
--- PARSE ERROR ------------- test/fail/illegal-begin-fn.sml
+-- PARSE ERROR --------------------------------------------
 
 Unexpected beginning of anonymous function.
 
-2| val id' = id o fn x => x
-                  ^^
+test/fail/illegal-begin-fn.sml
+  |
+2 | val id' = id o fn x => x
+  |                ^^
+
 Try using parentheses: (fn ... => ...)
 ```
 
 ```
 $ ./main test/fail/reserved-in-long-id.sml
--- SYNTAX ERROR --------- test/fail/reserved-in-long-id.sml
+-- PARSE ERROR --------------------------------------------
 
-Unexpected reserved keyword.
+Unexpected token.
 
-5| val z = X.and.b
-             ^^^
-Reserved keywords cannot be used as identifiers.
+test/fail/bad-let-in-end-3.sml
+  |
+4 |     val y = let in (1, 2) end end
+  |                               ^^^
+
+Expected to see 'in' or another declaration.
+
+The error occurred inside of this 'let':
+
+test/fail/bad-let-in-end-3.sml
+  |
+2 |   let
+  |   ^^^
 ```
 
 ```
 $ ./main test/fail/bad-real.sml
--- SYNTAX ERROR -------------------- test/fail/bad-real.sml
+-- SYNTAX ERROR -------------------------------------------
 
 Invalid real constant.
 
-1| val x = 1.E1
-           ^^
+test/fail/bad-real.sml
+  |
+1 | val x = 1.E1
+  |         ^^
+
 After the dot, there needs to be at least one decimal digit.
 ```
 
