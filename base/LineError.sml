@@ -27,79 +27,7 @@ struct
 
   type err = t
 
-  fun repeatChar n c =
-    CharVector.tabulate (n, fn _ => c)
-
-  fun lcToStr {line, col} =
-    "(line "
-    ^ Int.toString line
-    ^ ", col "
-    ^ Int.toString col
-    ^ ")"
-
-  fun leftPadWith char desiredWidth str =
-    if String.size str >= desiredWidth then
-      str
-    else
-      repeatChar (desiredWidth - String.size str) char
-      ^ str
-
-  fun rightPadWith char desiredWidth str =
-    if String.size str >= desiredWidth then
-      str
-    else
-      str
-      ^ repeatChar (desiredWidth - String.size str) char
-
-  fun centerPadWith char desiredWidth str =
-    if String.size str >= desiredWidth then
-      str
-    else
-      let
-        val count = desiredWidth - String.size str
-        val leftCount = count div 2
-        val rightCount = count - leftCount
-      in
-        repeatChar leftCount char
-        ^ str
-        ^ repeatChar rightCount char
-      end
-
-  fun justifyWith char desiredWidth (left, right) =
-    if String.size left + String.size right >= desiredWidth then
-      left ^ right
-    else
-      let
-        val count = desiredWidth - (String.size left + String.size right)
-      in
-        left
-        ^ repeatChar count char
-        ^ right
-      end
-
-  fun textWrap desiredWidth str =
-    let
-      fun finishLine ln = String.concatWith " " (List.rev ln)
-      fun loop lines (currLine, currLen) toks =
-        case toks of
-          tok :: remaining =>
-            if currLen + String.size tok + 1 > desiredWidth then
-              loop
-                (finishLine currLine :: lines)
-                ([], 0)
-                toks
-            else
-              loop
-                lines
-                (tok :: currLine, currLen + String.size tok + 1)
-                remaining
-        | [] =>
-            String.concatWith "\n" (List.rev (finishLine currLine :: lines))
-    in
-      loop [] ([], 0) (String.tokens Char.isSpace str)
-    end
-
-
+(*
   fun show {header, pos, what=msg, explain=extraInfo} =
     let
       val {line=lineNum, col=colStart} = Source.absoluteStart pos
@@ -119,22 +47,43 @@ struct
       val highlightLen = colEnd - colStart
 
       val leftSpaces =
-        repeatChar (String.size leftMargin + colOffset) #" "
+        TextFormat.repeatChar (String.size leftMargin + colOffset) #" "
 
       val extra =
         case extraInfo of
           NONE => ""
-        | SOME info => textWrap desiredWidth info
+        | SOME info => TextFormat.textWrap desiredWidth info
     in
-      justifyWith #"-" desiredWidth
-        ( "-- " ^ header ^ " "
-        , " " ^ FilePath.toHostPath (Source.fileName pos)
-        )
+      TextFormat.spreadWith #"-" desiredWidth
+        { left = "-- " ^ header ^ " "
+        , right = " " ^ FilePath.toHostPath (Source.fileName pos)
+        }
       ^ "\n\n"
       ^ msg ^ "\n\n"
       ^ leftMargin ^ Source.toString line ^ "\n"
-      ^ leftSpaces ^ repeatChar highlightLen #"^" ^ "\n"
+      ^ leftSpaces ^ TextFormat.repeatChar highlightLen #"^" ^ "\n"
       ^ extra ^ "\n"
+    end
+*)
+
+  fun show {header, pos, what, explain} =
+    let
+      open ErrorReport
+
+      val elems =
+        [ Paragraph what
+        , SourceReference pos
+        ]
+
+      val more =
+        case explain of
+          NONE => []
+        | SOME s => [Paragraph s]
+    in
+      show
+        { header = header
+        , content = elems @ more
+        }
     end
 
 end

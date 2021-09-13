@@ -1,8 +1,11 @@
 lib/sources.mlb
 
+TextFormat.sml
 FilePath.sml
 Source.sml
 WithSource.sml
+
+ErrorReport.sml
 LineError.sml
 MaybeError.sml
 
