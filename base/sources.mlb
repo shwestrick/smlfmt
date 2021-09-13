@@ -7,7 +7,8 @@ WithSource.sml
 
 ErrorReport.sml
 LineError.sml
-MaybeError.sml
+(*MaybeError.sml*)
+Error.sml
 
 KEY.sig
 ScopedDict.sml

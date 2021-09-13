@@ -135,13 +135,11 @@ fun handleLexOrParseError exn =
   let
     val e =
       case exn of
-        Parser.Error e => e
-      | Lexer.Error e => e
-      | MLBLexer.Error e => e
+        Error.Error e => e
       | other => raise other
     val hist = MLton.Exn.history exn
   in
-    print (LineError.show e);
+    print (Error.show e);
     if List.null hist then () else
       print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
     OS.Process.exit OS.Process.failure

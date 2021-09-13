@@ -5,8 +5,6 @@
 
 structure MLBLexer:
 sig
-  exception Error of LineError.t
-
   (** Get the next token in the given source. If there isn't one, returns NONE.
     * raises Error if there's a problem.
     *)
@@ -19,14 +17,13 @@ sig
 end =
 struct
 
-  exception Error of LineError.t
   fun error {what, pos, explain} =
-    raise Error
+    raise Error.Error (Error.LineError
       { header = "SYNTAX ERROR"
       , pos = pos
       , what = what
       , explain = explain
-      }
+      })
 
   fun success x = SOME x
 

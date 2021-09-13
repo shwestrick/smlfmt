@@ -5,8 +5,6 @@
 
 structure Lexer:
 sig
-  exception Error of LineError.t
-
   (** Get the next token in the given source. If there isn't one, returns NONE.
     * raises Error if there's a problem.
     *)
@@ -19,8 +17,6 @@ sig
 end =
 struct
 
-  exception Error of LineError.t
-
   (** This is just to get around annoying bad syntax highlighting for SML... *)
   val backslash = #"\\" (* " *)
 
@@ -28,12 +24,12 @@ struct
     SOME tok
 
   fun error {pos, what, explain} =
-    raise Error
+    raise Error.Error (Error.LineError
       { header = "SYNTAX ERROR"
       , pos = pos
       , what = what
       , explain = explain
-      }
+      })
 
 
   fun next (src: Source.t) : Token.t option =

@@ -5,7 +5,6 @@
 
 structure ParserUtils:
 sig
-  exception Error of LineError.t
   val error: {what: string, pos: Source.t, explain: string option} -> 'a
 
   val errorIfInfixNotOpped: InfixDict.t -> Token.t option -> Token.t -> unit
@@ -14,15 +13,13 @@ sig
 end =
 struct
 
-  exception Error of LineError.t
-
   fun error {what, pos, explain} =
-    raise Error
+    raise Error.Error (Error.LineError
       { header = "PARSE ERROR"
       , pos = pos
       , what = what
       , explain = explain
-      }
+      })
 
   fun errorIfInfixNotOpped infdict opp vid =
     if InfixDict.contains infdict vid andalso not (Option.isSome opp) then
@@ -37,19 +34,19 @@ struct
 
   fun nyi toks fname i =
     if i >= Seq.length toks then
-      raise Error
+      raise Error.Error (Error.LineError
         { header = "ERROR: NOT YET IMPLEMENTED"
         , pos = Token.getSource (Seq.nth toks (Seq.length toks - 1))
         , what = "Unexpected EOF after token."
         , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
-        }
+        })
     else if i >= 0 then
-      raise Error
+      raise Error.Error (Error.LineError
         { header = "ERROR: NOT YET IMPLEMENTED"
         , pos = Token.getSource (Seq.nth toks i)
         , what = "Unexpected token."
         , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
-        }
+        })
     else
       raise Fail ("Bug in parser " ^ fname ^ ": position out of bounds??")
 

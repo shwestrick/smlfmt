@@ -17,7 +17,6 @@ struct
   structure PS = ParseSimple
   structure PT = ParseTy
   structure PP = ParsePat
-  exception Error = ParserUtils.Error
 
   structure Restriction = ExpPatRestriction
 
