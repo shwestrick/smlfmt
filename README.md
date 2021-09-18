@@ -1,7 +1,11 @@
 # parse-sml
 
 A custom lexer/parser for Standard ML with the goal of providing
-better error messages.
+better error messages. Supports standard SML source files
+(`.sml`, `.sig`, `.fun`, etc.) as well as
+[MLBasis](http://mlton.org/MLBasis) compilation files (`.mlb`) using
+[MLton](https://github.com/MLton/mlton) conventions,
+including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
 
 ## Examples
 
