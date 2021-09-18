@@ -101,11 +101,12 @@ struct
               NONE => slice (i, n) :: acc
             | SOME k =>
                 let
+                  val prefix = slice (i, j)
                   val key = slice (j+2, k-1)
                 in
                   case lookup pathmap key of
-                    NONE => loop (slice (j, k) :: acc) k
-                  | SOME v => loop (v :: acc) k
+                    NONE => loop (slice (j, k) :: prefix :: acc) k
+                  | SOME v => loop (v :: prefix :: acc) k
                 end
 
       val expanded = String.concat (List.rev (loop [] 0))
@@ -131,5 +132,14 @@ struct
     in
       FilePath.fromFields (expand (FilePath.toFields path))
     end
+
+  (* val expandPath = fn pathmap => fn path =>
+    let
+      val _ = print ("expanding " ^ FilePath.toUnixPath path ^ "\n")
+      val result = expandPath pathmap path
+      val _ = print ("result: " ^ FilePath.toUnixPath result ^ "\n")
+    in
+      result
+    end *)
 
 end

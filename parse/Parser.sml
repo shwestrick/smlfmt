@@ -6,6 +6,7 @@
 structure Parser:
 sig
   val parse: Source.t -> Ast.t
+  val parseWithInfdict: InfixDict.t -> Source.t -> (InfixDict.t * Ast.t)
 end =
 struct
 
@@ -19,7 +20,7 @@ struct
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
 
-  fun parse src =
+  fun parseWithInfdict infdict src =
     let
       (** This might raise Lexer.Error *)
       val toksWithComments = Lexer.tokens src
@@ -504,6 +505,67 @@ struct
         end
 
 
+      fun consume_MLtonOverload underscore i =
+        let
+          fun err () =
+            ParserUtils.error
+              { pos = Token.getSource underscore
+              , what = "Unexpected token."
+              , explain = SOME "Expected beginning of top-level declaration."
+              }
+        in
+          if i >= numToks then err () else
+          let
+            val nextSrc = Token.getSource (tok i)
+            val isMLtonThing =
+              Token.isIdentifier (tok i) andalso
+              case Source.toString nextSrc of
+                "overload" => true
+              | _ => false
+            val _ =
+              if isMLtonThing
+              then ()
+              else err ()
+            val newTok =
+              case Source.abut (Token.getSource underscore, nextSrc) of
+                NONE => err ()
+              | SOME src' => Token.mltonReserved src'
+            val i = i+1
+            val (i, prec) =
+              if check Token.isDecimalIntegerConstant i then
+                (i+1, tok i)
+              else
+                ParserUtils.error
+                  { pos = Token.getSource underscore
+                  , what = "Unexpected token."
+                  , explain = SOME "Expected integer literal."
+                  }
+            val (i, name) = parse_vid i
+            val (i, colon) = parse_reserved Token.Colon i
+            val (i, ty) = parse_ty i
+            val (i, ass) = parse_reserved Token.As i
+
+            val (i, {elems, delims}) =
+              parse_oneOrMoreDelimitedByReserved
+                {parseElem = parse_longvid, delim = Token.And}
+                i
+          in
+            ( i
+            , Ast.Str.MLtonOverload
+                { overload = newTok
+                , prec = prec
+                , name = name
+                , colon = colon
+                , ty = ty
+                , ass = ass
+                , elems = elems
+                , delims = delims
+                }
+            )
+          end
+        end
+
+
       (** ====================================================================
         * Top-level
         *)
@@ -520,6 +582,12 @@ struct
           in
             (xx, Ast.StrDec strdec)
           end
+        else if isReserved Token.Underscore i then
+          let
+            val (i, strdec) = consume_MLtonOverload (tok i) (i+1)
+          in
+            ((i, infdict), Ast.StrDec strdec)
+          end
         else
           ParserUtils.error
             { pos = Token.getSource (tok i)
@@ -527,9 +595,9 @@ struct
             , explain = SOME "Invalid start of top-level declaration."
             }
 
-      val infdict = InfixDict.initialTopLevel
+      (* val infdict = InfixDict.initialTopLevel *)
 
-      val ((i, _), topdecs) =
+      val ((i, infdict), topdecs) =
         parse_zeroOrMoreWhile
           (fn (i, _) => i < numToks)
           consume_topDecOne
@@ -546,7 +614,15 @@ struct
             , explain = SOME "Invalid start of top-level declaration!"
             }
     in
-      Ast.Ast topdecs
+      (infdict, Ast.Ast topdecs)
+    end
+
+
+  fun parse src =
+    let
+      val (_, ast) = parseWithInfdict InfixDict.initialTopLevel src
+    in
+      ast
     end
 
 

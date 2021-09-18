@@ -14,6 +14,7 @@ sig
   val newScope: t -> t
   val numScopes: t -> int
 
+  val empty: t
   val initialTopLevel: t
 
   val insert: t -> (Token.t * int * assoc) -> t
@@ -56,6 +57,8 @@ struct
       , L(":=", 3), L("o", 3)
       , L("before", 0)
       ]
+
+  val empty = topLevelFromList []
 
   fun contains d tok =
     D.contains d (Token.toString tok)

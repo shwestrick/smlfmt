@@ -168,29 +168,30 @@ fun doMLB () =
       ; print "==================\n"
       )
 
-    val allSMLPaths =
-      ParseAllSMLFromMLB.readSMLPathsFromMLB pathmap (FilePath.fromUnixPath infile)
-      (* handle exn => handleLexOrParseError exn *)
+    val ast =
+      ParseAllSMLFromMLB.parse pathmap (FilePath.fromUnixPath infile)
 
-    fun printloop i =
+    (* fun printloop i =
       if i >= Seq.length allSMLPaths then () else
       let
         val p = Seq.nth allSMLPaths i
       in
         print ("  " ^ FilePath.toUnixPath p ^ "\n");
         printloop (i+1)
-      end
+      end *)
   in
-    Util.for (0, Seq.length allSMLPaths) (fn i =>
+    (* Util.for (0, Seq.length allSMLPaths) (fn i =>
       ( print ("parsing " ^ FilePath.toUnixPath (Seq.nth allSMLPaths i) ^ "\n")
       ; Parser.parse (Source.loadFromFile (Seq.nth allSMLPaths i))
       ; ()
       )
-    )
+    ) *)
     (* print "Specifies these SML files:\n"; *)
     (* printloop 0 *)
+    ()
   end
   handle exn => handleLexOrParseError exn
+
 
 fun doSML () =
   let

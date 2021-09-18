@@ -10,6 +10,11 @@ struct
 
   open AstType
 
+  fun join (Ast td1, Ast td2) =
+    Ast (Seq.append (td1, td2))
+
+  val empty = Ast (Seq.empty ())
+
   structure SyntaxSeq =
   struct
     open AstType.SyntaxSeq

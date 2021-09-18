@@ -1130,6 +1130,9 @@ struct
           )
         end
 
+    | Ast.Str.MLtonOverload _ =>
+        text "<_overload>"
+
     (* | _ => text "<strdec>" *)
 
 

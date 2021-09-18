@@ -848,6 +848,18 @@ struct
         , endd: Token.t
         }
 
+    (** _overload prec name : ty as longvid [and longvid ...] *)
+    | MLtonOverload of
+        { overload: Token.t
+        , prec: Token.t
+        , name: Token.t
+        , colon: Token.t
+        , ty: Ty.t
+        , ass: Token.t
+        , elems: MaybeLongToken.t Seq.t
+        , delims: Token.t Seq.t
+        }
+
   end
 
 

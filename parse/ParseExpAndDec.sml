@@ -939,9 +939,11 @@ struct
               | "import" => true
               | "command_line_const" => true
               | "build_const" => true
+              | "const" => true
+              | "symbol" => true
               | _ => false
             val _ =
-              if isMLtonThing andalso Restriction.anyOkay restriction
+              if isMLtonThing (*andalso Restriction.anyOkay restriction*)
               then ()
               else err ()
             val newTok =
