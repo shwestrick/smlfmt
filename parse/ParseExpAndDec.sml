@@ -832,6 +832,9 @@ struct
                   , explain = SOME "Try using parentheses: (while ... do ...)"
                   }
 
+            else if isReserved Token.Underscore i then
+              consume_expAfterUnderscore infdict restriction (tok i) (i+1)
+
             else
               ParserUtils.error
                 { pos = Token.getSource (tok i)
@@ -908,6 +911,61 @@ struct
             consume_afterExp infdict restriction exp i
           else
             (i, exp)
+        end
+
+
+      (** _
+        *  ^
+        *
+        * This is a bit awkward, but we're trying to handle MLton-specific
+        * code here, e.g. _prim and _import.
+        *)
+      and consume_expAfterUnderscore infdict restriction underscore i =
+        let
+          fun err () =
+            ParserUtils.error
+              { pos = Token.getSource underscore
+              , what = "Unexpected token."
+              , explain = SOME "Expected beginning of expression."
+              }
+        in
+          if i >= numToks then err () else
+          let
+            val nextSrc = Token.getSource (tok i)
+            val isMLtonThing =
+              Token.isIdentifier (tok i) andalso
+              case Source.toString nextSrc of
+                "prim" => true
+              | "import" => true
+              | "command_line_const" => true
+              | "build_const" => true
+              | _ => false
+            val _ =
+              if isMLtonThing andalso Restriction.anyOkay restriction
+              then ()
+              else err ()
+            val newTok =
+              case Source.abut (Token.getSource underscore, nextSrc) of
+                NONE => err ()
+              | SOME src' => Token.mltonReserved src'
+            val (i, contents) =
+              parse_zeroOrMoreWhile
+                (fn i => not (check Token.isSemicolon i))
+                (fn i => (i+1, tok i))
+                (i+1)
+            val (i, semicolon) =
+              (i+1, tok i)
+          in
+            ( i
+            , Ast.Exp.MLtonSpecific
+              { directive = newTok
+              , contents = contents
+              , semicolon = semicolon
+              }
+            )
+
+            (* consume_afterExp infdict restriction exp (i+1) *)
+          end
         end
 
 

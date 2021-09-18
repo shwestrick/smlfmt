@@ -27,6 +27,9 @@ sig
   val take: source -> int -> source
   val drop: source -> int -> source
 
+  (** if src1 adjacent to scr2, attach them and return new. *)
+  val abut: source * source -> source option
+
   val toString: source -> string
 
   val wholeFile: source -> source
@@ -151,5 +154,21 @@ struct
     in
       slice base (lineStartOffset, lineEndOffset - lineStartOffset)
     end
+
+
+  fun abut (src1, src2) =
+    if
+      FilePath.sameFile (fileName src1, fileName src2) andalso
+      absoluteEndOffset src1 = absoluteStartOffset src2
+    then
+      let
+        val src = wholeFile src1
+        val i = absoluteStartOffset src1
+        val j = absoluteEndOffset src2
+      in
+        SOME (slice src (i, j-i))
+      end
+    else
+      NONE
 
 end

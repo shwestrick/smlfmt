@@ -57,6 +57,8 @@ sig
 
   val splitLast: 'a list -> ('a list * 'a) option
 
+  val equalLists: ('a * 'a -> bool) -> 'a list * 'a list -> bool
+
   val all: (int * int) -> (int -> bool) -> bool
   val exists: (int * int) -> (int -> bool) -> bool
 end =
@@ -73,6 +75,11 @@ struct
         [] => NONE
       | head :: tail => loop [] (head, tail)
     end
+
+  fun equalLists eq ([], []) = true
+    | equalLists eq (x :: xs, y :: ys) =
+        eq (x, y) andalso equalLists eq (xs, ys)
+    | equalLists _ _ = false
 
   fun die msg =
     ( TextIO.output (TextIO.stdErr, msg ^ "\n")

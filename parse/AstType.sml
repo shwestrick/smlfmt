@@ -440,7 +440,14 @@ struct
         , delims: Token.t Seq.t   (** the bars between match rules *)
         }
 
-
+    (** things like _prim, _import, etc.
+      * contains arbitrary tokens until ended by a semicolon
+      *)
+    | MLtonSpecific of
+        { directive: Token.t
+        , contents: Token.t Seq.t
+        , semicolon: Token.t
+        }
 
 
     and dec =

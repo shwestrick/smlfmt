@@ -30,6 +30,8 @@ sig
   val toHostPath: filepath -> string
 
   val isAbsolute: filepath -> bool
+
+  val sameFile: filepath * filepath -> bool
 end =
 struct
 
@@ -66,6 +68,9 @@ struct
     in
       List.rev (List.foldl addParent (basename fields) (dirname fields))
     end
+
+  fun sameFile (fp1, fp2) =
+    Util.equalLists op= (normalize fp1, normalize fp2)
 
   fun join (fields1, fields2) =
     fields2 @ fields1

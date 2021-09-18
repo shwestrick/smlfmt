@@ -40,6 +40,8 @@ fun tokColor class =
       pink
   | Token.Identifier =>
       darkgreen
+  | Token.MLtonReserved =>
+      darkgreen
 
 fun tokColorMLB class =
   case class of

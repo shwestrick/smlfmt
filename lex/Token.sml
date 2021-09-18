@@ -70,6 +70,7 @@ struct
 
   datatype class =
     Comment
+  | MLtonReserved
   | Reserved of reserved
   | IntegerConstant
   | WordConstant
@@ -87,6 +88,9 @@ struct
 
   fun reserved src rclass =
     WithSource.make {value = Reserved rclass, source = src}
+
+  fun mltonReserved src =
+    WithSource.make {value = MLtonReserved, source = src}
 
   fun longIdentifier src =
     WithSource.make {value = LongIdentifier, source = src}
@@ -281,6 +285,11 @@ struct
       Reserved Semicolon => true
     | _ => false
 
+  fun isIdentifier tok =
+    case getClass tok of
+      Identifier => true
+    | _ => false
+
   fun isValueIdentifier tok =
     case getClass tok of
       Identifier => Source.nth (getSource tok) 0 <> #"'"
@@ -302,6 +311,7 @@ struct
       Identifier => true
     | LongIdentifier => true
     | Reserved Equal => true (** annoying edge case *)
+    | MLtonReserved => true (** another special case... *)
     | _ => false
 
   (** alphanumeric, not starting with prime *)
@@ -451,6 +461,7 @@ struct
     | CharConstant => "char"
     | Identifier => "identifier"
     | LongIdentifier => "long identifier"
+    | MLtonReserved => "MLton reserved"
 
 
   (** Check that the text of t1 exactly matches the text of t2. Useful for

@@ -751,6 +751,9 @@ struct
               text "end"
             )
           end
+
+      | MLtonSpecific {directive, contents, ...} =>
+          text "<MLton-specific>"
     end
 
 
