@@ -16,6 +16,7 @@ sig
   val singleton: Key.t * 'a -> 'a dict
   val insert: 'a dict -> (Key.t * 'a) -> 'a dict
   val lookup: 'a dict -> Key.t -> 'a
+  val find: 'a dict -> Key.t -> 'a option
   val contains: 'a dict -> Key.t -> bool
   val remove: 'a dict -> Key.t -> 'a dict
   val fromList: (Key.t * 'a) list -> 'a dict
@@ -103,6 +104,7 @@ struct
 
   fun insert d (k, v) = M.insert (d, k, v)
   fun lookup d k = M.lookup (d, k)
+  fun find d k = M.find (d, k)
   fun contains d k = M.inDomain (d, k)
 
   fun remove d k =

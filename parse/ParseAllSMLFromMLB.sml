@@ -9,84 +9,9 @@ sig
     * recursively specified by the .mlb and parsing them, etc.
     *)
   val parse: MLtonPathMap.t -> FilePath.t -> Ast.t
-  val readSMLPathsFromMLB: MLtonPathMap.t -> FilePath.t -> FilePath.t Seq.t
+  (* val readSMLPathsFromMLB: MLtonPathMap.t -> FilePath.t -> FilePath.t Seq.t *)
 end =
 struct
-
-  fun readSMLPathsFromMLB pathmap mlbPath : FilePath.t Seq.t =
-    let
-      open MLBAst
-
-      fun expandAndJoin relativeDir path =
-        let
-          val path = MLtonPathMap.expandPath pathmap path
-        in
-          if FilePath.isAbsolute path then
-            path
-          else
-            FilePath.normalize (FilePath.join (relativeDir, path))
-        end
-
-
-      fun doBasdec parents relativeDir basdec =
-        case basdec of
-          DecMultiple {elems, ...} =>
-            Seq.flatten (Seq.map (doBasdec parents relativeDir) elems)
-        | DecPathMLB {path, token} =>
-            (doMLB parents relativeDir path
-            handle OS.SysErr (msg, _) =>
-              let
-                val path = expandAndJoin relativeDir path
-                val backtrace =
-                  "Included from: " ^ String.concatWith " -> "
-                    (List.rev (List.map FilePath.toUnixPath parents))
-              in
-                ParserUtils.error
-                  { pos = MLBToken.getSource token
-                  , what = (msg ^ ": " ^ FilePath.toUnixPath path)
-                  , explain = SOME backtrace
-                  }
-              end)
-        | DecPathSML {path, ...} =>
-            Seq.singleton (expandAndJoin relativeDir path)
-        | DecBasis {elems, ...} =>
-            Seq.flatten (Seq.map (doBasexp parents relativeDir o #basexp) elems)
-        | DecLocalInEnd {basdec1, basdec2, ...} =>
-            Seq.append
-              (doBasdec parents relativeDir basdec1, doBasdec parents relativeDir basdec2)
-        | DecAnn {basdec, ...} =>
-            doBasdec parents relativeDir basdec
-        | _ => Seq.empty ()
-
-      and doBasexp parents relativeDir basexp =
-        case basexp of
-          BasEnd {basdec, ...} => doBasdec parents relativeDir basdec
-        | LetInEnd {basdec, basexp, ...} =>
-            Seq.append
-              ( doBasdec parents relativeDir basdec
-              , doBasexp parents relativeDir basexp
-              )
-        | _ => Seq.empty ()
-
-      and doMLB parents relativeDir mlbPath =
-        let
-          val path = expandAndJoin relativeDir mlbPath
-          val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
-          val mlbSrc = Source.loadFromFile path
-          val Ast basdec = MLBParser.parse mlbSrc
-        in
-          doBasdec (path :: parents) (FilePath.dirname path) basdec
-        end
-
-    in
-      doMLB [] (FilePath.fromUnixPath ".") mlbPath
-    end
-
-
-  (***************************************************************************
-   ***************************************************************************
-   ***************************************************************************)
-
 
   structure VarKey =
   struct
@@ -127,6 +52,8 @@ struct
     , bases: basis VarDict.t *)
     }
 
+  type mlb_cache = (basis * Ast.ast) FilePathDict.t
+
 
   fun parse pathmap mlbPath : Ast.t =
     let
@@ -158,7 +85,7 @@ struct
         end
 
 
-      fun doSML ctx (basis, path, errFun) =
+      fun doSML (ctx: context) (basis, path, errFun) =
         let
           val path = expandAndJoin (#dir ctx) path
 
@@ -173,59 +100,78 @@ struct
         end
 
 
-      fun doMLB ctx (basis, path, errFun) =
+      fun doMLB (ctx: context) (mlbCache, basis, path, errFun) =
         let
           val path = expandAndJoin (#dir ctx) path
 
-          val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
-          val mlbSrc =
-            Source.loadFromFile path
-            handle OS.SysErr (msg, _) => errFun msg
+          val mlbCache =
+            if FilePathDict.contains mlbCache path then mlbCache else
+            let
+              val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
+              val mlbSrc =
+                Source.loadFromFile path
+                handle OS.SysErr (msg, _) => errFun msg
 
-          val Ast basdec = MLBParser.parse mlbSrc
+              val Ast basdec = MLBParser.parse mlbSrc
 
-          val ctx' =
-            { parents = path :: #parents ctx
-            , dir = FilePath.dirname path
-            }
+              val ctx' =
+                { parents = path :: #parents ctx
+                , dir = FilePath.dirname path
+                }
 
-          val (basis', ast) = doBasdec ctx' (emptyBasis, basdec)
+              val (mlbCache, b, a) =
+                doBasdec ctx' (mlbCache, emptyBasis, basdec)
+            in
+              FilePathDict.insert mlbCache (path, (b, a))
+            end
+
+          val (basis', ast) = FilePathDict.lookup mlbCache path
         in
-          (mergeBases (basis, basis'), ast)
+          (mlbCache, mergeBases (basis, basis'), ast)
         end
 
 
-      and doBasdec ctx (basis, basdec) =
-        case basdec of
+      and doBasdec
+        (ctx: context)
+        (mlbCache: mlb_cache, basis: basis, basdec: MLBAst.basdec)
+        : (mlb_cache * basis * Ast.ast)
+      = case basdec of
 
           DecPathMLB {path, token} =>
-            doMLB ctx (basis, path, fileErrorHandler ctx path token)
+            doMLB ctx (mlbCache, basis, path, fileErrorHandler ctx path token)
 
         | DecPathSML {path, token} =>
-            doSML ctx (basis, path, fileErrorHandler ctx path token)
+            let
+              val (basis, ast) =
+                doSML ctx (basis, path, fileErrorHandler ctx path token)
+            in
+              (mlbCache, basis, ast)
+            end
 
         | DecMultiple {elems, ...} =>
             let
-              fun doElem ((basis, ast), basdec) =
+              fun doElem ((mlbCache, basis, ast), basdec) =
                 let
-                  val (basis', ast') = doBasdec ctx (basis, basdec)
+                  val (mlbCache, basis', ast') =
+                    doBasdec ctx (mlbCache, basis, basdec)
                 in
-                  (basis', Ast.join (ast, ast'))
+                  (mlbCache, basis', Ast.join (ast, ast'))
                 end
             in
-              Seq.iterate doElem (basis, Ast.empty) elems
+              Seq.iterate doElem (mlbCache, basis, Ast.empty) elems
             end
 
         | DecBasis {elems, ...} =>
             let
-              fun doElem ((basis, ast), {basexp, ...}) =
+              fun doElem ((mlbCache, basis, ast), {basexp, ...}) =
                 let
-                  val (basis', ast') = doBasexp ctx (basis, basexp)
+                  val (mlbCache, basis', ast') =
+                    doBasexp ctx (mlbCache, basis, basexp)
                 in
-                  (basis', Ast.join (ast, ast'))
+                  (mlbCache, basis', Ast.join (ast, ast'))
                 end
             in
-              Seq.iterate doElem (basis, Ast.empty) elems
+              Seq.iterate doElem (mlbCache, basis, Ast.empty) elems
             end
 
         | DecLocalInEnd {basdec1, basdec2, ...} =>
@@ -233,37 +179,42 @@ struct
               (** TODO: FIX: this is not quite right; stuff exported by
                 * basdec1 should not be visible in the overall basis.
                 *)
-              val (basis, ast1) = doBasdec ctx (basis, basdec1)
-              val (basis, ast2) = doBasdec ctx (basis, basdec2)
+              val (mlbCache, basis, ast1) =
+                doBasdec ctx (mlbCache, basis, basdec1)
+              val (mlbCache, basis, ast2) =
+                doBasdec ctx (mlbCache, basis, basdec2)
             in
-              (basis, Ast.join (ast1, ast2))
+              (mlbCache, basis, Ast.join (ast1, ast2))
             end
 
         | DecAnn {basdec, ...} =>
-            doBasdec ctx (basis, basdec)
+            doBasdec ctx (mlbCache, basis, basdec)
 
         | _ =>
-            (basis, Ast.empty)
+            (mlbCache, basis, Ast.empty)
 
 
-      and doBasexp ctx (basis, basexp) =
+      and doBasexp ctx (mlbCache, basis, basexp) =
         case basexp of
+
           BasEnd {basdec, ...} =>
-            doBasdec ctx (basis, basdec)
+            doBasdec ctx (mlbCache, basis, basdec)
 
         | LetInEnd {basdec, basexp, ...} =>
             let
               (** TODO: FIX: this is not quite right; stuff exported by
                 * basdec should not be visible in the overall basis.
                 *)
-              val (basis, ast1) = doBasdec ctx (basis, basdec)
-              val (basis, ast2) = doBasexp ctx (basis, basexp)
+              val (mlbCache, basis, ast1) =
+                doBasdec ctx (mlbCache, basis, basdec)
+              val (mlbCache, basis, ast2) =
+                doBasexp ctx (mlbCache, basis, basexp)
             in
-              (basis, Ast.join (ast1, ast2))
+              (mlbCache, basis, Ast.join (ast1, ast2))
             end
 
         | _ =>
-            (basis, Ast.empty)
+            (mlbCache, basis, Ast.empty)
 
 
       fun topLevelError msg =
@@ -275,9 +226,11 @@ struct
               ]
           })
 
-      val (_, ast) =
+      val emptyCache = FilePathDict.empty
+
+      val (_, _, ast) =
         doMLB {parents = [], dir = FilePath.fromUnixPath "."}
-          (emptyBasis, mlbPath, topLevelError)
+          (emptyCache, emptyBasis, mlbPath, topLevelError)
     in
       ast
     end
