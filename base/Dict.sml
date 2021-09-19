@@ -20,6 +20,8 @@ sig
   val remove: 'a dict -> Key.t -> 'a dict
   val fromList: (Key.t * 'a) list -> 'a dict
 
+  val unionWith: ('a * 'a -> 'a) -> ('a dict * 'a dict) -> 'a dict
+
 (** below are other ORD_MAP functions that we could easily add if needed. *)
 (*
 
@@ -97,6 +99,7 @@ struct
   val isEmpty = M.isEmpty
   val size = M.numItems
   val singleton = M.singleton
+  val unionWith = M.unionWith
 
   fun insert d (k, v) = M.insert (d, k, v)
   fun lookup d k = M.lookup (d, k)

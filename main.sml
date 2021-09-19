@@ -124,7 +124,7 @@ fun loop tokColor (wholeSrc, i) (toks, j) =
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
 val errorsOnly = CommandLineArgs.parseFlag "errors-only"
 val infile = List.hd (CommandLineArgs.positional ())
-val source = Source.loadFromFile (FilePath.fromUnixPath infile)
+(* val source = Source.loadFromFile (FilePath.fromUnixPath infile) *)
 
 val pathmap = MLtonPathMap.getPathMap ()
 val pathmap =
@@ -150,15 +150,15 @@ fun handleLexOrParseError exn =
 
 fun doMLB () =
   let
-    val tokens =
-      MLBLexer.tokens source
+    (* val tokens =
+      MLBLexer.tokens source *)
       (* handle exn => handleLexOrParseError exn *)
 
-    val _ =
+    (* val _ =
       if errorsOnly then () else
         ( loop tokColorMLB (source, 0) (tokens, 0)
         ; print "\n"
-        )
+        ) *)
 
     val _ =
       ( print "==== PATH MAP ====\n"
@@ -195,6 +195,7 @@ fun doMLB () =
 
 fun doSML () =
   let
+    val source = Source.loadFromFile (FilePath.fromUnixPath infile)
     val _ =
       if errorsOnly then () else
       let

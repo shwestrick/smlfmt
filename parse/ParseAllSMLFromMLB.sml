@@ -83,6 +83,50 @@ struct
     end
 
 
+  (***************************************************************************
+   ***************************************************************************
+   ***************************************************************************)
+
+
+  structure VarKey =
+  struct
+    type t = Token.t
+    fun compare (tok1, tok2) =
+      String.compare (Token.toString tok1, Token.toString tok2)
+  end
+
+  structure FilePathKey =
+  struct
+    type t = FilePath.t
+    fun compare (fp1, fp2) =
+      String.compare (FilePath.toUnixPath fp1, FilePath.toUnixPath fp2)
+  end
+
+  structure VarDict = Dict (VarKey)
+  structure FilePathDict = Dict (FilePathKey)
+
+  (** For the purposes of parsing, we only need to remember infix definitions
+    * across source files.
+    *
+    * TODO: FIX: a basis also needs to be explicit about what it has set nonfix!
+    * (When merging bases, if the second basis sets an identifier nonfix, then
+    * the previous basis infix is overridden.)
+    *)
+  type basis =
+    {fixities: InfixDict.t}
+
+  val emptyBasis = {fixities = InfixDict.empty}
+
+  fun mergeBases (b1: basis, b2: basis) =
+    {fixities = InfixDict.union (#fixities b1, #fixities b2)}
+
+  type context =
+    { parents: FilePath.t list
+    , dir: FilePath.t
+    (*, mlbs: basis FilePathDict.t
+    , bases: basis VarDict.t *)
+    }
+
 
   fun parse pathmap mlbPath : Ast.t =
     let
@@ -99,120 +143,141 @@ struct
         end
 
 
-      fun doBasdec infdict parents relativeDir basdec =
+      fun fileErrorHandler ctx path token errorMessage =
+        let
+          val path = expandAndJoin (#dir ctx) path
+          val backtrace =
+            "Included from: " ^ String.concatWith " -> "
+              (List.rev (List.map FilePath.toUnixPath (#parents ctx)))
+        in
+          ParserUtils.error
+            { pos = MLBToken.getSource token
+            , what = (errorMessage ^ ": " ^ FilePath.toUnixPath path)
+            , explain = SOME backtrace
+            }
+        end
+
+
+      fun doSML ctx (basis, path, errFun) =
+        let
+          val path = expandAndJoin (#dir ctx) path
+
+          val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
+          val src =
+            Source.loadFromFile path
+            handle OS.SysErr (msg, _) => errFun msg
+
+          val (infdict, ast) = Parser.parseWithInfdict (#fixities basis) src
+        in
+          ({fixities = infdict}, ast)
+        end
+
+
+      fun doMLB ctx (basis, path, errFun) =
+        let
+          val path = expandAndJoin (#dir ctx) path
+
+          val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
+          val mlbSrc =
+            Source.loadFromFile path
+            handle OS.SysErr (msg, _) => errFun msg
+
+          val Ast basdec = MLBParser.parse mlbSrc
+
+          val ctx' =
+            { parents = path :: #parents ctx
+            , dir = FilePath.dirname path
+            }
+
+          val (basis', ast) = doBasdec ctx' (emptyBasis, basdec)
+        in
+          (mergeBases (basis, basis'), ast)
+        end
+
+
+      and doBasdec ctx (basis, basdec) =
         case basdec of
 
-          DecMultiple {elems, ...} =>
-            let
-              fun doElem ((infdict, ast), basdec) =
-                let
-                  val (infdict', ast') =
-                    doBasdec infdict parents relativeDir basdec
-                in
-                  (infdict', Ast.join (ast, ast'))
-                end
-            in
-              Seq.iterate doElem (infdict, Ast.empty) elems
-            end
-
-        | DecPathMLB {path, token} =>
-            (doMLB parents relativeDir path
-            handle OS.SysErr (msg, _) =>
-              let
-                (* val extra =
-                  ( "relative = " ^ FilePath.toUnixPath relativeDir ^ "\n"
-                  ^ "original path = " ^ FilePath.toUnixPath path ^ "\n"
-                  ) *)
-                val path = expandAndJoin relativeDir path
-                val backtrace =
-                  "Included from: " ^ String.concatWith " -> "
-                    (List.rev (List.map FilePath.toUnixPath parents))
-              in
-                ParserUtils.error
-                  { pos = MLBToken.getSource token
-                  , what = (msg ^ ": " ^ FilePath.toUnixPath path)
-                  , explain = SOME (backtrace (*^ "\n" ^ extra*))
-                  }
-              end)
+          DecPathMLB {path, token} =>
+            doMLB ctx (basis, path, fileErrorHandler ctx path token)
 
         | DecPathSML {path, token} =>
-            (let
-              val path = expandAndJoin relativeDir path
-              val src = Source.loadFromFile path
+            doSML ctx (basis, path, fileErrorHandler ctx path token)
+
+        | DecMultiple {elems, ...} =>
+            let
+              fun doElem ((basis, ast), basdec) =
+                let
+                  val (basis', ast') = doBasdec ctx (basis, basdec)
+                in
+                  (basis', Ast.join (ast, ast'))
+                end
             in
-              Parser.parseWithInfdict infdict src
+              Seq.iterate doElem (basis, Ast.empty) elems
             end
-            handle OS.SysErr (msg, _) =>
-              let
-                val path = expandAndJoin relativeDir path
-                val backtrace =
-                  "Included from: " ^ String.concatWith " -> "
-                    (List.rev (List.map FilePath.toUnixPath parents))
-              in
-                ParserUtils.error
-                  { pos = MLBToken.getSource token
-                  , what = (msg ^ ": " ^ FilePath.toUnixPath path)
-                  , explain = SOME backtrace
-                  }
-              end)
 
         | DecBasis {elems, ...} =>
             let
-              fun doElem ((infdict, ast), {basexp, ...}) =
+              fun doElem ((basis, ast), {basexp, ...}) =
                 let
-                  val (infdict', ast') =
-                    doBasexp infdict parents relativeDir basexp
+                  val (basis', ast') = doBasexp ctx (basis, basexp)
                 in
-                  (infdict', Ast.join (ast, ast'))
+                  (basis', Ast.join (ast, ast'))
                 end
             in
-              Seq.iterate doElem (infdict, Ast.empty) elems
+              Seq.iterate doElem (basis, Ast.empty) elems
             end
 
         | DecLocalInEnd {basdec1, basdec2, ...} =>
             let
-              val (infdict, ast1) = doBasdec infdict parents relativeDir basdec1
-              val (infdict, ast2) = doBasdec infdict parents relativeDir basdec2
+              (** TODO: FIX: this is not quite right; stuff exported by
+                * basdec1 should not be visible in the overall basis.
+                *)
+              val (basis, ast1) = doBasdec ctx (basis, basdec1)
+              val (basis, ast2) = doBasdec ctx (basis, basdec2)
             in
-              (infdict, Ast.join (ast1, ast2))
+              (basis, Ast.join (ast1, ast2))
             end
 
         | DecAnn {basdec, ...} =>
-            doBasdec infdict parents relativeDir basdec
+            doBasdec ctx (basis, basdec)
 
         | _ =>
-            (infdict, Ast.empty)
+            (basis, Ast.empty)
 
 
-      and doBasexp infdict parents relativeDir basexp =
+      and doBasexp ctx (basis, basexp) =
         case basexp of
           BasEnd {basdec, ...} =>
-            doBasdec infdict parents relativeDir basdec
+            doBasdec ctx (basis, basdec)
 
         | LetInEnd {basdec, basexp, ...} =>
             let
-              val (infdict, ast1) = doBasdec infdict parents relativeDir basdec
-              val (infdict, ast2) = doBasexp infdict parents relativeDir basexp
+              (** TODO: FIX: this is not quite right; stuff exported by
+                * basdec should not be visible in the overall basis.
+                *)
+              val (basis, ast1) = doBasdec ctx (basis, basdec)
+              val (basis, ast2) = doBasexp ctx (basis, basexp)
             in
-              (infdict, Ast.join (ast1, ast2))
+              (basis, Ast.join (ast1, ast2))
             end
 
         | _ =>
-            (infdict, Ast.empty)
+            (basis, Ast.empty)
 
 
-      and doMLB parents relativeDir mlbPath =
-        let
-          val path = expandAndJoin relativeDir mlbPath
-          val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
-          val mlbSrc = Source.loadFromFile path
-          val Ast basdec = MLBParser.parse mlbSrc
-        in
-          doBasdec InfixDict.empty (path :: parents) (FilePath.dirname path) basdec
-        end
+      fun topLevelError msg =
+        raise Error.Error (Error.ErrorReport
+          { header = "FILE ERROR"
+          , content =
+              [ ErrorReport.Paragraph
+                  (msg ^ ": " ^ FilePath.toUnixPath mlbPath)
+              ]
+          })
 
-
-      val (_, ast) = doMLB [] (FilePath.fromUnixPath ".") mlbPath
+      val (_, ast) =
+        doMLB {parents = [], dir = FilePath.fromUnixPath "."}
+          (emptyBasis, mlbPath, topLevelError)
     in
       ast
     end

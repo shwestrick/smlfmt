@@ -20,6 +20,7 @@ sig
   val insert: t -> (Token.t * int * assoc) -> t
   val remove: t -> Token.t -> t
   val contains: t -> Token.t -> bool
+  val union: t * t -> t
 
   exception NotFound
   val lookupPrecedence: t -> Token.t -> int
@@ -68,6 +69,9 @@ struct
 
   fun remove d tok =
     D.remove d (Token.toString tok)
+
+  fun union (d1, d2) =
+    D.unionWith (fn (_, x) => x) (d1, d2)
 
   fun lookupPrecedence (d: t) tok =
     #1 (D.lookup d (Token.toString tok))
