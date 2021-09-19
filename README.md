@@ -24,7 +24,7 @@ Try using parentheses: (fn ... => ...)
 ```
 
 ```
-$ ./main test/fail/reserved-in-long-id.sml
+$ ./main test/fail/bad-let-in-end-3.sml
 -- PARSE ERROR --------------------------------------------
 
 Unexpected token.
