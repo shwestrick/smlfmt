@@ -9,10 +9,10 @@ sig
 
   datatype assoc = AssocLeft | AssocRight
 
-  exception TopLevel
-  val popScope: t -> t
-  val newScope: t -> t
-  val numScopes: t -> int
+  (* exception TopLevel *)
+  (* val popScope: t -> t *)
+  (* val newScope: t -> t *)
+  (* val numScopes: t -> int *)
 
   val empty: t
   val initialTopLevel: t
@@ -33,10 +33,10 @@ sig
 end =
 struct
   structure D =
-    ScopedDict
+    Dict
       (struct
         type t = string
-        val equal: t * t -> bool = op=
+        val compare: t * t -> order = String.compare
       end)
 
   open D
@@ -49,7 +49,7 @@ struct
   fun R (str, p) = (str, (p, AssocRight))
 
   val initialTopLevel: t =
-    topLevelFromList
+    fromList
       [ L("div", 7), L("mod", 7), L("*", 7), L("/", 7)
       , L("+", 6), L("-", 6), L("^", 6)
       , R("::", 5), R("@", 5)
@@ -58,7 +58,7 @@ struct
       , L("before", 0)
       ]
 
-  val empty = topLevelFromList []
+  (* val empty = topLevelFromList [] *)
 
   fun contains d tok =
     D.contains d (Token.toString tok)

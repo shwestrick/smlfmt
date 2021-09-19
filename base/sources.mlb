@@ -7,11 +7,14 @@ WithSource.sml
 
 ErrorReport.sml
 LineError.sml
-(*MaybeError.sml*)
 Error.sml
 
-KEY.sig
-ScopedDict.sml
+local
+  $(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
+  Dict.sml
+in
+  functor Dict
+end
 
 PrettySimpleDoc.sml
 
