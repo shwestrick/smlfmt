@@ -595,15 +595,21 @@ struct
             , explain = SOME "Invalid start of top-level declaration."
             }
 
-      (* val infdict = InfixDict.initialTopLevel *)
+      fun parse_topDecMaybeSemicolon (i, infdict) =
+        let
+          val ((i, infdict), topdec) = consume_topDecOne (i, infdict)
+          val (i, semicolon) = ParseSimple.maybeReserved toks Token.Semicolon i
+        in
+          ( (i, infdict)
+          , {topdec = topdec, semicolon = semicolon}
+          )
+        end
 
       val ((i, infdict), topdecs) =
         parse_zeroOrMoreWhile
           (fn (i, _) => i < numToks)
-          consume_topDecOne
+          parse_topDecMaybeSemicolon
           (0, infdict)
-
-      (* val (i, _, topdec) = consume_dec infdict 0 *)
 
       val _ =
         if i >= numToks then ()

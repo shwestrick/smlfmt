@@ -914,7 +914,11 @@ struct
   | FunDec of Fun.fundec
 
   datatype ast =
-    Ast of topdec Seq.t
+    (** optional semicolon after every topdec *)
+    Ast of
+      { topdec: topdec
+      , semicolon: Token.t option
+      } Seq.t
 
   type t = ast
 

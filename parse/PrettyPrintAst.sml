@@ -1178,12 +1178,18 @@ struct
       ""
     else
       let
-        fun showOne td =
-          case td of
-            Ast.StrDec d => showStrDec d
-          | Ast.SigDec d => showSigDec d
-          | Ast.FunDec d => showFunDec d
-          (* | _ => raise Fail "Not yet implemented!" *)
+        fun showOne {topdec, semicolon} =
+          let
+            val td =
+              case topdec of
+                Ast.StrDec d => showStrDec d
+              | Ast.SigDec d => showSigDec d
+              | Ast.FunDec d => showFunDec d
+            val sc =
+              if Option.isSome semicolon then text ";" else empty
+          in
+            td ++ sc
+          end
 
         val all = Seq.map showOne tds
         val doc = Seq.iterate op$$ (Seq.nth all 0) (Seq.drop all 1)
