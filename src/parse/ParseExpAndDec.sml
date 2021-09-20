@@ -89,7 +89,7 @@ struct
             val p = parsePrec precedence
             fun mk tok = (tok, p, InfixDict.AssocLeft)
           in
-            Seq.iterate (fn (d, tok) => InfixDict.insert d (mk tok))
+            Seq.iterate (fn (d, tok) => InfixDict.setInfix d (mk tok))
               infdict
               elems
           end
@@ -99,13 +99,13 @@ struct
             val p = parsePrec precedence
             fun mk tok = (tok, p, InfixDict.AssocRight)
           in
-            Seq.iterate (fn (d, tok) => InfixDict.insert d (mk tok))
+            Seq.iterate (fn (d, tok) => InfixDict.setInfix d (mk tok))
               infdict
               elems
           end
 
       | Ast.Exp.DecNonfix {elems, ...} =>
-          Seq.iterate (fn (d, tok) => InfixDict.remove d tok)
+          Seq.iterate (fn (d, tok) => InfixDict.setNonfix d tok)
             infdict
             elems
 
@@ -124,7 +124,7 @@ struct
     orelse
     ( not (Restriction.infOkay restrict)
       andalso Token.isValueIdentifier tok
-      andalso InfixDict.contains infdict tok
+      andalso InfixDict.isInfix infdict tok
     )
     orelse
     ( not (Restriction.anyOkay restrict)
@@ -895,7 +895,7 @@ struct
               Restriction.infOkay restriction
               andalso Ast.Exp.isInfExp exp
               andalso check Token.isValueIdentifier at i
-              andalso InfixDict.contains infdict (tok i)
+              andalso InfixDict.isInfix infdict (tok i)
             then
               (true, consume_expInfix infdict exp (i+1))
 

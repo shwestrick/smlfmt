@@ -138,7 +138,7 @@ struct
                 *)
               Restriction.infOkay restriction
               andalso check Token.isValueIdentifierNoEqual i
-              andalso InfixDict.contains infdict (tok i)
+              andalso InfixDict.isInfix infdict (tok i)
             then
               (true, consume_patInfix infdict pat (tok i) (i+1))
 

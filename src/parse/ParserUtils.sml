@@ -22,7 +22,7 @@ struct
       })
 
   fun errorIfInfixNotOpped infdict opp vid =
-    if InfixDict.contains infdict vid andalso not (Option.isSome opp) then
+    if InfixDict.isInfix infdict vid andalso not (Option.isSome opp) then
       error
         { pos = Token.getSource vid
         , what = "Infix identifier not prefaced by 'op'"

@@ -9,18 +9,13 @@ sig
 
   datatype assoc = AssocLeft | AssocRight
 
-  (* exception TopLevel *)
-  (* val popScope: t -> t *)
-  (* val newScope: t -> t *)
-  (* val numScopes: t -> int *)
-
   val empty: t
   val initialTopLevel: t
 
-  val insert: t -> (Token.t * int * assoc) -> t
-  val remove: t -> Token.t -> t
-  val contains: t -> Token.t -> bool
-  val union: t * t -> t
+  val setInfix: t -> (Token.t * int * assoc) -> t
+  val setNonfix: t -> Token.t -> t
+  val isInfix: t -> Token.t -> bool
+  val merge: t * t -> t
 
   exception NotFound
   val lookupPrecedence: t -> Token.t -> int
@@ -43,11 +38,12 @@ struct
   open D
 
   datatype assoc = AssocLeft | AssocRight
+  datatype fixity = Nonfix | Infix of (int * assoc)
 
-  type t = (int * assoc) D.t
+  type t = fixity D.t
 
-  fun L (str, p) = (str, (p, AssocLeft))
-  fun R (str, p) = (str, (p, AssocRight))
+  fun L (str, p) = (str, Infix (p, AssocLeft))
+  fun R (str, p) = (str, Infix (p, AssocRight))
 
   val initialTopLevel: t =
     fromList
@@ -59,25 +55,29 @@ struct
       , L("before", 0)
       ]
 
-  (* val empty = topLevelFromList [] *)
+  fun isInfix d tok =
+    case D.find d (Token.toString tok) of
+      SOME (Infix _) => true
+    | _ => false
 
-  fun contains d tok =
-    D.contains d (Token.toString tok)
+  fun setInfix d (tok, prec, assoc) =
+    D.insert d (Token.toString tok, Infix (prec, assoc))
 
-  fun insert d (tok, prec, assoc) =
-    D.insert d (Token.toString tok, (prec, assoc))
+  fun setNonfix d tok =
+    D.insert d (Token.toString tok, Nonfix)
 
-  fun remove d tok =
-    D.remove d (Token.toString tok)
-
-  fun union (d1, d2) =
+  fun merge (d1, d2) =
     D.unionWith (fn (_, x) => x) (d1, d2)
 
   fun lookupPrecedence (d: t) tok =
-    #1 (D.lookup d (Token.toString tok))
+    case D.find d (Token.toString tok) of
+      SOME (Infix (p, _)) => p
+    | _ => raise NotFound
 
   fun lookupAssoc (d: t) tok =
-    #2 (D.lookup d (Token.toString tok))
+    case D.find d (Token.toString tok) of
+      SOME (Infix (_, a)) => a
+    | _ => raise NotFound
 
   fun associatesLeft d tok =
     AssocLeft = lookupAssoc d tok

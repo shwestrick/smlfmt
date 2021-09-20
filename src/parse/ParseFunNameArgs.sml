@@ -35,7 +35,7 @@ struct
 
       fun isInfixedValueIdentifier i =
         check Token.isValueIdentifier i
-        andalso InfixDict.contains infdict (tok i)
+        andalso InfixDict.isInfix infdict (tok i)
 
       fun restOfCurriedArgs i =
         let

@@ -43,7 +43,7 @@ struct
   val emptyBasis = {fixities = InfixDict.empty}
 
   fun mergeBases (b1: basis, b2: basis) =
-    {fixities = InfixDict.union (#fixities b1, #fixities b2)}
+    {fixities = InfixDict.merge (#fixities b1, #fixities b2)}
 
   type context =
     { parents: FilePath.t list
