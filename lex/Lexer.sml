@@ -61,7 +61,28 @@ struct
         * STRING HANDLING
         *)
 
-      fun advance_oneCharInString s (args as {stringStart}) =
+      datatype newcursor =
+        EndOfChar of int
+      | EndOfFormatEscape of int
+
+      (** The follow functions implement a state machine to advance a cursor
+        * within a string.
+        *   advance_oneCharOrEscapeSequenceInString
+        *   advance_inStringEscapeSequence
+        *   advance_inStringThreeDigitEscapeSequence
+        *   advance_inStringFourDigitEscapeSequence
+        *   advance_inStringControlEscapeSequence
+        *   advance_inStringFormatEscapeSequence
+        *
+        * All of these functions have the same return type newcursor option.
+        *   - NONE means we're either at the end of the string or EOF
+        *   - SOME(c) means we advanced up to the specific end-point.
+        *
+        * The "entry point" for the state machine is intended to be
+        * advance_oneCharOrEscapeSequenceInString.
+        *)
+
+      fun advance_oneCharOrEscapeSequenceInString s (args as {stringStart}) =
         if is backslash at s then
           advance_inStringEscapeSequence (s+1) args
         else if is #"\"" at s then
@@ -80,7 +101,7 @@ struct
                              \whitespace) ASCII characters."
             }
         else
-          SOME (s+1)
+          SOME (EndOfChar (s+1))
 
 
 
@@ -88,7 +109,7 @@ struct
       and advance_inStringEscapeSequence s (args as {stringStart}) =
         if check LexUtils.isValidSingleEscapeChar at s then
           (** Includes e.g. \t, \n, \", \\, etc. *)
-          SOME (s+1)
+          SOME (EndOfChar (s+1))
         else if check LexUtils.isValidFormatEscapeChar at s then
           advance_inStringFormatEscapeSequence (s+1)
             { stringStart = stringStart
@@ -125,7 +146,7 @@ struct
           check LexUtils.isDecDigit at s+1 andalso
           check LexUtils.isDecDigit at s+2
         then
-          SOME (s+3)
+          SOME (EndOfChar (s+3))
         else
           error
             { pos = slice (s-1, s)
@@ -145,7 +166,7 @@ struct
           check LexUtils.isHexDigit at s+2 andalso
           check LexUtils.isHexDigit at s+3
         then
-          SOME (s+4)
+          SOME (EndOfChar (s+4))
         else
           error
             { pos = slice (s-2, s-1)
@@ -160,7 +181,7 @@ struct
         *)
       and advance_inStringControlEscapeSequence s (args as {stringStart}) =
         if check LexUtils.isValidControlEscapeChar at s then
-          SOME (s+1)
+          SOME (EndOfChar (s+1))
         else
           error
             { pos = slice (s-2, s-1)
@@ -176,7 +197,7 @@ struct
         *)
       and advance_inStringFormatEscapeSequence s (args as {stringStart, escapeStart}) =
         if is backslash at s then
-          advance_oneCharInString (s+1) {stringStart=stringStart}
+          SOME (EndOfFormatEscape (s+1))
         else if check LexUtils.isValidFormatEscapeChar at s then
           advance_inStringFormatEscapeSequence (s+1) args
         else if isEndOfFileAt s then
@@ -197,13 +218,34 @@ struct
 
 
       fun advance_toEndOfString s (args as {stringStart}) =
-        case advance_oneCharInString s args of
-          SOME s' => advance_toEndOfString s' args
+        case advance_oneCharOrEscapeSequenceInString s args of
+          SOME (EndOfChar s') => advance_toEndOfString s' args
+        | SOME (EndOfFormatEscape s') => advance_toEndOfString s' args
         | NONE =>
             if is #"\"" at s then
               s+1
             else
-              raise Fail "Lexer.advance_toEndOfString: bug"
+              raise Error.Error (Error.ErrorReport
+                { header = "BUG!"
+                , content =
+                    [ ErrorReport.Paragraph
+                        "Bug found in lexer! Please report on GitHub..."
+                    , ErrorReport.Paragraph
+                        "Lexer.advance_toEndOfString: could not find end of string:"
+                    , ErrorReport.SourceReference
+                        (slice (stringStart, stringStart+1))
+                    , ErrorReport.Paragraph
+                        "Got up to here:"
+                    , ErrorReport.SourceReference
+                        (slice (s, s+1))
+                    ]
+                })
+
+      fun advance_oneCharInString s args =
+        case advance_oneCharOrEscapeSequenceInString s args of
+          SOME (EndOfChar s') => SOME s'
+        | SOME (EndOfFormatEscape s') => advance_oneCharInString s' args
+        | NONE => NONE
 
       (** ====================================================================
         * STATE MACHINE

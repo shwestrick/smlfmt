@@ -6,3 +6,9 @@ val _ = #"\u000f"
 val _ = #"\n"
 val _ = #"\
           \!"
+
+val encTbl = "\
+  \ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+  \abcdefghijklmnopqrstuvwxyz\
+  \0123456789+/\
+\"
