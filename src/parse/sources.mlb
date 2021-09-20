@@ -5,15 +5,13 @@ AstType.sml
 Ast.sml
 PrettyPrintAst.sml
 
-MLBAstType.sml
-MLBAst.sml
+InfixDict.sml
+ParserCombinators.sml
+ParserUtils.sml
 
 local
   ExpPatRestriction.sml
   FixExpPrecedence.sml
-  InfixDict.sml
-  ParserCombinators.sml
-  ParserUtils.sml
   ParseSimple.sml
   ParseTy.sml
   ParsePat.sml
@@ -21,12 +19,7 @@ local
   ParseExpAndDec.sml
   ParseSigExpAndSpec.sml
   Parser.sml
-
-  MLBParser.sml
-  ParseAllSMLFromMLB.sml
 in
   structure Parser
-  structure MLBParser
-  structure ParseAllSMLFromMLB
 end
 
