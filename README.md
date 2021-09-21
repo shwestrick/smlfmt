@@ -62,27 +62,14 @@ After the dot, there needs to be at least one decimal digit.
 
 You need [`mlton`](http://mlton.org/) installed.
 
-Do `make` and then pass a `.sml` file, for example:
-```
+Do `make` and then pass either a `.sml` file or a `.mlb` file, for example:
+```bash
 $ make
-$ ./main lex/Token.sml
+$ ./main src/lex/Token.sml
+$ ./main test/succeed/full-sml-basis-library.mlb
 ```
-
-For files that pass through lexing successfully, you will see a bit of syntax
-highlighting in the output. Files that are parsed successfully are
-also pretty-printed. To see syntax highlighting, you need a terminal that
-supports colors via ANSI escapes, e.g. iTerm2 on macOS.
-
-You can also pass a `.mlb` file:
-```
-$ ./main test/succeed/multiple-tests.mlb
-```
-This will find all SML source files specified by the MLB and parse them.
 
 ### Command-line options
-
-Passing `--errors-only` will prevent any output except for a lex/parse error,
-if there is one. Files that successfully parse will have no output.
 
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
 [MLton's path maps](http://mlton.org/MLBasisPathMap).

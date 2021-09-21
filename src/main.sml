@@ -188,7 +188,7 @@ fun doMLB () =
     ) *)
     (* print "Specifies these SML files:\n"; *)
     (* printloop 0 *)
-    ()
+    print "\nParsing succeeded.\n"
   end
   handle exn => handleLexOrParseError exn
 
