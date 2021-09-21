@@ -48,8 +48,15 @@ def run_test_expect_fail(path):
 
 fail_problems = []
 
+def ext(path):
+  return os.path.splitext(path)[1]
+
+valid_exts = [".mlb",".sml",".sig",".fun",".cm",".ml",".ML"]
+
 for name in os.listdir(FAIL_TEST_DIR):
   path = os.path.join(FAIL_TEST_DIR, name)
+  if (not os.path.isfile(path)) or (ext(path) not in valid_exts):
+    continue
   shortpath = os.path.join('test', 'fail', name)
   info('running {}'.format(shortpath))
   okay = run_test_expect_fail(path)
@@ -60,6 +67,8 @@ succeed_problems = []
 
 for name in os.listdir(SUCCEED_TEST_DIR):
   path = os.path.join(SUCCEED_TEST_DIR, name)
+  if (not os.path.isfile(path)) or (ext(path) not in valid_exts):
+    continue
   shortpath = os.path.join('test', 'succeed', name)
   info('running {}'.format(shortpath))
   okay = run_test_expect_success(path)
