@@ -39,6 +39,14 @@ struct
     *)
   type basis =
     {fixities: InfixDict.t}
+  fun newScope ({fixities}: basis) =
+    {fixities = InfixDict.newScope fixities}
+  fun popScope ({fixities}: basis): {old: basis, popped: basis} =
+    let
+      val {old, popped} = InfixDict.popScope fixities
+    in
+      {old = {fixities = old}, popped = {fixities = popped}}
+    end
 
   val emptyBasis = {fixities = InfixDict.empty}
 
@@ -176,15 +184,19 @@ struct
 
         | DecLocalInEnd {basdec1, basdec2, ...} =>
             let
-              (** TODO: FIX: this is not quite right; stuff exported by
-                * basdec1 should not be visible in the overall basis.
+              (** create new scopes to then later pop and reconstruct, which
+                * effectively hides any exports of basdec1
                 *)
+              val basis = newScope basis
               val (mlbCache, basis, ast1) =
                 doBasdec ctx (mlbCache, basis, basdec1)
+              val basis = newScope basis
               val (mlbCache, basis, ast2) =
                 doBasdec ctx (mlbCache, basis, basdec2)
+              val {old=basis, popped=newBasis} = popScope basis
+              val {old=basis, ...} = popScope basis
             in
-              (mlbCache, basis, Ast.join (ast1, ast2))
+              (mlbCache, mergeBases (basis, newBasis), Ast.join (ast1, ast2))
             end
 
         | DecAnn {basdec, ...} =>
@@ -202,15 +214,19 @@ struct
 
         | LetInEnd {basdec, basexp, ...} =>
             let
-              (** TODO: FIX: this is not quite right; stuff exported by
-                * basdec should not be visible in the overall basis.
+              (** create new scopes to then later pop and reconstruct, which
+                * effectively hides any exports of basdec
                 *)
+              val basis = newScope basis
               val (mlbCache, basis, ast1) =
                 doBasdec ctx (mlbCache, basis, basdec)
+              val basis = newScope basis
               val (mlbCache, basis, ast2) =
                 doBasexp ctx (mlbCache, basis, basexp)
+              val {old=basis, popped=newBasis} = popScope basis
+              val {old=basis, ...} = popScope basis
             in
-              (mlbCache, basis, Ast.join (ast1, ast2))
+              (mlbCache, mergeBases (basis, newBasis), Ast.join (ast1, ast2))
             end
 
         | _ =>
