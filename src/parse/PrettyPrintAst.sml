@@ -9,7 +9,12 @@ sig
 end =
 struct
 
-  structure PD = PrettySimpleDoc
+  structure PD =
+    PrettySimpleDoc(struct
+      open String
+      type t = string
+      fun fromString x = x
+    end)
   open PD
 
   infix 2 ++ $$ //

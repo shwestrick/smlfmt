@@ -16,6 +16,8 @@ in
   functor Dict
 end
 
+TerminalColorString.sml
+
 PrettySimpleDoc.sml
 
 MLtonPathMap.sml

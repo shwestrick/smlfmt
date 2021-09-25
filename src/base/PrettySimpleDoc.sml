@@ -3,13 +3,24 @@
   * See the file LICENSE for details.
   *)
 
-structure PrettySimpleDoc :>
+
+(** Functor argument CustomString could either be a standard string, or could
+  * be a TerminalColorString, etc.
+  *)
+functor PrettySimpleDoc
+  (CustomString:
+    sig
+      type t
+      val fromString: string -> t
+      val size: t -> int
+      val concat: t list -> t
+    end) :>
 sig
   type doc
   type t = doc
 
   val empty: doc
-  val text: string -> doc
+  val text: CustomString.t -> doc
 
   val beside: doc * doc -> doc
   val aboveOrSpace: doc * doc -> doc
@@ -19,8 +30,8 @@ sig
   val softspace: doc
   val group: doc -> doc
 
-  val pretty: {ribbonFrac: real, maxWidth: int} -> doc -> string
-  val toString: doc -> string
+  val pretty: {ribbonFrac: real, maxWidth: int} -> doc -> CustomString.t
+  val toString: doc -> CustomString.t
 end =
 struct
 
@@ -30,7 +41,7 @@ struct
   datatype doc =
     Empty
   | Space of bool
-  | Text of string
+  | Text of CustomString.t
   | Beside of doc * doc
   | Above of bool * doc * doc
   | Choice of {flattened: (bool * doc * int * bool), normal: doc}
@@ -71,7 +82,7 @@ struct
         | Space keepSpace =>
             (keepSpace, Empty, 0, keepSpace)
         | Text str =>
-            (false, Text str, String.size str, false)
+            (false, Text str, CustomString.size str, false)
         | Beside (d1, d2) =>
             loopBeside (d1, d2)
         | Above (withSpace, d1, d2) =>
@@ -119,7 +130,7 @@ struct
 
 
   fun spaces count =
-    CharVector.tabulate (count, fn _ => #" ")
+    CustomString.fromString (CharVector.tabulate (count, fn _ => #" "))
 
 
   fun pretty {ribbonFrac, maxWidth} inputDoc =
@@ -128,21 +139,21 @@ struct
         Int.max (0, Int.min (maxWidth,
           Real.round (ribbonFrac * Real.fromInt maxWidth)))
 
-      fun layout (lnStart, col, acc) doc : int * int * (string list) =
+      fun layout (lnStart, col, acc) doc : int * int * (CustomString.t list) =
         case doc of
           Empty => (lnStart, col, acc)
         | Space _ =>
             ( if lnStart = col then lnStart + 1 else lnStart
             , col + 1
-            , " " :: acc
+            , CustomString.fromString " " :: acc
             )
-        | Text str => (lnStart, col + String.size str, str :: acc)
+        | Text str => (lnStart, col + CustomString.size str, str :: acc)
         | Beside (doc1, doc2) =>
             layout (layout (lnStart, col, acc) doc1) doc2
         | Above (_, doc1, doc2) =>
             let
               val (_, _, acc) = layout (lnStart, col, acc) doc1
-              val acc = spaces col :: "\n" :: acc
+              val acc = spaces col :: CustomString.fromString "\n" :: acc
             in
               layout (lnStart, col, acc) doc2
             end
@@ -159,7 +170,7 @@ struct
 
       val (_, _, strs) = layout (0, 0, []) inputDoc
     in
-      String.concat (List.rev strs)
+      CustomString.concat (List.rev strs)
     end
 
 
