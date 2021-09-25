@@ -65,12 +65,12 @@ You need [`mlton`](http://mlton.org/) installed.
 Do `make` and then pass either a `.sml` file or a `.mlb` file, for example:
 ```bash
 $ make
-$ ./main src/lex/Token.sml
-$ ./main test/succeed/full-sml-basis-library.mlb
+$ ./main src/main.sml
+$ ./main test/succeed/full-sml-basis-library.mlb --no-skip-basis
 ```
 
 When given a `.mlb`, the default behavior is to ignore any file in the
-installed standard basis library.
+installed standard basis library. Passing `--no-skip-basis` overrides this.
 
 ### Command-line options
 
