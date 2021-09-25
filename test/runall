@@ -33,7 +33,7 @@ info('built parser successfully')
 MAIN = os.path.join(ROOT, 'main')
 
 def run_test(path, expect_success=True):
-  cmd = [MAIN, path]
+  cmd = [MAIN, '--no-skip-basis', path]
   process = \
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out, err = process.communicate()
