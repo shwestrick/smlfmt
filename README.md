@@ -69,7 +69,12 @@ $ ./main src/lex/Token.sml
 $ ./main test/succeed/full-sml-basis-library.mlb
 ```
 
+When given a `.mlb`, the default behavior is to ignore any file in the
+installed standard basis library.
+
 ### Command-line options
 
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
 [MLton's path maps](http://mlton.org/MLBasisPathMap).
+
+`--no-skip-basis` to also parse standard basis files.

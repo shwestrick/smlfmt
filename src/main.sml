@@ -4,15 +4,12 @@
   *)
 
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
-val errorsOnly = CommandLineArgs.parseFlag "errors-only"
+val skipBasis = not (CommandLineArgs.parseFlag "no-skip-basis")
 val infile = List.hd (CommandLineArgs.positional ())
 
 val pathmap = MLtonPathMap.getPathMap ()
 val pathmap =
   List.concat (List.map MLtonPathMap.fromString mlbPathVars) @ pathmap
-
-fun vprint msg =
-  if errorsOnly then () else print msg
 
 fun handleLexOrParseError exn =
   let
@@ -40,7 +37,9 @@ fun doMLB () =
       )
 
     val ast =
-      ParseAllSMLFromMLB.parse pathmap (FilePath.fromUnixPath infile)
+      ParseAllSMLFromMLB.parse
+        {skipBasis = skipBasis, pathmap = pathmap}
+        (FilePath.fromUnixPath infile)
   in
     print "\nParsing succeeded.\n"
   end

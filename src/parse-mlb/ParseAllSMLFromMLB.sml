@@ -8,7 +8,7 @@ sig
   (** Take an .mlb source and fully parse all SML by loading all filepaths
     * recursively specified by the .mlb and parsing them, etc.
     *)
-  val parse: MLtonPathMap.t -> FilePath.t -> Ast.t
+  val parse: {pathmap: MLtonPathMap.t, skipBasis: bool} -> FilePath.t -> Ast.t
   (* val readSMLPathsFromMLB: MLtonPathMap.t -> FilePath.t -> FilePath.t Seq.t *)
 end =
 struct
@@ -49,6 +49,7 @@ struct
     end
 
   val emptyBasis = {fixities = InfixDict.empty}
+  val initialTopLevelBasis = {fixities = InfixDict.initialTopLevel}
 
   fun mergeBases (b1: basis, b2: basis) =
     {fixities = InfixDict.merge (#fixities b1, #fixities b2)}
@@ -63,24 +64,28 @@ struct
   type mlb_cache = (basis * Ast.ast) FilePathDict.t
 
 
-  fun parse pathmap mlbPath : Ast.t =
+  (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
+  fun parse {skipBasis, pathmap} mlbPath : Ast.t =
     let
       open MLBAst
 
       fun expandAndJoin relativeDir path =
         let
-          val path = MLtonPathMap.expandPath pathmap path
+          val {result=path, used} = MLtonPathMap.expandPath pathmap path
         in
-          if FilePath.isAbsolute path then
-            path
-          else
-            FilePath.normalize (FilePath.join (relativeDir, path))
+          { used = used
+          , result =
+              if FilePath.isAbsolute path then
+                path
+              else
+                FilePath.normalize (FilePath.join (relativeDir, path))
+          }
         end
 
 
       fun fileErrorHandler ctx path token errorMessage =
         let
-          val path = expandAndJoin (#dir ctx) path
+          val {result=path, ...} = expandAndJoin (#dir ctx) path
           val backtrace =
             "Included from: " ^ String.concatWith " -> "
               (List.rev (List.map FilePath.toUnixPath (#parents ctx)))
@@ -95,48 +100,68 @@ struct
 
       fun doSML (ctx: context) (basis, path, errFun) =
         let
-          val path = expandAndJoin (#dir ctx) path
-
-          val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
-          val src =
-            Source.loadFromFile path
-            handle OS.SysErr (msg, _) => errFun msg
-
-          val (infdict, ast) = Parser.parseWithInfdict (#fixities basis) src
+          val {result=path, used} = expandAndJoin (#dir ctx) path
         in
-          ({fixities = infdict}, ast)
+          if
+            skipBasis andalso List.exists (fn k => k = "SML_LIB") used
+          then
+            ( print ("skipping " ^ FilePath.toUnixPath path ^ "\n")
+            ; print ("(see documentation for --no-skip-basis)\n")
+            ; (basis, Ast.empty)
+            )
+          else
+            let
+              val _ = print ("loading  " ^ FilePath.toUnixPath path ^ "\n")
+              val src =
+                Source.loadFromFile path
+                handle OS.SysErr (msg, _) => errFun msg
+
+              val (infdict, ast) = Parser.parseWithInfdict (#fixities basis) src
+            in
+              ({fixities = infdict}, ast)
+            end
         end
 
 
       fun doMLB (ctx: context) (mlbCache, basis, path, errFun) =
         let
-          val path = expandAndJoin (#dir ctx) path
-
-          val mlbCache =
-            if FilePathDict.contains mlbCache path then mlbCache else
-            let
-              val _ = print ("loading " ^ FilePath.toUnixPath path ^ "\n")
-              val mlbSrc =
-                Source.loadFromFile path
-                handle OS.SysErr (msg, _) => errFun msg
-
-              val Ast basdec = MLBParser.parse mlbSrc
-
-              val ctx' =
-                { parents = path :: #parents ctx
-                , dir = FilePath.dirname path
-                }
-
-              val (mlbCache, b, a) =
-                doBasdec ctx' (mlbCache, emptyBasis, basdec)
-            in
-              FilePathDict.insert mlbCache (path, (b, a))
-            end
-
-          val (basis', ast) = FilePathDict.lookup mlbCache path
+          val {result=path, used} = expandAndJoin (#dir ctx) path
         in
-          (mlbCache, mergeBases (basis, basis'), ast)
-        end
+          if
+            skipBasis andalso List.exists (fn k => k = "SML_LIB") used
+          then
+            ( print ("skipping " ^ FilePath.toUnixPath path ^ "\n")
+            ; print ("(see documentation for --no-skip-basis)\n")
+            ; (mlbCache, mergeBases (basis, initialTopLevelBasis), Ast.empty)
+            )
+          else
+            let
+              val mlbCache =
+                if FilePathDict.contains mlbCache path then mlbCache else
+                let
+                  val _ = print ("loading  " ^ FilePath.toUnixPath path ^ "\n")
+                  val mlbSrc =
+                    Source.loadFromFile path
+                    handle OS.SysErr (msg, _) => errFun msg
+
+                  val Ast basdec = MLBParser.parse mlbSrc
+
+                  val ctx' =
+                    { parents = path :: #parents ctx
+                    , dir = FilePath.dirname path
+                    }
+
+                  val (mlbCache, b, a) =
+                    doBasdec ctx' (mlbCache, emptyBasis, basdec)
+                in
+                  FilePathDict.insert mlbCache (path, (b, a))
+                end
+
+              val (basis', ast) = FilePathDict.lookup mlbCache path
+            in
+              (mlbCache, mergeBases (basis, basis'), ast)
+            end
+      end
 
 
       and doBasdec
@@ -244,9 +269,15 @@ struct
 
       val emptyCache = FilePathDict.empty
 
+      val initialBasis =
+        if skipBasis then
+          initialTopLevelBasis
+        else
+          emptyBasis
+
       val (_, _, ast) =
         doMLB {parents = [], dir = FilePath.fromUnixPath "."}
-          (emptyCache, emptyBasis, mlbPath, topLevelError)
+          (emptyCache, initialBasis, mlbPath, topLevelError)
     in
       ast
     end
