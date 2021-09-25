@@ -5,6 +5,8 @@ FilePath.sml
 Source.sml
 WithSource.sml
 
+Palette.sml
+TerminalColorString.sml
 Error.sml
 
 local
@@ -14,7 +16,6 @@ in
   functor Dict
 end
 
-TerminalColorString.sml
 
 PrettySimpleDoc.sml
 

@@ -16,6 +16,7 @@ sig
   val empty: t
   val append: t * t -> t
   val concat: t list -> t
+  val concatWith: t -> t list -> t
 
   val foreground: color -> t -> t
   val background: color -> t -> t
@@ -67,7 +68,13 @@ struct
     | _ => Append {size = size t1 + size t2, left = t1, right = t2}
 
   fun concat ts =
-    List.foldl append Empty ts
+    List.foldl (fn (next, prev) => append (prev, next)) Empty ts
+
+  fun concatWith t ts =
+    case ts of
+      [] => empty
+    | first :: rest =>
+        List.foldl (fn (next, prev) => concat [prev, t, next]) first rest
 
   val default =
     { foreground = NONE

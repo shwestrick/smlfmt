@@ -28,10 +28,13 @@ sig
     }
     -> err
 
-  val show: err -> string
+  val show: err -> TerminalColorString.t
 end =
 struct
 
+  structure TCS = TerminalColorString
+  (* structure TC = TerminalColors *)
+  open Palette
 
   datatype element =
     Paragraph of string
@@ -52,6 +55,11 @@ struct
     (* "[line " ^ Int.toString line ^ ", col " ^ Int.toString col ^ "]" *)
     Int.toString line ^ "." ^ Int.toString col
 
+
+  infix 6 ^^
+  fun x ^^ y = TCS.append (x, y)
+  fun $x = TCS.fromString x
+
   fun showElement desiredWidth e =
     let
       val bullet = "-"
@@ -59,14 +67,15 @@ struct
     in
       case e of
         Paragraph s =>
-          TextFormat.textWrap desiredWidth s
+          $ (TextFormat.textWrap desiredWidth s)
 
       | ItemList lns =>
           let
             fun showLine ln =
               "  " ^ TextFormat.textWrap (desiredWidth-4) (bullet ^ " " ^ ln)
           in
-            String.concatWith "\n" (List.map showLine lns)
+            TCS.concatWith ($ "\n")
+              (List.map ($ o showLine) lns)
           end
 
       | SourceReference pos =>
@@ -89,17 +98,20 @@ struct
 
             val leftSpaces =
               spaces (String.size leftMargin + colOffset)
+
+            val pathName = FilePath.toHostPath (Source.fileName pos)
           in
-            String.concatWith "\n"
-              [ FilePath.toHostPath (Source.fileName pos) (*^ " "
-                  ^ lcToStr (Source.absoluteStart pos)
-                  ^ "-"
-                  ^ lcToStr (Source.absoluteEnd pos)
-                  ^ ":"*)
-              , spaces marginSize ^ "|"
-              , lineNumStr ^ " | " ^ Source.toString line
-              , spaces marginSize ^ "| " ^ spaces colOffset
-                  ^ TextFormat.repeatChar highlightLen #"^"
+            TCS.concatWith ($ "\n")
+              [ TCS.bold (TCS.underline (TCS.foreground lightblue ($ pathName)))
+              , TCS.foreground lightblue ($ (spaces marginSize ^ "|"))
+              , TCS.foreground lightblue ($ (lineNumStr ^ " | "))
+                  ^^ $ (Source.toString line)
+              , TCS.concat
+                  [ TCS.foreground lightblue ($ (spaces marginSize ^ "| "))
+                  , $ (spaces colOffset)
+                  , TCS.bold (TCS.foreground brightred
+                      ($ (TextFormat.repeatChar highlightLen #"^")))
+                  ]
               (* , spaces marginSize ^ "|" *)
               ]
           end
@@ -114,10 +126,10 @@ struct
       val headerStr =
         TextFormat.rightPadWith #"-" desiredWidth ("-- " ^ header ^ " ")
     in
-      headerStr
-      ^ "\n\n"
-      ^ String.concatWith "\n\n" (List.map (showElement desiredWidth) content)
-      ^ "\n"
+      TCS.bold (TCS.foreground lightblue ($ headerStr))
+      ^^ $"\n\n"
+      ^^ TCS.concatWith ($"\n\n") (List.map (showElement desiredWidth) content)
+      ^^ $"\n"
     end
 
 

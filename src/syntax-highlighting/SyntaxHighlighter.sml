@@ -14,39 +14,30 @@ struct
 
   structure TCS = TerminalColorString
   structure TC = TerminalColors
-
-  val green = TCS.foreground (TC.hsv {h=120.0, s=1.0, v=0.75})
-  val darkgreen = TCS.foreground (TC.hsv {h=120.0, s=0.8, v=0.45})
-  val red = TCS.foreground (TC.hsv {h=0.0, s=1.0, v=0.65})
-  val yellow = TCS.foreground (TC.hsv {h=60.0, s=0.75, v=0.65})
-  val blue = TCS.foreground (TC.hsv {h=240.0, s=0.65, v=0.85})
-  val lightblue = TCS.foreground (TC.hsv {h=180.0, s=1.0, v=0.75})
-  val pink = TCS.foreground (TC.hsv {h=300.0, s=1.0, v=0.75})
-  val purple = TCS.foreground (TC.hsv {h=269.0, s=0.94, v=1.0})
-  val gray = TCS.foreground (TC.hsv {h=0.0, s=0.0, v=0.55})
+  open Palette
 
   fun tokColor class =
     case class of
       Token.StringConstant =>
-        red
+        TCS.foreground red
     | Token.CharConstant =>
-        purple
+        TCS.foreground purple
     | Token.WordConstant =>
-        yellow
+        TCS.foreground yellow
     | Token.Comment =>
-        TCS.italic o gray
+        TCS.italic o TCS.foreground gray
     | Token.IntegerConstant =>
-        lightblue
+        TCS.foreground lightblue
     | Token.RealConstant =>
-        green
+        TCS.foreground green
     | Token.Reserved _ =>
-        TCS.bold o blue
+        TCS.bold o TCS.foreground blue
     | Token.LongIdentifier =>
-        pink
+        TCS.foreground pink
     | Token.Identifier =>
-        darkgreen
+        TCS.foreground darkgreen
     | Token.MLtonReserved =>
-        darkgreen
+        TCS.foreground darkgreen
 
   (* fun tokColorMLB class =
     case class of
