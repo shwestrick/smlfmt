@@ -18,7 +18,7 @@ end =
 struct
 
   fun error {what, pos, explain} =
-    raise Error.Error (Error.LineError
+    raise Error.Error (Error.lineError
       { header = "SYNTAX ERROR"
       , pos = pos
       , what = what

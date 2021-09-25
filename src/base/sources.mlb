@@ -5,8 +5,6 @@ FilePath.sml
 Source.sml
 WithSource.sml
 
-ErrorReport.sml
-LineError.sml
 Error.sml
 
 local

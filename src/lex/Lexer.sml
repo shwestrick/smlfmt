@@ -24,7 +24,7 @@ struct
     SOME tok
 
   fun error {pos, what, explain} =
-    raise Error.Error (Error.LineError
+    raise Error.Error (Error.lineError
       { header = "SYNTAX ERROR"
       , pos = pos
       , what = what
@@ -225,21 +225,21 @@ struct
             if is #"\"" at s then
               s+1
             else
-              raise Error.Error (Error.ErrorReport
+              raise Error.Error
                 { header = "BUG!"
                 , content =
-                    [ ErrorReport.Paragraph
+                    [ Error.Paragraph
                         "Bug found in lexer! Please report on GitHub..."
-                    , ErrorReport.Paragraph
+                    , Error.Paragraph
                         "Lexer.advance_toEndOfString: could not find end of string:"
-                    , ErrorReport.SourceReference
+                    , Error.SourceReference
                         (slice (stringStart, stringStart+1))
-                    , ErrorReport.Paragraph
+                    , Error.Paragraph
                         "Got up to here:"
-                    , ErrorReport.SourceReference
+                    , Error.SourceReference
                         (slice (s, s+1))
                     ]
-                })
+                }
 
       fun advance_oneCharInString s args =
         case advance_oneCharOrEscapeSequenceInString s args of

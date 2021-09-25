@@ -259,13 +259,13 @@ struct
 
 
       fun topLevelError msg =
-        raise Error.Error (Error.ErrorReport
+        raise Error.Error
           { header = "FILE ERROR"
           , content =
-              [ ErrorReport.Paragraph
+              [ Error.Paragraph
                   (msg ^ ": " ^ FilePath.toUnixPath mlbPath)
               ]
-          })
+          }
 
       val emptyCache = FilePathDict.empty
 

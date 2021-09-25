@@ -38,14 +38,14 @@ struct
 
   fun nyi_ toks fname i =
     if i >= Seq.length toks then
-      raise Error.Error (Error.LineError
+      raise Error.Error (Error.lineError
         { header = "ERROR: NOT YET IMPLEMENTED"
         , pos = MLBToken.getSource (Seq.nth toks (Seq.length toks - 1))
         , what = "Unexpected EOF after token."
         , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
         })
     else if i >= 0 then
-      raise Error.Error (Error.LineError
+      raise Error.Error (Error.lineError
         { header = "ERROR: NOT YET IMPLEMENTED"
         , pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Unexpected token."
