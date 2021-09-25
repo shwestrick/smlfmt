@@ -8,10 +8,12 @@ sig
   type t
   type color = TerminalColors.color
 
+  val fromChar: char -> t
   val fromString: string -> t
   val toString: {colors: bool} -> t -> string
 
   val size: t -> int
+  val empty: t
   val append: t * t -> t
   val concat: t list -> t
 
@@ -53,6 +55,9 @@ struct
     | String s => String.size s
     | Empty => 0
 
+  val empty = Empty
+
+  fun fromChar c = String (String.str c)
   fun fromString s = String s
 
   fun append (t1, t2) =
