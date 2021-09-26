@@ -301,14 +301,7 @@ struct
           | #"." =>
               loop_afterDot (s+1)
           | #"*" =>
-              if is #")" at s+1 then
-                error
-                  { pos = slice (s, s+2)
-                  , what = "Unexpected end of comment."
-                  , explain = NONE
-                  }
-              else
-                loop_symbolicId (s+1) {idStart = s, longStart = NONE}
+              loop_symbolicId (s+1) {idStart = s, longStart = NONE}
           | #"#" =>
               if is #"\"" at s+1 then
                 loop_charConstant (s+2)
