@@ -18,5 +18,7 @@ struct
   val pink = TC.hsv {h=300.0, s=1.0, v=0.75}
   val purple = TC.hsv {h=269.0, s=0.94, v=1.0}
   val gray = TC.hsv {h=0.0, s=0.0, v=0.55}
+  val lightgray = TC.hsv {h=0.0, s=0.0, v=0.95}
+  val darkgray = TC.hsv {h=0.0, s=0.0, v=0.05}
 
 end

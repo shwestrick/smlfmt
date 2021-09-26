@@ -110,14 +110,17 @@ struct
               case highlighter of
                 NONE => $ (Source.toString line)
               | SOME h => h line
+
+            val filestyle =
+              TCS.foreground lightblue (*o TCS.background lightgray*)
           in
             TCS.concatWith ($ "\n")
-              [ TCS.bold (TCS.underline (TCS.foreground lightblue ($ pathName)))
-              , TCS.foreground lightblue ($ (spaces marginSize ^ "|"))
-              , TCS.foreground lightblue ($ (lineNumStr ^ " | "))
+              [ TCS.bold (TCS.underline (filestyle ($ pathName)))
+              , filestyle ($ (spaces marginSize ^ "| "))
+              , filestyle ($ (lineNumStr ^ " | "))
                   ^^ highlighted
               , TCS.concat
-                  [ TCS.foreground lightblue ($ (spaces marginSize ^ "| "))
+                  [ filestyle ($ (spaces marginSize ^ "| "))
                   , $ (spaces colOffset)
                   , TCS.bold (TCS.foreground brightred
                       ($ (TextFormat.repeatChar highlightLen #"^")))
@@ -136,7 +139,7 @@ struct
       val headerStr =
         TextFormat.rightPadWith #"-" desiredWidth ("-- " ^ header ^ " ")
     in
-      TCS.bold (TCS.foreground lightblue ($ headerStr))
+      TCS.bold (TCS.foreground brightred ($ headerStr))
       ^^ $"\n\n"
       ^^ TCS.concatWith ($"\n\n")
           (List.map (showElement highlighter desiredWidth) content)
