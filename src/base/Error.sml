@@ -28,7 +28,12 @@ sig
     }
     -> err
 
-  val show: err -> TerminalColorString.t
+  (** Note: very important that the syntax highlighter given as argument
+    * always succeeds. For example, see SyntaxHighlighter.fuzzyHighlight
+    *)
+  val show: {highlighter: (Source.t -> TerminalColorString.t) option}
+         -> err
+         -> TerminalColorString.t
 end =
 struct
 
@@ -60,7 +65,7 @@ struct
   fun x ^^ y = TCS.append (x, y)
   fun $x = TCS.fromString x
 
-  fun showElement desiredWidth e =
+  fun showElement highlighter desiredWidth e =
     let
       val bullet = "-"
       val desiredWidth = Int.max (5, desiredWidth)
@@ -100,12 +105,17 @@ struct
               spaces (String.size leftMargin + colOffset)
 
             val pathName = FilePath.toHostPath (Source.fileName pos)
+
+            val highlighted =
+              case highlighter of
+                NONE => $ (Source.toString line)
+              | SOME h => h line
           in
             TCS.concatWith ($ "\n")
               [ TCS.bold (TCS.underline (TCS.foreground lightblue ($ pathName)))
               , TCS.foreground lightblue ($ (spaces marginSize ^ "|"))
               , TCS.foreground lightblue ($ (lineNumStr ^ " | "))
-                  ^^ $ (Source.toString line)
+                  ^^ highlighted
               , TCS.concat
                   [ TCS.foreground lightblue ($ (spaces marginSize ^ "| "))
                   , $ (spaces colOffset)
@@ -118,7 +128,7 @@ struct
     end
 
 
-  fun show {header, content} =
+  fun show {highlighter} {header, content} =
     let
       val desiredWidth =
         Int.min (Terminal.currentCols (), 80)
@@ -128,7 +138,8 @@ struct
     in
       TCS.bold (TCS.foreground lightblue ($ headerStr))
       ^^ $"\n\n"
-      ^^ TCS.concatWith ($"\n\n") (List.map (showElement desiredWidth) content)
+      ^^ TCS.concatWith ($"\n\n")
+          (List.map (showElement highlighter desiredWidth) content)
       ^^ $"\n"
     end
 

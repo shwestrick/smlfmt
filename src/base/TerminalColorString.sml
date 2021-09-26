@@ -28,6 +28,8 @@ sig
   (** prints with colors if stdout is a terminal,
     * and without colors otherwise *)
   val print: t -> unit
+
+  val debugShow: t -> string
 end =
 struct
 
@@ -234,6 +236,15 @@ struct
     in
       String.concat (List.rev (traverse default [] t))
     end
+
+  fun debugShow t =
+    case t of
+      Append {left, right, ...} =>
+        "Append(" ^ debugShow left ^ "," ^ debugShow right ^ ")"
+    | Attributes {child, ...} =>
+        "(" ^ debugShow child ^ ")"
+    | Empty => ""
+    | String s => s
 
 
   fun print_ t =
