@@ -49,10 +49,8 @@ struct
           SOME path => FilePath.toHostPath path
         | NONE =>
             ( TextIO.output (TextIO.stdErr, "[WARN] could not find 'mlton' in PATH\n")
-            ; ""
+            ; "mlton"
             )
-
-      (* val _ = print ("mlton path: " ^ mltonPath) *)
 
       val p = create
         { path = mltonPath

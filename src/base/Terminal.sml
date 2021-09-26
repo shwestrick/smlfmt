@@ -1,4 +1,4 @@
-(** Copyright (c) 2020 Sam Westrick
+(** Copyright (c) 2020-2021 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -6,16 +6,19 @@
 structure Terminal =
 struct
 
-  (** This is a major hack. Going to need to find a better way. *)
-
   open MLton.Process
 
   val defaultCols = 60
 
+  val tputPath =
+    case FindInPath.find "tput" of
+      SOME path => FilePath.toHostPath path
+    | NONE => "tput"
+
   fun currentCols () =
     let
       val p = create
-        { path = "/usr/bin/tput"
+        { path = tputPath
         , env = NONE
         , args = [ "cols" ]
         , stderr = Param.self

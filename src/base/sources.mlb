@@ -2,6 +2,11 @@ lib/sources.mlb
 
 TextFormat.sml
 FilePath.sml
+
+FindInPath.sml
+MLtonPathMap.sml
+Terminal.sml
+
 Source.sml
 WithSource.sml
 
@@ -18,6 +23,3 @@ end
 
 
 PrettySimpleDoc.sml
-
-FindInPath.sml
-MLtonPathMap.sml
