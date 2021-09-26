@@ -88,8 +88,12 @@ struct
             val {line=lineNum, col=colStart} = Source.absoluteStart pos
             val {line=lineNum', col=colEnd} = Source.absoluteEnd pos
             val _ =
-              if lineNum = lineNum' then ()
+              if lineNum = lineNum' orelse colEnd = 1 then ()
               else raise Fail "ErrorReport.show: end of position past end of line"
+
+            val startOffset = Source.absoluteStartOffset pos
+            val stopOffset = Source.absoluteEndOffset pos
+            val pointyLen = stopOffset - startOffset
 
             val line = Source.wholeLine pos lineNum
 
@@ -99,7 +103,6 @@ struct
             val leftMargin = lineNumStr ^ " | "
 
             val colOffset = colStart-1
-            val highlightLen = colEnd - colStart
 
             val leftSpaces =
               spaces (String.size leftMargin + colOffset)
@@ -130,7 +133,7 @@ struct
                   [ filestyle ($ (spaces marginSize ^ "| "))
                   , $ (spaces (colOffset + numTabsBefore))
                   , TCS.bold (TCS.foreground brightred
-                      ($ (TextFormat.repeatChar highlightLen #"^")))
+                      ($ (TextFormat.repeatChar pointyLen #"^")))
                   ]
               (* , spaces marginSize ^ "|" *)
               ]

@@ -60,8 +60,8 @@ struct
                   }
               )
             else
-              ParserUtils.error
-                { pos = Token.getSource (tok i)
+              ParserUtils.tokError toks
+                { pos = i
                 , what = "Parser bug!"
                 , explain = NONE
                 }
@@ -201,8 +201,8 @@ struct
             parse_tyParensOrSequence leftParen (ty :: tys) (comma :: delims) i
           end
         else
-          ParserUtils.error
-            { pos = Token.getSource (tok i)
+          ParserUtils.tokError toks
+            { pos = i
             , what = "Unexpected token."
             , explain = NONE
             }
@@ -244,8 +244,8 @@ struct
                     }
                 )
               else
-                ParserUtils.error
-                  { pos = Token.getSource (tok i)
+                ParserUtils.tokError toks
+                  { pos = i
                   , what = "Unexpected token."
                   , explain = SOME "Expected to see a type constructor."
                   }

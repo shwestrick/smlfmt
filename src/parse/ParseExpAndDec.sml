@@ -356,8 +356,8 @@ struct
         else if isReserved Token.Abstype at i then
           consume_decAbstype (tok i) (i+1, infdict)
         else
-          ParserUtils.error
-            { pos = Token.getSource (tok i)
+          ParserUtils.tokError toks
+            { pos = i
             , what = "Unexpected token."
             , explain = SOME "Expected to see the beginning of a declaration."
             }
@@ -600,8 +600,8 @@ struct
 
           val result =
             if Seq.length elems = 0 then
-              ParserUtils.error
-                { pos = Token.getSource (tok i)
+              ParserUtils.tokError toks
+                { pos = i
                 , what = "Unexpected token. Missing identifier."
                 , explain = NONE
                 }
@@ -639,8 +639,8 @@ struct
 
           val result =
             if Seq.length elems = 0 then
-              ParserUtils.error
-                { pos = Token.getSource (tok i)
+              ParserUtils.tokError toks
+                { pos = i
                 , what = "Unexpected token. Missing identifier."
                 , explain = NONE
                 }
@@ -796,8 +796,8 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expIfThenElse infdict (tok i) (i+1)
               else
-                ParserUtils.error
-                  { pos = Token.getSource (tok i)
+                ParserUtils.tokError toks
+                  { pos = i
                   , what = "Unexpected if-then-else expression."
                   , explain = SOME "Try using parentheses: (if ... then ... else ...)"
                   }
@@ -806,8 +806,8 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expRaise infdict (i+1)
               else
-                ParserUtils.error
-                  { pos = Token.getSource (tok i)
+                ParserUtils.tokError toks
+                  { pos = i
                   , what = "Unexpected raise exception."
                   , explain = SOME "Try using parentheses: (raise ...)"
                   }
@@ -816,8 +816,8 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expFn infdict (i+1)
               else
-                ParserUtils.error
-                  { pos = Token.getSource (tok i)
+                ParserUtils.tokError toks
+                  { pos = i
                   , what = "Unexpected beginning of anonymous function."
                   , explain = SOME "Try using parentheses: (fn ... => ...)"
                   }
@@ -826,8 +826,8 @@ struct
               if Restriction.anyOkay restriction then
                 consume_expWhile infdict (i+1)
               else
-                ParserUtils.error
-                  { pos = Token.getSource (tok i)
+                ParserUtils.tokError toks
+                  { pos = i
                   , what = "Unexpected beginning of while-loop."
                   , explain = SOME "Try using parentheses: (while ... do ...)"
                   }
@@ -836,8 +836,8 @@ struct
               consume_expAfterUnderscore infdict restriction (tok i) (i+1)
 
             else
-              ParserUtils.error
-                { pos = Token.getSource (tok i)
+              ParserUtils.tokError toks
+                { pos = i
                 , what = "Unexpected token."
                 , explain = SOME "Expected beginning of expression."
                 }
@@ -1336,7 +1336,10 @@ struct
           val lett = tok (i-1)
           val ((i, infdict), dec) = consume_dec (i, infdict)
           val (i, inn) = parse_reserved Token.In i
-            handle Error.Error _ =>
+            handle Error.Error e =>
+            if i >= numToks then
+              raise Error.Error e
+            else
             raise Error.Error
               { header = "PARSE ERROR"
               , content =

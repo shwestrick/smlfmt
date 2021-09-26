@@ -50,8 +50,8 @@ struct
     if isReserved toks rc i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what =
             "Unexpected token. Expected to see "
             ^ "'" ^ Token.reservedToString rc ^ "'"
@@ -70,8 +70,8 @@ struct
     if check toks Token.isTyVar i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Expected tyvar."
         , explain = NONE
         }
@@ -81,8 +81,8 @@ struct
     if check toks Token.isStrIdentifier i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Expected structure identifier."
         , explain = SOME "Must be alphanumeric, and cannot start with a\
                          \ prime (')"
@@ -93,8 +93,8 @@ struct
     if check toks Token.isStrIdentifier i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Expected signature identifier."
         , explain = SOME "Must be alphanumeric, and cannot start with a\
                          \ prime (')"
@@ -105,8 +105,8 @@ struct
     if check toks Token.isStrIdentifier i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Expected functor identifier."
         , explain = SOME "Must be alphanumeric, and cannot start with a\
                          \ prime (')"
@@ -117,8 +117,8 @@ struct
     if check toks Token.isValueIdentifier i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Unexpected token. Expected value identifier."
         , explain = NONE
         }
@@ -128,8 +128,8 @@ struct
     if check toks Token.isMaybeLongIdentifier i then
       (i+1, MaybeLongToken.make (Seq.nth toks i))
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Expected (possibly long) value identifier."
         , explain = NONE
         }
@@ -138,8 +138,8 @@ struct
     if check toks Token.isRecordLabel i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Expected record label."
         , explain = NONE
         }
@@ -149,8 +149,8 @@ struct
     if check toks Token.isTyCon i then
       (i+1, Seq.nth toks i)
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Unexpected token. Invalid type constructor."
         , explain = NONE
         }
@@ -160,8 +160,8 @@ struct
     if check toks Token.isMaybeLongTyCon i then
       (i+1, MaybeLongToken.make (Seq.nth toks i))
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Unexpected token. Invalid (possibly qualified)\
                  \ type constructor."
         , explain = NONE
@@ -172,8 +172,8 @@ struct
     if check toks Token.isMaybeLongStrIdentifier i then
       (i+1, MaybeLongToken.make (Seq.nth toks i))
     else
-      ParserUtils.error
-        { pos = Token.getSource (Seq.nth toks i)
+      ParserUtils.tokError toks
+        { pos = i
         , what = "Unexpected token. Invalid (possibly qualified)\
                  \ structure identifier."
         , explain = NONE

@@ -106,8 +106,8 @@ struct
             else if isReserved Token.OpenCurlyBracket i then
               consume_patRecord infdict (tok i) (i+1)
             else
-              ParserUtils.error
-                { pos = Token.getSource (tok i)
+              ParserUtils.tokError toks
+                { pos = i
                 , what = "Parser bug!"
                 , explain = NONE
                 }
@@ -211,8 +211,8 @@ struct
           if isReserved Token.CloseCurlyBracket (i+1) then
             (i+1, Ast.Pat.DotDotDot (tok i))
           else
-            ParserUtils.error
-              { pos = Token.getSource (tok i)
+            ParserUtils.tokError toks
+              { pos = i
               , what = "Unexpected token."
               , explain = SOME "This can only appear at the end of the record."
               }
@@ -265,8 +265,8 @@ struct
             )
           end
         else
-          ParserUtils.error
-            { pos = Token.getSource (tok i)
+          ParserUtils.tokError toks
+            { pos = i
             , what = "Invalid token. Expected row of record pattern."
             , explain = NONE
             }

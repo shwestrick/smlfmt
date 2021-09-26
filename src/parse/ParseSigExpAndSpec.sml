@@ -680,8 +680,8 @@ struct
             else if isReserved Token.Include i then
               consume_sigSpecInclude (i+1)
             else
-              ParserUtils.error
-                { pos = Token.getSource (tok i)
+              ParserUtils.tokError toks
+                { pos = i
                 , what = "Unexpected token."
                 , explain = SOME "Expected element of signature."
                 }

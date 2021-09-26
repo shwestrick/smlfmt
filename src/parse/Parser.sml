@@ -250,8 +250,8 @@ struct
               consume_strexpLetInEnd infdict (tok i) (i+1)
 
             else
-              ParserUtils.error
-                { pos = Token.getSource (tok i)
+              ParserUtils.tokError toks
+                { pos = i
                 , what = "Unexpected token."
                 , explain = SOME "Expected structure expression."
                 }
@@ -590,8 +590,8 @@ struct
             ((i, infdict), Ast.StrDec strdec)
           end
         else
-          ParserUtils.error
-            { pos = Token.getSource (tok i)
+          ParserUtils.tokError toks
+            { pos = i
             , what = "Unexpected token."
             , explain = SOME "Invalid start of top-level declaration."
             }

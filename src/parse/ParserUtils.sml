@@ -5,7 +5,9 @@
 
 structure ParserUtils:
 sig
-  val error: {what: string, pos: Source.t, explain: string option} -> 'a
+  val error: {pos: Source.t, what: string, explain: string option} -> 'a
+  val tokError:
+    Token.t Seq.t -> {pos: int, what: string, explain: string option} -> 'a
 
   val errorIfInfixNotOpped: InfixDict.t -> Token.t option -> Token.t -> unit
 
@@ -20,6 +22,25 @@ struct
       , what = what
       , explain = explain
       })
+
+  fun tokError toks {what, pos, explain} =
+    if pos >= Seq.length toks then
+      let
+        val wholeSrc = Source.wholeFile (Token.getSource (Seq.nth toks 0))
+        val src = Source.drop wholeSrc (Source.length wholeSrc - 1)
+      in
+        error
+          { pos = src
+          , what = "Unexpected end of file."
+          , explain = NONE
+          }
+      end
+    else
+      error
+        { pos = Token.getSource (Seq.nth toks pos)
+        , what = what
+        , explain = explain
+        }
 
   fun errorIfInfixNotOpped infdict opp vid =
     if InfixDict.isInfix infdict vid andalso not (Option.isSome opp) then
