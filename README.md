@@ -9,11 +9,11 @@ including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
 
 ## Examples
 
-![Example 1](examples/example1.png)
+![Example 1](examples/ex1.png)
 
-![Example 2](examples/example2.png)
+![Example 2](examples/ex2.png)
 
-![Example 3](examples/example3.png)
+![Example 3](examples/ex3.png)
 
 ## Build and run
 
