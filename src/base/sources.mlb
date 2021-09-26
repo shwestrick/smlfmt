@@ -19,4 +19,5 @@ end
 
 PrettySimpleDoc.sml
 
+FindInPath.sml
 MLtonPathMap.sml

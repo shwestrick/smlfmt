@@ -44,8 +44,18 @@ struct
     let
       open MLton.Process
 
+      val mltonPath =
+        case FindInPath.find "mlton" of
+          SOME path => FilePath.toHostPath path
+        | NONE =>
+            ( TextIO.output (TextIO.stdErr, "[WARN] could not find 'mlton' in PATH\n")
+            ; ""
+            )
+
+      (* val _ = print ("mlton path: " ^ mltonPath) *)
+
       val p = create
-        { path = "/usr/local/bin/mlton"
+        { path = mltonPath
         , env = NONE
         , args = ["-show", "path-map"]
         , stderr = Param.self
