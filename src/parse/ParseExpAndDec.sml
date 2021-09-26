@@ -991,8 +991,11 @@ struct
             end
 
             val (i, {elems, delims}) =
-              parse_oneOrMoreDelimitedByReserved
-                {parseElem = parseElem, delim = Token.Comma}
+              parse_zeroOrMoreDelimitedByReserved
+                { parseElem = parseElem
+                , delim = Token.Comma
+                , shouldStop = isReserved Token.CloseCurlyBracket
+                }
                 i
 
             val (i, right) = parse_reserved Token.CloseCurlyBracket i

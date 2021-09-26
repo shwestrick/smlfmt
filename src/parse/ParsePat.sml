@@ -79,6 +79,8 @@ struct
         PS.reserved toks rc i
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
+      fun parse_zeroOrMoreDelimitedByReserved x i =
+        PC.zeroOrMoreDelimitedByReserved toks x i
       fun parse_ty i =
         PT.ty toks i
 
@@ -179,8 +181,11 @@ struct
       and consume_patRecord infdict leftBracket i =
         let
           val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedByReserved
-              {parseElem = consume_patRow infdict, delim = Token.Comma}
+            parse_zeroOrMoreDelimitedByReserved
+              { parseElem = consume_patRow infdict
+              , delim = Token.Comma
+              , shouldStop = isReserved Token.CloseCurlyBracket
+              }
               i
 
           val (i, rightBracket) = parse_reserved Token.CloseCurlyBracket i

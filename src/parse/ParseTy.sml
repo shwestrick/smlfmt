@@ -33,6 +33,8 @@ struct
         PS.reserved toks rc i
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
+      fun parse_zeroOrMoreDelimitedByReserved x i =
+        PC.zeroOrMoreDelimitedByReserved toks x i
 
       fun parse_tyWithRestriction restriction i =
         let
@@ -122,8 +124,11 @@ struct
             end
 
           val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseElem, delim = Token.Comma}
+            parse_zeroOrMoreDelimitedByReserved
+              { parseElem = parseElem
+              , delim = Token.Comma
+              , shouldStop = isReserved Token.CloseCurlyBracket
+              }
               i
 
           val (i, rightBracket) = parse_reserved Token.CloseCurlyBracket i
