@@ -177,7 +177,8 @@ struct
       and consume_strexpFunApp infdict funid lparen i =
         if
           check Token.isDecStartToken i orelse
-          check Token.isStrDecStartToken i
+          check Token.isStrDecStartToken i orelse
+          isReserved Token.CloseParen i
         then
           let
             val ((i, _), strdec) = consume_strdec (i, infdict)
