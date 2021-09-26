@@ -64,10 +64,15 @@ struct
       Source.absoluteStartOffset (WithSource.srcOf (Seq.nth toks j)) > i
     then
       let
-        val c = Source.nth wholeSrc i
-        val acc = TCS.append (acc, TCS.fromChar c)
+        val upper =
+          if j >= Seq.length toks then stop else
+          Int.min (stop,
+            Source.absoluteStartOffset (WithSource.srcOf (Seq.nth toks j)))
+        val stuffUntilNextTok = Source.slice wholeSrc (i, upper-i)
+        val acc =
+          TCS.append (acc, TCS.fromString (Source.toString stuffUntilNextTok))
       in
-        loop tokColor acc (wholeSrc, i+1, stop) (toks, j)
+        loop tokColor acc (wholeSrc, upper, stop) (toks, j)
       end
     else
       let
