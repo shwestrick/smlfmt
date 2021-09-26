@@ -17,6 +17,7 @@ sig
   val append: t * t -> t
   val concat: t list -> t
   val concatWith: t -> t list -> t
+  val translate: (char -> string) -> t -> t
 
   val foreground: color -> t -> t
   val background: color -> t -> t
@@ -205,6 +206,16 @@ struct
         Append {size = size, left = clear left, right = clear right}
     | Attributes {child, ...} => child
     | _ => t
+
+  fun translate f t =
+    case t of
+      Empty => Empty
+    | String s => String (String.translate f s)
+    | Append {left, right, ...} => append (translate f left, translate f right)
+    | Attributes {attr, child, ...} =>
+        let val c = translate f child
+        in Attributes {attr = attr, child = c, size = size c}
+        end
 
   fun toString {colors} t =
     let

@@ -106,10 +106,17 @@ struct
 
             val pathName = FilePath.toHostPath (Source.fileName pos)
 
-            val highlighted =
+            val numTabsBefore =
+              List.length
+                (List.filter (fn c => c = #"\t")
+                  (String.explode (Source.toString (Source.take line colOffset))))
+
+            val line =
               case highlighter of
                 NONE => $ (Source.toString line)
               | SOME h => h line
+            val line =
+              TCS.translate (fn #"\t" => "  " | c => String.str c) line
 
             val filestyle =
               TCS.foreground lightblue (*o TCS.background lightgray*)
@@ -118,10 +125,10 @@ struct
               [ TCS.bold (TCS.underline (filestyle ($ pathName)))
               , filestyle ($ (spaces marginSize ^ "| "))
               , filestyle ($ (lineNumStr ^ " | "))
-                  ^^ highlighted
+                  ^^ line
               , TCS.concat
                   [ filestyle ($ (spaces marginSize ^ "| "))
-                  , $ (spaces colOffset)
+                  , $ (spaces (colOffset + numTabsBefore))
                   , TCS.bold (TCS.foreground brightred
                       ($ (TextFormat.repeatChar highlightLen #"^")))
                   ]
