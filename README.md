@@ -9,54 +9,11 @@ including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
 
 ## Examples
 
-```
-$ ./main test/fail/illegal-begin-fn.sml
--- PARSE ERROR --------------------------------------------
+![Example 1](examples/example1.png)
 
-Unexpected beginning of anonymous function.
+![Example 2](examples/example2.png)
 
-test/fail/illegal-begin-fn.sml
-  |
-2 | val id' = id o fn x => x
-  |                ^^
-
-Try using parentheses: (fn ... => ...)
-```
-
-```
-$ ./main test/fail/bad-let-in-end-3.sml
--- PARSE ERROR --------------------------------------------
-
-Unexpected token.
-
-test/fail/bad-let-in-end-3.sml
-  |
-4 |     val y = let in (1, 2) end end
-  |                               ^^^
-
-Expected to see 'in' or another declaration.
-
-The error occurred inside of this 'let':
-
-test/fail/bad-let-in-end-3.sml
-  |
-2 |   let
-  |   ^^^
-```
-
-```
-$ ./main test/fail/bad-real.sml
--- SYNTAX ERROR -------------------------------------------
-
-Invalid real constant.
-
-test/fail/bad-real.sml
-  |
-1 | val x = 1.E1
-  |         ^^
-
-After the dot, there needs to be at least one decimal digit.
-```
+![Example 3](examples/example3.png)
 
 ## Build and run
 
