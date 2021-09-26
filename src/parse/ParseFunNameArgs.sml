@@ -33,8 +33,8 @@ struct
       fun isReserved rc i =
         check (fn t => Token.Reserved rc = Token.getClass t) i
 
-      fun isInfixedValueIdentifier i =
-        check Token.isValueIdentifier i
+      fun isInfixedValueIdentifierNoEqual i =
+        check Token.isValueIdentifierNoEqual i
         andalso InfixDict.isInfix infdict (tok i)
 
       fun restOfCurriedArgs i =
@@ -49,6 +49,7 @@ struct
 
       fun curriedInfix lparen larg id rarg rparen i =
         let
+          (* val _ = print ("curriedInfix\n") *)
           val (i, args) = restOfCurriedArgs i
         in
           ( i
@@ -66,6 +67,7 @@ struct
 
       fun prefixedFun opp id i =
         let
+          (* val _ = print ("prefixedFun\n") *)
           val (i, args) = restOfCurriedArgs i
         in
           ( i
@@ -80,6 +82,7 @@ struct
 
       fun infixedFun larg id i =
         let
+          (* val _ = print ("infixedFun\n") *)
           val (i, rarg) = PP.pat toks infdict Restriction.At i
         in
           ( i
@@ -101,7 +104,7 @@ struct
           , explain = SOME "Could not find name of function."
           }
     in
-      if isInfixedValueIdentifier i then
+      if isInfixedValueIdentifierNoEqual i then
         infixedFun firstPat (tok i) (i+1)
       else
         case firstPat of
