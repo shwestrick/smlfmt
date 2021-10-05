@@ -12,6 +12,7 @@ sig
 
   type tokens = Token.t Seq.t
 
+  val extra: tokens -> (int, Ast.extra) parser
   val reserved: tokens -> Token.reserved -> (int, Token.t) parser
   val maybeReserved: tokens -> Token.reserved -> (int, Token.t option) parser
   val tyvar: tokens -> (int, Token.t) parser
@@ -44,6 +45,9 @@ struct
 
   fun isReserved toks rc i =
     check toks (fn t => Token.Reserved rc = Token.getClass t) i
+
+
+  val extra = ParserCombinators.extra
 
 
   fun reserved toks rc i =
@@ -189,12 +193,17 @@ struct
     else
       let
         val (i, openParen) = (i+1, Seq.nth toks i)
-        val (i, {elems, delims}) =
-          ParserCombinators.oneOrMoreDelimitedByReserved
+        val (i, extra1) = extra toks i
+        val (i, {elems, delims, extra_between: Ast.extra Seq.t}) =
+          ParserCombinators.oneOrMoreDelimitedByReservedWithExtra
             toks
             {parseElem = tyvar toks, delim = Token.Comma}
             i
+        val (i, extra2) = extra toks i
         val (i, closeParen) = reserved toks Token.CloseParen i
+
+        val extra_between =
+          Seq.flatten (Seq.% [Seq.$ extra1, extra_between, Seq.$ extra2])
       in
         ( i
         , Ast.SyntaxSeq.Many
@@ -202,6 +211,7 @@ struct
             , right = closeParen
             , elems = elems
             , delims = delims
+            , extra_between = extra_between
             }
         )
       end

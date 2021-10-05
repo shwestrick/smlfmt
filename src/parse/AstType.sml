@@ -14,6 +14,9 @@
 structure AstType =
 struct
 
+  (** arbitrary amount of whitespace and comments *)
+  type extra = Token.t Seq.t
+
   (** Used for syntactic classes that look like:
     *
     *   Xseq  ::=               -- empty
@@ -28,10 +31,18 @@ struct
       Empty
     | One of 'a
     | Many of
-        { left: Token.t         (** open paren *)
-        , elems: 'a Seq.t       (** elements *)
-        , delims: Token.t Seq.t (** commas between elements *)
-        , right: Token.t        (** close paren *)
+        { left: Token.t               (** open paren *)
+        , elems: 'a Seq.t             (** elements *)
+        , delims: Token.t Seq.t       (** commas between elements *)
+        , right: Token.t              (** close paren *)
+
+        (** Whitespace/comments.
+          * For N elements, should be N-1 commas and 2*N extra things:
+          *   1 after left-paren
+          *   2*(N-1) before and after commas
+          *   1 before right-paren
+          *)
+        , extra_between: extra Seq.t
         }
   end
 

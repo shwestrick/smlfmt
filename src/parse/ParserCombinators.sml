@@ -8,6 +8,8 @@ sig
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
 
+  val extra: Token.t Seq.t -> (int, Ast.extra) parser
+
   val zeroOrMoreDelimitedByReserved:
     Token.t Seq.t
     -> { parseElem: (int, 'a) parser
@@ -22,6 +24,15 @@ sig
        , delim: Token.reserved
        }
     -> (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
+
+  val oneOrMoreDelimitedByReservedWithExtra:
+    Token.t Seq.t
+    -> { parseElem: (int, 'a) parser
+       , delim: Token.reserved
+       }
+    -> (int, { elems: 'a Seq.t
+             , delims: Token.t Seq.t
+             , extra_between: Ast.extra Seq.t}) parser
 
   val two:
     ('s, 'a) parser * ('s, 'b) parser
@@ -42,6 +53,23 @@ struct
 
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
+
+
+  fun extra toks start =
+    let
+      fun loop acc i =
+        if
+          i >= Seq.length toks
+          orelse
+          not (Token.isCommentOrWhitespace (Seq.nth toks i))
+        then
+          (i, Seq.fromRevList acc)
+        else
+          loop (Seq.nth toks i :: acc) (i+1)
+    in
+      loop [] start
+    end
+
 
   fun zeroOrMoreDelimitedByReserved toks {parseElem, delim, shouldStop} i =
     let
@@ -74,31 +102,48 @@ struct
     end
 
 
-  fun oneOrMoreDelimitedByReserved toks {parseElem, delim} i =
+  fun oneOrMoreDelimitedByReservedWithExtra toks {parseElem, delim} i =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
       fun check f i = i < numToks andalso f (tok i)
       fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
-      fun loop elems delims i =
+      fun loop elems delims (extras: Ast.extra list) i =
         let
           val (i, elem) = parseElem i
           val elems = elem :: elems
+          val (iMaybe, extra1) = extra toks i
         in
-          if isReserved delim i then
-            loop elems (tok i :: delims) (i+1)
+          if isReserved delim iMaybe then
+            let
+              val (i, delim) = (iMaybe+1, tok iMaybe)
+              val (i, extra2) = extra toks i
+            in
+              loop elems (delim :: delims) (extra2 :: extra1 :: extras) i
+            end
           else
-            (i, elems, delims)
+            (** if we don't find a delim, back out on the extra items too. *)
+            (i, elems, delims, extras)
         end
 
-      val (i, elems, delims) = loop [] [] i
+      val (i, elems, delims, extras) = loop [] [] [] i
     in
       ( i
       , { elems = Seq.fromRevList elems
         , delims = Seq.fromRevList delims
+        , extra_between = Seq.fromRevList extras
         }
       )
+    end
+
+
+  fun oneOrMoreDelimitedByReserved toks stuff i =
+    let
+      val (i, {elems, delims, ...}) =
+        oneOrMoreDelimitedByReservedWithExtra toks stuff i
+    in
+      (i, {elems=elems, delims=delims})
     end
 
 
