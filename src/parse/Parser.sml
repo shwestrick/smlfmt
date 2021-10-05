@@ -23,8 +23,8 @@ struct
   fun parseWithInfdict infdict src =
     let
       (** This might raise Lexer.Error *)
-      val toksWithComments = Lexer.tokens src
-      val toks = Seq.filter (not o Token.isComment) toksWithComments
+      val allTokens = Lexer.tokens src
+      val toks = Seq.filter (not o Token.isCommentOrWhitespace) allTokens
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
 

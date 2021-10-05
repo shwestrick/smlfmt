@@ -43,6 +43,8 @@ struct
         TCS.foreground darkgreen
     | Token.MLtonReserved =>
         TCS.foreground darkgreen
+    | Token.Whitespace =>
+        TCS.clear
 
   (* fun tokColorMLB class =
     case class of

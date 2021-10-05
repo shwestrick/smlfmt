@@ -79,6 +79,7 @@ struct
   | StringConstant
   | Identifier
   | LongIdentifier
+  | Whitespace
 
   type token = class WithSource.t
   type t = token
@@ -257,6 +258,14 @@ struct
     case getClass tok of
       Comment => true
     | _ => false
+
+  fun isWhitespace tok =
+    case getClass tok of
+      Whitespace => true
+    | _ => false
+
+  fun isCommentOrWhitespace tok =
+    isComment tok orelse isWhitespace tok
 
   fun isComma tok =
     case getClass tok of
@@ -462,6 +471,7 @@ struct
     | Identifier => "identifier"
     | LongIdentifier => "long identifier"
     | MLtonReserved => "MLton reserved"
+    | Whitespace => "whitespace"
 
 
   (** Check that the text of t1 exactly matches the text of t2. Useful for

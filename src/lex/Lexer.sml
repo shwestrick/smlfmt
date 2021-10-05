@@ -315,9 +315,21 @@ struct
               else if LexUtils.isLetter c then
                 loop_alphanumId (s+1)
                   {idStart = s, startsPrime = false, longStart = NONE}
+              else if Char.isSpace c then
+                loop_whitespace {start = s} (s+1)
               else
-                loop_topLevel (s+1)
+                error
+                  { pos = slice (s, s+1)
+                  , what = "Unexpected character."
+                  , explain = SOME "Perhaps from unsupported character-set?"
+                  }
 
+
+      and loop_whitespace {start} i =
+        if check Char.isSpace i then
+          loop_whitespace {start=start} (i+1)
+        else
+          success (mk Token.Whitespace (start, i))
 
 
       (** #"...

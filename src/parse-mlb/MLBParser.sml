@@ -602,7 +602,7 @@ struct
   fun parse src =
     let
       val toksWithComments = MLBLexer.tokens src
-      val toks = Seq.filter (not o MLBToken.isComment) toksWithComments
+      val toks = Seq.filter (not o MLBToken.isCommentOrWhitespace) toksWithComments
 
       val (i, basdec) = basdec toks 0
 

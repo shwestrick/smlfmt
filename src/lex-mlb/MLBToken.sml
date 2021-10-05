@@ -41,6 +41,14 @@ struct
       SML Token.Comment => true
     | _ => false
 
+  fun isWhitespace tok =
+    case WithSource.valOf tok of
+      SML Token.Whitespace => true
+    | _ => false
+
+  fun isCommentOrWhitespace tok =
+    isComment tok orelse isWhitespace tok
+
   fun isSMLPath tok =
     case WithSource.valOf tok of
       SMLPath => true
