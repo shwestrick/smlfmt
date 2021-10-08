@@ -63,13 +63,13 @@ struct
       acc
     else if
       j >= Seq.length toks orelse
-      Source.absoluteStartOffset (WithSource.srcOf (Seq.nth toks j)) > i
+      Source.absoluteStartOffset (Token.getSource (Seq.nth toks j)) > i
     then
       let
         val upper =
           if j >= Seq.length toks then stop else
           Int.min (stop,
-            Source.absoluteStartOffset (WithSource.srcOf (Seq.nth toks j)))
+            Source.absoluteStartOffset (Token.getSource (Seq.nth toks j)))
         val stuffUntilNextTok = Source.slice wholeSrc (i, upper-i)
         val acc =
           TCS.append (acc, TCS.fromString (Source.toString stuffUntilNextTok))
@@ -78,7 +78,8 @@ struct
       end
     else
       let
-        val {source=thisSrc, value=class} = WithSource.unpack (Seq.nth toks j)
+        val thisSrc = Token.getSource (Seq.nth toks j)
+        val class = Token.getClass (Seq.nth toks j)
         val thisOne = tokColor class (TCS.fromString (Source.toString thisSrc))
         val acc = TCS.append (acc, thisOne)
       in
@@ -105,10 +106,10 @@ struct
       val src = Source.wholeFile src
 
       fun tokEndOffset tok =
-        Source.absoluteEndOffset (Token.getSource tok)
+        Source.absoluteEndOffset (Token.Pretoken.getSource tok)
 
       fun finish acc =
-        Seq.rev (Seq.fromList acc)
+        Token.makeGroup (Seq.fromRevList acc)
 
       fun loop acc offset =
         if offset >= endOffset then

@@ -8,7 +8,7 @@ sig
   (** Get the next token in the given source. If there isn't one, returns NONE.
     * raises Error if there's a problem.
     *)
-  val next: Source.t -> MLBToken.t option
+  val next: Source.t -> MLBToken.Pretoken.t option
 
   (** Get all the tokens in the given source.
     * raises Error if there's a problem.
@@ -31,14 +31,15 @@ struct
   fun expectSMLToken check src =
     case Lexer.next src of
       NONE => raise Fail "Lexer bug!"
-    | SOME tok =>
-        if check tok then
-          success (MLBToken.fromSMLToken tok)
+    | SOME ptok =>
+        (** TODO: some inefficiency here *)
+        if check (Token.fromPre ptok) then
+          success (MLBToken.Pretoken.fromSMLPretoken ptok)
         else
           raise Fail "Lexer bug!"
 
 
-  fun next src =
+  fun next (src: Source.t) : MLBToken.Pretoken.t option =
     let
       val startOffset = Source.absoluteStartOffset src
       val src = Source.wholeFile src
@@ -46,8 +47,8 @@ struct
       (** Some helpers for making source slices and tokens. *)
       fun slice (i, j) = Source.slice src (i, j-i)
       fun sliceFrom i = slice (i, Source.length src)
-      fun mk x (i, j) = MLBToken.make (slice (i, j)) x
-      fun mkr x (i, j) = MLBToken.reserved (slice (i, j)) x
+      fun mk x (i, j) = MLBToken.Pretoken.make (slice (i, j)) x
+      fun mkr x (i, j) = MLBToken.Pretoken.reserved (slice (i, j)) x
 
       fun get i = Source.nth src i
 
@@ -139,7 +140,7 @@ struct
         else if
           Util.exists (start, i) (fn j => is #"." j orelse is #"/" j)
         then
-          case MLBToken.makePathFromSource (slice (start, i)) of
+          case MLBToken.Pretoken.makePathFromSource (slice (start, i)) of
             SOME t => success t
           | NONE =>
               error
@@ -163,10 +164,10 @@ struct
       val src = Source.wholeFile src
 
       fun tokEndOffset tok =
-        Source.absoluteEndOffset (Token.getSource tok)
+        Source.absoluteEndOffset (MLBToken.Pretoken.getSource tok)
 
       fun finish acc =
-        Seq.rev (Seq.fromList acc)
+        MLBToken.makeGroup (Seq.fromRevList acc)
 
       fun loop acc offset =
         if offset >= endOffset then

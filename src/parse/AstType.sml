@@ -444,7 +444,8 @@ struct
       * contains arbitrary tokens until ended by a semicolon
       *)
     | MLtonSpecific of
-        { directive: Token.t
+        { underscore: Token.t  (** must be exactly adjacent to the directive *)
+        , directive: Token.t   (** prim, import, etc. *)
         , contents: Token.t Seq.t
         , semicolon: Token.t
         }
@@ -850,7 +851,8 @@ struct
 
     (** _overload prec name : ty as longvid [and longvid ...] *)
     | MLtonOverload of
-        { overload: Token.t
+        { underscore: Token.t
+        , overload: Token.t
         , prec: Token.t
         , name: Token.t
         , colon: Token.t

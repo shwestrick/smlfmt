@@ -8,7 +8,7 @@ sig
   (** Get the next token in the given source. If there isn't one, returns NONE.
     * raises Error if there's a problem.
     *)
-  val next: Source.t -> Token.t option
+  val next: Source.t -> Token.Pretoken.t option
 
   (** Get all the tokens in the given source.
     * raises Error if there's a problem.
@@ -32,15 +32,15 @@ struct
       })
 
 
-  fun next (src: Source.t) : Token.t option =
+  fun next (src: Source.t) : Token.Pretoken.t option =
     let
       val startOffset = Source.absoluteStartOffset src
       val src = Source.wholeFile src
 
       (** Some helpers for making source slices and tokens. *)
       fun slice (i, j) = Source.slice src (i, j-i)
-      fun mk x (i, j) = Token.make (slice (i, j)) x
-      fun mkr x (i, j) = Token.reserved (slice (i, j)) x
+      fun mk x (i, j) = Token.Pretoken.make (slice (i, j)) x
+      fun mkr x (i, j) = Token.Pretoken.reserved (slice (i, j)) x
 
       fun get i = Source.nth src i
 
@@ -377,10 +377,13 @@ struct
         else
           let
             val srcHere = slice (idStart, s)
-            val tok = Token.reservedOrIdentifier srcHere
+            val tok = Token.Pretoken.reservedOrIdentifier srcHere
             val isQualified = Option.isSome longStart
           in
-            if Token.isReserved tok andalso isQualified then
+            if
+              Token.isReserved (Token.fromPre tok)
+              andalso isQualified
+            then
               error
                 { pos = srcHere
                 , what = "Unexpected reserved symbol."
@@ -400,10 +403,13 @@ struct
         else
           let
             val srcHere = slice (idStart, s)
-            val tok = Token.reservedOrIdentifier srcHere
+            val tok = Token.Pretoken.reservedOrIdentifier srcHere
             val isQualified = Option.isSome longStart
           in
-            if Token.isReserved tok andalso (isQualified orelse is #"." at s) then
+            if
+              Token.isReserved (Token.fromPre tok) andalso
+              (isQualified orelse is #"." at s)
+            then
               error
                 { pos = srcHere
                 , what = "Unexpected reserved keyword."
@@ -644,10 +650,10 @@ struct
       val src = Source.wholeFile src
 
       fun tokEndOffset tok =
-        Source.absoluteEndOffset (Token.getSource tok)
+        Source.absoluteEndOffset (Token.Pretoken.getSource tok)
 
       fun finish acc =
-        Seq.rev (Seq.fromList acc)
+        Token.makeGroup (Seq.rev (Seq.fromList acc))
 
       fun loop acc offset =
         if offset >= endOffset then

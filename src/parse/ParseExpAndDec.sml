@@ -931,10 +931,10 @@ struct
         in
           if i >= numToks then err () else
           let
-            val nextSrc = Token.getSource (tok i)
+            val nextTok = tok i
             val isMLtonThing =
-              Token.isIdentifier (tok i) andalso
-              case Source.toString nextSrc of
+              Token.isIdentifier nextTok andalso
+              case Source.toString (Token.getSource nextTok) of
                 "prim" => true
               | "import" => true
               | "command_line_const" => true
@@ -946,10 +946,7 @@ struct
               if isMLtonThing (*andalso Restriction.anyOkay restriction*)
               then ()
               else err ()
-            val newTok =
-              case Source.abut (Token.getSource underscore, nextSrc) of
-                NONE => err ()
-              | SOME src' => Token.mltonReserved src'
+            val directive = nextTok
             val (i, contents) =
               parse_zeroOrMoreWhile
                 (fn i => not (check Token.isSemicolon i))
@@ -960,7 +957,8 @@ struct
           in
             ( i
             , Ast.Exp.MLtonSpecific
-              { directive = newTok
+              { underscore = underscore
+              , directive = directive
               , contents = contents
               , semicolon = semicolon
               }

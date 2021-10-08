@@ -517,21 +517,17 @@ struct
         in
           if i >= numToks then err () else
           let
-            val nextSrc = Token.getSource (tok i)
+            val nextTok = tok i
             val isMLtonThing =
-              Token.isIdentifier (tok i) andalso
-              case Source.toString nextSrc of
+              Token.isIdentifier nextTok andalso
+              case Source.toString (Token.getSource nextTok) of
                 "overload" => true
               | _ => false
             val _ =
               if isMLtonThing
               then ()
               else err ()
-            val newTok =
-              case Source.abut (Token.getSource underscore, nextSrc) of
-                NONE => err ()
-              | SOME src' => Token.mltonReserved src'
-            val i = i+1
+            val (i, overload) = (i+1, nextTok)
             val (i, prec) =
               if check Token.isDecimalIntegerConstant i then
                 (i+1, tok i)
@@ -553,7 +549,8 @@ struct
           in
             ( i
             , Ast.Str.MLtonOverload
-                { overload = newTok
+                { underscore = underscore
+                , overload = overload
                 , prec = prec
                 , name = name
                 , colon = colon

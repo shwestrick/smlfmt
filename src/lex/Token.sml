@@ -3,7 +3,156 @@
   * See the file LICENSE for details.
   *)
 
-structure Token =
+structure Token :>
+sig
+
+  datatype reserved =
+  (** ============ core ============ *)
+    Abstype
+  | And
+  | Andalso
+  | As
+  | Case
+  | Datatype
+  | Do
+  | Else
+  | End
+  | Exception
+  | Fn
+  | Fun
+  | Handle
+  | If
+  | In
+  | Infix
+  | Infixr
+  | Let
+  | Local
+  | Nonfix
+  | Of
+  | Op
+  | Open
+  | Orelse
+  | Raise
+  | Rec
+  | Then
+  | Type
+  | Val
+  | With
+  | Withtype
+  | While
+  | OpenParen
+  | CloseParen
+  | OpenSquareBracket
+  | CloseSquareBracket
+  | OpenCurlyBracket
+  | CloseCurlyBracket
+  | Comma
+  | Colon
+  | Semicolon
+  | DotDotDot
+  | Underscore
+  | Bar
+  | Equal
+  | FatArrow
+  | Arrow
+  | Hash
+  (** ============ modules ============ *)
+  | Eqtype
+  | Functor
+  | Include
+  | Sharing
+  | Sig
+  | Signature
+  | Struct
+  | Structure
+  | Where
+  | ColonArrow
+
+  datatype class =
+    Comment
+  | MLtonReserved
+  | Reserved of reserved
+  | IntegerConstant
+  | WordConstant
+  | RealConstant
+  | CharConstant
+  | StringConstant
+  | Identifier
+  | LongIdentifier
+  | Whitespace
+
+  type token
+  type t = token
+
+  val same: token * token -> bool
+
+  val getClass: token -> class
+  val getSource: token -> Source.t
+
+  val toString: token -> string
+  val reservedToString: reserved -> string
+  val classToString: class -> string
+
+  val nextToken: token -> token option
+  val prevToken: token -> token option
+  val commentsOrWhitespaceBefore: token -> token Seq.t
+  val commentsOrWhitespaceAfter: token -> token Seq.t
+
+  val isReserved: token -> bool
+  val isStringConstant: token -> bool
+  val isComment: token -> bool
+  val isWhitespace: token -> bool
+  val isCommentOrWhitespace: token -> bool
+  val isComma: token -> bool
+  val isAndalso: token -> bool
+  val isOrelse: token -> bool
+  val isStar: token -> bool
+  val isSemicolon: token -> bool
+  val isIdentifier: token -> bool
+  val isValueIdentifier: token -> bool
+  val isValueIdentifierNoEqual: token -> bool
+  val isLongIdentifier: token -> bool
+  val isMaybeLongIdentifier: token -> bool
+  val isStrIdentifier: token -> bool
+  val isMaybeLongStrIdentifier: token -> bool
+  val isTyVar: token -> bool
+  val isTyCon: token -> bool
+  val isMaybeLongTyCon: token -> bool
+  val isPatternConstant: token -> bool
+  val isConstant: token -> bool
+  val isHexIntegerConstant: token -> bool
+  val isDecimalIntegerConstant: token -> bool
+  val isRecordLabel: token -> bool
+  val isDecStartToken: token -> bool
+  val isStrDecStartToken: token -> bool
+  val isSigDecStartToken: token -> bool
+  val isSigSpecStartToken: token -> bool
+  val isAtPatStartToken: token -> bool
+  val endsCurrentExp: token -> bool
+
+  (** Tokens have to be constructed from a group of "pretokens". This makes it
+    * possible to implement functions like nextToken and prevToken, above.
+    *)
+  structure Pretoken:
+  sig
+    type t
+    type pretoken = t
+
+    val getSource: pretoken -> Source.t
+    val getClass: pretoken -> class
+
+    val make: Source.t -> class -> pretoken
+    val reserved: Source.t -> reserved -> pretoken
+    val mltonReserved: Source.t -> pretoken
+    val longIdentifier: Source.t -> pretoken
+    val identifier: Source.t -> pretoken
+    val reservedOrIdentifier: Source.t -> pretoken
+  end
+
+  val fromPre: Pretoken.t -> token
+  val makeGroup: Pretoken.t Seq.t -> token Seq.t
+
+end =
 struct
 
   datatype reserved =
@@ -81,7 +230,9 @@ struct
   | LongIdentifier
   | Whitespace
 
-  type token = class WithSource.t
+  type pretoken = class WithSource.t
+
+  type token = {idx: int, context: pretoken Seq.t}
   type t = token
 
   fun make src class =
@@ -99,11 +250,11 @@ struct
   fun identifier src =
     WithSource.make {value = Identifier, source = src}
 
-  fun getClass tok =
-    WithSource.valOf tok
+  fun getClass ({idx, context}: token) =
+    WithSource.valOf (Seq.nth context idx)
 
-  fun getSource tok =
-    WithSource.srcOf tok
+  fun getSource ({idx, context}: token) =
+    WithSource.srcOf (Seq.nth context idx)
 
   fun toString tok =
     let
@@ -533,38 +684,71 @@ struct
           ]
     | _ => false
 
-  (** This is used in Parser, to see if we should stop parsing
-    * the current type and pop up to the previous context.
-    *)
-  (* fun endsCurrentTy tok =
-    endsCurrentExp
-    orelse
-    case getClass tok of
-      Reserved rc =>
-        List.exists (fn rc' => rc = rc')
-          [ Arrow
-          , As
-          , Colon
-          , Equal
-          ] *)
 
 
-  (* fun isValidQualifier src =
-    Source.length src > 0 andalso
-    Source.nth src 0 <> #"'" andalso
-    List.all LexUtils.isAlphaNumPrimeOrUnderscore
-      (List.tabulate (Source.length src, Source.nth src))
+  fun makeGroup (s: pretoken Seq.t): token Seq.t =
+    Seq.tabulate (fn i => {idx = i, context = s}) (Seq.length s)
+
+  fun fromPre (t: pretoken) =
+    Seq.nth (makeGroup (Seq.singleton t)) 0
+
+  fun nextToken ({idx=i, context}: token) =
+    if i+1 < Seq.length context then
+      SOME {idx = i+1, context = context}
+    else
+      NONE
+
+  fun prevToken ({idx=i, context}: token) =
+    if i > 0 then
+      SOME {idx = i-1, context = context}
+    else
+      NONE
+
+  fun commentsOrWhitespaceBefore tok =
+    let
+      fun loop acc t =
+        case prevToken t of
+          SOME t' =>
+            if isCommentOrWhitespace t' then
+              loop (t :: acc) t'
+            else
+              acc
+        | NONE =>
+            acc
+    in
+      Seq.fromList (loop [] tok)
+    end
+
+  fun commentsOrWhitespaceAfter tok =
+    let
+      fun loop acc t =
+        case nextToken t of
+          SOME t' =>
+            if isCommentOrWhitespace t' then
+              loop (t :: acc) t'
+            else
+              acc
+        | NONE =>
+            acc
+    in
+      Seq.fromRevList (loop [] tok)
+    end
 
 
-  fun switchIdentifierToQualifier (tok: token) =
-    case WithSource.valOf tok of
-      Identifier =>
-        if isValidQualifier (WithSource.srcOf tok) then
-          WithSource.map (fn _ => Qualifier) tok
-        else
-          raise Fail ("Token.switchIdentifierToQualifier on invalid qualifier: "
-                      ^ Source.toString (WithSource.srcOf tok))
-    | cls =>
-        raise Fail ("Token.switchIdentifierToQualifier " ^ classToString cls) *)
+  structure Pretoken =
+  struct
+    type t = pretoken
+    type pretoken = pretoken
+
+    fun getSource p = WithSource.srcOf p
+    fun getClass p = WithSource.valOf p
+
+    val make = make
+    val reserved = reserved
+    val mltonReserved = mltonReserved
+    val longIdentifier = longIdentifier
+    val identifier = identifier
+    val reservedOrIdentifier = reservedOrIdentifier
+  end
 
 end

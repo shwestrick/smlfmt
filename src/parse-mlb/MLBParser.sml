@@ -71,7 +71,8 @@ struct
   fun checkSML toks f i =
     i < Seq.length toks andalso
     case MLBToken.getClass (Seq.nth toks i) of
-      MLBToken.SML c => f (Token.make (MLBToken.getSource (Seq.nth toks i)) c)
+      MLBToken.SML c =>
+        f (Token.fromPre (Token.Pretoken.make (MLBToken.getSource (Seq.nth toks i)) c))
     | _ => false
 
 
@@ -267,7 +268,8 @@ struct
         *)
       fun parse_decPathFromString i =
         let
-          val thisSrc = MLBToken.getSource (tok i)
+          val thisTok = tok i
+          val thisSrc = MLBToken.getSource thisTok
           val n = Source.length thisSrc
           val _ =
             if
@@ -280,21 +282,21 @@ struct
               raise Fail "MLBParser bug! see parse_decPathFromString: fail 1"
 
           val pathstr = Source.toString (Source.slice thisSrc (1, n-2))
+
+          fun mlbCase () = (i+1, makeMLBPath thisTok pathstr)
+          fun smlCase () = (i+1, makeSMLPath thisTok pathstr)
         in
-          case MLBToken.makePathFromSourceString thisSrc pathstr of
-            NONE =>
+          case OS.Path.ext pathstr of
+            SOME "mlb" => mlbCase ()
+          | SOME "sml" => smlCase ()
+          | SOME "sig" => smlCase ()
+          | SOME "fun" => smlCase ()
+          | _ =>
               ParserUtils.error
-                { pos = MLBToken.getSource (tok i)
+                { pos = MLBToken.getSource thisTok
                 , what = "Missing or invalid file extension in path."
                 , explain = SOME "Valid extensions are: .mlb .sml .sig .fun"
                 }
-          | SOME pathtok =>
-              if MLBToken.isSMLPath pathtok then
-                (i+1, makeSMLPath pathtok pathstr)
-              else if MLBToken.isMLBPath pathtok then
-                (i+1, makeMLBPath pathtok pathstr)
-              else
-                raise Fail "MLBParser bug! see parse_decPathFromString: fail 2"
         end
 
 
@@ -514,11 +516,11 @@ struct
       and parse_exactlyOneDec i =
         if check MLBToken.isSMLPath i then
           ( i+1
-          , makeSMLPath (tok i) (Source.toString (Token.getSource (tok i)))
+          , makeSMLPath (tok i) (Source.toString (MLBToken.getSource (tok i)))
           )
         else if check MLBToken.isMLBPath i then
           ( i+1
-          , makeMLBPath (tok i) (Source.toString (Token.getSource (tok i)))
+          , makeMLBPath (tok i) (Source.toString (MLBToken.getSource (tok i)))
           )
         else if check MLBToken.isStringConstant i then
           parse_decPathFromString i
