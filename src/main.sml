@@ -46,11 +46,37 @@ fun doMLB () =
   end
   handle exn => handleLexOrParseError exn
 
+(*
+fun dumpTok tok =
+  ( TerminalColorString.print (SyntaxHighlighter.highlight (Token.getSource tok))
+  ; print "\n"
+  )
+
+fun dumpToks toks =
+  Util.for (0, Seq.length toks) (fn i =>
+    dumpTok (Seq.nth toks i))
+*)
 
 fun doSML () =
   let
     val source = Source.loadFromFile (FilePath.fromUnixPath infile)
     val ast = Parser.parse source
+
+(*
+    val _ = print ("============ tokens ===============\n")
+    val toks = Lexer.tokens source
+    val toks = Seq.filter (not o Token.isCommentOrWhitespace) toks
+    val _ =
+      Util.for (0, Seq.length toks) (fn i =>
+        let
+          val tok = Seq.nth toks i
+        in
+          dumpTok tok;
+          dumpToks (Token.commentsAfter tok)
+        end)
+
+    val _ = print ("============ highlighted ===============\n")
+*)
 
     val _ =
       TerminalColorString.print (SyntaxHighlighter.highlight source)

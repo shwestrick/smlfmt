@@ -95,6 +95,8 @@ sig
 
   val nextToken: token -> token option
   val prevToken: token -> token option
+  val commentsBefore: token -> token Seq.t
+  val commentsAfter: token -> token Seq.t
   val commentsOrWhitespaceBefore: token -> token Seq.t
   val commentsOrWhitespaceAfter: token -> token Seq.t
 
@@ -710,7 +712,7 @@ struct
         case prevToken t of
           SOME t' =>
             if isCommentOrWhitespace t' then
-              loop (t :: acc) t'
+              loop (t' :: acc) t'
             else
               acc
         | NONE =>
@@ -725,7 +727,43 @@ struct
         case nextToken t of
           SOME t' =>
             if isCommentOrWhitespace t' then
-              loop (t :: acc) t'
+              loop (t' :: acc) t'
+            else
+              acc
+        | NONE =>
+            acc
+    in
+      Seq.fromRevList (loop [] tok)
+    end
+
+
+  fun commentsBefore tok =
+    let
+      fun loop acc t =
+        case prevToken t of
+          SOME t' =>
+            if isWhitespace t' then
+              loop acc t'
+            else if isComment t' then
+              loop (t' :: acc) t'
+            else
+              acc
+        | NONE =>
+            acc
+    in
+      Seq.fromList (loop [] tok)
+    end
+
+
+  fun commentsAfter tok =
+    let
+      fun loop acc t =
+        case nextToken t of
+          SOME t' =>
+            if isWhitespace t' then
+              loop acc t'
+            else if isComment t' then
+              loop (t' :: acc) t'
             else
               acc
         | NONE =>
