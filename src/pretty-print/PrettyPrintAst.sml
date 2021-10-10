@@ -17,24 +17,26 @@ struct
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
 
+  fun token x = text (Token.toString x)
+
   fun spaces n =
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
   fun parensAround (x: doc) =
     text "(" ++ x ++ text ")"
 
-  fun sequence openn delim close (xs: PD.t Seq.t) =
+  fun sequence openn delims close (xs: PD.t Seq.t) =
     if Seq.length xs = 0 then
-      text openn ++ text close
+      token openn ++ token close
     else
       let
-        val top = text openn ++ softspace ++ Seq.nth xs 0
-        fun f x = text delim ++ space ++ x
+        val top = token openn ++ softspace ++ Seq.nth xs 0
+        fun f (delim, x) = token delim ++ space ++ x
       in
         group (
-          Seq.iterate op// top (Seq.map f (Seq.drop xs 1))
+          Seq.iterate op// top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
           //
-          text close
+          token close
         )
       end
 
@@ -54,8 +56,8 @@ struct
     case s of
       Ast.SyntaxSeq.Empty => NONE
     | Ast.SyntaxSeq.One x => SOME (f x)
-    | Ast.SyntaxSeq.Many {elems, ...} =>
-        SOME (sequence "(" "," ")" (Seq.map f elems))
+    | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
+        SOME (sequence left delims right (Seq.map f elems))
 
 
   fun showTy ty =
@@ -83,13 +85,13 @@ struct
           in
             Seq.iterate op++ begin (Seq.map f (Seq.drop elems 1))
           end
-      | Record {elems, ...} =>
+      | Record {left, elems, delims, right} =>
           let
-            fun showElem {lab, ty, ...} =
-              text (Token.toString lab) ++ space ++ text ":"
+            fun showElem {lab, colon, ty} =
+              token lab ++ space ++ token colon
               ++ space ++ showTy ty
           in
-            sequence "{" "," "}" (Seq.map showElem elems)
+            sequence left delims right (Seq.map showElem elems)
           end
       | Arrow {from, to, ...} =>
           (* parensAround *)
@@ -505,26 +507,26 @@ struct
           ++ text (Token.toString (MaybeLongToken.getToken id))
       | Parens {pat, ...} =>
           parensAround (showPat pat)
-      | Tuple {elems, ...} =>
-          sequence "(" "," ")" (Seq.map showPat elems)
-      | List {elems, ...} =>
-          sequence "[" "," "]" (Seq.map showPat elems)
-      | Record {elems, ...} =>
+      | Tuple {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showPat elems)
+      | List {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showPat elems)
+      | Record {left, elems, delims, right} =>
           let
             fun showPatRow patrow =
               case patrow of
-                DotDotDot _ => text "..."
-              | LabEqPat {lab, pat, ...} =>
-                  text (Token.toString lab) ++ space ++ text "="
+                DotDotDot ddd => token ddd
+              | LabEqPat {lab, eq, pat} =>
+                  token lab ++ space ++ token eq
                   ++ space ++ showPat pat
               | LabAsPat {id, ty, aspat} =>
                   separateWithSpaces
                     [ SOME (text (Token.toString id))
-                    , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
-                    , Option.map (fn {pat, ...} => text "as" ++ space ++ showPat pat) aspat
+                    , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
+                    , Option.map (fn {ass, pat} => token ass ++ space ++ showPat pat) aspat
                     ]
           in
-            sequence "{" "," "}" (Seq.map showPatRow elems)
+            sequence left delims right (Seq.map showPatRow elems)
           end
       | Con {opp, id, atpat} =>
           (if Option.isSome opp then text "op " else empty)
@@ -566,22 +568,22 @@ struct
           ++ text (Token.toString (MaybeLongToken.getToken id))
       | Parens {exp, ...} =>
           parensAround (showExp exp)
-      | Tuple {elems, ...} =>
-          sequence "(" "," ")" (Seq.map showExp elems)
-      | Sequence {elems, ...} =>
-          sequence "(" ";" ")" (Seq.map showExp elems)
-      | List {elems, ...} =>
-          sequence "[" "," "]" (Seq.map showExp elems)
-      | Record {elems, ...} =>
+      | Tuple {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showExp elems)
+      | Sequence {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showExp elems)
+      | List {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showExp elems)
+      | Record {left, elems, delims, right} =>
           let
-            fun showRow {lab, exp, ...} =
+            fun showRow {lab, eq, exp} =
               group (
-                (text (Token.toString lab) ++ space ++ text "=")
+                (token lab ++ space ++ token eq)
                 $$
                 (spaces 2 ++ showExp exp)
               )
           in
-            sequence "{" "," "}" (Seq.map showRow elems)
+            sequence left delims right (Seq.map showRow elems)
           end
       | Select {label, ...} =>
           text "#" ++ space ++ text (Token.toString label)
