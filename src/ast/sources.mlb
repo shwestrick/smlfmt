@@ -1,0 +1,10 @@
+local
+  ../lex/sources.mlb
+  MaybeLongToken.sml
+  AstType.sml
+  Ast.sml
+in
+  structure Token
+  structure MaybeLongToken
+  structure Ast
+end

@@ -23,6 +23,10 @@ sig
   val text: CustomString.t -> doc
 
   val beside: doc * doc -> doc
+
+  (** When an "above" is flattened by a group, it can either be replaced by a
+    * a space, or it can be put exactly beside (with no extra space).
+    *)
   val aboveOrSpace: doc * doc -> doc
   val aboveOrBeside: doc * doc -> doc
 

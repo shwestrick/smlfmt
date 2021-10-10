@@ -5,6 +5,7 @@
 
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
 val skipBasis = not (CommandLineArgs.parseFlag "no-skip-basis")
+val doPrettySML = CommandLineArgs.parseFlag "pretty"
 val infile = List.hd (CommandLineArgs.positional ())
 
 val pathmap = MLtonPathMap.getPathMap ()
@@ -80,6 +81,13 @@ fun doSML () =
 
     val _ =
       TerminalColorString.print (SyntaxHighlighter.highlight source)
+
+    val _ =
+      if not doPrettySML then () else
+      ( print "\n============== pretty ==============\n\n"
+      ; print (PrettyPrintAst.pretty ast)
+      ; print "\n\n====================================\n"
+      )
   in
     print "\nParsing succeeded.\n"
   end

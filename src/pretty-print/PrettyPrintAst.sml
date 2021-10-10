@@ -9,12 +9,7 @@ sig
 end =
 struct
 
-  structure PD =
-    PrettySimpleDoc(struct
-      open String
-      type t = string
-      fun fromString x = x
-    end)
+  structure PD = StringDoc
   open PD
 
   infix 2 ++ $$ //
@@ -561,8 +556,11 @@ struct
       case exp of
         Const tok =>
           text (Token.toString tok)
-      | Unit _ =>
+          (* TokenDoc.toStringDoc (TokenDoc.insertComments (TokenDoc.token tok)) *)
+      | Unit {left, right} =>
           text "()"
+          (* (TokenDoc.toStringDoc o TokenDoc.insertComments)
+          (TokenDoc.beside (TokenDoc.token left, TokenDoc.token right)) *)
       | Ident {opp, id} =>
           (if Option.isSome opp then text "op " else empty)
           ++ text (Token.toString (MaybeLongToken.getToken id))

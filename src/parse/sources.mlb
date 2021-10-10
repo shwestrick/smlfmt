@@ -1,9 +1,5 @@
 ../lex/sources.mlb
-
-MaybeLongToken.sml
-AstType.sml
-Ast.sml
-PrettyPrintAst.sml
+../ast/sources.mlb
 
 InfixDict.sml
 ParserCombinators.sml
