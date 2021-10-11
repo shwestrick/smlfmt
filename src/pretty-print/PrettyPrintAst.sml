@@ -19,6 +19,13 @@ struct
 
   fun token x = text (Token.toString x)
 
+  fun seqWithSpaces elems f =
+    if Seq.length elems = 0 then empty else
+    Seq.iterate
+      (fn (prev, tok) => prev ++ space ++ f tok)
+      (f (Seq.nth elems 0))
+      (Seq.drop elems 1)
+
   fun spaces n =
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
@@ -311,46 +318,22 @@ struct
             | _ => datbinds
           end
 
-      | DecInfix {precedence, elems, ...} =>
-          let
-            val ids =
-              Seq.iterate
-                (fn (prev, id) => prev ++ space ++ text (Token.toString id))
-                (text (Token.toString (Seq.nth elems 0)))
-                (Seq.drop elems 1)
-          in
-            separateWithSpaces
-              [ SOME (text "infix")
-              , Option.map (text o Token.toString) precedence
-              , SOME ids
-              ]
-          end
+      | DecInfix {infixx, precedence, elems} =>
+          separateWithSpaces
+            [ SOME (token infixx)
+            , Option.map token precedence
+            , SOME (seqWithSpaces elems token)
+            ]
 
-      | DecInfixr {precedence, elems, ...} =>
-          let
-            val ids =
-              Seq.iterate
-                (fn (prev, id) => prev ++ space ++ text (Token.toString id))
-                (text (Token.toString (Seq.nth elems 0)))
-                (Seq.drop elems 1)
-          in
-            separateWithSpaces
-              [ SOME (text "infix")
-              , Option.map (text o Token.toString) precedence
-              , SOME ids
-              ]
-          end
+      | DecInfixr {infixrr, precedence, elems} =>
+          separateWithSpaces
+            [ SOME (token infixrr)
+            , Option.map token precedence
+            , SOME (seqWithSpaces elems token)
+            ]
 
-      | DecNonfix {elems, ...} =>
-          let
-            val ids =
-              Seq.iterate
-                (fn (prev, id) => prev ++ space ++ text (Token.toString id))
-                (text (Token.toString (Seq.nth elems 0)))
-                (Seq.drop elems 1)
-          in
-            text "nonfix" ++ space ++ ids
-          end
+      | DecNonfix {nonfixx, elems} =>
+          token nonfixx ++ space ++ seqWithSpaces elems token
 
       | DecException {elems, ...} =>
           let
@@ -378,17 +361,17 @@ struct
             Seq.iterate op$$ empty (Seq.mapIdx mk elems)
           end
 
-      | DecLocal {left_dec, right_dec, ...} =>
+      | DecLocal {locall, left_dec, inn, right_dec, endd} =>
           group (
-            text "local"
+            token locall
             $$
             (spaces 2 ++ showDec left_dec)
             $$
-            text "in"
+            token inn
             $$
             (spaces 2 ++ showDec right_dec)
             $$
-            text "end"
+            token endd
           )
 
       | DecMultiple {elems, delims} =>
@@ -396,19 +379,20 @@ struct
             fun f i =
               showDec (Seq.nth elems i)
               ++
-              (if Option.isSome (Seq.nth delims i) then text ";" else empty)
+              (case Seq.nth delims i of
+                NONE => empty
+              | SOME semicolon => token semicolon)
           in
-            Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
+            Util.loop (0, Seq.length elems) empty
+              (fn (prev, i) => prev $$ f i)
           end
 
       | DecEmpty =>
           empty
 
-      | DecOpen {elems, ...} =>
-          Seq.iterate
-            (fn (a, b) => a ++ space ++ b)
-            (text "open")
-            (Seq.map (text o Token.toString o MaybeLongToken.getToken) elems)
+      | DecOpen {openn, elems} =>
+          token openn ++ space
+          ++ seqWithSpaces elems (token o MaybeLongToken.getToken)
 
       | DecAbstype {datbind = {elems, ...}, withtypee, dec, ...} =>
           (** TODO clean up: lots of copy-paste from DecDatatype *)

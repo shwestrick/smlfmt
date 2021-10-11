@@ -530,7 +530,10 @@ struct
         , elems: MaybeLongToken.t Seq.t
         }
 
-    (** dec [[;] dec ...] *)
+    (** dec [[;] dec ...]
+      *
+      * delims are same length as elems (every dec can end with a semicolon)
+      *)
     | DecMultiple of
         { elems: dec Seq.t
         , delims: Token.t option Seq.t
@@ -543,7 +546,7 @@ struct
         , elems: Token.t Seq.t
         }
 
-    (** infix [d] vid [vid ...] *)
+    (** infixr [d] vid [vid ...] *)
     | DecInfixr of
         { infixrr: Token.t
         , precedence: Token.t option
