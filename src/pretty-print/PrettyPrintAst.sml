@@ -66,24 +66,23 @@ struct
     in
       case ty of
         Var tok =>
-          text (Token.toString tok)
+          token tok
       | Con {args = Ast.SyntaxSeq.Empty, id} =>
-          (* text "CON" ++ parensAround *)
-            (text (Token.toString (MaybeLongToken.getToken id)))
+          token (MaybeLongToken.getToken id)
       | Con {args, id} =>
-          (* text "CON" ++ parensAround *)
           (separateWithSpaces
             [ maybeShowSyntaxSeq args showTy
-            , SOME (text (Token.toString (MaybeLongToken.getToken id)))
+            , SOME (token (MaybeLongToken.getToken id))
             ])
-      | Parens {ty, ...} =>
-          parensAround (showTy ty)
-      | Tuple {elems, ...} =>
+      | Parens {left, ty, right} =>
+          token left ++ showTy ty ++ token right
+      | Tuple {elems, delims} =>
           let
             val begin = showTy (Seq.nth elems 0)
-            fun f x = space ++ text "*" ++ space ++ showTy x
+            fun f (delim, x) = space ++ token delim ++ space ++ showTy x
           in
-            Seq.iterate op++ begin (Seq.map f (Seq.drop elems 1))
+            Seq.iterate op++ begin
+              (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
           end
       | Record {left, elems, delims, right} =>
           let
@@ -93,9 +92,8 @@ struct
           in
             sequence left delims right (Seq.map showElem elems)
           end
-      | Arrow {from, to, ...} =>
-          (* parensAround *)
-            (showTy from ++ space ++ text "->" ++ space ++ showTy to)
+      | Arrow {from, arrow, to} =>
+          showTy from ++ space ++ token arrow ++ space ++ showTy to
     end
 
   fun showDec dec =
@@ -105,13 +103,13 @@ struct
       case dec of
         DecVal {vall, tyvars, elems, delims} =>
           let
-            fun mk {recc, pat, eq, exp} =
+            fun mk (delim, {recc, pat, eq, exp}) =
               group (
                 separateWithSpaces
-                  [ SOME (text "and")
-                  , Option.map (fn _ => text "rec") recc
+                  [ SOME (token delim)
+                  , Option.map token recc
                   , SOME (showPat pat)
-                  , SOME (text "=")
+                  , SOME (token eq)
                   ]
                 $$
                 (spaces 2 ++ showExp exp)
@@ -123,18 +121,19 @@ struct
               in
                 group (
                   separateWithSpaces
-                    [ SOME (text "val")
-                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                    , Option.map (fn _ => text "rec") recc
+                    [ SOME (token vall)
+                    , maybeShowSyntaxSeq tyvars token
+                    , Option.map token recc
                     , SOME (showPat pat)
-                    , SOME (text "=")
+                    , SOME (token eq)
                     ]
                   $$
                   (spaces 2 ++ showExp exp)
                 )
               end
           in
-            Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
+            Seq.iterate op$$ first
+              (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end
 
       | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
@@ -148,7 +147,7 @@ struct
             fun showInfixed larg id rarg =
               showPat larg
               ++ space
-              ++ text (Token.toString id)
+              ++ token id
               ++ space
               ++ showPat rarg
 
@@ -156,37 +155,44 @@ struct
               case xx of
                 PrefixedFun {opp, id, args} =>
                   separateWithSpaces
-                    [ Option.map (fn _ => text "op") opp
-                    , SOME (text (Token.toString id))
+                    [ Option.map token opp
+                    , SOME (token id)
                     , SOME (showArgs args)
                     ]
               | InfixedFun {larg, id, rarg} =>
                   showInfixed larg id rarg
-              | CurriedInfixedFun {larg, id, rarg, args, ...} =>
+              | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
                   separateWithSpaces
-                    [ SOME (parensAround (showInfixed larg id rarg))
+                    [ SOME (token lparen ++ showInfixed larg id rarg ++ token rparen)
                     , SOME (showArgs args)
                     ]
 
             fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
-              text ":" ++ space ++ showTy ty
+              token colon ++ space ++ showTy ty
 
-            fun showClause isFirstFun isFirstClause {fname_args, ty, exp, ...} =
+            fun showClause isFirstFun isFirstClause {fname_args, ty, eq, exp} =
               let
                 val front =
                   if isFirstFun andalso isFirstClause then
-                    "fun"
+                    token funn
                   else if not isFirstFun andalso isFirstClause then
-                    "and"
+                    text "and"
                   else
-                    "  |"
+                    text "  |"
+
+                val tyvars =
+                  if isFirstFun andalso isFirstClause then
+                    maybeShowSyntaxSeq tyvars token
+                  else
+                    NONE
               in
                 group (
                   separateWithSpaces
-                    [ SOME (text front)
+                    [ SOME front
+                    , tyvars
                     , SOME (showFNameArgs fname_args)
                     , Option.map showColonTy ty
-                    , SOME (text "=")
+                    , SOME (token eq)
                     ]
                   $$
                   (spaces 2 ++ showExp exp)
@@ -199,8 +205,9 @@ struct
                 (Seq.map (showClause isFirstFun false)
                   (Seq.drop innerElems 1))
           in
-            Seq.iterate op$$ (mkFunction true (Seq.nth elems 0)) (Seq.map
-            (mkFunction false) (Seq.drop elems 1))
+            Seq.iterate op$$
+              (mkFunction true (Seq.nth elems 0))
+              (Seq.map (mkFunction false) (Seq.drop elems 1))
           end
 
       | DecType {typbind={elems, ...}, ...} =>
