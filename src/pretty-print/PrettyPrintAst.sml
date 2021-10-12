@@ -487,17 +487,19 @@ struct
       open Ast.Pat
     in
       case pat of
-        Wild _ =>
-          text "_"
+        Wild tok =>
+          token tok
       | Const tok =>
-          text (Token.toString tok)
-      | Unit _ =>
-          text "()"
+          token tok
+      | Unit {left, right} =>
+          token left ++ token right
       | Ident {opp, id} =>
-          (if Option.isSome opp then text "op " else empty)
-          ++ text (Token.toString (MaybeLongToken.getToken id))
-      | Parens {pat, ...} =>
-          parensAround (showPat pat)
+          separateWithSpaces
+            [ Option.map token opp
+            , SOME (token (MaybeLongToken.getToken id))
+            ]
+      | Parens {left, pat, right} =>
+          token left ++ showPat pat ++ token right
       | Tuple {left, elems, delims, right} =>
           sequence left delims right (Seq.map showPat elems)
       | List {left, elems, delims, right} =>
@@ -512,7 +514,7 @@ struct
                   ++ space ++ showPat pat
               | LabAsPat {id, ty, aspat} =>
                   separateWithSpaces
-                    [ SOME (text (Token.toString id))
+                    [ SOME (token id)
                     , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
                     , Option.map (fn {ass, pat} => token ass ++ space ++ showPat pat) aspat
                     ]
@@ -520,25 +522,23 @@ struct
             sequence left delims right (Seq.map showPatRow elems)
           end
       | Con {opp, id, atpat} =>
-          (if Option.isSome opp then text "op " else empty)
-          ++ text (Token.toString (MaybeLongToken.getToken id))
-          ++ space ++ showPat atpat
-      | Typed {pat, ty, ...} =>
-          showPat pat ++ space ++ text ":" ++ space ++ showTy ty
-      | Layered {opp, id, ty, pat, ...} =>
           separateWithSpaces
-            [ Option.map (fn _ => text "op") opp
-            , SOME (text (Token.toString id))
-            , Option.map (fn {ty, ...} => text ":" ++ space ++ showTy ty) ty
-            , SOME (text "as")
+            [ Option.map token opp
+            , SOME (token (MaybeLongToken.getToken id))
+            , SOME (showPat atpat)
+            ]
+      | Typed {pat, colon, ty} =>
+          showPat pat ++ space ++ token colon ++ space ++ showTy ty
+      | Layered {opp, id, ty, ass, pat} =>
+          separateWithSpaces
+            [ Option.map token opp
+            , SOME (token id)
+            , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
+            , SOME (token ass)
             , SOME (showPat pat)
             ]
       | Infix {left, id, right} =>
-          parensAround (group (
-            showPat left ++ space ++ text (Token.toString id)
-            $$
-            showPat right
-          ))
+          showPat left ++ space ++ token id ++ space ++ showPat right
     end
 
 
@@ -548,17 +548,16 @@ struct
     in
       case exp of
         Const tok =>
-          text (Token.toString tok)
-          (* TokenDoc.toStringDoc (TokenDoc.insertComments (TokenDoc.token tok)) *)
+          token tok
       | Unit {left, right} =>
-          text "()"
-          (* (TokenDoc.toStringDoc o TokenDoc.insertComments)
-          (TokenDoc.beside (TokenDoc.token left, TokenDoc.token right)) *)
+          token left ++ token right
       | Ident {opp, id} =>
-          (if Option.isSome opp then text "op " else empty)
-          ++ text (Token.toString (MaybeLongToken.getToken id))
-      | Parens {exp, ...} =>
-          parensAround (showExp exp)
+          separateWithSpaces
+            [ Option.map token opp
+            , SOME (token (MaybeLongToken.getToken id))
+            ]
+      | Parens {left, exp, right} =>
+          token left ++ showExp exp ++ token right
       | Tuple {left, elems, delims, right} =>
           sequence left delims right (Seq.map showExp elems)
       | Sequence {left, elems, delims, right} =>
@@ -576,162 +575,157 @@ struct
           in
             sequence left delims right (Seq.map showRow elems)
           end
-      | Select {label, ...} =>
-          text "#" ++ space ++ text (Token.toString label)
+      | Select {hash, label} =>
+          token hash ++ space ++ token label
       | App {left, right} =>
-          parensAround (group (showExp left $$ (spaces 2 ++ showExp right)))
+          group (showExp left $$ (spaces 2 ++ showExp right))
       | Infix {left, id, right} =>
-          parensAround (group (
-            showExp left ++ space ++ text (Token.toString id)
-            $$
-            showExp right
-          ))
-      | Andalso {left, right, ...} =>
-          parensAround (group (
-            showExp left ++ space ++ text "andalso"
-            $$
-            showExp right
-          ))
-      | Orelse {left, right, ...} =>
-          parensAround (group (
-            showExp left ++ space ++ text "orelse"
-            $$
-            showExp right
-          ))
-      | Typed {exp, ty, ...} =>
-          showExp exp ++ space ++ text ":" ++ space ++ showTy ty
-
-      | IfThenElse {exp1, exp2, exp3, ...} =>
+          showExp left ++ space ++ token id ++ space ++ showExp right
+      | Andalso {left, andalsoo, right} =>
+          showExp left ++ space ++ token andalsoo ++ space ++ showExp right
+      | Orelse {left, orelsee, right} =>
+          showExp left ++ space ++ token orelsee ++ space ++ showExp right
+      | Typed {exp, colon, ty} =>
+          showExp exp ++ space ++ token colon ++ space ++ showTy ty
+      | IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
           group (
-            (text "if" ++ space ++ showExp exp1 ++ space ++ text "then")
+            (token iff ++ space ++ showExp exp1 ++ space ++ token thenn)
             $$
             (spaces 2 ++ showExp exp2)
             $$
-            text "else"
+            token elsee
             $$
             (spaces 2 ++ showExp exp3)
           )
-
-      | While {exp1, exp2, ...} =>
+      | While {whilee, exp1, doo, exp2} =>
           group (
             group (
-              text "while"
+              token whilee
               $$
               (spaces 2 ++ showExp exp1)
               $$
-              text "do"
+              token doo
             )
             $$
             (spaces 2 ++ showExp exp2)
           )
 
-      | Raise {exp, ...} =>
-          group (text "raise" $$ (spaces 2 ++ showExp exp))
+      | Raise {raisee, exp} =>
+          group (token raisee $$ (spaces 2 ++ showExp exp))
 
-      | Handle {exp=expLeft, elems, ...} =>
+      | Handle {exp=expLeft, handlee, elems, delims} =>
           let
             val first = Seq.nth elems 0
             val rest = Seq.drop elems 1
 
-            fun mk {pat, exp, ...} =
+            fun mk (delim, {pat, arrow, exp}) =
               group (
-                (text "|" ++ space ++ showPat pat ++ space ++ text "=>")
+                (token delim ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
                 (spaces 4 ++ showExp exp)
               )
 
-            val {pat, exp, ...} = first
+            val {pat, arrow, exp} = first
             val initial =
               group (
                 showExp expLeft
                 $$
                 group (
-                  text "handle"
+                  token handlee
                   $$
-                  (spaces 2 ++ showPat pat ++ space ++ text "=>")
+                  (spaces 2 ++ showPat pat ++ space ++ token arrow)
                   $$
                   (spaces 4 ++ showExp exp)
                 )
               )
-
-            val stuff =
-              group (Seq.iterate (fn (prev, next) => prev $$ mk next) initial rest)
           in
-            parensAround stuff
+            group (
+              Seq.iterate
+                (fn (prev, next) => prev $$ mk next)
+                initial
+                (Seq.zip (delims, rest))
+            )
           end
 
-      | Case {exp=expTop, elems, ...} =>
+      | Case {casee, exp=expTop, off, elems, delims} =>
           let
             val first = Seq.nth elems 0
             val rest = Seq.drop elems 1
 
-            fun mk {pat, exp, ...} =
+            fun mk (delim, {pat, arrow, exp}) =
               group (
-                (text "|" ++ space ++ showPat pat ++ space ++ text "=>")
+                (token delim ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
                 (spaces 4 ++ showExp exp)
               )
 
-            val {pat, exp, ...} = first
+            val {pat, arrow, exp} = first
             val initial =
-              (text "case" ++ space ++
-              showExp expTop ++ space ++ text "of")
+              (token casee ++ space ++
+              showExp expTop ++ space ++ token off)
               $$
               (spaces 2 ++
                 group (
-                  (showPat pat ++ space ++ text "=>")
+                  (showPat pat ++ space ++ token arrow)
                   $$
                   (spaces 2 ++ showExp exp)
                 )
               )
-
-            val stuff =
-              group (Seq.iterate (fn (prev, next) => prev $$ mk next) initial rest)
           in
-            parensAround stuff
+            group (
+              Seq.iterate
+                (fn (prev, next) => prev $$ mk next)
+                initial
+                (Seq.zip (delims, rest))
+            )
           end
 
-      | Fn {fnn, elems, ...} =>
+      | Fn {fnn, elems, delims} =>
           let
             val first = Seq.nth elems 0
             val rest = Seq.drop elems 1
 
-            fun mk {pat, exp, ...} =
+            fun mk (delim, {pat, arrow, exp}) =
               space ++
               group (
-                (text "|" ++ space ++ showPat pat ++ space ++ text "=>")
+                (token delim ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
                 (spaces 4 ++ showExp exp)
               )
 
-            val {pat, exp, ...} = first
+            val {pat, arrow, exp} = first
             val initial =
               group (
-                (text "fn" ++ space ++
-                showPat pat ++ space ++
-                text "=>")
+                (token fnn ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
                 (spaces 4 ++ showExp exp)
               )
           in
-            group (Seq.iterate (fn (prev, next) => prev $$ mk next) initial rest)
+            group (
+              Seq.iterate
+                (fn (prev, next) => prev $$ mk next)
+                initial
+                (Seq.zip (delims, rest))
+            )
           end
 
-      | LetInEnd {dec, exps, ...} =>
+      | LetInEnd {lett, dec, inn, exps, delims, endd} =>
           let
             val prettyDec = showDec dec
             val numExps = Seq.length exps
 
+            fun d i = Seq.nth delims i
+
             val withDelims = Seq.mapIdx (fn (i, e) =>
-                showExp e ++ (if i = numExps - 1 then empty else text ";"))
+                showExp e ++ (if i = numExps - 1 then empty else token (d i)))
               exps
 
             val topPart =
-              text "let"
+              token lett
               $$
               (spaces 2 ++ prettyDec)
               $$
-              text "in"
+              token inn
 
             val topPart =
               if Ast.Exp.isMultipleDecs dec then
@@ -744,7 +738,7 @@ struct
               $$
               (spaces 2 ++ group (Seq.iterate op$$ empty withDelims))
               $$
-              text "end"
+              token endd
             )
           end
 
