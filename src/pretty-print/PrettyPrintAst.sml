@@ -217,17 +217,17 @@ struct
               (Seq.map (mkFunction false) (Seq.drop elems 1))
           end
 
-      | DecType {typbind={elems, ...}, ...} =>
+      | DecType {typbind={elems, delims}, typee} =>
           let
-            val {tyvars, tycon, ty, ...} = Seq.nth elems 0
+            (* val {tyvars, tycon, ty, ...} = Seq.nth elems 0 *)
 
-            fun mk {tyvars, tycon, ty, ...} =
+            fun mk (delim, {tyvars, tycon, ty, eq}) =
               group (
                 separateWithSpaces
-                  [ SOME (text "and")
-                  , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                  , SOME (text (Token.toString tycon))
-                  , SOME (text "=")
+                  [ SOME (token delim)
+                  , maybeShowSyntaxSeq tyvars token
+                  , SOME (token tycon)
+                  , SOME (token eq)
                   ]
                 $$
                 (spaces 2 ++ showTy ty)
@@ -235,21 +235,22 @@ struct
 
             val first =
               let
-                val {tyvars, tycon, ty, ...} = Seq.nth elems 0
+                val {tyvars, tycon, ty, eq} = Seq.nth elems 0
               in
                 group (
                   separateWithSpaces
-                    [ SOME (text "type")
-                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                    , SOME (text (Token.toString tycon))
-                    , SOME (text "=")
+                    [ SOME (token typee)
+                    , maybeShowSyntaxSeq tyvars token
+                    , SOME (token tycon)
+                    , SOME (token eq)
                     ]
                   $$
                   (spaces 2 ++ showTy ty)
                 )
               end
           in
-            Seq.iterate op$$ first (Seq.map mk (Seq.drop elems 1))
+            Seq.iterate op$$ first
+              (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end
 
       | DecDatatype {datbind = {elems, ...}, withtypee, ...} =>
