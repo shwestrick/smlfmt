@@ -143,7 +143,7 @@ struct
               (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end
 
-      | DecFun {funn, tyvars, fvalbind={elems, ...}} =>
+      | DecFun {funn, tyvars, fvalbind={elems, delims}} =>
           let
             fun showArgs args =
               if Seq.length args = 0 then empty else
@@ -177,44 +177,40 @@ struct
             fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
               token colon ++ space ++ showTy ty
 
-            fun showClause isFirstFun isFirstClause {fname_args, ty, eq, exp} =
-              let
-                val front =
-                  if isFirstFun andalso isFirstClause then
-                    token funn
-                  else if not isFirstFun andalso isFirstClause then
-                    text "and"
-                  else
-                    text "  |"
-
-                val tyvars =
-                  if isFirstFun andalso isFirstClause then
-                    maybeShowSyntaxSeq tyvars token
-                  else
-                    NONE
-              in
-                group (
-                  separateWithSpaces
-                    [ SOME front
-                    , tyvars
-                    , SOME (showFNameArgs fname_args)
+            fun showClause front {fname_args, ty, eq, exp} =
+              separateWithSpaces front
+              ++ space
+              ++ group (
+                separateWithSpaces
+                  ( [ SOME (showFNameArgs fname_args)
                     , Option.map showColonTy ty
                     , SOME (token eq)
-                    ]
-                  $$
-                  (spaces 2 ++ showExp exp)
-                )
-              end
+                    ] )
+                $$
+                (spaces 2 ++ showExp exp)
+              )
 
-            fun mkFunction isFirstFun {elems=innerElems, delims} =
-              Seq.iterate op$$
-                (showClause isFirstFun true (Seq.nth innerElems 0))
-                (Seq.map (showClause isFirstFun false)
-                  (Seq.drop innerElems 1))
+            fun mkFunction (andDelim, {elems=innerElems, delims}) =
+              let
+                val delim =
+                  case andDelim of
+                    NONE       => funn
+                  | SOME delim => delim
+                val tyvars =
+                  case andDelim of
+                    NONE   => [maybeShowSyntaxSeq tyvars token]
+                  | SOME _ => nil
+              in
+                Seq.iterate op$$
+                  (showClause (SOME (token delim) :: tyvars) (Seq.nth innerElems 0))
+                  (Seq.zipWith
+                    (fn (delim, elem) => showClause [SOME (spaces 2 ++ token delim)] elem)
+                    (delims, Seq.drop innerElems 1))
+              end
           in
             Seq.iterate op$$
-              (mkFunction true (Seq.nth elems 0))
-              (Seq.map (mkFunction false) (Seq.drop elems 1))
+              (mkFunction (NONE, Seq.nth elems 0))
+              (Seq.zipWith mkFunction (Seq.map SOME delims, Seq.drop elems 1))
           end
 
       | DecType {typbind={elems, delims}, typee} =>
