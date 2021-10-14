@@ -1013,24 +1013,24 @@ struct
         ++ space ++ showSigExp sigexp
 
     | Ast.Str.FunAppExp {funid, strexp, ...} =>
-        text (Token.toString funid) ++ space
+        token funid ++ space
         ++ parensAround (showStrExp strexp)
 
-    | Ast.Str.FunAppDec {funid, strdec, ...} =>
-        text (Token.toString funid) ++ space
-        ++ parensAround (showStrDec strdec)
+    | Ast.Str.FunAppDec {funid, lparen, strdec, rparen} =>
+        token funid ++ space
+        ++ token lparen ++ showStrDec strdec ++ token rparen
 
-    | Ast.Str.LetInEnd {strdec, strexp, ...} =>
+    | Ast.Str.LetInEnd {lett, strdec, inn, strexp, endd} =>
         let
           val prettyDec = showStrDec strdec
           val prettyExp = showStrExp strexp
 
           val topPart =
-            text "let"
+            token lett
             $$
             (spaces 2 ++ prettyDec)
             $$
-            text "in"
+            token inn
 
           val topPart =
             if Ast.Str.isMultipleDecs strdec then
@@ -1043,7 +1043,7 @@ struct
             $$
             (spaces 2 ++ group (prettyExp))
             $$
-            text "end"
+            token endd
           )
         end
 
@@ -1058,29 +1058,29 @@ struct
     | Ast.Str.DecCore d =>
         showDec d
 
-    | Ast.Str.DecStructure {elems, ...} =>
+    | Ast.Str.DecStructure {structuree, elems, delims} =>
         let
           fun maybeShowConstraint constraint =
             case constraint of
               NONE => NONE
             | SOME {colon, sigexp} =>
-                SOME (text (Token.toString colon) ++ space ++ showSigExp sigexp)
+                SOME (token colon ++ space ++ showSigExp sigexp)
 
-          fun showOne isFirst {strid, constraint, strexp, ...} =
+          fun showOne (starter, {strid, constraint, eq, strexp}) =
             group (
               separateWithSpaces
-                [ SOME (text (if isFirst then "structure" else "and"))
-                , SOME (text (Token.toString strid))
+                [ SOME (token starter)
+                , SOME (token strid)
                 , maybeShowConstraint constraint
-                , SOME (text "=")
+                , SOME (token eq)
                 ]
               $$
               (spaces 2 ++ showStrExp strexp)
             )
         in
           Seq.iterate op$$
-            (showOne true (Seq.nth elems 0))
-            (Seq.map (showOne false) (Seq.drop elems 1))
+            (showOne (structuree, Seq.nth elems 0))
+            (Seq.map showOne (Seq.zip (delims, (Seq.drop elems 1))))
         end
 
     | Ast.Str.DecMultiple {elems, delims} =>
@@ -1088,19 +1088,21 @@ struct
           fun f i =
             showStrDec (Seq.nth elems i)
             ++
-            (if Option.isSome (Seq.nth delims i) then text ";" else empty)
+            (case Seq.nth delims i of
+              NONE => empty
+            | SOME sc => token sc)
         in
           Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
         end
 
-    | Ast.Str.DecLocalInEnd {strdec1, strdec2, ...} =>
+    | Ast.Str.DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
         let
           val topPart =
-            text "local"
+            token locall
             $$
             (spaces 2 ++ showStrDec strdec1)
             $$
-            text "in"
+            token inn
 
           val topPart =
             if Ast.Str.isMultipleDecs strdec1 then
@@ -1113,7 +1115,7 @@ struct
             $$
             (spaces 2 ++ group (showStrDec strdec2))
             $$
-            text "end"
+            token endd
           )
         end
 
@@ -1126,37 +1128,39 @@ struct
   fun showFunArg fa =
     case fa of
       Ast.Fun.ArgSpec spec => showSpec spec
-    | Ast.Fun.ArgIdent {strid, sigexp, ...} =>
+    | Ast.Fun.ArgIdent {strid, colon, sigexp} =>
         group (
-          text (Token.toString strid)
-          ++ space ++ text ":" ++ space ++
+          token strid
+          ++ space ++ token colon ++ space ++
           showSigExp sigexp
         )
 
-  fun showFunDec (Ast.Fun.DecFunctor {elems, ...}) =
+  fun showFunDec (Ast.Fun.DecFunctor {functorr, elems, delims}) =
     let
-      fun showFunctor isFirst {funid, funarg, constraint, strexp, ...} =
+      fun showFunctor
+        (starter, {funid, lparen, funarg, rparen, constraint, eq, strexp})
+        =
         group (
           group (
             group (
-              text (if isFirst then "functor" else "and")
+              token starter
               ++ space ++
-              text (Token.toString funid)
-              ++ space ++ text "(" ++ showFunArg funarg ++ text ")"
+              token funid
+              ++ space ++ token lparen ++ showFunArg funarg ++ token rparen
             )
             $$
             (case constraint of NONE => empty | SOME {colon, sigexp} =>
-              spaces 2 ++ text (Token.toString colon) ++ showSigExp sigexp)
+              spaces 2 ++ token colon ++ space ++ showSigExp sigexp)
             ++
-            space ++ text "="
+            space ++ token eq
           )
           $$
           showStrExp strexp
         )
     in
       Seq.iterate op$$
-        (showFunctor true (Seq.nth elems 0))
-        (Seq.map (showFunctor false) (Seq.drop elems 1))
+        (showFunctor (functorr, Seq.nth elems 0))
+        (Seq.map showFunctor (Seq.zip (delims, Seq.drop elems 1)))
     end
 
 
@@ -1173,7 +1177,9 @@ struct
               | Ast.SigDec d => showSigDec d
               | Ast.FunDec d => showFunDec d
             val sc =
-              if Option.isSome semicolon then text ";" else empty
+              case semicolon of
+                NONE => empty
+              | SOME sc => token sc
           in
             td ++ sc
           end

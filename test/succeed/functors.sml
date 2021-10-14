@@ -4,7 +4,7 @@ functor F(X:S) =
 functor F(X:S) : T =
   let structure Y = X in Y end
 
-functor F(type t val x: t) :> Foo =
+and F(type t val x: t) :> Foo =
 struct
   type u = t
   fun f y = (x, y)
