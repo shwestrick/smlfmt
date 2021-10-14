@@ -36,13 +36,13 @@ structure S :> Y =
 structure S =
   struct type t = int end : X : Y
 
-structure S = F(X)
-structure T :> Y = Fun (struct type t = int val x: int = 5 end) : X
+and S = F(X)
+and T :> Y = Fun (struct type t = int val x: int = 5 end) : X
 
-structure X =
+and X =
   F (type t = int
      val x: t = 5
-     datatype P = L | R)
+     datatype P = L | R);
 
 structure S = F (structure X:Foo = X val hello: string = "hello")
 
@@ -65,10 +65,10 @@ structure Foobar =
         val goodbye = Goodbye.hello
       end
     end
-  end
+  end;
 
 local
-  structure X = Y
+  structure X = Y;
   structure Z :> S = let structure A = B in B :> S end
 in
 structure Foo = F(structure X = X structure Y = Z)
