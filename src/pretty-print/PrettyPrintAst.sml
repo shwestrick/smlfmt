@@ -750,61 +750,61 @@ struct
       Ast.Sig.EmptySpec =>
         empty
 
-    | Ast.Sig.Val {elems, ...} =>
+    | Ast.Sig.Val {vall, elems, delims} =>
         let
-          fun showOne first {vid, ty, ...} =
-            text (if first then "val" else "and")
+          fun showOne (starter, {vid, colon, ty}) =
+            token starter
             ++ space ++
-            text (Token.toString vid) ++ space ++ text ":" ++ space
+            token vid ++ space ++ token colon ++ space
             ++ showTy ty
         in
           Seq.iterate op$$
-            (showOne true (Seq.nth elems 0))
-            (Seq.map (showOne false) (Seq.drop elems 1))
+            (showOne (vall, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.Type {elems, ...} =>
+    | Ast.Sig.Type {typee, elems, delims} =>
         let
-          fun showOne first {tyvars, tycon} =
+          fun showOne (starter, {tyvars, tycon}) =
             separateWithSpaces
-              [ SOME (text (if first then "type" else "and"))
-              , maybeShowSyntaxSeq tyvars (text o Token.toString)
-              , SOME (text (Token.toString tycon))
+              [ SOME (token starter)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token tycon)
               ]
         in
           Seq.iterate op$$
-            (showOne true (Seq.nth elems 0))
-            (Seq.map (showOne false) (Seq.drop elems 1))
+            (showOne (typee, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.TypeAbbreviation {elems, ...} =>
+    | Ast.Sig.TypeAbbreviation {typee, elems, delims} =>
         let
-          fun showOne first {tyvars, tycon, ty, ...} =
+          fun showOne (starter, {tyvars, tycon, eq, ty}) =
             separateWithSpaces
-              [ SOME (text (if first then "type" else "and"))
-              , maybeShowSyntaxSeq tyvars (text o Token.toString)
-              , SOME (text (Token.toString tycon))
-              , SOME (text "=")
+              [ SOME (token starter)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token tycon)
+              , SOME (token eq)
               , SOME (showTy ty)
               ]
         in
           Seq.iterate op$$
-            (showOne true (Seq.nth elems 0))
-            (Seq.map (showOne false) (Seq.drop elems 1))
+            (showOne (typee, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.Eqtype {elems, ...} =>
+    | Ast.Sig.Eqtype {eqtypee, elems, delims} =>
         let
-          fun showOne first {tyvars, tycon} =
+          fun showOne (starter, {tyvars, tycon}) =
             separateWithSpaces
-              [ SOME (text (if first then "eqtype" else "and"))
-              , maybeShowSyntaxSeq tyvars (text o Token.toString)
-              , SOME (text (Token.toString tycon))
+              [ SOME (token starter)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token tycon)
               ]
         in
           Seq.iterate op$$
-            (showOne true (Seq.nth elems 0))
-            (Seq.map (showOne false) (Seq.drop elems 1))
+            (showOne (eqtypee, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
     | Ast.Sig.Datatype {datatypee, elems, delims} =>
