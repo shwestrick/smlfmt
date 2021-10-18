@@ -750,9 +750,6 @@ struct
             } Seq.t
         }
 
-    (** TODO finish 'sigexp' type *)
-
-
 
     and sigdec =
 
@@ -778,7 +775,6 @@ struct
   structure Str =
   struct
 
-    (** TODO: finish *)
     datatype strexp =
       Ident of MaybeLongToken.t
 
@@ -817,7 +813,6 @@ struct
         }
 
 
-    (** TODO: finish *)
     and strdec =
       DecEmpty
 
