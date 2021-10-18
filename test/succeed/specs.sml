@@ -10,7 +10,7 @@ signature FOO =
 
     eqtype 'a functions
     and are
-    and ('a, 'b) values
+    and ('a, 'b) values;
 
     type baz = int
     type foo = baz bar
@@ -26,13 +26,13 @@ signature FOO =
     and ('a, 'b) morphism = Commuting of 'a * 'b
     and ('a, 'b) category = Endofunctor of monad | Adjunction of 'a * 'b
 
-    datatype foo = datatype foo2
+    datatype foo = datatype foo2;
     datatype foo = datatype A.B.foo
-    datatype foo = datatype A.B.LongNameHereGoesToSomething.foo
+    datatype foo = datatype A.B.LongNameHereGoesToSomething.foo;
 
     exception NotFound
     and Fail of string
-    and Failure
+    and Failure;
 
     structure Module : MODULE
     and ModuleNameAgain : REALLYLONGSIGNATURENAME
@@ -51,7 +51,7 @@ signature FOO =
     sharing type Stack.t = int = Int64.int
     sharing Module.Stack = Stack
 
-    include FOO
+    include FOO;
     include
       sig
         type 'a t

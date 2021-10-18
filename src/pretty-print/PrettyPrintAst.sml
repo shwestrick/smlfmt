@@ -879,142 +879,157 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Sig.Structure {elems, ...} =>
+    | Ast.Sig.Structure {structuree, elems, delims} =>
         let
-          fun showOne first {id, sigexp, ...} =
+          fun showOne (starter, {id, colon, sigexp}) =
             group (
               separateWithSpaces
-                [ SOME (text (if first then "structure" else "and"))
-                , SOME (text (Token.toString id))
-                , SOME (text ":") ]
+                [ SOME (token starter)
+                , SOME (token id)
+                , SOME (token colon)
+                ]
               $$
-              spaces 2 ++ showSigExp sigexp
+              (spaces 2 ++ showSigExp sigexp)
             )
         in
           Seq.iterate op$$
-            (showOne true (Seq.nth elems 0))
-            (Seq.map (showOne false) (Seq.drop elems 1))
+            (showOne (structuree, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.Include {sigexp, ...} =>
+    | Ast.Sig.Include {includee, sigexp} =>
         group (
-          text "include"
+          token includee
           $$
-          spaces 2 ++
-            showSigExp sigexp
+          (spaces 2 ++ showSigExp sigexp)
         )
 
-    | Ast.Sig.IncludeIds {sigids, ...} =>
-        Seq.iterate (fn (a, b) => a ++ space ++ text (Token.toString b))
-          (text "include") sigids
+    | Ast.Sig.IncludeIds {includee, sigids} =>
+        Seq.iterate (fn (a, b) => a ++ space ++ token b)
+          (token includee)
+          sigids
 
     | Ast.Sig.Multiple {elems, delims} =>
         let
-          fun showOne i =
-            showSpec (Seq.nth elems i)
+          fun showOne (elem: Ast.Sig.spec, delim: Token.t option) =
+            showSpec elem
             ++
-            (if Option.isSome (Seq.nth delims i) then text ";" else empty)
+            (case delim of NONE => empty | SOME sc => token sc)
         in
-          Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ showOne i)
+          Seq.iterate op$$ empty (Seq.zipWith showOne (elems, delims))
         end
 
-    | Ast.Sig.Sharing {spec, elems, ...} =>
-        group (
-          showSpec spec
-          $$
-          (text "sharing" ++ space ++
-            Seq.iterate (fn (a, b) => a ++ space ++ text "=" ++ space ++ b)
-              (text (Token.toString (MaybeLongToken.getToken (Seq.nth elems 0))))
-              (Seq.map (text o Token.toString o MaybeLongToken.getToken) (Seq.drop elems 1)))
-        )
+    | Ast.Sig.Sharing {spec, sharingg, elems, delims} =>
+        let
+          fun showOne (delim, elem) =
+            token delim (** this is an '=' *)
+            ++ space
+            ++ token (MaybeLongToken.getToken elem)
 
-    | Ast.Sig.SharingType {spec, elems, ...} =>
-        group (
-          showSpec spec
-          $$
-          (text "sharing type" ++ space ++
-            Seq.iterate (fn (a, b) => a ++ space ++ text "=" ++ space ++ b)
-              (text (Token.toString (MaybeLongToken.getToken (Seq.nth elems 0))))
-              (Seq.map (text o Token.toString o MaybeLongToken.getToken) (Seq.drop elems 1)))
-        )
+          val stuff =
+            Seq.iterate
+              (fn (a, b) => a ++ space ++ b)
+              (token (MaybeLongToken.getToken (Seq.nth elems 0)))
+              (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        in
+          group (
+            showSpec spec
+            $$
+            (token sharingg ++ space ++ stuff)
+          )
+        end
 
-    (* | _ => text "<spec>" *)
+    | Ast.Sig.SharingType {spec, sharingg, typee, elems, delims} =>
+        let
+          fun showOne (delim, elem) =
+            token delim (** this is an '=' *)
+            ++ space
+            ++ token (MaybeLongToken.getToken elem)
 
+          val stuff =
+            Seq.iterate
+              (fn (a, b) => a ++ space ++ b)
+              (token (MaybeLongToken.getToken (Seq.nth elems 0)))
+              (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        in
+          group (
+            showSpec spec
+            $$
+            (token sharingg ++ space ++ token typee ++ space ++ stuff)
+          )
+        end
 
 
   and showSigExp sigexp =
     case sigexp of
       Ast.Sig.Ident id =>
-        text (Token.toString id)
+        token id
 
-    | Ast.Sig.Spec {spec, ...} =>
+    | Ast.Sig.Spec {sigg, spec, endd} =>
         group (
-          text "sig"
+          token sigg
           $$
           (spaces 2 ++ showSpec spec)
           $$
-          text "end"
+          token endd
         )
 
     | Ast.Sig.WhereType {sigexp, elems} =>
         let
           val se = showSigExp sigexp
 
-          fun showElem {wheree, tyvars, tycon, ty, ...} =
+          fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
             separateWithSpaces
-              [ SOME (text (Token.toString wheree)) (** this could be 'and' *)
-              , SOME (text "type")
-              , maybeShowSyntaxSeq tyvars (text o Token.toString)
-              , SOME (text (Token.toString (MaybeLongToken.getToken tycon)))
-              , SOME (text "=")
+              [ SOME (token wheree) (** this could be 'and' *)
+              , SOME (token typee)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token (MaybeLongToken.getToken tycon))
+              , SOME (token eq)
               , SOME (showTy ty)
               ]
         in
           Seq.iterate op$$ se (Seq.map showElem elems)
         end
 
-    (* | _ =>
-        text "<sigexp>" *)
 
-
-  fun showSigDec (Ast.Sig.Signature {elems, delims, ...}) =
+  fun showSigDec (Ast.Sig.Signature {signaturee, elems, delims}) =
     let
-      fun showOne isFirst {ident, sigexp, ...} =
+      fun showOne (starter, {ident, eq, sigexp}) =
         group (
-          (text (if isFirst then "signature" else "and")
-          ++ space ++ text (Token.toString ident) ++ space ++ text "=")
+          (token starter
+          ++ space ++ token ident ++ space ++ token eq)
           $$
           (spaces 2 ++ showSigExp sigexp)
         )
     in
       Seq.iterate op$$
-        (showOne true (Seq.nth elems 0))
-        (Seq.map (showOne false) (Seq.drop elems 1))
+        (showOne (signaturee, Seq.nth elems 0))
+        (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end
 
 
   fun showStrExp e =
     case e of
       Ast.Str.Ident id =>
-        text (Token.toString (MaybeLongToken.getToken id))
+        token (MaybeLongToken.getToken id)
 
-    | Ast.Str.Struct {strdec, ...} =>
+    | Ast.Str.Struct {structt, strdec, endd} =>
         group (
-          text "struct"
+          token structt
           $$
           (spaces 2 ++ showStrDec strdec)
           $$
-          text "end"
+          token endd
         )
 
     | Ast.Str.Constraint {strexp, colon, sigexp} =>
         showStrExp strexp
-        ++ space ++ text (Token.toString colon)
+        ++ space ++ token colon
         ++ space ++ showSigExp sigexp
 
-    | Ast.Str.FunAppExp {funid, strexp, ...} =>
+    | Ast.Str.FunAppExp {funid, lparen, strexp, rparen} =>
         token funid ++ space
-        ++ parensAround (showStrExp strexp)
+        ++ token lparen ++ showStrExp strexp ++ token rparen
 
     | Ast.Str.FunAppDec {funid, lparen, strdec, rparen} =>
         token funid ++ space
