@@ -17,7 +17,9 @@ struct
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
 
+
   fun token x = text (Token.toString x)
+
 
   fun seqWithSpaces elems f =
     if Seq.length elems = 0 then empty else
@@ -26,11 +28,10 @@ struct
       (f (Seq.nth elems 0))
       (Seq.drop elems 1)
 
+
   fun spaces n =
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
-  fun parensAround (x: doc) =
-    text "(" ++ x ++ text ")"
 
   fun sequence openn delims close (xs: PD.t Seq.t) =
     if Seq.length xs = 0 then
@@ -332,30 +333,32 @@ struct
       | DecNonfix {nonfixx, elems} =>
           token nonfixx ++ space ++ seqWithSpaces elems token
 
-      | DecException {elems, ...} =>
+      | DecException {exceptionn, elems, delims} =>
           let
             fun showExbind exbind =
               case exbind of
                 ExnNew {opp, id, arg} =>
                   separateWithSpaces
-                    [ Option.map (fn _ => text "op") opp
-                    , SOME (text (Token.toString id))
-                    , Option.map (fn {ty, ...} =>
-                        text "of" ++ space ++ showTy ty) arg
-                    ]
-              | ExnReplicate {opp, left_id, right_id, ...} =>
-                  separateWithSpaces
-                    [ Option.map (fn _ => text "op") opp
-                    , SOME (text (Token.toString left_id))
-                    , SOME (text "=")
-                    , SOME (text (Token.toString (MaybeLongToken.getToken right_id)))
+                    [ Option.map token opp
+                    , SOME (token id)
+                    , Option.map (fn {off, ty} =>
+                        token off ++ space ++ showTy ty) arg
                     ]
 
-            fun mk (i, x) =
-              (if i = 0 then text "exception" else text "and")
-              ++ space ++ showExbind x
+              | ExnReplicate {opp, left_id, eq, right_id} =>
+                  separateWithSpaces
+                    [ Option.map token opp
+                    , SOME (token left_id)
+                    , SOME (token eq)
+                    , SOME (token (MaybeLongToken.getToken right_id))
+                    ]
+
+            fun showOne (starter, elem) =
+              token starter ++ space ++ showExbind elem
           in
-            Seq.iterate op$$ empty (Seq.mapIdx mk elems)
+            Seq.iterate op$$
+              (showOne (exceptionn, Seq.nth elems 0))
+              (Seq.zipWith showOne (delims, Seq.drop elems 1))
           end
 
       | DecLocal {locall, left_dec, inn, right_dec, endd} =>
@@ -474,7 +477,7 @@ struct
             )
           end
 
-      | _ => text "<dec>"
+      | DecReplicateDatatype _ => text "<TODO: dec-replicate-datatype>"
     end
 
 
@@ -1062,8 +1065,6 @@ struct
           )
         end
 
-    (* | _ => text "<strexp>" *)
-
 
   and showStrDec d =
     case d of
@@ -1136,8 +1137,6 @@ struct
 
     | Ast.Str.MLtonOverload _ =>
         text "<_overload>"
-
-    (* | _ => text "<strdec>" *)
 
 
   fun showFunArg fa =

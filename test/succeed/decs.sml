@@ -9,7 +9,15 @@ type int = string
 datatype X = XX of int t
 withtype 'a t = 'a list
 
+datatype Z = datatype X
+
 exception foobar of string
+and whatWhereWhy of int -> (unit -> int) -> string
+and nope
+and yep of string
+
+exception hello
+and goodbye;
 
 local
   datatype Ya = Boi
