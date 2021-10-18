@@ -18,7 +18,7 @@ signature FOO =
 
     datatype 'a foo = A
     and 'a bar = A of int
-    and 'a bat = A of int | B of string
+    and 'a bat = A of int | B of string | C of 'a bat * 'a bat | D | E of unit
     and karl = Crary
     and bob = Harper of int
     and umut = Acar of string | Diderot of bool
@@ -32,6 +32,7 @@ signature FOO =
 
     exception NotFound
     and Fail of string
+    and Whatever of (int -> int) list * int
     and Failure;
 
     structure Module : MODULE

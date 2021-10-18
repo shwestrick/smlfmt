@@ -807,76 +807,76 @@ struct
             (Seq.map (showOne false) (Seq.drop elems 1))
         end
 
-    | Ast.Sig.Datatype {elems, ...} =>
+    | Ast.Sig.Datatype {datatypee, elems, delims} =>
         let
-          fun showCon {vid, arg} =
-              group (
-                separateWithSpaces
-                  [ SOME (text (Token.toString vid))
-                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
-                  ]
-              )
+          fun showCon (starter, {vid, arg}) =
+            starter
+            ++ space ++
+            group (
+              separateWithSpaces
+                [ SOME (token vid)
+                , Option.map (fn {off, ty} =>
+                    token off $$ (spaces 2 ++ showTy ty)) arg
+                ]
+            )
 
-          fun show_datdesc mark {tyvars, tycon, elems, ...} =
+          fun show_datdesc (starter, {tyvars, tycon, eq, elems, delims}) =
             let
               val initial =
                 group (
                   separateWithSpaces
-                    [ SOME (text (if mark then "datatype" else "and"))
-                    , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                    , SOME (text (Token.toString tycon))
-                    , SOME (text "=")
+                    [ SOME (token starter)
+                    , maybeShowSyntaxSeq tyvars token
+                    , SOME (token tycon)
+                    , SOME (token eq)
                     ]
                 )
             in
               group (
                 initial
                 $$
-                (spaces 2 ++
+                ((*spaces 2 ++*)
                   group (
-                    Seq.iterate
-                      (fn (prev, next) => prev $$ text "|" ++ space ++ next)
-                      (spaces 2 ++ showCon (Seq.nth elems 0))
-                      (Seq.map showCon (Seq.drop elems 1))
-                  )
-                )
+                    Seq.iterate op$$
+                      (showCon (space, Seq.nth elems 0))
+                      (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
+                  ))
               )
             end
         in
           Seq.iterate op$$
-            (show_datdesc true (Seq.nth elems 0))
-            (Seq.map (show_datdesc false) (Seq.drop elems 1))
+            (show_datdesc (datatypee, Seq.nth elems 0))
+            (Seq.zipWith show_datdesc (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.ReplicateDatatype {left_id, right_id, ...} =>
+    | Ast.Sig.ReplicateDatatype {left_datatypee, left_id, eq, right_datatypee, right_id} =>
         group (
           separateWithSpaces
-            [ SOME (text "datatype")
-            , SOME (text (Token.toString left_id))
-            , SOME (text "=")
+            [ SOME (token left_datatypee)
+            , SOME (token left_id)
+            , SOME (token eq)
             ]
           $$
-          spaces 2 ++
-            ( text "datatype"
-              ++ space ++
-              text (Token.toString (MaybeLongToken.getToken right_id))
-            )
+          (spaces 2 ++
+            token right_datatypee
+            ++ space ++
+            token (MaybeLongToken.getToken right_id))
         )
 
-    | Ast.Sig.Exception {elems, ...} =>
+    | Ast.Sig.Exception {exceptionn, elems, delims} =>
         let
-          fun showOne first {vid, arg} =
+          fun showOne (starter, {vid, arg}) =
               group (
                 separateWithSpaces
-                  [ SOME (text (if first then "exception" else "and"))
-                  , SOME (text (Token.toString vid))
-                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+                  [ SOME (token starter)
+                  , SOME (token vid)
+                  , Option.map (fn {off, ty} => token off ++ space ++ showTy ty) arg
                   ]
               )
         in
           Seq.iterate op$$
-            (showOne true (Seq.nth elems 0))
-            (Seq.map (showOne false) (Seq.drop elems 1))
+            (showOne (exceptionn, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
     | Ast.Sig.Structure {structuree, elems, delims} =>
