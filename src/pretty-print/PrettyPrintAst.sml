@@ -9,16 +9,13 @@ sig
 end =
 struct
 
-  structure PD = StringDoc
-  open PD
+  structure Doc = TokenDoc
+  open Doc
 
   infix 2 ++ $$ //
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
-
-
-  fun token x = text (Token.toString x)
 
 
   fun seqWithSpaces elems f =
@@ -33,7 +30,7 @@ struct
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
-  fun sequence openn delims close (xs: PD.t Seq.t) =
+  fun sequence openn delims close (xs: doc Seq.t) =
     if Seq.length xs = 0 then
       token openn ++ token close
     else
@@ -1137,9 +1134,9 @@ struct
     end
 
 
-  fun pretty (Ast.Ast tds) =
+  fun showAst (Ast.Ast tds) =
     if Seq.length tds = 0 then
-      ""
+      empty
     else
       let
         fun showOne {topdec, semicolon} =
@@ -1158,9 +1155,17 @@ struct
           end
 
         val all = Seq.map showOne tds
-        val doc = Seq.iterate op$$ (Seq.nth all 0) (Seq.drop all 1)
       in
-        PD.toString doc
+        Seq.iterate op$$ (Seq.nth all 0) (Seq.drop all 1)
       end
+
+
+  fun pretty ast =
+    let
+      val doc = showAst ast
+      val doc = TokenDoc.insertComments doc
+    in
+      StringDoc.toString (toStringDoc doc)
+    end
 
 end

@@ -7,7 +7,7 @@ fun foo (x, y) = "hello"
 type int = string
 
 datatype X =
-  XX of int t
+  XX of int (* AAA *) t
 | YY of int list t
 | ZZZ of sheesh
 and sheesh = Sheeeesh of X
@@ -15,7 +15,7 @@ withtype 'a t = 'a list
 
 datatype Z = datatype X
 
-exception foobar of string
+exception foobar (* X *) of string
 and whatWhereWhy of int -> (unit -> int) -> string
 and nope
 and yep of string
@@ -31,7 +31,7 @@ end
 
 open X Y Foo.Z
 
-abstype 'a foo
+abstype 'a (* XXX *) foo
   = Foo of 'a
   | Bar of 'a * 'a
   | Baz of baz

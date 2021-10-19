@@ -76,29 +76,76 @@ struct
         *)
       datatype mode = BesideMode | AboveMode
 
-      fun token mode tok =
+      fun tokens mode toks =
         let
           fun combine (doc, tok) =
             case mode of
               BesideMode => beside (doc, beside (space, Token tok))
             | AboveMode => aboveOrSpace (doc, Token tok)
         in
-          combine (Seq.iterate combine empty (Token.commentsBefore tok), tok)
+          Seq.iterate combine (Token (Seq.nth toks 0)) (Seq.drop toks 1)
         end
 
-      fun traverse mode d =
+      fun insertCommentsBeforeTok mode tok =
+        tokens mode (Seq.append (Token.commentsBefore tok, Seq.$ tok))
+
+      fun insertCommentsAfterTok mode tok =
+        tokens mode (Seq.append (Seq.$ tok, Token.commentsAfter tok))
+
+      fun insertAllBefore mode d =
         case d of
           Token tok =>
-            token mode tok
+            insertCommentsBeforeTok mode tok
         | Beside (d1, d2) =>
-            Beside (traverse mode d1, traverse BesideMode d2)
+            Beside (insertAllBefore mode d1, insertAllBefore BesideMode d2)
         | Above (b, d1, d2) =>
-            Above (b, traverse mode d1, traverse AboveMode d2)
+            Above (b, insertAllBefore mode d1, insertAllBefore AboveMode d2)
         | Group d =>
-            Group (traverse mode d)
+            Group (insertAllBefore mode d)
         | _ => d
+
+      fun insertOnlyAfterLast mode d =
+        case d of
+          Token tok =>
+            (true, insertCommentsAfterTok mode tok)
+        | Group d =>
+            let
+              val (foundIt, d') = insertOnlyAfterLast mode d
+            in
+              (foundIt, Group d')
+            end
+        | Beside (d1, d2) =>
+            let
+              val (foundIt, d2') = insertOnlyAfterLast BesideMode d2
+            in
+              if foundIt then
+                (true, Beside (d1, d2'))
+              else
+                let
+                  val (foundIt, d1') = insertOnlyAfterLast mode d1
+                in
+                  (foundIt, Beside (d1', d2'))
+                end
+            end
+        | Above (b, d1, d2) =>
+            let
+              val (foundIt, d2') = insertOnlyAfterLast AboveMode d2
+            in
+              if foundIt then
+                (true, Above (b, d1, d2'))
+              else
+                let
+                  val (foundIt, d1') = insertOnlyAfterLast mode d1
+                in
+                  (foundIt, Above (b, d1', d2'))
+                end
+            end
+        | _ => (false, d)
+
+      val doc = insertAllBefore AboveMode doc
+      val (_, doc) = insertOnlyAfterLast AboveMode doc
     in
-      traverse AboveMode doc
+      doc
     end
 
 
