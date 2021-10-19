@@ -5,7 +5,7 @@
 
 structure PrettyPat:
 sig
-  val show: Ast.Pat.t -> TokenDoc.t
+  val showPat: Ast.Pat.t -> TokenDoc.t
 end =
 struct
 
@@ -17,7 +17,7 @@ struct
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
 
-  fun showTy ty = PrettyTy.show ty
+  fun showTy ty = PrettyTy.showTy ty
 
   fun showPat pat =
     let
@@ -77,7 +77,5 @@ struct
       | Infix {left, id, right} =>
           showPat left ++ space ++ token id ++ space ++ showPat right
     end
-
-  val show = showPat
 
 end

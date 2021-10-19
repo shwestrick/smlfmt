@@ -5,7 +5,7 @@
 
 structure PrettyTy:
 sig
-  val show: Ast.Ty.t -> TokenDoc.t
+  val showTy: Ast.Ty.t -> TokenDoc.t
 end =
 struct
 
@@ -52,7 +52,5 @@ struct
       | Arrow {from, arrow, to} =>
           showTy from ++ space ++ token arrow ++ space ++ showTy to
     end
-
-  val show = showTy
 
 end

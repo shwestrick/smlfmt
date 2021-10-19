@@ -8,4 +8,5 @@ PrettyPat.sml
 PrettyExpAndDec.sml
 PrettySig.sml
 PrettyStr.sml
+PrettyFun.sml
 PrettyPrintAst.sml

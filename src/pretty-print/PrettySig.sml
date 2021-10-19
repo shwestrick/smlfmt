@@ -19,8 +19,8 @@ struct
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
 
-  fun showTy ty = PrettyTy.show ty
-  fun showPat pat = PrettyPat.show pat
+  fun showTy ty = PrettyTy.showTy ty
+  fun showPat pat = PrettyPat.showPat pat
   fun showExp exp = PrettyExpAndDec.showExp exp
   fun showDec dec = PrettyExpAndDec.showDec dec
 
