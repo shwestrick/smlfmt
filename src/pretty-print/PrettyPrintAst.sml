@@ -125,6 +125,49 @@ struct
     end
 
 
+  fun showDatbind (front, datbind: Ast.Exp.datbind as {elems, delims}) =
+    let
+      fun showCon {opp, id, arg} =
+        group (
+          separateWithSpaces
+            [ Option.map (fn _ => text "op") opp
+            , SOME (text (Token.toString id))
+            , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+            ]
+        )
+
+      fun show_datbind mark {tyvars, tycon, eq, elems, ...} =
+        let
+          val initial =
+            group (
+              separateWithSpaces
+                [ SOME (if mark then token front else text "and")
+                , maybeShowSyntaxSeq tyvars token
+                , SOME (token tycon)
+                , SOME (token eq)
+                ]
+            )
+        in
+          group (
+            initial
+            $$
+            (spaces 2 ++
+              group (
+                Seq.iterate
+                  (fn (prev, next) => prev $$ text "|" ++ space ++ next)
+                  (spaces 2 ++ showCon (Seq.nth elems 0))
+                  (Seq.map showCon (Seq.drop elems 1))
+              )
+            )
+          )
+        end
+    in
+      Seq.iterate op$$
+        (show_datbind true (Seq.nth elems 0))
+        (Seq.map (show_datbind false) (Seq.drop elems 1))
+    end
+
+
   fun showDec dec =
     let
       open Ast.Exp
@@ -238,54 +281,14 @@ struct
       | DecType {typee, typbind} =>
           showTypbind (typee, typbind)
 
-      | DecDatatype {datbind = {elems, ...}, withtypee, ...} =>
+      | DecDatatype {datatypee, datbind, withtypee} =>
           let
-            fun showCon {opp, id, arg} =
-              group (
-                separateWithSpaces
-                  [ Option.map (fn _ => text "op") opp
-                  , SOME (text (Token.toString id))
-                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
-                  ]
-              )
-
-            fun show_datbind mark {tyvars, tycon, elems, ...} =
-              let
-                val initial =
-                  group (
-                    separateWithSpaces
-                      [ SOME (text (if mark then "datatype" else "and"))
-                      , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                      , SOME (text (Token.toString tycon))
-                      , SOME (text "=")
-                      ]
-                  )
-              in
-                group (
-                  initial
-                  $$
-                  (spaces 2 ++
-                    group (
-                      Seq.iterate
-                        (fn (prev, next) => prev $$ text "|" ++ space ++ next)
-                        (spaces 2 ++ showCon (Seq.nth elems 0))
-                        (Seq.map showCon (Seq.drop elems 1))
-                    )
-                  )
-                )
-              end
-
-            fun show_withtypee {withtypee, typbind} =
-              showTypbind (withtypee, typbind)
-
-            val datbinds =
-              Seq.iterate op$$
-                (show_datbind true (Seq.nth elems 0))
-                (Seq.map (show_datbind false) (Seq.drop elems 1))
+            val datbinds = showDatbind (datatypee, datbind)
           in
             case withtypee of
-              SOME result =>
-                datbinds $$ show_withtypee result
+              SOME {withtypee, typbind} =>
+                datbinds $$ showTypbind (withtypee, typbind)
+
             | _ => datbinds
           end
 
@@ -367,67 +370,26 @@ struct
           token openn ++ space
           ++ seqWithSpaces elems (token o MaybeLongToken.getToken)
 
-      | DecAbstype {datbind = {elems, ...}, withtypee, dec, ...} =>
-          (** TODO clean up: lots of copy-paste from DecDatatype *)
+      | DecAbstype {abstypee, datbind, withtypee, withh, dec, endd} =>
           let
-            fun showCon {opp, id, arg} =
-              group (
-                separateWithSpaces
-                  [ Option.map (fn _ => text "op") opp
-                  , SOME (text (Token.toString id))
-                  , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
-                  ]
-              )
-
-            fun show_datbind mark {tyvars, tycon, elems, ...} =
-              let
-                val initial =
-                  group (
-                    separateWithSpaces
-                      [ SOME (text (if mark then "abstype" else "and"))
-                      , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                      , SOME (text (Token.toString tycon))
-                      , SOME (text "=")
-                      ]
-                  )
-              in
-                group (
-                  initial
-                  $$
-                  (spaces 2 ++
-                    group (
-                      Seq.iterate
-                        (fn (prev, next) => prev $$ text "|" ++ space ++ next)
-                        (spaces 2 ++ showCon (Seq.nth elems 0))
-                        (Seq.map showCon (Seq.drop elems 1))
-                    )
-                  )
-                )
-              end
-
-            fun show_withtypee {withtypee, typbind} =
-              showTypbind (withtypee, typbind)
-
             val datbinds =
-              Seq.iterate op$$
-                (show_datbind true (Seq.nth elems 0))
-                (Seq.map (show_datbind false) (Seq.drop elems 1))
+              showDatbind (abstypee, datbind)
 
             val bottom =
               group (
-                text "with"
+                token withh
                 $$
                 (spaces 2 ++ showDec dec)
                 $$
-                text "end"
+                token endd
               )
           in
             group (
               case withtypee of
-                SOME result =>
+                SOME {withtypee, typbind} =>
                   datbinds
                   $$
-                  show_withtypee result
+                  showTypbind (withtypee, typbind)
                   $$
                   bottom
 
@@ -435,7 +397,17 @@ struct
             )
           end
 
-      | DecReplicateDatatype _ => text "<TODO: dec-replicate-datatype>"
+      | DecReplicateDatatype
+        {left_datatypee, left_id, eq, right_datatypee, right_id} =>
+          seqWithSpaces
+            (Seq.fromList
+              [ left_datatypee
+              , left_id
+              , eq
+              , right_datatypee
+              , MaybeLongToken.getToken right_id
+              ])
+            token
     end
 
 

@@ -6,7 +6,11 @@ fun foo (x, y) = "hello"
 
 type int = string
 
-datatype X = XX of int t
+datatype X =
+  XX of int t
+| YY of int list t
+| ZZZ of sheesh
+and sheesh = Sheeeesh of X
 withtype 'a t = 'a list
 
 datatype Z = datatype X
@@ -27,8 +31,14 @@ end
 
 open X Y Foo.Z
 
-abstype
-  'a foo = Foo of 'a | Bar of 'a * 'a
+abstype 'a foo
+  = Foo of 'a
+  | Bar of 'a * 'a
+  | Baz of baz
+and baz
+  = Bazz of baz * baz
+  | Fooo of int foo t
+withtype 'a t = 'a * 'a
 with
   fun foo x = Foo x
   fun bar x = Bar (x,x)
