@@ -43,3 +43,12 @@ aesthetics.)
 `--no-skip-basis` to also parse standard basis files.
 
 `--pretty` to also see autoformatted output (only for SML, not MLB)
+
+`-ribbon-frac <real>` controls pretty-printing. The
+ribbon-frac (between 0 and 1) controls how dense each line is, excluding
+indentation. Low ribbon-fracs will have very little non-whitespace content
+on each line, whereas high ribbon-fracs will attempt to fill the line as
+much as possible. Default value = 0.5.
+
+`-max-width <int>` controls pretty-printing. This is the desired maximum number
+of columns in each line. Default value = 80.

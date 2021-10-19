@@ -6,6 +6,8 @@
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
 val skipBasis = not (CommandLineArgs.parseFlag "no-skip-basis")
 val doPrettySML = CommandLineArgs.parseFlag "pretty"
+val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 0.5
+val maxWidth = CommandLineArgs.parseInt "max-width" 80
 val infile = List.hd (CommandLineArgs.positional ())
 
 val pathmap = MLtonPathMap.getPathMap ()
@@ -85,7 +87,7 @@ fun doSML () =
     val _ =
       if not doPrettySML then () else
       ( print "\n============== pretty ==============\n\n"
-      ; print (PrettyPrintAst.pretty ast)
+      ; print (PrettyPrintAst.pretty {ribbonFrac=ribbonFrac, maxWidth=maxWidth} ast)
       ; print "\n\n====================================\n"
       )
   in
