@@ -2,4 +2,7 @@
 ../ast/sources.mlb
 StringDoc.sml
 TokenDoc.sml
+PrettyUtil.sml
+PrettyTy.sml
+PrettyPat.sml
 PrettyPrintAst.sml

@@ -11,96 +11,15 @@ struct
 
   structure Doc = TokenDoc
   open Doc
+  open PrettyUtil
 
   infix 2 ++ $$ //
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
 
-
-  fun seqWithSpaces elems f =
-    if Seq.length elems = 0 then empty else
-    Seq.iterate
-      (fn (prev, tok) => prev ++ space ++ f tok)
-      (f (Seq.nth elems 0))
-      (Seq.drop elems 1)
-
-
-  fun spaces n =
-    List.foldl op++ empty (List.tabulate (n, fn _ => space))
-
-
-  fun sequence openn delims close (xs: doc Seq.t) =
-    if Seq.length xs = 0 then
-      token openn ++ token close
-    else
-      let
-        val top = token openn ++ softspace ++ Seq.nth xs 0
-        fun f (delim, x) = token delim ++ space ++ x
-      in
-        group (
-          Seq.iterate op// top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
-          //
-          token close
-        )
-      end
-
-
-  fun separateWithSpaces (items: doc option list) : doc =
-    let
-      val items: doc list = List.mapPartial (fn x => x) items
-    in
-      case items of
-        [] => empty
-      | first :: rest =>
-          List.foldl (fn (next, prev) => prev ++ space ++ next) first rest
-    end
-
-
-  fun maybeShowSyntaxSeq s f =
-    case s of
-      Ast.SyntaxSeq.Empty => NONE
-    | Ast.SyntaxSeq.One x => SOME (f x)
-    | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
-        SOME (sequence left delims right (Seq.map f elems))
-
-
-  fun showTy ty =
-    let
-      open Ast.Ty
-    in
-      case ty of
-        Var tok =>
-          token tok
-      | Con {args = Ast.SyntaxSeq.Empty, id} =>
-          token (MaybeLongToken.getToken id)
-      | Con {args, id} =>
-          (separateWithSpaces
-            [ maybeShowSyntaxSeq args showTy
-            , SOME (token (MaybeLongToken.getToken id))
-            ])
-      | Parens {left, ty, right} =>
-          token left ++ showTy ty ++ token right
-      | Tuple {elems, delims} =>
-          let
-            val begin = showTy (Seq.nth elems 0)
-            fun f (delim, x) = space ++ token delim ++ space ++ showTy x
-          in
-            Seq.iterate op++ begin
-              (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
-          end
-      | Record {left, elems, delims, right} =>
-          let
-            fun showElem {lab, colon, ty} =
-              token lab ++ space ++ token colon
-              ++ space ++ showTy ty
-          in
-            sequence left delims right (Seq.map showElem elems)
-          end
-      | Arrow {from, arrow, to} =>
-          showTy from ++ space ++ token arrow ++ space ++ showTy to
-    end
-
+  fun showTy ty = PrettyTy.show ty
+  fun showPat pat = PrettyPat.show pat
 
   fun showTypbind (front, typbind: Ast.Exp.typbind as {elems, delims}) =
     let
@@ -405,67 +324,6 @@ struct
               , MaybeLongToken.getToken right_id
               ])
             token
-    end
-
-
-
-  and showPat pat =
-    let
-      open Ast.Pat
-    in
-      case pat of
-        Wild tok =>
-          token tok
-      | Const tok =>
-          token tok
-      | Unit {left, right} =>
-          token left ++ token right
-      | Ident {opp, id} =>
-          separateWithSpaces
-            [ Option.map token opp
-            , SOME (token (MaybeLongToken.getToken id))
-            ]
-      | Parens {left, pat, right} =>
-          token left ++ showPat pat ++ token right
-      | Tuple {left, elems, delims, right} =>
-          sequence left delims right (Seq.map showPat elems)
-      | List {left, elems, delims, right} =>
-          sequence left delims right (Seq.map showPat elems)
-      | Record {left, elems, delims, right} =>
-          let
-            fun showPatRow patrow =
-              case patrow of
-                DotDotDot ddd => token ddd
-              | LabEqPat {lab, eq, pat} =>
-                  token lab ++ space ++ token eq
-                  ++ space ++ showPat pat
-              | LabAsPat {id, ty, aspat} =>
-                  separateWithSpaces
-                    [ SOME (token id)
-                    , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
-                    , Option.map (fn {ass, pat} => token ass ++ space ++ showPat pat) aspat
-                    ]
-          in
-            sequence left delims right (Seq.map showPatRow elems)
-          end
-      | Con {opp, id, atpat} =>
-          separateWithSpaces
-            [ Option.map token opp
-            , SOME (token (MaybeLongToken.getToken id))
-            , SOME (showPat atpat)
-            ]
-      | Typed {pat, colon, ty} =>
-          showPat pat ++ space ++ token colon ++ space ++ showTy ty
-      | Layered {opp, id, ty, ass, pat} =>
-          separateWithSpaces
-            [ Option.map token opp
-            , SOME (token id)
-            , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
-            , SOME (token ass)
-            , SOME (showPat pat)
-            ]
-      | Infix {left, id, right} =>
-          showPat left ++ space ++ token id ++ space ++ showPat right
     end
 
 
