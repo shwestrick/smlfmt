@@ -742,8 +742,9 @@ struct
             )
           end
 
-      | MLtonSpecific {directive, contents, ...} =>
-          text "<MLton-specific>"
+      | MLtonSpecific {underscore, directive, contents, semicolon} =>
+          token underscore ++ token directive
+          ++ space ++ seqWithSpaces contents token ++ token semicolon
     end
 
 
@@ -1135,8 +1136,32 @@ struct
           )
         end
 
-    | Ast.Str.MLtonOverload _ =>
-        text "<_overload>"
+    (** This is MLton-specific. Useful for testing by parsing the entire
+      * MLton implementation of the standard basis.
+      *)
+    | Ast.Str.MLtonOverload
+      {underscore, overload, prec, name, colon, ty, ass, elems, delims} =>
+        let
+          val front =
+            token underscore ++ token overload
+            ++ space ++ token prec
+            ++ space ++ token name
+            ++ space ++ token colon
+            ++ space ++ showTy ty
+            ++ space ++ token ass
+
+          fun showOne (d, e) =
+            token d ++ space ++ token (MaybeLongToken.getToken e)
+        in
+          group (
+            front
+            $$
+            (spaces 2 ++
+              Seq.iterate op$$
+                (token (MaybeLongToken.getToken (Seq.nth elems 0)))
+                (Seq.zipWith showOne (delims, Seq.drop elems 1)))
+          )
+        end
 
 
   fun showFunArg fa =
