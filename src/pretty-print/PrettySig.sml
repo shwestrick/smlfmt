@@ -1,0 +1,293 @@
+(** Copyright (c) 2020-2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
+structure PrettySig:
+sig
+  val showSpec: Ast.Sig.spec -> TokenDoc.t
+  val showSigExp: Ast.Sig.sigexp -> TokenDoc.t
+  val showSigDec: Ast.Sig.sigdec -> TokenDoc.t
+end =
+struct
+
+  open TokenDoc
+  open PrettyUtil
+
+  infix 2 ++ $$ //
+  fun x ++ y = beside (x, y)
+  fun x $$ y = aboveOrSpace (x, y)
+  fun x // y = aboveOrBeside (x, y)
+
+  fun showTy ty = PrettyTy.show ty
+  fun showPat pat = PrettyPat.show pat
+  fun showExp exp = PrettyExpAndDec.showExp exp
+  fun showDec dec = PrettyExpAndDec.showDec dec
+
+  fun showSpec spec =
+    case spec of
+      Ast.Sig.EmptySpec =>
+        empty
+
+    | Ast.Sig.Val {vall, elems, delims} =>
+        let
+          fun showOne (starter, {vid, colon, ty}) =
+            token starter
+            ++ space ++
+            token vid ++ space ++ token colon ++ space
+            ++ showTy ty
+        in
+          Seq.iterate op$$
+            (showOne (vall, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Type {typee, elems, delims} =>
+        let
+          fun showOne (starter, {tyvars, tycon}) =
+            separateWithSpaces
+              [ SOME (token starter)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token tycon)
+              ]
+        in
+          Seq.iterate op$$
+            (showOne (typee, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        end
+
+    | Ast.Sig.TypeAbbreviation {typee, elems, delims} =>
+        let
+          fun showOne (starter, {tyvars, tycon, eq, ty}) =
+            separateWithSpaces
+              [ SOME (token starter)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token tycon)
+              , SOME (token eq)
+              , SOME (showTy ty)
+              ]
+        in
+          Seq.iterate op$$
+            (showOne (typee, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Eqtype {eqtypee, elems, delims} =>
+        let
+          fun showOne (starter, {tyvars, tycon}) =
+            separateWithSpaces
+              [ SOME (token starter)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token tycon)
+              ]
+        in
+          Seq.iterate op$$
+            (showOne (eqtypee, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Datatype {datatypee, elems, delims} =>
+        (** This is *really* similar to a datbind (see showDatbind above), but
+          * only one difference: there is no possible 'op' in the condesc, ugh.
+          *)
+        let
+          fun showCon (starter, {vid, arg}) =
+            starter
+            ++ space ++
+            group (
+              separateWithSpaces
+                [ SOME (token vid)
+                , Option.map (fn {off, ty} =>
+                    token off $$ (spaces 2 ++ showTy ty)) arg
+                ]
+            )
+
+          fun show_datdesc (starter, {tyvars, tycon, eq, elems, delims}) =
+            let
+              val initial =
+                group (
+                  separateWithSpaces
+                    [ SOME (token starter)
+                    , maybeShowSyntaxSeq tyvars token
+                    , SOME (token tycon)
+                    , SOME (token eq)
+                    ]
+                )
+            in
+              group (
+                initial
+                $$
+                ((*spaces 2 ++*)
+                  group (
+                    Seq.iterate op$$
+                      (showCon (space, Seq.nth elems 0))
+                      (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
+                  ))
+              )
+            end
+        in
+          Seq.iterate op$$
+            (show_datdesc (datatypee, Seq.nth elems 0))
+            (Seq.zipWith show_datdesc (delims, Seq.drop elems 1))
+        end
+
+    | Ast.Sig.ReplicateDatatype
+      {left_datatypee, left_id, eq, right_datatypee, right_id} =>
+        group (
+          separateWithSpaces
+            [ SOME (token left_datatypee)
+            , SOME (token left_id)
+            , SOME (token eq)
+            ]
+          $$
+          (spaces 2 ++
+            token right_datatypee
+            ++ space ++
+            token (MaybeLongToken.getToken right_id))
+        )
+
+    | Ast.Sig.Exception {exceptionn, elems, delims} =>
+        let
+          fun showOne (starter, {vid, arg}) =
+              group (
+                separateWithSpaces
+                  [ SOME (token starter)
+                  , SOME (token vid)
+                  , Option.map (fn {off, ty} => token off ++ space ++ showTy ty) arg
+                  ]
+              )
+        in
+          Seq.iterate op$$
+            (showOne (exceptionn, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Structure {structuree, elems, delims} =>
+        let
+          fun showOne (starter, {id, colon, sigexp}) =
+            group (
+              separateWithSpaces
+                [ SOME (token starter)
+                , SOME (token id)
+                , SOME (token colon)
+                ]
+              $$
+              (spaces 2 ++ showSigExp sigexp)
+            )
+        in
+          Seq.iterate op$$
+            (showOne (structuree, Seq.nth elems 0))
+            (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        end
+
+    | Ast.Sig.Include {includee, sigexp} =>
+        group (
+          token includee
+          $$
+          (spaces 2 ++ showSigExp sigexp)
+        )
+
+    | Ast.Sig.IncludeIds {includee, sigids} =>
+        Seq.iterate (fn (a, b) => a ++ space ++ token b)
+          (token includee)
+          sigids
+
+    | Ast.Sig.Multiple {elems, delims} =>
+        let
+          fun showOne (elem: Ast.Sig.spec, delim: Token.t option) =
+            showSpec elem
+            ++
+            (case delim of NONE => empty | SOME sc => token sc)
+        in
+          Seq.iterate op$$ empty (Seq.zipWith showOne (elems, delims))
+        end
+
+    | Ast.Sig.Sharing {spec, sharingg, elems, delims} =>
+        let
+          fun showOne (delim, elem) =
+            token delim (** this is an '=' *)
+            ++ space
+            ++ token (MaybeLongToken.getToken elem)
+
+          val stuff =
+            Seq.iterate
+              (fn (a, b) => a ++ space ++ b)
+              (token (MaybeLongToken.getToken (Seq.nth elems 0)))
+              (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        in
+          group (
+            showSpec spec
+            $$
+            (token sharingg ++ space ++ stuff)
+          )
+        end
+
+    | Ast.Sig.SharingType {spec, sharingg, typee, elems, delims} =>
+        let
+          fun showOne (delim, elem) =
+            token delim (** this is an '=' *)
+            ++ space
+            ++ token (MaybeLongToken.getToken elem)
+
+          val stuff =
+            Seq.iterate
+              (fn (a, b) => a ++ space ++ b)
+              (token (MaybeLongToken.getToken (Seq.nth elems 0)))
+              (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        in
+          group (
+            showSpec spec
+            $$
+            (token sharingg ++ space ++ token typee ++ space ++ stuff)
+          )
+        end
+
+
+  and showSigExp sigexp =
+    case sigexp of
+      Ast.Sig.Ident id =>
+        token id
+
+    | Ast.Sig.Spec {sigg, spec, endd} =>
+        group (
+          token sigg
+          $$
+          (spaces 2 ++ showSpec spec)
+          $$
+          token endd
+        )
+
+    | Ast.Sig.WhereType {sigexp, elems} =>
+        let
+          val se = showSigExp sigexp
+
+          fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
+            separateWithSpaces
+              [ SOME (token wheree) (** this could be 'and' *)
+              , SOME (token typee)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token (MaybeLongToken.getToken tycon))
+              , SOME (token eq)
+              , SOME (showTy ty)
+              ]
+        in
+          Seq.iterate op$$ se (Seq.map showElem elems)
+        end
+
+
+  fun showSigDec (Ast.Sig.Signature {signaturee, elems, delims}) =
+    let
+      fun showOne (starter, {ident, eq, sigexp}) =
+        group (
+          (token starter
+          ++ space ++ token ident ++ space ++ token eq)
+          $$
+          (spaces 2 ++ showSigExp sigexp)
+        )
+    in
+      Seq.iterate op$$
+        (showOne (signaturee, Seq.nth elems 0))
+        (Seq.zipWith showOne (delims, Seq.drop elems 1))
+    end
+
+end
