@@ -7,4 +7,5 @@ PrettyTy.sml
 PrettyPat.sml
 PrettyExpAndDec.sml
 PrettySig.sml
+PrettyStr.sml
 PrettyPrintAst.sml
