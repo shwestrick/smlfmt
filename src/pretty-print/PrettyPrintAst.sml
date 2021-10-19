@@ -104,6 +104,27 @@ struct
           showTy from ++ space ++ token arrow ++ space ++ showTy to
     end
 
+
+  fun showTypbind (front, typbind: Ast.Exp.typbind as {elems, delims}) =
+    let
+      fun showOne (starter, {tyvars, tycon, ty, eq}) =
+        group (
+          separateWithSpaces
+            [ SOME (token starter)
+            , maybeShowSyntaxSeq tyvars token
+            , SOME (token tycon)
+            , SOME (token eq)
+            ]
+          $$
+          (spaces 2 ++ showTy ty)
+        )
+    in
+      Seq.iterate op$$
+        (showOne (front, Seq.nth elems 0))
+        (Seq.zipWith showOne (delims, Seq.drop elems 1))
+    end
+
+
   fun showDec dec =
     let
       open Ast.Exp
@@ -214,41 +235,8 @@ struct
               (Seq.zipWith mkFunction (Seq.map SOME delims, Seq.drop elems 1))
           end
 
-      | DecType {typbind={elems, delims}, typee} =>
-          let
-            (* val {tyvars, tycon, ty, ...} = Seq.nth elems 0 *)
-
-            fun mk (delim, {tyvars, tycon, ty, eq}) =
-              group (
-                separateWithSpaces
-                  [ SOME (token delim)
-                  , maybeShowSyntaxSeq tyvars token
-                  , SOME (token tycon)
-                  , SOME (token eq)
-                  ]
-                $$
-                (spaces 2 ++ showTy ty)
-              )
-
-            val first =
-              let
-                val {tyvars, tycon, ty, eq} = Seq.nth elems 0
-              in
-                group (
-                  separateWithSpaces
-                    [ SOME (token typee)
-                    , maybeShowSyntaxSeq tyvars token
-                    , SOME (token tycon)
-                    , SOME (token eq)
-                    ]
-                  $$
-                  (spaces 2 ++ showTy ty)
-                )
-              end
-          in
-            Seq.iterate op$$ first
-              (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
-          end
+      | DecType {typee, typbind} =>
+          showTypbind (typee, typbind)
 
       | DecDatatype {datbind = {elems, ...}, withtypee, ...} =>
           let
@@ -287,23 +275,8 @@ struct
                 )
               end
 
-            fun show_withtypee {withtypee, typbind = {elems, ...}} =
-              let
-                fun mk mark {tyvars, tycon, eq, ty} =
-                  group (
-                    separateWithSpaces
-                      [ SOME (text (if mark then "withtype" else "and"))
-                      , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                      , SOME (text (Token.toString tycon))
-                      , SOME (text "=")
-                      , SOME (showTy ty)
-                      ]
-                  )
-              in
-                Seq.iterate op$$
-                  (mk true (Seq.nth elems 0))
-                  (Seq.map (mk false) (Seq.drop elems 1))
-              end
+            fun show_withtypee {withtypee, typbind} =
+              showTypbind (withtypee, typbind)
 
             val datbinds =
               Seq.iterate op$$
@@ -432,23 +405,8 @@ struct
                 )
               end
 
-            fun show_withtypee {withtypee, typbind = {elems, ...}} =
-              let
-                fun mk mark {tyvars, tycon, eq, ty} =
-                  group (
-                    separateWithSpaces
-                      [ SOME (text (if mark then "withtype" else "and"))
-                      , maybeShowSyntaxSeq tyvars (PD.text o Token.toString)
-                      , SOME (text (Token.toString tycon))
-                      , SOME (text "=")
-                      , SOME (showTy ty)
-                      ]
-                  )
-              in
-                Seq.iterate op$$
-                  (mk true (Seq.nth elems 0))
-                  (Seq.map (mk false) (Seq.drop elems 1))
-              end
+            fun show_withtypee {withtypee, typbind} =
+              showTypbind (withtypee, typbind)
 
             val datbinds =
               Seq.iterate op$$
