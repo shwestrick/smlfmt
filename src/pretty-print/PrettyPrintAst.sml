@@ -127,21 +127,23 @@ struct
 
   fun showDatbind (front, datbind: Ast.Exp.datbind as {elems, delims}) =
     let
-      fun showCon {opp, id, arg} =
+      fun showCon (starter, {opp, id, arg}) =
+        starter
+        ++ space ++
         group (
           separateWithSpaces
-            [ Option.map (fn _ => text "op") opp
-            , SOME (text (Token.toString id))
-            , Option.map (fn {ty, ...} => text "of" ++ space ++ showTy ty) arg
+            [ Option.map token opp
+            , SOME (token id)
+            , Option.map (fn {off, ty} => token off $$ (spaces 2 ++ showTy ty)) arg
             ]
         )
 
-      fun show_datbind mark {tyvars, tycon, eq, elems, ...} =
+      fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
         let
           val initial =
             group (
               separateWithSpaces
-                [ SOME (if mark then token front else text "and")
+                [ SOME (token starter)
                 , maybeShowSyntaxSeq tyvars token
                 , SOME (token tycon)
                 , SOME (token eq)
@@ -151,20 +153,18 @@ struct
           group (
             initial
             $$
-            (spaces 2 ++
+            ((*spaces 2 ++*)
               group (
-                Seq.iterate
-                  (fn (prev, next) => prev $$ text "|" ++ space ++ next)
-                  (spaces 2 ++ showCon (Seq.nth elems 0))
-                  (Seq.map showCon (Seq.drop elems 1))
-              )
+                Seq.iterate op$$
+                  (showCon (space, Seq.nth elems 0))
+                  (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
+              ))
             )
-          )
         end
     in
       Seq.iterate op$$
-        (show_datbind true (Seq.nth elems 0))
-        (Seq.map (show_datbind false) (Seq.drop elems 1))
+        (showOne (front, Seq.nth elems 0))
+        (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end
 
 
@@ -742,6 +742,9 @@ struct
         end
 
     | Ast.Sig.Datatype {datatypee, elems, delims} =>
+        (** This is *really* similar to a datbind (see showDatbind above), but
+          * only one difference: there is no possible 'op' in the condesc, ugh.
+          *)
         let
           fun showCon (starter, {vid, arg}) =
             starter
@@ -783,7 +786,8 @@ struct
             (Seq.zipWith show_datdesc (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.ReplicateDatatype {left_datatypee, left_id, eq, right_datatypee, right_id} =>
+    | Ast.Sig.ReplicateDatatype
+      {left_datatypee, left_id, eq, right_datatypee, right_id} =>
         group (
           separateWithSpaces
             [ SOME (token left_datatypee)
