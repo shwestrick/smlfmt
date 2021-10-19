@@ -166,6 +166,6 @@ struct
     | Group d =>
         StringDoc.group (toStringDoc d)
     | Token t =>
-        StringDoc.text (Token.toString t)
+        StringDoc.text (SyntaxHighlighter.highlightToken t)
 
 end

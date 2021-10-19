@@ -5,7 +5,9 @@
 
 structure PrettyPrintAst:
 sig
-  val pretty: {ribbonFrac: real, maxWidth: int} -> Ast.t -> string
+  val pretty: {ribbonFrac: real, maxWidth: int}
+           -> Ast.t
+           -> TerminalColorString.t
 end =
 struct
 

@@ -64,34 +64,14 @@ fun doSML () =
   let
     val source = Source.loadFromFile (FilePath.fromUnixPath infile)
     val ast = Parser.parse source
-
-(*
-    val _ = print ("============ tokens ===============\n")
-    val toks = Lexer.tokens source
-    val toks = Seq.filter (not o Token.isCommentOrWhitespace) toks
     val _ =
-      Util.for (0, Seq.length toks) (fn i =>
-        let
-          val tok = Seq.nth toks i
-        in
-          dumpTok tok;
-          dumpToks (Token.commentsAfter tok)
-        end)
-
-    val _ = print ("============ highlighted ===============\n")
-*)
-
-    val _ =
-      TerminalColorString.print (SyntaxHighlighter.highlight source)
-
-    val _ =
-      if not doPrettySML then () else
-      ( print "\n============== pretty ==============\n\n"
-      ; print (PrettyPrintAst.pretty {ribbonFrac=ribbonFrac, maxWidth=maxWidth} ast)
-      ; print "\n\n====================================\n"
-      )
+      if not doPrettySML then
+        TerminalColorString.print (SyntaxHighlighter.highlight source)
+      else
+        TerminalColorString.print
+          (PrettyPrintAst.pretty {ribbonFrac=ribbonFrac, maxWidth=maxWidth} ast)
   in
-    print "\nParsing succeeded.\n"
+    print "\n\nParsing succeeded.\n"
   end
   handle exn => handleLexOrParseError exn
 

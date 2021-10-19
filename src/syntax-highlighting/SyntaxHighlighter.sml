@@ -5,6 +5,8 @@
 
 structure SyntaxHighlighter:
 sig
+  val highlightToken: Token.t -> TerminalColorString.t
+
   (** Use just lexing info to color a sequence of tokens from a single source.
     * Tokens must be in order as they appear in the source.
     *)
@@ -56,6 +58,15 @@ struct
         TC.bold ^ blue
     | MLBToken.SML c =>
         tokColor c *)
+
+
+  fun highlightToken tok =
+    let
+      val thisSrc = Token.getSource tok
+      val class = Token.getClass tok
+    in
+      tokColor class (TCS.fromString (Source.toString thisSrc))
+    end
 
 
   fun loop tokColor acc (wholeSrc, i, stop) (toks, j) =
