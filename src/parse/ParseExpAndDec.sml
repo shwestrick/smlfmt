@@ -1419,10 +1419,9 @@ struct
                 val (i, delim) = (i+1, tok i)
 
                 val (i, {elems, delims}) =
-                  parse_zeroOrMoreDelimitedByReserved
+                  parse_oneOrMoreDelimitedByReserved
                     { parseElem = parseElem
                     , delim = delimType
-                    , shouldStop = isReserved Token.CloseParen
                     }
                     i
 
