@@ -18,6 +18,7 @@ struct
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
+  fun indent d = TokenDoc.indent 2 d
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -98,7 +99,7 @@ struct
               separateWithSpaces
                 [ SOME (token vid)
                 , Option.map (fn {off, ty} =>
-                    token off $$ (spaces 2 ++ showTy ty)) arg
+                    token off $$ indent (showTy ty)) arg
                 ]
             )
 
@@ -117,12 +118,11 @@ struct
               group (
                 initial
                 $$
-                ((*spaces 2 ++*)
-                  group (
-                    Seq.iterate op$$
-                      (showCon (space, Seq.nth elems 0))
-                      (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
-                  ))
+                group (
+                  Seq.iterate op$$
+                    (showCon (space, Seq.nth elems 0))
+                    (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
+                )
               )
             end
         in
@@ -140,10 +140,11 @@ struct
             , SOME (token eq)
             ]
           $$
-          (spaces 2 ++
+          indent (
             token right_datatypee
             ++ space ++
-            token (MaybeLongToken.getToken right_id))
+            token (MaybeLongToken.getToken right_id)
+          )
         )
 
     | Ast.Sig.Exception {exceptionn, elems, delims} =>
@@ -172,7 +173,7 @@ struct
                 , SOME (token colon)
                 ]
               $$
-              (spaces 2 ++ showSigExp sigexp)
+              indent (showSigExp sigexp)
             )
         in
           Seq.iterate op$$
@@ -184,7 +185,7 @@ struct
         group (
           token includee
           $$
-          (spaces 2 ++ showSigExp sigexp)
+          indent (showSigExp sigexp)
         )
 
     | Ast.Sig.IncludeIds {includee, sigids} =>
@@ -252,7 +253,7 @@ struct
         group (
           token sigg
           $$
-          (spaces 2 ++ showSpec spec)
+          indent (showSpec spec)
           $$
           token endd
         )
@@ -282,7 +283,7 @@ struct
           (token starter
           ++ space ++ token ident ++ space ++ token eq)
           $$
-          (spaces 2 ++ showSigExp sigexp)
+          indent (showSigExp sigexp)
         )
     in
       Seq.iterate op$$
