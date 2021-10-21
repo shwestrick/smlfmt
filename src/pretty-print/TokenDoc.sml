@@ -15,6 +15,8 @@ sig
   val empty: doc
   val token: Token.t -> doc
 
+  val indent: int -> doc -> doc
+
   val beside: doc * doc -> doc
 
   (** When an "above" is flattened by a group, it can either be replaced by a
@@ -39,6 +41,7 @@ struct
   datatype doc =
     Empty
   | Space of bool
+  | Indent of int * doc
   | Token of Token.t
   | Beside of doc * doc
   | Above of bool * doc * doc
@@ -49,6 +52,7 @@ struct
   val empty = Empty
   val token = Token
   val group = Group
+  fun indent n d = Indent (n, d)
 
   fun beside (doc1, doc2) =
     case (doc1, doc2) of
@@ -102,6 +106,8 @@ struct
             Above (b, insertAllBefore mode d1, insertAllBefore AboveMode d2)
         | Group d =>
             Group (insertAllBefore mode d)
+        | Indent (n, d) =>
+            Indent (n, insertAllBefore mode d)
         | _ => d
 
       fun insertOnlyAfterLast mode d =
@@ -113,6 +119,12 @@ struct
               val (foundIt, d') = insertOnlyAfterLast mode d
             in
               (foundIt, Group d')
+            end
+        | Indent (n, d) =>
+            let
+              val (foundIt, d') = insertOnlyAfterLast mode d
+            in
+              (foundIt, Indent (n, d'))
             end
         | Beside (d1, d2) =>
             let
@@ -157,6 +169,12 @@ struct
         StringDoc.space
     | Space false =>
         StringDoc.softspace
+    | Indent (n, d) =>
+        StringDoc.beside
+          ( List.foldl StringDoc.beside StringDoc.empty
+             (List.tabulate (n, fn _ => StringDoc.space))
+          , toStringDoc d
+          )
     | Beside (d1, d2) =>
         StringDoc.beside (toStringDoc d1, toStringDoc d2)
     | Above (true, d1, d2) =>

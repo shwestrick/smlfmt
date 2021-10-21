@@ -17,6 +17,7 @@ struct
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
+  fun indent d = TokenDoc.indent 2 d
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -32,7 +33,7 @@ struct
             , SOME (token eq)
             ]
           $$
-          (spaces 2 ++ showTy ty)
+          indent (showTy ty)
         )
     in
       Seq.iterate op$$
@@ -50,7 +51,7 @@ struct
           separateWithSpaces
             [ Option.map token opp
             , SOME (token id)
-            , Option.map (fn {off, ty} => token off $$ (spaces 2 ++ showTy ty)) arg
+            , Option.map (fn {off, ty} => token off $$ indent (showTy ty)) arg
             ]
         )
 
@@ -69,13 +70,12 @@ struct
           group (
             initial
             $$
-            ((*spaces 2 ++*)
-              group (
-                Seq.iterate op$$
-                  (showCon (space, Seq.nth elems 0))
-                  (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
-              ))
+            group (
+              Seq.iterate op$$
+                (showCon (space, Seq.nth elems 0))
+                (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
             )
+          )
         end
     in
       Seq.iterate op$$
@@ -100,7 +100,7 @@ struct
                   , SOME (token eq)
                   ]
                 $$
-                (spaces 2 ++ showExp exp)
+                indent (showExp exp)
               )
 
             val first =
@@ -116,7 +116,7 @@ struct
                     , SOME (token eq)
                     ]
                   $$
-                  (spaces 2 ++ showExp exp)
+                  indent (showExp exp)
                 )
               end
           in
@@ -168,7 +168,7 @@ struct
                     , SOME (token eq)
                     ] )
                 $$
-                (spaces 2 ++ showExp exp)
+                indent (showExp exp)
               )
 
             fun mkFunction (andDelim, {elems=innerElems, delims}) =
@@ -185,7 +185,7 @@ struct
                 Seq.iterate op$$
                   (showClause (SOME (token delim) :: tyvars) (Seq.nth innerElems 0))
                   (Seq.zipWith
-                    (fn (delim, elem) => showClause [SOME (spaces 2 ++ token delim)] elem)
+                    (fn (delim, elem) => showClause [SOME (indent (token delim))] elem)
                     (delims, Seq.drop innerElems 1))
               end
           in
@@ -257,11 +257,11 @@ struct
           group (
             token locall
             $$
-            (spaces 2 ++ showDec left_dec)
+            indent (showDec left_dec)
             $$
             token inn
             $$
-            (spaces 2 ++ showDec right_dec)
+            indent (showDec right_dec)
             $$
             token endd
           )
@@ -295,7 +295,7 @@ struct
               group (
                 token withh
                 $$
-                (spaces 2 ++ showDec dec)
+                indent (showDec dec)
                 $$
                 token endd
               )
@@ -355,7 +355,7 @@ struct
               group (
                 (token lab ++ space ++ token eq)
                 $$
-                (spaces 2 ++ showExp exp)
+                indent (showExp exp)
               )
           in
             sequence left delims right (Seq.map showRow elems)
@@ -363,7 +363,7 @@ struct
       | Select {hash, label} =>
           token hash ++ space ++ token label
       | App {left, right} =>
-          group (showExp left $$ (spaces 2 ++ showExp right))
+          group (showExp left $$ indent (showExp right))
       | Infix {left, id, right} =>
           showExp left ++ space ++ token id ++ space ++ showExp right
       | Andalso {left, andalsoo, right} =>
@@ -376,27 +376,27 @@ struct
           group (
             (token iff ++ space ++ showExp exp1 ++ space ++ token thenn)
             $$
-            (spaces 2 ++ showExp exp2)
+            indent (showExp exp2)
             $$
             token elsee
             $$
-            (spaces 2 ++ showExp exp3)
+            indent (showExp exp3)
           )
       | While {whilee, exp1, doo, exp2} =>
           group (
             group (
               token whilee
               $$
-              (spaces 2 ++ showExp exp1)
+              indent (showExp exp1)
               $$
               token doo
             )
             $$
-            (spaces 2 ++ showExp exp2)
+            indent (showExp exp2)
           )
 
       | Raise {raisee, exp} =>
-          group (token raisee $$ (spaces 2 ++ showExp exp))
+          group (token raisee $$ indent (showExp exp))
 
       | Handle {exp=expLeft, handlee, elems, delims} =>
           let
@@ -407,7 +407,7 @@ struct
               group (
                 (token delim ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
-                (spaces 4 ++ showExp exp)
+                indent (indent (showExp exp))
               )
 
             val {pat, arrow, exp} = first
@@ -418,9 +418,9 @@ struct
                 group (
                   token handlee
                   $$
-                  (spaces 2 ++ showPat pat ++ space ++ token arrow)
+                  indent (showPat pat ++ space ++ token arrow)
                   $$
-                  (spaces 4 ++ showExp exp)
+                  indent (indent (showExp exp))
                 )
               )
           in
@@ -441,7 +441,7 @@ struct
               group (
                 (token delim ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
-                (spaces 4 ++ showExp exp)
+                indent (indent (showExp exp))
               )
 
             val {pat, arrow, exp} = first
@@ -449,11 +449,11 @@ struct
               (token casee ++ space ++
               showExp expTop ++ space ++ token off)
               $$
-              (spaces 2 ++
+              indent (
                 group (
                   (showPat pat ++ space ++ token arrow)
                   $$
-                  (spaces 2 ++ showExp exp)
+                  indent (showExp exp)
                 )
               )
           in
@@ -475,7 +475,7 @@ struct
               group (
                 (token delim ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
-                (spaces 4 ++ showExp exp)
+                (spaces 2 ++ indent (showExp exp))
               )
 
             val {pat, arrow, exp} = first
@@ -483,7 +483,7 @@ struct
               group (
                 (token fnn ++ space ++ showPat pat ++ space ++ token arrow)
                 $$
-                (spaces 4 ++ showExp exp)
+                (spaces 2 ++ indent (showExp exp))
               )
           in
             group (
@@ -508,7 +508,7 @@ struct
             val topPart =
               token lett
               $$
-              (spaces 2 ++ prettyDec)
+              indent (prettyDec)
               $$
               token inn
 
@@ -521,7 +521,7 @@ struct
             group (
               topPart
               $$
-              (spaces 2 ++ group (Seq.iterate op$$ empty withDelims))
+              indent (group (Seq.iterate op$$ empty withDelims))
               $$
               token endd
             )

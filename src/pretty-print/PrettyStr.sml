@@ -17,6 +17,7 @@ struct
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
+  fun indent d = TokenDoc.indent 2 d
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -35,7 +36,7 @@ struct
         group (
           token structt
           $$
-          (spaces 2 ++ showStrDec strdec)
+          indent (showStrDec strdec)
           $$
           token endd
         )
@@ -61,7 +62,7 @@ struct
           val topPart =
             token lett
             $$
-            (spaces 2 ++ prettyDec)
+            indent (prettyDec)
             $$
             token inn
 
@@ -74,7 +75,7 @@ struct
           group (
             topPart
             $$
-            (spaces 2 ++ group (prettyExp))
+            indent (group (prettyExp))
             $$
             token endd
           )
@@ -106,7 +107,7 @@ struct
                 , SOME (token eq)
                 ]
               $$
-              (spaces 2 ++ showStrExp strexp)
+              indent (showStrExp strexp)
             )
         in
           Seq.iterate op$$
@@ -131,7 +132,7 @@ struct
           val topPart =
             token locall
             $$
-            (spaces 2 ++ showStrDec strdec1)
+            indent (showStrDec strdec1)
             $$
             token inn
 
@@ -144,7 +145,7 @@ struct
           group (
             topPart
             $$
-            (spaces 2 ++ group (showStrDec strdec2))
+            indent (group (showStrDec strdec2))
             $$
             token endd
           )
@@ -170,10 +171,11 @@ struct
           group (
             front
             $$
-            (spaces 2 ++
+            indent (
               Seq.iterate op$$
                 (token (MaybeLongToken.getToken (Seq.nth elems 0)))
-                (Seq.zipWith showOne (delims, Seq.drop elems 1)))
+                (Seq.zipWith showOne (delims, Seq.drop elems 1))
+            )
           )
         end
 
