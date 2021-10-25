@@ -365,7 +365,27 @@ struct
       | App {left, right} =>
           group (showExp left $$ indent (showExp right))
       | Infix {left, id, right} =>
-          showExp left ++ space ++ token id ++ space ++ showExp right
+          let
+            fun showInfix (Infix {left=l', id=i', right=r'}) i r =
+                        (showInfix l' i' r')
+                        $$ token i
+                        ++ space
+                        ++ showExp r
+              | showInfix l i r =
+                        (case left of
+                              Infix _ => showExp l
+                                         $$ token i
+                                         ++ space
+                                         ++ showExp r
+                            | _ => showExp l
+                                   ++ space
+                                   ++ token i
+                                   ++ space
+                                   ++ showExp r
+                        )
+          in
+            showInfix left id right
+          end
       | Andalso {left, andalsoo, right} =>
           showExp left ++ space ++ token andalsoo ++ space ++ showExp right
       | Orelse {left, orelsee, right} =>
