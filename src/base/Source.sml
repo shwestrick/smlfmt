@@ -27,6 +27,8 @@ sig
   val take: source -> int -> source
   val drop: source -> int -> source
 
+  val lineRanges: source -> (int * int) Seq.t
+
   (** if src1 adjacent to scr2, attach them and return new. *)
   val abut: source * source -> source option
 
@@ -170,5 +172,33 @@ struct
       end
     else
       NONE
+
+
+  fun lineRanges (s as {newlineIdxs, ...}: source) =
+    let
+      (** convert back to 0-indexing (-_-) *)
+      val {line=lnStart, ...} = absoluteStart s
+      val lnStart = lnStart-1
+      val {line=lnEnd, ...} = absoluteEnd s
+      val lnEnd = lnEnd-1
+
+      val numLines = lnEnd-lnStart+1
+
+      fun start i =
+        if i = 0 then
+          absoluteStartOffset s
+        else
+          1 + Seq.nth newlineIdxs (lnStart+i-1)
+
+      fun endd i =
+        if i = numLines-1 then
+          absoluteEndOffset s
+        else
+          Seq.nth newlineIdxs (lnStart+i)
+
+      val off = absoluteStartOffset s
+    in
+      Seq.tabulate (fn i => (start i - off, endd i - off)) numLines
+    end
 
 end

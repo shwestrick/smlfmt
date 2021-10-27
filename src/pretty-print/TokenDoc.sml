@@ -31,9 +31,11 @@ sig
 
   val insertComments: doc -> doc
 
-  val toStringDoc: doc -> StringDoc.t
+  val toStringDoc: {tabWidth: int} -> doc -> StringDoc.t
 end =
 struct
+
+  structure TCS = TerminalColorString
 
   (** for Space and Above, the boolean indicates whether or not to
     * keep space when undone by group.
@@ -161,29 +163,108 @@ struct
     end
 
 
-  fun toStringDoc d =
-    case d of
-      Empty =>
-        StringDoc.empty
-    | Space true =>
-        StringDoc.space
-    | Space false =>
-        StringDoc.softspace
-    | Indent (n, d) =>
-        StringDoc.beside
-          ( List.foldl StringDoc.beside StringDoc.empty
-             (List.tabulate (n, fn _ => StringDoc.space))
-          , toStringDoc d
-          )
-    | Beside (d1, d2) =>
-        StringDoc.beside (toStringDoc d1, toStringDoc d2)
-    | Above (true, d1, d2) =>
-        StringDoc.aboveOrSpace (toStringDoc d1, toStringDoc d2)
-    | Above (false, d1, d2) =>
-        StringDoc.aboveOrBeside (toStringDoc d1, toStringDoc d2)
-    | Group d =>
-        StringDoc.group (toStringDoc d)
-    | Token t =>
-        StringDoc.text (SyntaxHighlighter.highlightToken t)
+  (** returns whether or not allowed to be grouped *)
+  fun tokenToStringDoc tabWidth tok =
+    let
+      val src = Token.getSource tok
+
+      (** offset (0-indexed) of the beginning of this token within its line *)
+      val {col, ...} = Source.absoluteStart src
+      val offset = col-1
+
+      fun strip line =
+        let
+          val (_, ln) =
+            TCS.stripEffectiveWhitespace
+              {tabWidth=tabWidth, removeAtMost=offset}
+              line
+        in
+          ln
+        end
+
+      val t = SyntaxHighlighter.highlightToken tok
+
+      val pieces =
+        Seq.map
+          (fn (i, j) => StringDoc.text (strip (TCS.substring (t, i, j-i))))
+          (Source.lineRanges src)
+    in
+      if Seq.length pieces = 1 then
+        (true, StringDoc.text t)
+      else
+        ( false
+        , Seq.iterate StringDoc.aboveOrSpace StringDoc.empty pieces
+        )
+    end
+
+
+  fun toStringDoc {tabWidth} d =
+    let
+      (** returns whether or not allowed to be grouped *)
+      fun loop d =
+        case d of
+          Empty =>
+            (true, StringDoc.empty)
+
+        | Space true =>
+            (true, StringDoc.space)
+
+        | Space false =>
+            (true, StringDoc.softspace)
+
+        | Token t =>
+            tokenToStringDoc tabWidth t
+
+        | Indent (n, d) =>
+            let
+              val (groupable, d') = loop d
+            in
+              ( groupable
+              , StringDoc.beside
+                  ( List.foldl StringDoc.beside StringDoc.empty
+                     (List.tabulate (n, fn _ => StringDoc.space))
+                  , d'
+                  )
+              )
+            end
+
+        | Beside (d1, d2) =>
+            let
+              val (g1, d1') = loop d1
+              val (g2, d2') = loop d2
+            in
+              (g1 andalso g2, StringDoc.beside (d1', d2'))
+            end
+
+        | Above (true, d1, d2) =>
+            let
+              val (g1, d1') = loop d1
+              val (g2, d2') = loop d2
+            in
+              (g1 andalso g2, StringDoc.aboveOrSpace (d1', d2'))
+            end
+
+        | Above (false, d1, d2) =>
+            let
+              val (g1, d1') = loop d1
+              val (g2, d2') = loop d2
+            in
+              (g1 andalso g2, StringDoc.aboveOrBeside (d1', d2'))
+            end
+
+        | Group d =>
+            let
+              val (groupable, d') = loop d
+            in
+              if groupable then
+                (true, StringDoc.group d')
+              else
+                (false, d')
+            end
+
+      val (_, d') = loop d
+    in
+      d'
+    end
 
 end

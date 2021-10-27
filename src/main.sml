@@ -8,6 +8,7 @@ val skipBasis = not (CommandLineArgs.parseFlag "no-skip-basis")
 val doPrettySML = CommandLineArgs.parseFlag "pretty"
 val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 0.5
 val maxWidth = CommandLineArgs.parseInt "max-width" 80
+val tabWidth = CommandLineArgs.parseInt "tab-width" 4
 val infile = List.hd (CommandLineArgs.positional ())
 
 val pathmap = MLtonPathMap.getPathMap ()
@@ -69,7 +70,9 @@ fun doSML () =
         TerminalColorString.print (SyntaxHighlighter.highlight source)
       else
         TerminalColorString.print
-          (PrettyPrintAst.pretty {ribbonFrac=ribbonFrac, maxWidth=maxWidth} ast)
+          (PrettyPrintAst.pretty
+            {ribbonFrac=ribbonFrac, maxWidth=maxWidth, tabWidth=tabWidth}
+            ast)
   in
     print "\n\nParsing succeeded.\n"
   end

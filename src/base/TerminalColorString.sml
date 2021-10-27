@@ -17,7 +17,15 @@ sig
   val append: t * t -> t
   val concat: t list -> t
   val concatWith: t -> t list -> t
+  val substring: t * int * int -> t
   val translate: (char -> string) -> t -> t
+
+  (** Returns how much effective whitespace was removed. Effective whitespace
+    * for a tab is typically larger than 1, as indicated in the argument. All
+    * other characters are effective space 1.
+    *)
+  val stripEffectiveWhitespace:
+    {tabWidth: int, removeAtMost: int} -> t -> int * t
 
   val foreground: color -> t -> t
   val background: color -> t -> t
@@ -78,6 +86,89 @@ struct
       [] => empty
     | first :: rest =>
         List.foldl (fn (next, prev) => concat [prev, t, next]) first rest
+
+  fun stripEffectiveWhitespace {tabWidth, removeAtMost=n} t =
+    if n <= 0 then (0, t) else
+    case t of
+      Empty => (0, Empty)
+
+    | Attributes {attr, child, ...} =>
+        let
+          val (count, child') =
+            stripEffectiveWhitespace
+              {tabWidth=tabWidth, removeAtMost=n}
+              child
+        in
+          (count, Attributes {size = size child', attr = attr, child = child'})
+        end
+
+    | Append {left, right, ...} =>
+        let
+          val (count, left') =
+            stripEffectiveWhitespace
+              {tabWidth=tabWidth, removeAtMost=n}
+              left
+        in
+          if size left' > 0 then
+            (count, append (left', right))
+          else
+            let
+              val remaining = n - count
+              val (count', right') =
+                stripEffectiveWhitespace
+                  {tabWidth=tabWidth, removeAtMost=remaining}
+                  right
+            in
+              (count+count', right')
+            end
+        end
+
+    | String s =>
+        let
+          fun searchForNonWhitespace count i =
+            if count >= n orelse i >= String.size s then
+              (count, i)
+            else if String.sub (s, i) = #"\t" then
+              if count + tabWidth > n then
+                (count, i)
+              else
+                searchForNonWhitespace (count+tabWidth) (i+1)
+            else if Char.isSpace (String.sub (s, i)) then
+              searchForNonWhitespace (count+1) (i+1)
+            else
+              (count, i)
+
+          val (count, i) = searchForNonWhitespace 0 0
+        in
+          (count, String (String.extract (s, i, NONE)))
+        end
+
+  fun substring (t, i, n) =
+    if i < 0 orelse n < 0 orelse size t < i+n then
+      raise Subscript
+    else
+    let
+      fun cut (t, i, n) =
+        case t of
+          Empty =>
+            Empty
+        | String s =>
+            String (String.substring (s, i, n))
+        | Attributes {size, attr, child} =>
+            Attributes {size = n, attr = attr, child = cut (child, i, n)}
+        | Append {left, right, ...} =>
+            if i < size left andalso i+n <= size left then
+              cut (left, i, n)
+            else if i >= size left then
+              cut (right, i - size left, n)
+            else
+              append (
+                cut (left, i, size left - i),
+                cut (right, 0, i + n - size left)
+              )
+    in
+      cut (t, i, n)
+    end
 
   val default =
     { foreground = NONE
