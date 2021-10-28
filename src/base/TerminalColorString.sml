@@ -125,22 +125,50 @@ struct
 
     | String s =>
         let
-          fun searchForNonWhitespace count i =
-            if count >= n orelse i >= String.size s then
-              (count, i)
-            else if String.sub (s, i) = #"\t" then
-              if count + tabWidth > n then
-                (count, i)
-              else
-                searchForNonWhitespace (count+tabWidth) (i+1)
-            else if Char.isSpace (String.sub (s, i)) then
-              searchForNonWhitespace (count+1) (i+1)
-            else
-              (count, i)
+          (* val _ =
+            ( print ( "TCS.stripEffectiveWhitespace\n"
+                    ^ "  tabWidth " ^ Int.toString tabWidth ^ "\n"
+                    ^ "  removeAtMost " ^ Int.toString n ^ "\n"
+                    ^ "  string " ^ String.toString s ^ "\n")) *)
 
-          val (count, i) = searchForNonWhitespace 0 0
+          (** Walk forwards in the string, keep track of current index i
+            * and count of effective whitespace that has been stripped.
+            * Normal characters count 1 effective, and tabs are handled
+            * specially.
+            *
+            * Returns the final count and index, as well as possibly a new
+            * front for the string (where a tab has been split into multiple
+            * spaces).
+            *
+            * TODO: Generalize this for arbitrary characters with arbitrary
+            * widths.
+            * TODO: handle misaligned tabs (e.g. tab,space,tab)
+            *)
+          fun strip count i =
+            if count >= n orelse i >= String.size s then
+              ("", count, i)
+            else if String.sub (s, i) = #"\t" then
+              if count + tabWidth <= n then
+                strip (count+tabWidth) (i+1)
+              else
+                let
+                  val newfront =
+                    CharVector.tabulate (count+tabWidth-n, fn _ => #" ")
+                in
+                  (newfront, count, i)
+                end
+            else if Char.isSpace (String.sub (s, i)) then
+              strip (count+1) (i+1)
+            else
+              ("", count, i)
+
+          val (newfront, count, i) = strip 0 0
+
+          (* val _ =
+            print ( "  count " ^ Int.toString count ^ "\n"
+                  ^ "  idx " ^ Int.toString i ^ "\n") *)
         in
-          (count, String (String.extract (s, i, NONE)))
+          (count, String (newfront ^ String.extract (s, i, NONE)))
         end
 
   fun substring (t, i, n) =

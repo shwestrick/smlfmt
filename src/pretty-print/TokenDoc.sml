@@ -188,6 +188,24 @@ struct
         Seq.map
           (fn (i, j) => StringDoc.text (strip (TCS.substring (t, i, j-i))))
           (Source.lineRanges src)
+
+      (* val _ =
+        let
+          val ss = Token.toString tok
+          val ranges = Source.lineRanges src
+          val lines = Seq.map (fn (i, j) => TCS.substring (t, i, j-i)) ranges
+          val stripped = Seq.map strip lines
+          fun p s = Util.for (0, Seq.length s) (fn i =>
+            print (String.toString (TCS.toString {colors=false} (Seq.nth s i)) ^ "\n"))
+        in
+          print ("------- token -------\n");
+          print (String.toString ss ^ "\n");
+          print ("------- lines -------\n");
+          p lines;
+          print ("------- strip -------\n");
+          p stripped;
+          print ("---------------------\n")
+        end *)
     in
       if Seq.length pieces = 1 then
         (true, StringDoc.text t)
