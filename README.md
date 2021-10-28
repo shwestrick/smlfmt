@@ -1,6 +1,6 @@
 # parse-sml
 
-A custom lexer/parser/auto-formatter for Standard ML which also offers
+A custom lexer/parser/formatter for Standard ML which also offers
 better error messages.
 
 Supports SML source files
@@ -17,6 +17,32 @@ including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
 
 ![Example 3](examples/ex3-small.png)
 
+## Examples: Code Formatting
+
+The formatter (which is usable, but is still undergoing aesthetic
+improvements) generally handles comments in a reasonable way.
+
+Input:
+```sml
+fun fib n = (* there are
+             * two base cases, but these
+             * can be compressed into one *) if n < 2 then n
+  else fib (n-1)
+  + fib (n-2)
+```
+
+Output:
+```sml
+fun fib n =
+      (* there are
+       * two base cases, but these
+       * can be compressed into one *)
+      if n < 2 then
+        n
+      else
+        fib (n - 1) + fib (n - 2)
+```
+
 ## Build and run
 
 You need [`mlton`](http://mlton.org/) installed.
@@ -31,9 +57,9 @@ $ ./main test/succeed/full-sml-basis-library.mlb --no-skip-basis
 When given a `.mlb`, the default behavior is to ignore any file in the
 installed standard basis library. Passing `--no-skip-basis` overrides this.
 
-To see auto-formatted output on a `.sml` file, you can pass `--pretty`.
-(Note: the auto-formatter "works" but still requires lots of improvements for
-aesthetics.)
+To see formatted output on a `.sml` (or `.sig`, `.fun`, etc.) file, you can
+pass `--pretty`. (Note: the formatter is usable but still is undergoing
+aesthetic improvements.)
 
 ### Command-line options
 
