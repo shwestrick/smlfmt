@@ -168,15 +168,27 @@ struct
     let
       val src = Token.getSource tok
 
-      (** offset (0-indexed) of the beginning of this token within its line *)
-      val {col, ...} = Source.absoluteStart src
-      val offset = col-1
+      (** effective offset of the beginning of this token within its line,
+        * counting tab-widths appropriately.
+        *
+        * TODO: handle misaligned tabs, e.g. (tab, space, tab)
+        *)
+      val effectiveOffset =
+        let
+          val {col, line=lineNum} = Source.absoluteStart src
+          val charsBeforeOnSameLine =
+            Source.toString (Source.take (Source.wholeLine src lineNum) (col-1))
+        in
+          List.foldl op+ 0
+            (List.map (fn #"\t" => tabWidth | _ => 1)
+              (String.explode charsBeforeOnSameLine))
+        end
 
       fun strip line =
         let
           val (_, ln) =
             TCS.stripEffectiveWhitespace
-              {tabWidth=tabWidth, removeAtMost=offset}
+              {tabWidth=tabWidth, removeAtMost=effectiveOffset}
               line
         in
           ln
