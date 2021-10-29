@@ -141,22 +141,25 @@ struct
             * spaces).
             *
             * TODO: Generalize this for arbitrary characters with arbitrary
-            * widths.
-            * TODO: handle misaligned tabs (e.g. tab,space,tab)
+            * widths?
             *)
           fun strip count i =
             if count >= n orelse i >= String.size s then
               ("", count, i)
             else if String.sub (s, i) = #"\t" then
-              if count + tabWidth <= n then
-                strip (count+tabWidth) (i+1)
-              else
-                let
-                  val newfront =
-                    CharVector.tabulate (count+tabWidth-n, fn _ => #" ")
-                in
-                  (newfront, count, i)
-                end
+              let
+                val tabstop = count + tabWidth - count mod tabWidth
+              in
+                if tabstop <= n then
+                  strip tabstop (i+1)
+                else
+                  let
+                    val newfront =
+                      CharVector.tabulate (tabstop-n, fn _ => #" ")
+                  in
+                    (newfront, count, i)
+                  end
+              end
             else if Char.isSpace (String.sub (s, i)) then
               strip (count+1) (i+1)
             else

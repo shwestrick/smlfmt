@@ -170,18 +170,22 @@ struct
 
       (** effective offset of the beginning of this token within its line,
         * counting tab-widths appropriately.
-        *
-        * TODO: handle misaligned tabs, e.g. (tab, space, tab)
         *)
       val effectiveOffset =
         let
           val {col, line=lineNum} = Source.absoluteStart src
+          val len = col-1
           val charsBeforeOnSameLine =
-            Source.toString (Source.take (Source.wholeLine src lineNum) (col-1))
+            Source.take (Source.wholeLine src lineNum) len
+          fun loop effOff i =
+            if i >= len then effOff
+            else if #"\t" = Source.nth charsBeforeOnSameLine i then
+              (* advance up to next tabstop *)
+              loop (effOff + tabWidth - effOff mod tabWidth) (i+1)
+            else
+              loop (effOff+1) (i+1)
         in
-          List.foldl op+ 0
-            (List.map (fn #"\t" => tabWidth | _ => 1)
-              (String.explode charsBeforeOnSameLine))
+          loop 0 0
         end
 
       fun strip line =
