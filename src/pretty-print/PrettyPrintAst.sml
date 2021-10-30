@@ -62,6 +62,7 @@ struct
     let
       val doc = showAst ast
       val doc = TokenDoc.insertComments doc
+      val doc = TokenDoc.insertBlankLines doc
     in
       StringDoc.pretty
         {ribbonFrac=ribbonFrac, maxWidth=maxWidth}

@@ -29,6 +29,7 @@ sig
   val softspace: doc
   val group: doc -> doc
 
+  val insertBlankLines: doc -> doc
   val insertComments: doc -> doc
 
   val toStringDoc: {tabWidth: int} -> doc -> StringDoc.t
@@ -74,6 +75,69 @@ struct
   val empty = Empty
   val space = Space true
   val softspace = Space false
+
+
+  fun insertBlankLines doc =
+    let
+      fun blankLinesAbove d n =
+        if n <= 0 then d else blankLinesAbove (Above (false, space, d)) (n-1)
+
+      fun constrainBy (a, b) x =
+        Int.max (a, Int.min (b, x))
+
+      fun preferNewer (a, b) = if Option.isSome b then b else a
+
+      fun doToken recentAbove tok =
+        case recentAbove of
+          NONE => Token tok
+        | SOME tok' =>
+            (* ( print ("handling " ^ Token.toString tok' ^ " above " ^ Token.toString tok ^ ": difference " ^ Int.toString (constrainBy (0, 2) (Token.lineDifference (tok', tok) - 1)) ^ "\n"); *)
+            blankLinesAbove (Token tok)
+              (constrainBy (0, 2) (Token.lineDifference (tok', tok) - 1))
+            (* ) *)
+
+      fun doDoc recentAbove doc =
+        case doc of
+          Token tok =>
+            (SOME tok, doToken recentAbove tok)
+
+        | Indent (n, d) =>
+            let
+              val (last, d') = doDoc recentAbove d
+            in
+              (last, Indent (n, d'))
+            end
+
+        | Group d =>
+            let
+              val (last, d') = doDoc recentAbove d
+            in
+              (last, Group d')
+            end
+
+        | Beside (d1, d2) =>
+            let
+              val (last1, d1') = doDoc recentAbove d1
+              val (last2, d2') = doDoc NONE d2
+            in
+              (preferNewer (last1, last2), Beside (d1', d2'))
+            end
+
+        | Above (b, d1, d2) =>
+            let
+              val (last1, d1') = doDoc recentAbove d1
+              val (last2, d2') = doDoc (preferNewer (recentAbove, last1)) d2
+            in
+              (preferNewer (last1, last2), Above (b, d1', d2'))
+            end
+
+        | _ => (NONE, doc)
+
+      val (_, doc) = doDoc NONE doc
+    in
+      doc
+    end
+
 
   fun insertComments doc =
     let
