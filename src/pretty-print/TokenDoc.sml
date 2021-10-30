@@ -76,64 +76,72 @@ struct
   val space = Space true
   val softspace = Space false
 
-
   fun insertBlankLines doc =
     let
       fun blankLinesAbove d n =
         if n <= 0 then d else blankLinesAbove (Above (false, space, d)) (n-1)
 
-      fun constrainBy (a, b) x =
-        Int.max (a, Int.min (b, x))
+      fun preferRight (a, b) = if Option.isSome b then b else a
+      fun preferLeft (a, b) = if Option.isSome a then a else b
 
-      fun preferNewer (a, b) = if Option.isSome b then b else a
-
-      fun doToken recentAbove tok =
-        case recentAbove of
-          NONE => Token tok
-        | SOME tok' =>
-            (* ( print ("handling " ^ Token.toString tok' ^ " above " ^ Token.toString tok ^ ": difference " ^ Int.toString (constrainBy (0, 2) (Token.lineDifference (tok', tok) - 1)) ^ "\n"); *)
-            blankLinesAbove (Token tok)
-              (constrainBy (0, 2) (Token.lineDifference (tok', tok) - 1))
-            (* ) *)
-
-      fun doDoc recentAbove doc =
+      fun doDoc doc =
         case doc of
           Token tok =>
-            (SOME tok, doToken recentAbove tok)
+            (SOME tok, doc, SOME tok)
 
         | Indent (n, d) =>
             let
-              val (last, d') = doDoc recentAbove d
+              val (first, d', last) = doDoc d
             in
-              (last, Indent (n, d'))
+              (first, Indent (n, d'), last)
             end
 
         | Group d =>
             let
-              val (last, d') = doDoc recentAbove d
+              val (first, d', last) = doDoc d
             in
-              (last, Group d')
+              (first, Group d', last)
             end
 
         | Beside (d1, d2) =>
             let
-              val (last1, d1') = doDoc recentAbove d1
-              val (last2, d2') = doDoc NONE d2
+              val (first1, d1', last1) = doDoc d1
+              val (first2, d2', last2) = doDoc d2
+
+              val first = preferLeft (first1, first2)
+              val last = preferRight (last1, last2)
             in
-              (preferNewer (last1, last2), Beside (d1', d2'))
+              (first, Beside (d1', d2'), last)
             end
 
         | Above (b, d1, d2) =>
             let
-              val (last1, d1') = doDoc recentAbove d1
-              val (last2, d2') = doDoc (preferNewer (recentAbove, last1)) d2
+              val (first1, d1', last1) = doDoc d1
+              val (first2, d2', last2) = doDoc d2
+              val first = preferLeft (first1, first2)
+              val last = preferRight (last1, last2)
+
+              val result =
+                case (last1, first2) of
+                  (SOME t1, SOME t2) =>
+                    let
+                      val diff = Token.lineDifference (t1, t2) - 1
+                      val diff = Int.max (0, Int.min (2, diff))
+                    in
+                      (* print ("handling " ^ Token.toString t1 ^ " above " ^ Token.toString t2 ^ ": difference " ^ Int.toString diff ^ "\n"); *)
+
+                      Above (b, d1', blankLinesAbove d2' diff)
+                    end
+
+                | _ =>
+                    Above (b, d1', d2')
             in
-              (preferNewer (last1, last2), Above (b, d1', d2'))
+              (first, result, last)
             end
 
-        | _ => (NONE, doc)
+        | _ => (NONE, doc, NONE)
 
-      val (_, doc) = doDoc NONE doc
+      val (_, doc, _) = doDoc doc
     in
       doc
     end
