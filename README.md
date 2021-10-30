@@ -1,7 +1,8 @@
 # parse-sml
 
-A custom lexer/parser/formatter for Standard ML which also offers
-better error messages.
+A custom parser and code formatter for Standard ML which also offers
+better error messages. The formatter is usable, but is currently undergoing
+various aesthetic changes.
 
 Supports SML source files
 (`.sml`, `.sig`, `.fun`, etc.) as well as
@@ -19,28 +20,36 @@ including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
 
 ## Examples: Code Formatting
 
-The formatter (which is usable, but is still undergoing aesthetic
-improvements) generally handles comments in a reasonable way.
+The formatter generally handles blank lines and multiline comments in a
+reasonable way:
 
 Input:
 ```sml
-fun fib n = (* there are
-             * two base cases, but these
-             * can be compressed into one *) if n < 2 then n
-  else fib (n-1)
+fun fib n = (* everyone loves
+             * fibonacci numbers *)
+    if n < 2 then n
+ else fib (n-1)
   + fib (n-2)
+
+val f5 = fib 5
+val f10 =
+  fib 10
+val f15 = fib 15
 ```
 
 Output:
 ```sml
 fun fib n =
-      (* there are
-       * two base cases, but these
-       * can be compressed into one *)
+      (* everyone loves
+       * fibonacci numbers *)
       if n < 2 then
         n
       else
         fib (n - 1) + fib (n - 2)
+
+val f5 = fib 5
+val f10 = fib 10
+val f15 = fib 15
 ```
 
 ## Build and run
