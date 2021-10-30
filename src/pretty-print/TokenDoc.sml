@@ -29,6 +29,7 @@ sig
   val softspace: doc
   val group: doc -> doc
 
+  val insertBlankLines: doc -> doc
   val insertComments: doc -> doc
 
   val toStringDoc: {tabWidth: int} -> doc -> StringDoc.t
@@ -74,6 +75,77 @@ struct
   val empty = Empty
   val space = Space true
   val softspace = Space false
+
+  fun insertBlankLines doc =
+    let
+      fun blankLinesAbove d n =
+        if n <= 0 then d else blankLinesAbove (Above (false, space, d)) (n-1)
+
+      fun preferRight (a, b) = if Option.isSome b then b else a
+      fun preferLeft (a, b) = if Option.isSome a then a else b
+
+      fun doDoc doc =
+        case doc of
+          Token tok =>
+            (SOME tok, doc, SOME tok)
+
+        | Indent (n, d) =>
+            let
+              val (first, d', last) = doDoc d
+            in
+              (first, Indent (n, d'), last)
+            end
+
+        | Group d =>
+            let
+              val (first, d', last) = doDoc d
+            in
+              (first, Group d', last)
+            end
+
+        | Beside (d1, d2) =>
+            let
+              val (first1, d1', last1) = doDoc d1
+              val (first2, d2', last2) = doDoc d2
+
+              val first = preferLeft (first1, first2)
+              val last = preferRight (last1, last2)
+            in
+              (first, Beside (d1', d2'), last)
+            end
+
+        | Above (b, d1, d2) =>
+            let
+              val (first1, d1', last1) = doDoc d1
+              val (first2, d2', last2) = doDoc d2
+              val first = preferLeft (first1, first2)
+              val last = preferRight (last1, last2)
+
+              val result =
+                case (last1, first2) of
+                  (SOME t1, SOME t2) =>
+                    let
+                      val diff = Token.lineDifference (t1, t2) - 1
+                      val diff = Int.max (0, Int.min (2, diff))
+                    in
+                      (* print ("handling " ^ Token.toString t1 ^ " above " ^ Token.toString t2 ^ ": difference " ^ Int.toString diff ^ "\n"); *)
+
+                      Above (b, d1', blankLinesAbove d2' diff)
+                    end
+
+                | _ =>
+                    Above (b, d1', d2')
+            in
+              (first, result, last)
+            end
+
+        | _ => (NONE, doc, NONE)
+
+      val (_, doc, _) = doDoc doc
+    in
+      doc
+    end
+
 
   fun insertComments doc =
     let

@@ -100,6 +100,11 @@ sig
   val commentsOrWhitespaceBefore: token -> token Seq.t
   val commentsOrWhitespaceAfter: token -> token Seq.t
 
+  (** how many lines apart are these tokens?
+    * raises Fail if not from the same file.
+    *)
+  val lineDifference: token * token -> int
+
   val isReserved: token -> bool
   val isStringConstant: token -> bool
   val isComment: token -> bool
@@ -257,6 +262,19 @@ struct
 
   fun getSource ({idx, context}: token) =
     WithSource.srcOf (Seq.nth context idx)
+
+  fun lineDifference (tok1, tok2) =
+    let
+      val src1 = getSource tok1
+      val src2 = getSource tok2
+      val {line=end1, ...} = Source.absoluteEnd (getSource tok1)
+      val {line=start2, ...} = Source.absoluteStart (getSource tok2)
+    in
+      if FilePath.sameFile (Source.fileName src1, Source.fileName src2) then
+        start2 - end1
+      else
+        raise Fail "Bug! lineDifference on tokens from different files"
+    end
 
   fun toString tok =
     let
