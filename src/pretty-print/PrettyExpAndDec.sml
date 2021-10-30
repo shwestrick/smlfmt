@@ -84,7 +84,80 @@ struct
     end
 
 
-  fun showDec dec =
+  fun showDecFun {funn, tyvars, fvalbind={elems, delims}} =
+    let
+      open Ast.Exp
+
+      fun showArgs args =
+        if Seq.length args = 0 then empty else
+        Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
+          (showPat (Seq.nth args 0))
+          (Seq.drop args 1)
+
+      fun showInfixed larg id rarg =
+        showPat larg
+        ++ space
+        ++ token id
+        ++ space
+        ++ showPat rarg
+
+      fun showFNameArgs xx =
+        case xx of
+          PrefixedFun {opp, id, args} =>
+            separateWithSpaces
+              [ Option.map token opp
+              , SOME (token id)
+              , SOME (showArgs args)
+              ]
+        | InfixedFun {larg, id, rarg} =>
+            showInfixed larg id rarg
+        | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
+            separateWithSpaces
+              [ SOME (token lparen ++ showInfixed larg id rarg ++ token rparen)
+              , SOME (showArgs args)
+              ]
+
+      fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
+        token colon ++ space ++ showTy ty
+
+      fun showClause (align, indentExp) (front, {fname_args, ty, eq, exp}) =
+        align ++
+        group (
+          separateWithSpaces
+            [ SOME front
+            , SOME (showFNameArgs fname_args)
+            , Option.map showColonTy ty
+            , SOME (token eq)
+            ]
+          $$
+          indentExp (showExp exp)
+        )
+
+      fun mkFunction (starter, {elems=innerElems, delims}) =
+        let
+          fun firstIndentExp x =
+            spaces (if Seq.length innerElems = 1 then 0 else 4) ++ indent x
+          fun restIndentExp x = spaces 2 ++ indent x
+
+          val firstParams = (empty, firstIndentExp)
+          val restParams = (spaces 2, restIndentExp)
+        in
+          Seq.iterate op$$
+            (showClause firstParams (starter, Seq.nth innerElems 0))
+            (Seq.zipWith (showClause restParams)
+              (Seq.map token delims, Seq.drop innerElems 1))
+        end
+
+      val front =
+        separateWithSpaces [SOME (token funn), maybeShowSyntaxSeq tyvars token]
+    in
+      Seq.iterate op$$
+        (mkFunction (front, Seq.nth elems 0))
+        (Seq.zipWith mkFunction (Seq.map token delims, Seq.drop elems 1))
+    end
+
+
+  and showDec dec =
     let
       open Ast.Exp
     in
@@ -124,75 +197,8 @@ struct
               (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end
 
-      | DecFun {funn, tyvars, fvalbind={elems, delims}} =>
-          let
-            fun showArgs args =
-              if Seq.length args = 0 then empty else
-              Seq.iterate (fn (prev, p) => prev ++ space ++ showPat p)
-                (showPat (Seq.nth args 0))
-                (Seq.drop args 1)
-
-            fun showInfixed larg id rarg =
-              showPat larg
-              ++ space
-              ++ token id
-              ++ space
-              ++ showPat rarg
-
-            fun showFNameArgs xx =
-              case xx of
-                PrefixedFun {opp, id, args} =>
-                  separateWithSpaces
-                    [ Option.map token opp
-                    , SOME (token id)
-                    , SOME (showArgs args)
-                    ]
-              | InfixedFun {larg, id, rarg} =>
-                  showInfixed larg id rarg
-              | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
-                  separateWithSpaces
-                    [ SOME (token lparen ++ showInfixed larg id rarg ++ token rparen)
-                    , SOME (showArgs args)
-                    ]
-
-            fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
-              token colon ++ space ++ showTy ty
-
-            fun showClause front {fname_args, ty, eq, exp} =
-              separateWithSpaces front
-              ++ space
-              ++ group (
-                separateWithSpaces
-                  ( [ SOME (showFNameArgs fname_args)
-                    , Option.map showColonTy ty
-                    , SOME (token eq)
-                    ] )
-                $$
-                indent (showExp exp)
-              )
-
-            fun mkFunction (andDelim, {elems=innerElems, delims}) =
-              let
-                val delim =
-                  case andDelim of
-                    NONE       => funn
-                  | SOME delim => delim
-                val tyvars =
-                  case andDelim of
-                    NONE   => [maybeShowSyntaxSeq tyvars token]
-                  | SOME _ => nil
-              in
-                Seq.iterate op$$
-                  (showClause (SOME (token delim) :: tyvars) (Seq.nth innerElems 0))
-                  (Seq.zipWith
-                    (fn (delim, elem) => showClause [SOME (indent (token delim))] elem)
-                    (delims, Seq.drop innerElems 1))
-              end
-          in
-            Seq.iterate op$$
-              (mkFunction (NONE, Seq.nth elems 0))
-              (Seq.zipWith mkFunction (Seq.map SOME delims, Seq.drop elems 1))
-          end
+      | DecFun args =>
+          showDecFun args
 
       | DecType {typee, typbind} =>
           showTypbind (typee, typbind)

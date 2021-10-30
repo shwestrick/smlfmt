@@ -40,12 +40,12 @@ val f15 = fib 15
 Output:
 ```sml
 fun fib n =
-      (* everyone loves
-       * fibonacci numbers *)
-      if n < 2 then
-        n
-      else
-        fib (n - 1) + fib (n - 2)
+  (* everyone loves
+   * fibonacci numbers *)
+  if n < 2 then
+    n
+  else
+    fib (n - 1) + fib (n - 2)
 
 val f5 = fib 5
 val f10 = fib 10
