@@ -70,11 +70,17 @@ aesthetic improvements.)
 
 `--pretty` to also see autoformatted output (only for SML, not MLB)
 
-`-ribbon-frac <real>` controls pretty-printing. The
+`-ribbon-frac <real>` (default 1.0) controls pretty-printing. The
 ribbon-frac (between 0 and 1) controls how dense each line is, excluding
 indentation. Low ribbon-fracs will have very little non-whitespace content
 on each line, whereas high ribbon-fracs will attempt to fill the line as
-much as possible. Default value = 0.5.
+much as possible. Default = 1.0
 
-`-max-width <int>` controls pretty-printing. This is the desired maximum number
-of columns in each line. Default value = 80.
+`-max-width <int>` (default 80) controls pretty-printing.
+This is the desired maximum number of columns in each line.
+
+`-tab-width <int>` (default 4) informs the pretty-printer of the intended
+tab-width for the input source. Typically this doesn't matter, but there are
+some cases where a particular tab-width can influence the vertical alignment
+of multiline comments and strings. (See discussion in issue #28 for more
+details.)

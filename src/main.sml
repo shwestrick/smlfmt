@@ -6,7 +6,7 @@
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
 val skipBasis = not (CommandLineArgs.parseFlag "no-skip-basis")
 val doPrettySML = CommandLineArgs.parseFlag "pretty"
-val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 0.5
+val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
 val maxWidth = CommandLineArgs.parseInt "max-width" 80
 val tabWidth = CommandLineArgs.parseInt "tab-width" 4
 val infile = List.hd (CommandLineArgs.positional ())
