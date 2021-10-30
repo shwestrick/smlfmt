@@ -18,7 +18,6 @@ struct
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
-  fun indent d = TokenDoc.indent 2 d
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat

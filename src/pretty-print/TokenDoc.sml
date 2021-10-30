@@ -15,7 +15,7 @@ sig
   val empty: doc
   val token: Token.t -> doc
 
-  val indent: int -> doc -> doc
+  val indent: doc -> doc
 
   val beside: doc * doc -> doc
 
@@ -32,7 +32,7 @@ sig
   val insertBlankLines: doc -> doc
   val insertComments: doc -> doc
 
-  val toStringDoc: {tabWidth: int} -> doc -> StringDoc.t
+  val toStringDoc: {tabWidth: int, indent: int} -> doc -> StringDoc.t
 end =
 struct
 
@@ -44,7 +44,7 @@ struct
   datatype doc =
     Empty
   | Space of bool
-  | Indent of int * doc
+  | Indent of doc
   | Token of Token.t
   | Beside of doc * doc
   | Above of bool * doc * doc
@@ -55,7 +55,7 @@ struct
   val empty = Empty
   val token = Token
   val group = Group
-  fun indent n d = Indent (n, d)
+  fun indent d = Indent d
 
   fun beside (doc1, doc2) =
     case (doc1, doc2) of
@@ -89,11 +89,11 @@ struct
           Token tok =>
             (SOME tok, doc, SOME tok)
 
-        | Indent (n, d) =>
+        | Indent d =>
             let
               val (first, d', last) = doDoc d
             in
-              (first, Indent (n, d'), last)
+              (first, Indent d', last)
             end
 
         | Group d =>
@@ -180,8 +180,8 @@ struct
             Above (b, insertAllBefore mode d1, insertAllBefore AboveMode d2)
         | Group d =>
             Group (insertAllBefore mode d)
-        | Indent (n, d) =>
-            Indent (n, insertAllBefore mode d)
+        | Indent d =>
+            Indent (insertAllBefore mode d)
         | _ => d
 
       fun insertOnlyAfterLast mode d =
@@ -194,11 +194,11 @@ struct
             in
               (foundIt, Group d')
             end
-        | Indent (n, d) =>
+        | Indent d =>
             let
               val (foundIt, d') = insertOnlyAfterLast mode d
             in
-              (foundIt, Indent (n, d'))
+              (foundIt, Indent d')
             end
         | Beside (d1, d2) =>
             let
@@ -304,7 +304,7 @@ struct
     end
 
 
-  fun toStringDoc {tabWidth} d =
+  fun toStringDoc {tabWidth, indent} d =
     let
       (** returns whether or not allowed to be grouped *)
       fun loop d =
@@ -321,14 +321,14 @@ struct
         | Token t =>
             tokenToStringDoc tabWidth t
 
-        | Indent (n, d) =>
+        | Indent d =>
             let
               val (groupable, d') = loop d
             in
               ( groupable
               , StringDoc.beside
                   ( List.foldl StringDoc.beside StringDoc.empty
-                     (List.tabulate (n, fn _ => StringDoc.space))
+                     (List.tabulate (indent, fn _ => StringDoc.space))
                   , d'
                   )
               )

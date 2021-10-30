@@ -9,6 +9,7 @@ val doPrettySML = CommandLineArgs.parseFlag "pretty"
 val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
 val maxWidth = CommandLineArgs.parseInt "max-width" 80
 val tabWidth = CommandLineArgs.parseInt "tab-width" 4
+val indentWidth = CommandLineArgs.parseInt "indent-width" 2
 val infile = List.hd (CommandLineArgs.positional ())
 
 val pathmap = MLtonPathMap.getPathMap ()
@@ -71,7 +72,10 @@ fun doSML () =
       else
         TerminalColorString.print
           (PrettyPrintAst.pretty
-            {ribbonFrac=ribbonFrac, maxWidth=maxWidth, tabWidth=tabWidth}
+            { ribbonFrac=ribbonFrac
+            , maxWidth=maxWidth
+            , tabWidth=tabWidth
+            , indent=indentWidth}
             ast)
   in
     print "\n\nParsing succeeded.\n"

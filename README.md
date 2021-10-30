@@ -88,6 +88,9 @@ much as possible. Default = 1.0
 `-max-width <int>` (default 80) controls pretty-printing.
 This is the desired maximum number of columns in each line.
 
+`-indent-width <int>` (default 2) is the desired number of spaces used in
+the formatted output.
+
 `-tab-width <int>` (default 4) informs the pretty-printer of the intended
 tab-width for the input source. Typically this doesn't matter, but there are
 some cases where a particular tab-width can influence the vertical alignment
