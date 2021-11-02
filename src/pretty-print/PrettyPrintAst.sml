@@ -65,8 +65,8 @@ struct
       val doc = TokenDoc.insertBlankLines doc
     in
       StringDoc.pretty
-        {ribbonFrac=ribbonFrac, maxWidth=maxWidth}
-        (toStringDoc {tabWidth=tabWidth, indent=indent} doc)
+        {ribbonFrac=ribbonFrac, maxWidth=maxWidth, indentWidth=indent}
+        (toStringDoc {tabWidth=tabWidth} doc)
     end
 
 end

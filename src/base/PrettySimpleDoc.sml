@@ -23,6 +23,7 @@ sig
   val text: CustomString.t -> doc
 
   val beside: doc * doc -> doc
+  val besideAndAbove: doc * doc -> doc
 
   (** When an "above" is flattened by a group, it can either be replaced by a
     * a space, or it can be put exactly beside (with no extra space).
@@ -30,11 +31,16 @@ sig
   val aboveOrSpace: doc * doc -> doc
   val aboveOrBeside: doc * doc -> doc
 
+  val indent: doc -> doc
+
   val space: doc
   val softspace: doc
   val group: doc -> doc
 
-  val pretty: {ribbonFrac: real, maxWidth: int} -> doc -> CustomString.t
+  val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int}
+           -> doc
+           -> CustomString.t
+
   val toString: doc -> CustomString.t
 end =
 struct
@@ -45,8 +51,10 @@ struct
   datatype doc =
     Empty
   | Space of bool
+  | Indent of doc
   | Text of CustomString.t
   | Beside of doc * doc
+  | BesideAndAbove of doc * doc
   | Above of bool * doc * doc
   | Choice of {flattened: (bool * doc * int * bool), normal: doc}
 
@@ -73,8 +81,16 @@ struct
     | (_, Empty) => doc1
     | _ => Above (withSpace, doc1, doc2)
 
+  fun besideAndAbove (doc1, doc2) =
+    case (doc1, doc2) of
+      (Empty, _) => doc2
+    | (_, Empty) => doc1
+    | _ => BesideAndAbove (doc1, doc2)
+
   val aboveOrSpace = above' true
   val aboveOrBeside = above' false
+
+  val indent = Indent
 
   fun flatten doc =
     let
@@ -85,9 +101,13 @@ struct
             (false, Empty, 0, false)
         | Space keepSpace =>
             (keepSpace, Empty, 0, keepSpace)
+        | Indent d =>
+            loop d
         | Text str =>
             (false, Text str, CustomString.size str, false)
         | Beside (d1, d2) =>
+            loopBeside (d1, d2)
+        | BesideAndAbove (d1, d2) =>
             loopBeside (d1, d2)
         | Above (withSpace, d1, d2) =>
             if withSpace then
@@ -137,29 +157,42 @@ struct
     CustomString.fromString (CharVector.tabulate (count, fn _ => #" "))
 
 
-  fun pretty {ribbonFrac, maxWidth} inputDoc =
+  fun pretty {ribbonFrac, maxWidth, indentWidth} inputDoc =
     let
       val ribbonWidth =
         Int.max (0, Int.min (maxWidth,
           Real.round (ribbonFrac * Real.fromInt maxWidth)))
 
-      fun layout (lnStart, col, acc) doc : int * int * (CustomString.t list) =
+      type layout_state = int * int * (CustomString.t list)
+
+      fun layout ((lnStart, col, acc): layout_state) doc : layout_state =
         case doc of
-          Empty => (lnStart, col, acc)
+          Empty =>
+            (lnStart, col, acc)
         | Space _ =>
-            ( if lnStart = col then lnStart + 1 else lnStart
-            , col + 1
-            , CustomString.fromString " " :: acc
-            )
-        | Text str => (lnStart, col + CustomString.size str, str :: acc)
+            (lnStart, col + 1, CustomString.fromString " " :: acc)
+        | Indent d =>
+            let
+              val (col, acc) =
+                if col = lnStart then
+                  (col + indentWidth, spaces indentWidth :: acc)
+                else
+                  (col, acc)
+            in
+              layout (lnStart + indentWidth, col, acc) d
+            end
+        | Text str =>
+            (lnStart, col + CustomString.size str, str :: acc)
         | Beside (doc1, doc2) =>
             layout (layout (lnStart, col, acc) doc1) doc2
+        | BesideAndAbove (doc1, doc2) =>
+            raise Fail "Not yet implemented..."
         | Above (_, doc1, doc2) =>
             let
               val (_, _, acc) = layout (lnStart, col, acc) doc1
               val acc = spaces col :: CustomString.fromString "\n" :: acc
             in
-              layout (lnStart, col, acc) doc2
+              layout (col, col, acc) doc2
             end
         | Choice {flattened = (_, flat, sz, _), normal} =>
             let
@@ -178,6 +211,6 @@ struct
     end
 
 
-  val toString = pretty {ribbonFrac = 0.5, maxWidth = 80}
+  val toString = pretty {ribbonFrac = 0.5, maxWidth = 80, indentWidth = 2}
 
 end

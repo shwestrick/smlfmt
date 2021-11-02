@@ -18,6 +18,7 @@ sig
   val indent: doc -> doc
 
   val beside: doc * doc -> doc
+  val besideAndAbove: doc * doc -> doc
 
   (** When an "above" is flattened by a group, it can either be replaced by a
     * a space, or it can be put exactly beside (with no extra space).
@@ -32,7 +33,7 @@ sig
   val insertBlankLines: doc -> doc
   val insertComments: doc -> doc
 
-  val toStringDoc: {tabWidth: int, indent: int} -> doc -> StringDoc.t
+  val toStringDoc: {tabWidth: int} -> doc -> StringDoc.t
 end =
 struct
 
@@ -47,6 +48,7 @@ struct
   | Indent of doc
   | Token of Token.t
   | Beside of doc * doc
+  | BesideAndAbove of doc * doc
   | Above of bool * doc * doc
   | Group of doc
 
@@ -68,6 +70,12 @@ struct
       (Empty, _) => doc2
     | (_, Empty) => doc1
     | _ => Above (withSpace, doc1, doc2)
+
+  fun besideAndAbove (doc1, doc2) =
+    case (doc1, doc2) of
+      (Empty, _) => doc2
+    | (_, Empty) => doc1
+    | _ => BesideAndAbove (doc1, doc2)
 
   val aboveOrSpace = above' true
   val aboveOrBeside = above' false
@@ -112,6 +120,17 @@ struct
               val last = preferRight (last1, last2)
             in
               (first, Beside (d1', d2'), last)
+            end
+
+        | BesideAndAbove (d1, d2) =>
+            let
+              val (first1, d1', last1) = doDoc d1
+              val (first2, d2', last2) = doDoc d2
+
+              val first = preferLeft (first1, first2)
+              val last = preferRight (last1, last2)
+            in
+              (first, BesideAndAbove (d1', d2'), last)
             end
 
         | Above (b, d1, d2) =>
@@ -176,6 +195,8 @@ struct
             insertCommentsBeforeTok mode tok
         | Beside (d1, d2) =>
             Beside (insertAllBefore mode d1, insertAllBefore BesideMode d2)
+        | BesideAndAbove (d1, d2) =>
+            BesideAndAbove (insertAllBefore mode d1, insertAllBefore BesideMode d2)
         | Above (b, d1, d2) =>
             Above (b, insertAllBefore mode d1, insertAllBefore AboveMode d2)
         | Group d =>
@@ -211,6 +232,19 @@ struct
                   val (foundIt, d1') = insertOnlyAfterLast mode d1
                 in
                   (foundIt, Beside (d1', d2'))
+                end
+            end
+        | BesideAndAbove (d1, d2) =>
+            let
+              val (foundIt, d2') = insertOnlyAfterLast BesideMode d2
+            in
+              if foundIt then
+                (true, BesideAndAbove (d1, d2'))
+              else
+                let
+                  val (foundIt, d1') = insertOnlyAfterLast mode d1
+                in
+                  (foundIt, BesideAndAbove (d1', d2'))
                 end
             end
         | Above (b, d1, d2) =>
@@ -304,7 +338,7 @@ struct
     end
 
 
-  fun toStringDoc {tabWidth, indent} d =
+  fun toStringDoc {tabWidth} d =
     let
       (** returns whether or not allowed to be grouped *)
       fun loop d =
@@ -325,13 +359,7 @@ struct
             let
               val (groupable, d') = loop d
             in
-              ( groupable
-              , StringDoc.beside
-                  ( List.foldl StringDoc.beside StringDoc.empty
-                     (List.tabulate (indent, fn _ => StringDoc.space))
-                  , d'
-                  )
-              )
+              (groupable, StringDoc.indent d')
             end
 
         | Beside (d1, d2) =>
@@ -340,6 +368,14 @@ struct
               val (g2, d2') = loop d2
             in
               (g1 andalso g2, StringDoc.beside (d1', d2'))
+            end
+
+        | BesideAndAbove (d1, d2) =>
+            let
+              val (g1, d1') = loop d1
+              val (g2, d2') = loop d2
+            in
+              (g1 andalso g2, StringDoc.besideAndAbove (d1', d2'))
             end
 
         | Above (true, d1, d2) =>
