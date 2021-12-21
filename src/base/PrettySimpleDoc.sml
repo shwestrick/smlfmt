@@ -23,6 +23,20 @@ sig
   val text: CustomString.t -> doc
 
   val beside: doc * doc -> doc
+
+  (** Align a doc so that it wraps back to the same indentation as the
+    * first doc:
+    *
+    *      d1       d2           besideAndAbove (d1, d2)
+    *    .......   ****             .......
+    *    .......   ***    ====>     .......
+    *    .....                      .....****
+    *                               ***
+    *
+    * The first version gets replaced by a space when undone by group. The
+    * second is put exactly beside.
+    *)
+  val besideAndAboveOrSpace: doc * doc -> doc
   val besideAndAbove: doc * doc -> doc
 
   (** When an "above" is flattened by a group, it can either be replaced by a
@@ -45,8 +59,8 @@ sig
 end =
 struct
 
-  (** for Space and Above, the boolean indicates whether or not to
-    * keep space when undone by group.
+  (** for Space, Above, and BesideAndAbove, the boolean indicates whether or
+    * not to keep space when undone by group.
     *)
   datatype doc =
     Empty
@@ -54,7 +68,7 @@ struct
   | Indent of doc
   | Text of CustomString.t
   | Beside of doc * doc
-  | BesideAndAbove of doc * doc
+  | BesideAndAbove of bool * doc * doc
   | Above of bool * doc * doc
   | Choice of {flattened: (bool * doc * int * bool), normal: doc}
 
@@ -81,11 +95,14 @@ struct
     | (_, Empty) => doc1
     | _ => Above (withSpace, doc1, doc2)
 
-  fun besideAndAbove (doc1, doc2) =
+  fun besideAndAbove' withSpace (doc1, doc2) =
     case (doc1, doc2) of
       (Empty, _) => doc2
     | (_, Empty) => doc1
-    | _ => BesideAndAbove (doc1, doc2)
+    | _ => BesideAndAbove (withSpace, doc1, doc2)
+
+  val besideAndAboveOrSpace = besideAndAbove' true
+  val besideAndAbove = besideAndAbove' false
 
   val aboveOrSpace = above' true
   val aboveOrBeside = above' false
@@ -107,8 +124,11 @@ struct
             (false, Text str, CustomString.size str, false)
         | Beside (d1, d2) =>
             loopBeside (d1, d2)
-        | BesideAndAbove (d1, d2) =>
-            loopBeside (d1, d2)
+        | BesideAndAbove (withSpace, d1, d2) =>
+            if withSpace then
+              loopBeside (d1, Beside (Space true, d2))
+            else
+              loopBeside (d1, d2)
         | Above (withSpace, d1, d2) =>
             if withSpace then
               loopBeside (d1, Beside (Space true, d2))
@@ -163,16 +183,21 @@ struct
         Int.max (0, Int.min (maxWidth,
           Real.round (ribbonFrac * Real.fromInt maxWidth)))
 
-      type layout_state = int * int * (CustomString.t list)
+      datatype above_mode =
+        UseCurrentCol
+      | ResetTo of int
+
+      type layout_state = above_mode * int * int * (CustomString.t list)
 
       val newline = CustomString.fromString "\n"
+      val sp = CustomString.fromString " "
 
-      fun layout ((lnStart, col, acc): layout_state) doc : layout_state =
+      fun layout ((am, lnStart, col, acc): layout_state) doc : layout_state =
         case doc of
           Empty =>
-            (lnStart, col, acc)
+            (am, lnStart, col, acc)
         | Space _ =>
-            (lnStart, col + 1, CustomString.fromString " " :: acc)
+            (am, lnStart, col + 1, sp :: acc)
         | Indent d =>
             let
               val (col, acc) =
@@ -181,27 +206,34 @@ struct
                 else
                   (col, acc)
             in
-              layout (lnStart + indentWidth, col, acc) d
+              layout (am, lnStart + indentWidth, col, acc) d
             end
         | Text str =>
-            (lnStart, col + CustomString.size str, str :: acc)
+            (am, lnStart, col + CustomString.size str, str :: acc)
         | Beside (doc1, doc2) =>
-            layout (layout (lnStart, col, acc) doc1) doc2
-        | BesideAndAbove (doc1, doc2) =>
-            raise Fail "Not yet implemented..."
-            (*
+            layout (layout (am, lnStart, col, acc) doc1) doc2
+        | BesideAndAbove (withSpace, doc1, doc2) =>
             let
-              val (_, col, acc) = layout (lnStart, col, acc) doc1
+              val newAm =
+                case am of
+                  UseCurrentCol => ResetTo lnStart
+                | ResetTo r => ResetTo r
+              val (_, lnStart, col, acc) = layout (am, lnStart, col, acc) doc1
+              val (col, acc) =
+                if withSpace then (col+1, sp :: acc) else (col, acc)
             in
-              layout (lnStart, col, acc) doc2
+              layout (newAm, lnStart, col, acc) doc2
             end
-            *)
         | Above (_, doc1, doc2) =>
             let
-              val (_, _, acc) = layout (lnStart, col, acc) doc1
-              val acc = spaces col :: newline :: acc
+              val (_, _, _, acc) = layout (am, lnStart, col, acc) doc1
+              val newLnStart =
+                case am of
+                  UseCurrentCol => col
+                | ResetTo r => r
+              val acc = spaces newLnStart :: newline :: acc
             in
-              layout (col, col, acc) doc2
+              layout (UseCurrentCol, newLnStart, newLnStart, acc) doc2
             end
         | Choice {flattened = (_, flat, sz, _), normal} =>
             let
@@ -209,12 +241,12 @@ struct
               val ribbonOkay = (col - lnStart) + sz <= ribbonWidth
             in
               if widthOkay andalso ribbonOkay then
-                layout (lnStart, col, acc) flat
+                layout (am, lnStart, col, acc) flat
               else
-                layout (lnStart, col, acc) normal
+                layout (am, lnStart, col, acc) normal
             end
 
-      val (_, _, strs) = layout (0, 0, []) inputDoc
+      val (_, _, _, strs) = layout (UseCurrentCol, 0, 0, []) inputDoc
     in
       CustomString.concat (List.rev strs)
     end

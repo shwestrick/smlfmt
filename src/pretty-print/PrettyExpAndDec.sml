@@ -13,11 +13,12 @@ struct
   open TokenDoc
   open PrettyUtil
 
-  infix 2 ++ $$ // +/+
+  infix 2 ++ $$ // +/+ +$+
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
-  fun x +/+ y = beside (*besideAndAbove*) (x, y)
+  fun x +/+ y = besideAndAbove (x, y)
+  fun x +$+ y = besideAndAboveOrSpace (x, y)
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -399,13 +400,19 @@ struct
       | Typed {exp, colon, ty} =>
           showExp exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
-          group (
-            (token iff ++ space ++ showExp exp1 ++ space ++ token thenn)
+          group ((
+            group (
+              token iff
+              $$
+              indent (showExp exp1)
+              $$
+              token thenn
+            )
             $$
             indent (showExp exp2)
             $$
-            token elsee
-            $$
+            token elsee)
+            +$+
             indent (showExp exp3)
           )
       | While {whilee, exp1, doo, exp2} =>

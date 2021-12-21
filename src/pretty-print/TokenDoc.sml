@@ -18,6 +18,20 @@ sig
   val indent: doc -> doc
 
   val beside: doc * doc -> doc
+
+  (** Align a doc so that it wraps back to the same indentation as the
+    * first doc:
+    *
+    *      d1       d2           besideAndAbove (d1, d2)
+    *    .......   ****             .......
+    *    .......   ***    ====>     .......
+    *    .....                      .....****
+    *                               ***
+    *
+    * The first version gets replaced by a space when undone by group. The
+    * second is put exactly beside.
+    *)
+  val besideAndAboveOrSpace: doc * doc -> doc
   val besideAndAbove: doc * doc -> doc
 
   (** When an "above" is flattened by a group, it can either be replaced by a
@@ -48,7 +62,7 @@ struct
   | Indent of doc
   | Token of Token.t
   | Beside of doc * doc
-  | BesideAndAbove of doc * doc
+  | BesideAndAbove of bool * doc * doc
   | Above of bool * doc * doc
   | Group of doc
 
@@ -71,11 +85,14 @@ struct
     | (_, Empty) => doc1
     | _ => Above (withSpace, doc1, doc2)
 
-  fun besideAndAbove (doc1, doc2) =
+  fun besideAndAbove' withSpace (doc1, doc2) =
     case (doc1, doc2) of
       (Empty, _) => doc2
     | (_, Empty) => doc1
-    | _ => BesideAndAbove (doc1, doc2)
+    | _ => BesideAndAbove (withSpace, doc1, doc2)
+
+  val besideAndAboveOrSpace = besideAndAbove' true
+  val besideAndAbove = besideAndAbove' false
 
   val aboveOrSpace = above' true
   val aboveOrBeside = above' false
@@ -122,7 +139,7 @@ struct
               (first, Beside (d1', d2'), last)
             end
 
-        | BesideAndAbove (d1, d2) =>
+        | BesideAndAbove (b, d1, d2) =>
             let
               val (first1, d1', last1) = doDoc d1
               val (first2, d2', last2) = doDoc d2
@@ -130,7 +147,7 @@ struct
               val first = preferLeft (first1, first2)
               val last = preferRight (last1, last2)
             in
-              (first, BesideAndAbove (d1', d2'), last)
+              (first, BesideAndAbove (b, d1', d2'), last)
             end
 
         | Above (b, d1, d2) =>
@@ -195,8 +212,8 @@ struct
             insertCommentsBeforeTok mode tok
         | Beside (d1, d2) =>
             Beside (insertAllBefore mode d1, insertAllBefore BesideMode d2)
-        | BesideAndAbove (d1, d2) =>
-            BesideAndAbove (insertAllBefore mode d1, insertAllBefore BesideMode d2)
+        | BesideAndAbove (b, d1, d2) =>
+            BesideAndAbove (b, insertAllBefore mode d1, insertAllBefore BesideMode d2)
         | Above (b, d1, d2) =>
             Above (b, insertAllBefore mode d1, insertAllBefore AboveMode d2)
         | Group d =>
@@ -234,17 +251,17 @@ struct
                   (foundIt, Beside (d1', d2'))
                 end
             end
-        | BesideAndAbove (d1, d2) =>
+        | BesideAndAbove (b, d1, d2) =>
             let
               val (foundIt, d2') = insertOnlyAfterLast BesideMode d2
             in
               if foundIt then
-                (true, BesideAndAbove (d1, d2'))
+                (true, BesideAndAbove (b, d1, d2'))
               else
                 let
                   val (foundIt, d1') = insertOnlyAfterLast mode d1
                 in
-                  (foundIt, BesideAndAbove (d1', d2'))
+                  (foundIt, BesideAndAbove (b, d1', d2'))
                 end
             end
         | Above (b, d1, d2) =>
@@ -370,28 +387,30 @@ struct
               (g1 andalso g2, StringDoc.beside (d1', d2'))
             end
 
-        | BesideAndAbove (d1, d2) =>
+        | BesideAndAbove (b, d1, d2) =>
             let
               val (g1, d1') = loop d1
               val (g2, d2') = loop d2
             in
-              (g1 andalso g2, StringDoc.besideAndAbove (d1', d2'))
+              ( g1 andalso g2
+              , if b then
+                  StringDoc.besideAndAboveOrSpace (d1', d2')
+                else
+                  StringDoc.besideAndAbove (d1', d2')
+              )
             end
 
-        | Above (true, d1, d2) =>
+        | Above (b, d1, d2) =>
             let
               val (g1, d1') = loop d1
               val (g2, d2') = loop d2
             in
-              (g1 andalso g2, StringDoc.aboveOrSpace (d1', d2'))
-            end
-
-        | Above (false, d1, d2) =>
-            let
-              val (g1, d1') = loop d1
-              val (g2, d2') = loop d2
-            in
-              (g1 andalso g2, StringDoc.aboveOrBeside (d1', d2'))
+              ( g1 andalso g2
+              , if b then
+                  StringDoc.aboveOrSpace (d1', d2')
+                else
+                  StringDoc.aboveOrBeside (d1', d2')
+              )
             end
 
         | Group d =>
