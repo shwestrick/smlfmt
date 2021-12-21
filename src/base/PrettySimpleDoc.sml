@@ -165,6 +165,8 @@ struct
 
       type layout_state = int * int * (CustomString.t list)
 
+      val newline = CustomString.fromString "\n"
+
       fun layout ((lnStart, col, acc): layout_state) doc : layout_state =
         case doc of
           Empty =>
@@ -187,10 +189,17 @@ struct
             layout (layout (lnStart, col, acc) doc1) doc2
         | BesideAndAbove (doc1, doc2) =>
             raise Fail "Not yet implemented..."
+            (*
+            let
+              val (_, col, acc) = layout (lnStart, col, acc) doc1
+            in
+              layout (lnStart, col, acc) doc2
+            end
+            *)
         | Above (_, doc1, doc2) =>
             let
               val (_, _, acc) = layout (lnStart, col, acc) doc1
-              val acc = spaces col :: CustomString.fromString "\n" :: acc
+              val acc = spaces col :: newline :: acc
             in
               layout (col, col, acc) doc2
             end
