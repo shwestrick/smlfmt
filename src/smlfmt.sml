@@ -8,7 +8,7 @@ val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
 val maxWidth = CommandLineArgs.parseInt "max-width" 80
 val tabWidth = CommandLineArgs.parseInt "tab-width" 4
 val indentWidth = CommandLineArgs.parseInt "indent-width" 2
-fun infile () = List.hd (CommandLineArgs.positional ())
+val inputfiles = CommandLineArgs.positional ()
 
 val doHelp =
   CommandLineArgs.findKey "h" orelse
@@ -66,10 +66,7 @@ fun handleLexOrParseError exn =
   end
 
 
-fun doMLB () =
-  if true then
-    raise Fail "TODO: handle .mlb ..."
-  else
+(* fun doMLB () =
   let
     val _ =
       ( print "==== PATH MAP ====\n"
@@ -86,22 +83,41 @@ fun doMLB () =
   in
     print "\nParsing succeeded.\n"
   end
-  handle exn => handleLexOrParseError exn
+  handle exn => handleLexOrParseError exn *)
 
-fun doSML () =
+
+fun doSML filepath =
   let
-    val source = Source.loadFromFile (FilePath.fromUnixPath (infile ()))
+    val fp = FilePath.fromUnixPath filepath
+    val source = Source.loadFromFile fp
     val ast = Parser.parse source
-  in
-    TerminalColorString.print
+    val result =
+      TerminalColorString.toString {colors=false}
       (PrettyPrintAst.pretty
-        { ribbonFrac=ribbonFrac
-        , maxWidth=maxWidth
-        , tabWidth=tabWidth
-        , indent=indentWidth
+        { ribbonFrac = ribbonFrac
+        , maxWidth = maxWidth
+        , tabWidth = tabWidth
+        , indent = indentWidth
         }
-        ast);
-    print "\n"
+        ast)
+
+    fun writeOut () =
+      let
+        val outstream = TextIO.openOut (FilePath.toHostPath fp)
+      in
+        TextIO.output (outstream, result);
+        TextIO.output (outstream, "\n");
+        TextIO.closeOut outstream
+      end
+  in
+    print ("overwrite " ^ filepath ^ " [y/N]? ");
+
+    case TextIO.inputLine TextIO.stdIn of
+      NONE => ()
+    | SOME line =>
+        if line = "y\n" orelse line = "Y\n" then
+          writeOut ()
+        else ()
   end
   handle exn => handleLexOrParseError exn
 
@@ -115,16 +131,47 @@ fun extError eo =
   ; OS.Process.exit OS.Process.failure
   )
 
+datatype fileinfo =
+  FileError of exn
+| Unsupported of string
+| MissingExtension
+| MLBFile
+| SMLFile
+
+fun fileinfo filepath =
+  let
+    val eo = OS.Path.ext filepath
+  in
+    case eo of
+      NONE => MissingExtension
+    | SOME "mlb" => MLBFile
+    | SOME e =>
+        if List.exists (fn e' => e = e') ["sml","fun","sig"] then
+          SMLFile
+        else
+          Unsupported e
+  end
+  handle exn => FileError exn
+
+fun okayFile (filepath, info) =
+  case info of SMLFile => true | _ => false
+
+fun skipFile (filepath, info) =
+  print ("skipping file " ^ filepath ^ ": "
+  ^ (case info of
+      MissingExtension => "missing extension"
+    | MLBFile => ".mlb not implemented yet"
+    | Unsupported e => "unsupported file extension: " ^ e
+    | FileError exn => exnMessage exn
+    | _ => raise Fail "Error! Bug! Please submit an error report...")
+  ^ "\n")
+
+val (filesToDo, filesToSkip) =
+  List.partition (fn (_, SMLFile) => true | _ => false)
+  (List.map (fn x => (x, fileinfo x)) inputfiles)
+
 val _ =
-  (case OS.Path.ext (infile ()) of
-    SOME "mlb" => doMLB()
-  | SOME e =>
-      if List.exists (fn e' => e = e') ["sml","fun","sig"] then
-        doSML ()
-      else
-        extError (SOME e)
-  | _ => extError NONE)
-  handle e =>
-    ( printErr (exnMessage e ^ "\n\n")
-    ; printErr (usage ())
-    )
+  List.app skipFile filesToSkip
+
+val _ =
+  List.app (doSML o #1) filesToDo
