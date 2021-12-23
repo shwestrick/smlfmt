@@ -1,5 +1,8 @@
 SOURCES = $(wildcard src/*.sml) $(wildcard src/*.mlb) $(wildcard src/**/*.sml) $(wildcard src/**/*.mlb)
 
+smlfmt: $(SOURCES)
+	mlton -mlb-path-var 'COMPAT mlton' -output smlfmt src/smlfmt.mlb
+
 main: $(SOURCES)
 	mlton -mlb-path-var 'COMPAT mlton' -output main src/main.mlb
 
@@ -8,4 +11,4 @@ main.dbg: $(SOURCES)
 
 .PHONY: clean
 clean:
-	rm -f main
+	rm -f main smlfmt
