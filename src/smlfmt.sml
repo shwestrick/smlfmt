@@ -10,13 +10,18 @@ val tabWidth = CommandLineArgs.parseInt "tab-width" 4
 val indentWidth = CommandLineArgs.parseInt "indent-width" 2
 val inputfiles = CommandLineArgs.positional ()
 
+val doForce =
+  CommandLineArgs.findKey "f" orelse
+  CommandLineArgs.parseFlag "force"
+
 val doHelp =
   CommandLineArgs.findKey "h" orelse
   CommandLineArgs.findKey "help" orelse
   CommandLineArgs.parseFlag "help"
 
 val optionalArgDesc =
-"  [-max-width W]         try to use at most <W> columns in each line\n\
+"  [-f/--force]           overwrite files without interactive confirmation\n\
+\  [-max-width W]         try to use at most <W> columns in each line\n\
 \                         (default 80)\n\
 \  [-ribbon-frac R]       controls how dense each line should be\n\
 \                         (default 1.0; requires 0 < R <= 1)\n\
@@ -28,16 +33,9 @@ val optionalArgDesc =
 \  [-h/-help/--help]      print this message\n"
 
 fun usage () =
-  String.concatWith " "
-    [ "usage:"
-    , "smlfmt"
-    , "[ARGS]"
-    , "FILE.sml"
-    , "..."
-    , "FILE.sml"
-    ]
-  ^ "\nOptional arguments:\n" ^ optionalArgDesc
-
+  "usage: smlfmt [ARGS] FILE.sml ... FILE.sml"
+  ^ "\nOptional arguments:\n"
+  ^ optionalArgDesc
 
 val _ =
   if not doHelp then () else
@@ -109,27 +107,26 @@ fun doSML filepath =
         TextIO.output (outstream, "\n");
         TextIO.closeOut outstream
       end
-  in
-    print ("overwrite " ^ filepath ^ " [y/N]? ");
 
-    case TextIO.inputLine TextIO.stdIn of
-      NONE => ()
-    | SOME line =>
-        if line = "y\n" orelse line = "Y\n" then
-          writeOut ()
-        else ()
+    fun confirm () =
+      ( print ("overwrite " ^ filepath ^ " [y/N]? ")
+      ; case TextIO.inputLine TextIO.stdIn of
+          NONE => ()
+        | SOME line =>
+            if line = "y\n" orelse line = "Y\n" then
+              writeOut ()
+            else ()
+      )
+  in
+    if doForce then
+      writeOut ()
+    else
+      confirm ()
   end
   handle exn => handleLexOrParseError exn
 
 fun printErr m =
   TextIO.output (TextIO.stdErr, m)
-
-fun extError eo =
-  ( case eo of
-      SOME e => printErr ("Unsupported file extension: " ^ e ^ "\n")
-    | NONE => printErr ("Missing file extension\n")
-  ; OS.Process.exit OS.Process.failure
-  )
 
 datatype fileinfo =
   FileError of exn
@@ -157,7 +154,7 @@ fun okayFile (filepath, info) =
   case info of SMLFile => true | _ => false
 
 fun skipFile (filepath, info) =
-  print ("skipping file " ^ filepath ^ ": "
+  printErr ("skipping file " ^ filepath ^ ": "
   ^ (case info of
       MissingExtension => "missing extension"
     | MLBFile => ".mlb not implemented yet"
