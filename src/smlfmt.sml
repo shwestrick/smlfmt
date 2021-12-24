@@ -63,32 +63,14 @@ fun handleLexOrParseError exn =
     OS.Process.exit OS.Process.failure
   end
 
+fun printErr m =
+  TextIO.output (TextIO.stdErr, m)
 
-(* fun doMLB () =
+
+fun doSMLAst (fp, ast) =
   let
-    val _ =
-      ( print "==== PATH MAP ====\n"
-      ; List.app
-          (fn (key, value) => print (key ^ " " ^ value ^ "\n"))
-          pathmap
-      ; print "==================\n"
-      )
+    val hfp = FilePath.toHostPath fp
 
-    val ast =
-      ParseAllSMLFromMLB.parse
-        {skipBasis = true, pathmap = pathmap}
-        (FilePath.fromUnixPath (infile ()))
-  in
-    print "\nParsing succeeded.\n"
-  end
-  handle exn => handleLexOrParseError exn *)
-
-
-fun doSML filepath =
-  let
-    val fp = FilePath.fromUnixPath filepath
-    val source = Source.loadFromFile fp
-    val ast = Parser.parse source
     val result =
       TerminalColorString.toString {colors=false}
       (PrettyPrintAst.pretty
@@ -101,21 +83,23 @@ fun doSML filepath =
 
     fun writeOut () =
       let
-        val outstream = TextIO.openOut (FilePath.toHostPath fp)
+        val outstream = TextIO.openOut hfp
       in
+        printErr ("formatting " ^ hfp ^ "\n");
         TextIO.output (outstream, result);
         TextIO.output (outstream, "\n");
         TextIO.closeOut outstream
       end
 
     fun confirm () =
-      ( print ("overwrite " ^ filepath ^ " [y/N]? ")
+      ( print ("overwrite " ^ hfp ^ " [y/N]? ")
       ; case TextIO.inputLine TextIO.stdIn of
-          NONE => ()
+          NONE => printErr ("skipping " ^ hfp ^ "\n")
         | SOME line =>
             if line = "y\n" orelse line = "Y\n" then
               writeOut ()
-            else ()
+            else
+              printErr ("skipping " ^ hfp ^ "\n")
       )
   in
     if doForce then
@@ -123,10 +107,37 @@ fun doSML filepath =
     else
       confirm ()
   end
-  handle exn => handleLexOrParseError exn
+  handle exn =>
+    printErr
+      ("skipping " ^ FilePath.toHostPath fp ^ "\n"
+       ^ "(ERROR: " ^ exnMessage exn ^ ")\n")
 
-fun printErr m =
-  TextIO.output (TextIO.stdErr, m)
+
+
+fun doSML filepath =
+  let
+    val fp = FilePath.fromUnixPath filepath
+    val source = Source.loadFromFile fp
+    val ast =
+      Parser.parse source
+      handle exn => handleLexOrParseError exn
+  in
+    doSMLAst (fp, ast)
+  end
+
+
+fun doMLB filepath =
+  let
+    val fp = FilePath.fromUnixPath filepath
+    val asts =
+      ParseAllSMLFromMLB.parse {skipBasis = true, pathmap = pathmap} fp
+      handle exn => handleLexOrParseError exn
+  in
+    Util.for (0, Seq.length asts) (fn i =>
+      doSMLAst (Seq.nth asts i)
+    )
+  end
+
 
 datatype fileinfo =
   FileError of exn
@@ -151,24 +162,28 @@ fun fileinfo filepath =
   handle exn => FileError exn
 
 fun okayFile (filepath, info) =
-  case info of SMLFile => true | _ => false
+  case info of SMLFile => true | MLBFile => true | _ => false
 
 fun skipFile (filepath, info) =
   printErr ("skipping file " ^ filepath ^ ": "
   ^ (case info of
       MissingExtension => "missing extension"
-    | MLBFile => ".mlb not implemented yet"
     | Unsupported e => "unsupported file extension: " ^ e
     | FileError exn => exnMessage exn
     | _ => raise Fail "Error! Bug! Please submit an error report...")
   ^ "\n")
 
 val (filesToDo, filesToSkip) =
-  List.partition (fn (_, SMLFile) => true | _ => false)
-  (List.map (fn x => (x, fileinfo x)) inputfiles)
+  List.partition okayFile (List.map (fn x => (x, fileinfo x)) inputfiles)
+
+fun doFile (fp, info) =
+  case info of
+    SMLFile => doSML fp
+  | MLBFile => doMLB fp
+  | _ => raise Fail "Error! Bug! Please submit an error report..."
 
 val _ =
   List.app skipFile filesToSkip
 
 val _ =
-  List.app (doSML o #1) filesToDo
+  List.app doFile filesToDo

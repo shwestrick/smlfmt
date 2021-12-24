@@ -8,8 +8,9 @@ sig
   (** Take an .mlb source and fully parse all SML by loading all filepaths
     * recursively specified by the .mlb and parsing them, etc.
     *)
-  val parse: {pathmap: MLtonPathMap.t, skipBasis: bool} -> FilePath.t -> Ast.t
-  (* val readSMLPathsFromMLB: MLtonPathMap.t -> FilePath.t -> FilePath.t Seq.t *)
+  val parse: {pathmap: MLtonPathMap.t, skipBasis: bool}
+          -> FilePath.t
+          -> (FilePath.t * Ast.t) Seq.t
 end =
 struct
 
@@ -61,13 +62,17 @@ struct
     , bases: basis VarDict.t *)
     }
 
-  type mlb_cache = (basis * Ast.ast) FilePathDict.t
+  type mlb_cache = basis FilePathDict.t
 
+  fun printErr m =
+    TextIO.output (TextIO.stdErr, m)
 
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
-  fun parse {skipBasis, pathmap} mlbPath : Ast.t =
+  fun parse {skipBasis, pathmap} mlbPath : (FilePath.t * Ast.ast) Seq.t =
     let
       open MLBAst
+
+      type asts = (FilePath.t * Ast.ast) list
 
       fun expandAndJoin relativeDir path =
         let
@@ -105,20 +110,21 @@ struct
           if
             skipBasis andalso List.exists (fn k => k = "SML_LIB") used
           then
-            ( print ("skipping " ^ FilePath.toUnixPath path ^ "\n")
-            ; print ("(see documentation for --no-skip-basis)\n")
-            ; (basis, Ast.empty)
+            ( printErr ("skipping " ^ FilePath.toUnixPath path ^ "\n")
+            ; printErr ("(basis files are skipped)\n")
+            ; (basis, [])
             )
           else
             let
-              val _ = print ("loading  " ^ FilePath.toUnixPath path ^ "\n")
+              val _ = printErr ("loading  " ^ FilePath.toUnixPath path ^ "\n")
               val src =
                 Source.loadFromFile path
                 handle OS.SysErr (msg, _) => errFun msg
 
-              val (infdict, ast) = Parser.parseWithInfdict (#fixities basis) src
+              val (infdict, ast) =
+                Parser.parseWithInfdict (#fixities basis) src
             in
-              ({fixities = infdict}, ast)
+              ({fixities = infdict}, [(path, ast)])
             end
         end
 
@@ -130,36 +136,36 @@ struct
           if
             skipBasis andalso List.exists (fn k => k = "SML_LIB") used
           then
-            ( print ("skipping " ^ FilePath.toUnixPath path ^ "\n")
-            ; print ("(see documentation for --no-skip-basis)\n")
-            ; (mlbCache, mergeBases (basis, initialTopLevelBasis), Ast.empty)
+            ( printErr ("skipping " ^ FilePath.toUnixPath path ^ "\n")
+            ; printErr ("(basis files are skipped)\n")
+            ; (mlbCache, mergeBases (basis, initialTopLevelBasis), [])
             )
           else
             let
-              val mlbCache =
-                if FilePathDict.contains mlbCache path then mlbCache else
-                let
-                  val _ = print ("loading  " ^ FilePath.toUnixPath path ^ "\n")
-                  val mlbSrc =
-                    Source.loadFromFile path
-                    handle OS.SysErr (msg, _) => errFun msg
+              val (mlbCache, basis', asts) =
+                if FilePathDict.contains mlbCache path then
+                  (mlbCache, FilePathDict.lookup mlbCache path, [])
+                else
+                  let
+                    val _ = printErr ("loading  " ^ FilePath.toUnixPath path ^ "\n")
+                    val mlbSrc =
+                      Source.loadFromFile path
+                      handle OS.SysErr (msg, _) => errFun msg
 
-                  val Ast basdec = MLBParser.parse mlbSrc
+                    val Ast basdec = MLBParser.parse mlbSrc
 
-                  val ctx' =
-                    { parents = path :: #parents ctx
-                    , dir = FilePath.dirname path
-                    }
+                    val ctx' =
+                      { parents = path :: #parents ctx
+                      , dir = FilePath.dirname path
+                      }
 
-                  val (mlbCache, b, a) =
-                    doBasdec ctx' (mlbCache, emptyBasis, basdec)
-                in
-                  FilePathDict.insert mlbCache (path, (b, a))
-                end
-
-              val (basis', ast) = FilePathDict.lookup mlbCache path
+                    val (mlbCache, b, a) =
+                      doBasdec ctx' (mlbCache, emptyBasis, basdec)
+                  in
+                    (FilePathDict.insert mlbCache (path, b), b, a)
+                  end
             in
-              (mlbCache, mergeBases (basis, basis'), ast)
+              (mlbCache, mergeBases (basis, basis'), asts)
             end
       end
 
@@ -167,7 +173,7 @@ struct
       and doBasdec
         (ctx: context)
         (mlbCache: mlb_cache, basis: basis, basdec: MLBAst.basdec)
-        : (mlb_cache * basis * Ast.ast)
+        : (mlb_cache * basis * asts)
       = case basdec of
 
           DecPathMLB {path, token} =>
@@ -175,36 +181,36 @@ struct
 
         | DecPathSML {path, token} =>
             let
-              val (basis, ast) =
+              val (basis, asts) =
                 doSML ctx (basis, path, fileErrorHandler ctx path token)
             in
-              (mlbCache, basis, ast)
+              (mlbCache, basis, asts)
             end
 
         | DecMultiple {elems, ...} =>
             let
-              fun doElem ((mlbCache, basis, ast), basdec) =
+              fun doElem ((mlbCache, basis, asts), basdec) =
                 let
-                  val (mlbCache, basis', ast') =
+                  val (mlbCache, basis', asts') =
                     doBasdec ctx (mlbCache, basis, basdec)
                 in
-                  (mlbCache, basis', Ast.join (ast, ast'))
+                  (mlbCache, basis', asts' @ asts)
                 end
             in
-              Seq.iterate doElem (mlbCache, basis, Ast.empty) elems
+              Seq.iterate doElem (mlbCache, basis, []) elems
             end
 
         | DecBasis {elems, ...} =>
             let
-              fun doElem ((mlbCache, basis, ast), {basexp, ...}) =
+              fun doElem ((mlbCache, basis, asts), {basexp, ...}) =
                 let
-                  val (mlbCache, basis', ast') =
+                  val (mlbCache, basis', asts') =
                     doBasexp ctx (mlbCache, basis, basexp)
                 in
-                  (mlbCache, basis', Ast.join (ast, ast'))
+                  (mlbCache, basis', asts' @ asts)
                 end
             in
-              Seq.iterate doElem (mlbCache, basis, Ast.empty) elems
+              Seq.iterate doElem (mlbCache, basis, []) elems
             end
 
         | DecLocalInEnd {basdec1, basdec2, ...} =>
@@ -213,22 +219,22 @@ struct
                 * effectively hides any exports of basdec1
                 *)
               val basis = newScope basis
-              val (mlbCache, basis, ast1) =
+              val (mlbCache, basis, asts1) =
                 doBasdec ctx (mlbCache, basis, basdec1)
               val basis = newScope basis
-              val (mlbCache, basis, ast2) =
+              val (mlbCache, basis, asts2) =
                 doBasdec ctx (mlbCache, basis, basdec2)
               val {old=basis, popped=newBasis} = popScope basis
               val {old=basis, ...} = popScope basis
             in
-              (mlbCache, mergeBases (basis, newBasis), Ast.join (ast1, ast2))
+              (mlbCache, mergeBases (basis, newBasis), asts2 @ asts1)
             end
 
         | DecAnn {basdec, ...} =>
             doBasdec ctx (mlbCache, basis, basdec)
 
         | _ =>
-            (mlbCache, basis, Ast.empty)
+            (mlbCache, basis, [])
 
 
       and doBasexp ctx (mlbCache, basis, basexp) =
@@ -243,19 +249,19 @@ struct
                 * effectively hides any exports of basdec
                 *)
               val basis = newScope basis
-              val (mlbCache, basis, ast1) =
+              val (mlbCache, basis, asts1) =
                 doBasdec ctx (mlbCache, basis, basdec)
               val basis = newScope basis
-              val (mlbCache, basis, ast2) =
+              val (mlbCache, basis, asts2) =
                 doBasexp ctx (mlbCache, basis, basexp)
               val {old=basis, popped=newBasis} = popScope basis
               val {old=basis, ...} = popScope basis
             in
-              (mlbCache, mergeBases (basis, newBasis), Ast.join (ast1, ast2))
+              (mlbCache, mergeBases (basis, newBasis), asts2 @ asts1)
             end
 
         | _ =>
-            (mlbCache, basis, Ast.empty)
+            (mlbCache, basis, [])
 
 
       fun topLevelError msg =
@@ -275,11 +281,11 @@ struct
         else
           emptyBasis
 
-      val (_, _, ast) =
+      val (_, _, asts) =
         doMLB {parents = [], dir = FilePath.fromUnixPath "."}
           (emptyCache, initialBasis, mlbPath, topLevelError)
     in
-      ast
+      Seq.fromRevList asts
     end
 
 end
