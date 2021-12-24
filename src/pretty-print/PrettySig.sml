@@ -15,9 +15,7 @@ struct
   open PrettyUtil
 
   infix 2 ++ $$ //
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
+  infix 1 \\
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -199,7 +197,7 @@ struct
             ++
             (case delim of NONE => empty | SOME sc => token sc)
         in
-          Seq.iterate op$$ empty (Seq.zipWith showOne (elems, delims))
+          rigid (Seq.iterate op$$ empty (Seq.zipWith showOne (elems, delims)))
         end
 
     | Ast.Sig.Sharing {spec, sharingg, elems, delims} =>
@@ -248,28 +246,34 @@ struct
       Ast.Sig.Ident id =>
         token id
 
-    | Ast.Sig.Spec {sigg, spec, endd} =>
-        group (
-          token sigg
-          $$
-          indent (showSpec spec)
-          $$
-          token endd
-        )
+    | Ast.Sig.Spec {sigg, spec, endd} => (
+        case spec of
+          Ast.Sig.EmptySpec => token sigg ++ space ++ token endd
+        | _                 =>
+            rigid (
+              token sigg
+              $$
+              indent (showSpec spec)
+              $$
+              token endd
+            )
+      )
 
     | Ast.Sig.WhereType {sigexp, elems} =>
         let
           val se = showSigExp sigexp
 
           fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
-            separateWithSpaces
-              [ SOME (token wheree) (** this could be 'and' *)
-              , SOME (token typee)
-              , maybeShowSyntaxSeq tyvars token
-              , SOME (token (MaybeLongToken.getToken tycon))
-              , SOME (token eq)
-              , SOME (showTy ty)
-              ]
+            indent (
+              separateWithSpaces
+                [ SOME (token wheree) (** this could be 'and' *)
+                , SOME (token typee)
+                , maybeShowSyntaxSeq tyvars token
+                , SOME (token (MaybeLongToken.getToken tycon))
+                , SOME (token eq)
+                , SOME (showTy ty)
+                ]
+            )
         in
           Seq.iterate op$$ se (Seq.map showElem elems)
         end

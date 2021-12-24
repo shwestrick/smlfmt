@@ -14,9 +14,7 @@ struct
   open PrettyUtil
 
   infix 2 ++ $$ //
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
+  infix 1 \\
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -31,37 +29,38 @@ struct
       Ast.Str.Ident id =>
         token (MaybeLongToken.getToken id)
 
-    | Ast.Str.Struct {structt, strdec, endd} =>
-        group (
-          token structt
-          $$
-          indent (showStrDec strdec)
-          $$
-          token endd
-        )
+    | Ast.Str.Struct {structt, strdec, endd} => (
+        case strdec of
+          Ast.Str.DecEmpty => token structt ++ space ++ token endd
+        | _                =>
+            rigid (
+              token structt
+              $$
+              indent (showStrDec strdec)
+              $$
+              token endd
+            )
+      )
 
     | Ast.Str.Constraint {strexp, colon, sigexp} =>
         showStrExp strexp
         ++ space ++ token colon
-        ++ space ++ showSigExp sigexp
+        \\ showSigExp sigexp
 
     | Ast.Str.FunAppExp {funid, lparen, strexp, rparen} =>
-        token funid ++ space
-        ++ token lparen ++ showStrExp strexp ++ token rparen
+        token funid
+        \\ token lparen ++ showStrExp strexp ++ token rparen
 
     | Ast.Str.FunAppDec {funid, lparen, strdec, rparen} =>
-        token funid ++ space
-        ++ token lparen ++ showStrDec strdec ++ token rparen
+        token funid
+        \\ token lparen ++ showStrDec strdec ++ token rparen
 
     | Ast.Str.LetInEnd {lett, strdec, inn, strexp, endd} =>
         let
-          val prettyDec = showStrDec strdec
-          val prettyExp = showStrExp strexp
-
           val topPart =
             token lett
             $$
-            indent (prettyDec)
+            indent (showStrDec strdec)
             $$
             token inn
 
@@ -71,10 +70,10 @@ struct
             else
               group topPart
         in
-          group (
+          rigid (
             topPart
             $$
-            indent (group (prettyExp))
+            indent (group (showStrExp strexp))
             $$
             token endd
           )
@@ -91,23 +90,19 @@ struct
 
     | Ast.Str.DecStructure {structuree, elems, delims} =>
         let
-          fun maybeShowConstraint constraint =
-            case constraint of
-              NONE => NONE
-            | SOME {colon, sigexp} =>
-                SOME (token colon ++ space ++ showSigExp sigexp)
-
           fun showOne (starter, {strid, constraint, eq, strexp}) =
-            group (
-              separateWithSpaces
-                [ SOME (token starter)
-                , SOME (token strid)
-                , maybeShowConstraint constraint
-                , SOME (token eq)
-                ]
-              $$
-              indent (showStrExp strexp)
-            )
+            separateWithSpaces
+              [ SOME (token starter)
+              , SOME (token strid)
+              , Option.map
+                  (fn {colon, ...} => token colon)
+                  constraint
+              ]
+            \\ separateWithSpaces
+                  [ Option.map (fn {sigexp, ...} => showSigExp sigexp) constraint
+                  , SOME (token eq)
+                  ]
+            \\ showStrExp strexp
         in
           Seq.iterate op$$
             (showOne (structuree, Seq.nth elems 0))
@@ -123,32 +118,21 @@ struct
               NONE => empty
             | SOME sc => token sc)
         in
-          Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i)
+          rigid (Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i))
         end
 
     | Ast.Str.DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
-        let
-          val topPart =
-            token locall
-            $$
-            indent (showStrDec strdec1)
-            $$
-            token inn
-
-          val topPart =
-            if Ast.Str.isMultipleDecs strdec1 then
-              topPart
-            else
-              group topPart
-        in
-          group (
-            topPart
-            $$
-            indent (group (showStrDec strdec2))
-            $$
-            token endd
-          )
-        end
+        rigid (
+          token locall
+          $$
+          indent (showStrDec strdec1)
+          $$
+          token inn
+          $$
+          indent (showStrDec strdec2)
+          $$
+          token endd
+        )
 
     (** This is MLton-specific. Useful for testing by parsing the entire
       * MLton implementation of the standard basis.
