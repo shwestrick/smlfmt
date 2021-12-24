@@ -43,6 +43,7 @@ sig
   val space: doc
   val softspace: doc
   val group: doc -> doc
+  val rigid: doc -> doc
 
   val insertBlankLines: doc -> doc
   val insertComments: doc -> doc
@@ -65,12 +66,14 @@ struct
   | BesideAndAbove of bool * doc * doc
   | Above of bool * doc * doc
   | Group of doc
+  | Rigid of doc
 
   type t = doc
 
   val empty = Empty
   val token = Token
   val group = Group
+  val rigid = Rigid
   fun indent d = Indent d
 
   fun beside (doc1, doc2) =
@@ -173,6 +176,13 @@ struct
                     Above (b, d1', d2')
             in
               (first, result, last)
+            end
+
+        | Rigid d =>
+            let
+              val (first, d', last) = doDoc d
+            in
+              (first, Rigid d', last)
             end
 
         | _ => (NONE, doc, NONE)
@@ -421,6 +431,13 @@ struct
                 (true, StringDoc.group d')
               else
                 (false, d')
+            end
+
+        | Rigid d =>
+            let
+              val (_, d') = loop d
+            in
+              (false, d')
             end
 
       val (_, d') = loop d

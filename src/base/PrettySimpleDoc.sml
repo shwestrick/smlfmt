@@ -50,6 +50,7 @@ sig
   val space: doc
   val softspace: doc
   val group: doc -> doc
+  val rigid: doc -> doc
 
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int}
            -> doc
@@ -71,6 +72,7 @@ struct
   | BesideAndAbove of bool * doc * doc
   | Above of bool * doc * doc
   | Choice of {flattened: (bool * doc * int * bool), normal: doc}
+  | Rigid of doc
 
 
   type t = doc
@@ -136,6 +138,7 @@ struct
               loopBeside (d1, d2)
         | Choice {flattened, ...} =>
             flattened
+        | Rigid d => (false, Rigid d, 0 (* TODO *), false)
 
       and loopBeside (d1, d2) =
         let
@@ -171,6 +174,8 @@ struct
 
   fun group doc =
     Choice {flattened = flatten doc, normal = doc}
+
+  val rigid = Rigid
 
 
   fun spaces count =
@@ -245,6 +250,7 @@ struct
               else
                 layout (am, lnStart, col, acc) normal
             end
+        | Rigid doc => layout (am, lnStart, col, acc) doc
 
       val (_, _, _, strs) = layout (UseCurrentCol, 0, 0, []) inputDoc
     in
