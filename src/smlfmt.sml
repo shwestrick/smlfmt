@@ -19,8 +19,13 @@ val doHelp =
   CommandLineArgs.findKey "help" orelse
   CommandLineArgs.parseFlag "help"
 
+val showOutput =
+  CommandLineArgs.findKey "s" orelse
+  CommandLineArgs.parseFlag "show-output"
+
 val optionalArgDesc =
 "  [-f/--force]           overwrite files without interactive confirmation\n\
+\  [-s/--show-output]     also print to stdout, with syntax highlighting\n\
 \  [-max-width W]         try to use at most <W> columns in each line\n\
 \                         (default 80)\n\
 \  [-ribbon-frac R]       controls how dense each line should be\n\
@@ -72,8 +77,7 @@ fun doSMLAst (fp, ast) =
   let
     val hfp = FilePath.toHostPath fp
 
-    val result =
-      TerminalColorString.toString {colors=false}
+    val prettied =
       (PrettyPrintAst.pretty
         { ribbonFrac = ribbonFrac
         , maxWidth = maxWidth
@@ -82,6 +86,8 @@ fun doSMLAst (fp, ast) =
         }
         ast)
 
+    val result = TerminalColorString.toString {colors=false} prettied
+
     fun writeOut () =
       let
         val outstream = TextIO.openOut hfp
@@ -89,7 +95,10 @@ fun doSMLAst (fp, ast) =
         printErr ("formatting " ^ hfp ^ "\n");
         TextIO.output (outstream, result);
         TextIO.output (outstream, "\n");
-        TextIO.closeOut outstream
+        TextIO.closeOut outstream;
+
+        if not showOutput then ()
+        else (TerminalColorString.print prettied; print "\n")
       end
 
     fun confirm () =

@@ -1,8 +1,7 @@
 # parse-sml
 
-A custom parser and code formatter for Standard ML which also offers
-better error messages. The formatter is usable, but is currently undergoing
-various aesthetic changes.
+A custom parser and code formatter (`smlfmt`) for Standard ML, with
+helpful error messages.
 
 Supports SML source files
 (`.sml`, `.sig`, `.fun`, etc.) as well as
@@ -59,25 +58,18 @@ You need [`mlton`](http://mlton.org/) installed.
 Do `make` and then pass either a `.sml` file or a `.mlb` file, for example:
 ```bash
 $ make
-$ ./main src/main.sml
-$ ./main test/succeed/full-sml-basis-library.mlb --no-skip-basis
+$ ./smlfmt --force --show-output src/smlfmt.sml
 ```
-
-When given a `.mlb`, the default behavior is to ignore any file in the
-installed standard basis library. Passing `--no-skip-basis` overrides this.
-
-To see formatted output on a `.sml` (or `.sig`, `.fun`, etc.) file, you can
-pass `--pretty`. (Note: the formatter is usable but still is undergoing
-aesthetic improvements.)
 
 ### Command-line options
 
+`-f/--force` skips overwrite confirmations.
+
+`-s/--show-output` also prints any formatted code to stdout,
+with syntax highlighting (if shown on terminal supporting ANSI colors).
+
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
 [MLton's path maps](http://mlton.org/MLBasisPathMap).
-
-`--no-skip-basis` to also parse standard basis files.
-
-`--pretty` to also see autoformatted output (only for SML, not MLB)
 
 `-ribbon-frac <real>` (default 1.0) controls pretty-printing. The
 ribbon-frac (between 0 and 1) controls how dense each line is, excluding
