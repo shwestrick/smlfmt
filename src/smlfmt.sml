@@ -33,15 +33,16 @@ val optionalArgDesc =
 \  [-h/-help/--help]      print this message\n"
 
 fun usage () =
-  "usage: smlfmt [ARGS] FILE.sml ... FILE.sml"
-  ^ "\nOptional arguments:\n"
-  ^ optionalArgDesc
+  "usage: smlfmt [ARGS] FILE ... FILE\n" ^
+  "Optional arguments:\n" ^
+  optionalArgDesc
 
 val _ =
-  if not doHelp then () else
-  ( print (usage ())
-  ; OS.Process.exit OS.Process.success
-  )
+  if doHelp orelse List.null inputfiles then
+    ( print (usage ())
+    ; OS.Process.exit OS.Process.success
+    )
+  else ()
 
 
 val pathmap = MLtonPathMap.getPathMap ()
