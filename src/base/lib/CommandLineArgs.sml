@@ -12,9 +12,6 @@ sig
   val parseReal: string -> real -> real
   val parseBool: string -> bool -> bool
 
-  (* return whether or not -K was passed *)
-  val findKey: string -> bool
-
   (** Look for every instance of -K V and return seq of the Vs.
     * For example, if this is given on the commandline:
     *   -arg a -arg b -arg c -arg d
@@ -66,9 +63,6 @@ struct
       NONE => default
     | SOME [] => die ("Missing argument of \"-" ^ key ^ "\" ")
     | SOME (s :: _) => s
-
-  fun findKey key =
-    Option.isSome (search ("-" ^ key) (CommandLine.arguments ()))
 
   fun parseStrings key =
     let

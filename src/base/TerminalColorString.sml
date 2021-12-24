@@ -37,6 +37,7 @@ sig
   (** prints with colors if stdout is a terminal,
     * and without colors otherwise *)
   val print: t -> unit
+  val printErr: t -> unit
 
   val debugShow: t -> string
 end =
@@ -380,16 +381,24 @@ struct
     | String s => s
 
 
-  fun print_ t =
+  datatype out = stdout | stderr
+
+  fun print_ out t =
     let
-      val stdOutKind = OS.IO.kind (Posix.FileSys.fdToIOD Posix.FileSys.stdout)
+      val (printer, filedesc) =
+        case out of
+          stdout => (print, Posix.FileSys.stdout)
+        | _ => (fn x => TextIO.output (TextIO.stdErr, x), Posix.FileSys.stderr)
+
+      val kind = OS.IO.kind (Posix.FileSys.fdToIOD filedesc)
     in
-      if stdOutKind = OS.IO.Kind.tty then
-        print (toString {colors=true} t)
+      if kind = OS.IO.Kind.tty then
+        printer (toString {colors=true} t)
       else
-        print (toString {colors=false} t)
+        printer (toString {colors=false} t)
     end
 
-  val print = print_
+  val print = print_ stdout
+  val printErr = print_ stderr
 
 end

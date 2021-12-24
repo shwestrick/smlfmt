@@ -3,6 +3,10 @@
   * See the file LICENSE for details.
   *)
 
+structure TCS = TerminalColorString
+structure TC = TerminalColors
+fun boldc c x = TCS.bold (TCS.foreground c (TCS.fromString x))
+
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
 val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
 val maxWidth = CommandLineArgs.parseInt "max-width" 80
@@ -10,22 +14,13 @@ val tabWidth = CommandLineArgs.parseInt "tab-width" 4
 val indentWidth = CommandLineArgs.parseInt "indent-width" 2
 val inputfiles = CommandLineArgs.positional ()
 
-val doForce =
-  CommandLineArgs.findKey "f" orelse
-  CommandLineArgs.parseFlag "force"
-
-val doHelp =
-  CommandLineArgs.findKey "h" orelse
-  CommandLineArgs.findKey "help" orelse
-  CommandLineArgs.parseFlag "help"
-
-val showOutput =
-  CommandLineArgs.findKey "s" orelse
-  CommandLineArgs.parseFlag "show-output"
+val doForce = CommandLineArgs.parseFlag "force"
+val doHelp = CommandLineArgs.parseFlag "help"
+val preview = CommandLineArgs.parseFlag "preview"
 
 val optionalArgDesc =
-"  [-f/--force]           overwrite files without interactive confirmation\n\
-\  [-s/--show-output]     also print to stdout, with syntax highlighting\n\
+"  [--force]              overwrite files without interactive confirmation\n\
+\  [--preview]            show formatted before writing to file\n\
 \  [-max-width W]         try to use at most <W> columns in each line\n\
 \                         (default 80)\n\
 \  [-ribbon-frac R]       controls how dense each line should be\n\
@@ -35,7 +30,7 @@ val optionalArgDesc =
 \  [-indent-width I]      use <I> spaces for indentation in output\n\
 \                         (default 2)\n\
 \  [-mlb-path-var 'K V']  MLton-style path variable\n\
-\  [-h/-help/--help]      print this message\n"
+\  [--help]               print this message\n"
 
 fun usage () =
   "usage: smlfmt [ARGS] FILE ... FILE\n" ^
@@ -62,7 +57,7 @@ fun handleLexOrParseError exn =
       | other => raise other
     val hist = MLton.Exn.history exn
   in
-    TerminalColorString.print
+    TCS.print
       (Error.show {highlighter = SOME SyntaxHighlighter.fuzzyHighlight} e);
     if List.null hist then () else
       print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
@@ -86,7 +81,7 @@ fun doSMLAst (fp, ast) =
         }
         ast)
 
-    val result = TerminalColorString.toString {colors=false} prettied
+    val result = TCS.toString {colors=false} prettied
 
     fun writeOut () =
       let
@@ -95,10 +90,7 @@ fun doSMLAst (fp, ast) =
         printErr ("formatting " ^ hfp ^ "\n");
         TextIO.output (outstream, result);
         TextIO.output (outstream, "\n");
-        TextIO.closeOut outstream;
-
-        if not showOutput then ()
-        else (TerminalColorString.print prettied; print "\n")
+        TextIO.closeOut outstream
       end
 
     fun confirm () =
@@ -112,15 +104,23 @@ fun doSMLAst (fp, ast) =
               printErr ("skipping " ^ hfp ^ "\n")
       )
   in
+    if not preview then ()
+    else
+      ( TCS.print (boldc Palette.lightblue ("---- " ^ hfp ^ " ----"))
+      ; print "\n"
+      ; TCS.print prettied
+      ; print "\n"
+      ; TCS.print (boldc Palette.lightblue ("--------"))
+      ; print "\n"
+      );
+
     if doForce then
       writeOut ()
     else
       confirm ()
   end
   handle exn =>
-    printErr
-      ("skipping " ^ FilePath.toHostPath fp ^ "\n"
-       ^ "(ERROR: " ^ exnMessage exn ^ ")\n")
+    TCS.printErr (boldc Palette.red ("ERROR: " ^ exnMessage exn ^ "\n"))
 
 
 

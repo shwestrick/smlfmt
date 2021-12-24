@@ -58,14 +58,14 @@ You need [`mlton`](http://mlton.org/) installed.
 Do `make` and then pass either a `.sml` file or a `.mlb` file, for example:
 ```bash
 $ make
-$ ./smlfmt --force --show-output src/smlfmt.sml
+$ ./smlfmt --preview src/smlfmt.sml
 ```
 
 ### Command-line options
 
-`-f/--force` skips overwrite confirmations.
+`--force` skips overwrite confirmations.
 
-`-s/--show-output` also prints any formatted code to stdout,
+`--preview` also prints any formatted code to stdout,
 with syntax highlighting (if shown on terminal supporting ANSI colors).
 
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
