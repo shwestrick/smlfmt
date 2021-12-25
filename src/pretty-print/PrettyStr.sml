@@ -32,7 +32,7 @@ struct
     | Ast.Str.Struct {structt, strdec, endd} => (
         case strdec of
           Ast.Str.DecEmpty => token structt ++ space ++ token endd
-        | _                =>
+        | _ =>
             rigid (
               token structt
               $$

@@ -249,7 +249,7 @@ struct
     | Ast.Sig.Spec {sigg, spec, endd} => (
         case spec of
           Ast.Sig.EmptySpec => token sigg ++ space ++ token endd
-        | _                 =>
+        | _ =>
             rigid (
               token sigg
               $$

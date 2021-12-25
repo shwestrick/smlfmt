@@ -138,7 +138,7 @@ struct
               loopBeside (d1, d2)
         | Choice {flattened, ...} =>
             flattened
-        | Rigid d => (false, Rigid d, 0 (* TODO *), false)
+        | Rigid d => (false, Rigid d, 0, false)
 
       and loopBeside (d1, d2) =
         let
