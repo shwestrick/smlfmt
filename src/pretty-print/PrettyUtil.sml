@@ -8,9 +8,11 @@ struct
 
   open TokenDoc
   infix 2 ++ $$ //
+  infix 1 \\
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
+  fun x \\ y = group (x $$ indent y)
 
   fun seqWithSpaces elems f =
     if Seq.length elems = 0 then empty else
@@ -49,6 +51,10 @@ struct
       | first :: rest =>
           List.foldl (fn (next, prev) => prev ++ space ++ next) first rest
     end
+
+  fun rigidVertically (item: doc) (items: doc Seq.t) : doc =
+    if Seq.length items = 0 then item else
+      rigid (Seq.iterate op$$ item items)
 
 
   fun maybeShowSyntaxSeq s f =

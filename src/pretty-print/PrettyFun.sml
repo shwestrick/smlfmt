@@ -13,9 +13,7 @@ struct
   open PrettyUtil
 
   infix 2 ++ $$ //
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
+  infix 1 \\
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -42,25 +40,23 @@ struct
       fun showFunctor
         (starter, {funid, lparen, funarg, rparen, constraint, eq, strexp})
         =
-        group (
-          group (
-            group (
-              token starter
-              ++ space ++
-              token funid
-              ++ space ++ token lparen ++ showFunArg funarg ++ token rparen
-            )
-            $$
-            (case constraint of NONE => empty | SOME {colon, sigexp} =>
-              indent (token colon ++ space ++ showSigExp sigexp))
-            ++
-            space ++ token eq
-          )
-          $$
-          showStrExp strexp
-        )
+        separateWithSpaces
+          [ SOME (token starter)
+          , SOME (token funid)
+          ]
+        \\ separateWithSpaces
+             [ SOME (token lparen ++ showFunArg funarg ++ token rparen)
+             , Option.map
+                 (fn {colon, ...} => token colon)
+                 constraint
+             ]
+        \\ separateWithSpaces
+              [ Option.map (fn {sigexp, ...} => showSigExp sigexp) constraint
+              , SOME (token eq)
+              ]
+        \\ showStrExp strexp
     in
-      Seq.iterate op$$
+      rigidVertically
         (showFunctor (functorr, Seq.nth elems 0))
         (Seq.map showFunctor (Seq.zip (delims, Seq.drop elems 1)))
     end

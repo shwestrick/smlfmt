@@ -43,6 +43,7 @@ sig
   val space: doc
   val softspace: doc
   val group: doc -> doc
+  val rigid: doc -> doc
 
   val insertBlankLines: doc -> doc
   val insertComments: doc -> doc
@@ -65,12 +66,14 @@ struct
   | BesideAndAbove of bool * doc * doc
   | Above of bool * doc * doc
   | Group of doc
+  | Rigid of doc
 
   type t = doc
 
   val empty = Empty
   val token = Token
   val group = Group
+  val rigid = Rigid
   fun indent d = Indent d
 
   fun beside (doc1, doc2) =
@@ -175,6 +178,13 @@ struct
               (first, result, last)
             end
 
+        | Rigid d =>
+            let
+              val (first, d', last) = doDoc d
+            in
+              (first, Rigid d', last)
+            end
+
         | _ => (NONE, doc, NONE)
 
       val (_, doc, _) = doDoc doc
@@ -208,7 +218,13 @@ struct
 
       fun insertAllBefore mode d =
         case d of
-          Token tok =>
+          Empty =>
+            Empty
+        | Space b =>
+            Space b
+        | Indent d =>
+            Indent (insertAllBefore mode d)
+        | Token tok =>
             insertCommentsBeforeTok mode tok
         | Beside (d1, d2) =>
             Beside (insertAllBefore mode d1, insertAllBefore BesideMode d2)
@@ -218,26 +234,23 @@ struct
             Above (b, insertAllBefore mode d1, insertAllBefore AboveMode d2)
         | Group d =>
             Group (insertAllBefore mode d)
-        | Indent d =>
-            Indent (insertAllBefore mode d)
-        | _ => d
+        | Rigid d =>
+            Rigid (insertAllBefore mode d)
 
       fun insertOnlyAfterLast mode d =
         case d of
-          Token tok =>
-            (true, insertCommentsAfterTok mode tok)
-        | Group d =>
-            let
-              val (foundIt, d') = insertOnlyAfterLast mode d
-            in
-              (foundIt, Group d')
-            end
+          Empty =>
+            (false, Empty)
+        | Space b =>
+            (false, Space b)
         | Indent d =>
             let
               val (foundIt, d') = insertOnlyAfterLast mode d
             in
               (foundIt, Indent d')
             end
+        | Token tok =>
+            (true, insertCommentsAfterTok mode tok)
         | Beside (d1, d2) =>
             let
               val (foundIt, d2') = insertOnlyAfterLast BesideMode d2
@@ -277,7 +290,18 @@ struct
                   (foundIt, Above (b, d1', d2'))
                 end
             end
-        | _ => (false, d)
+        | Group d =>
+            let
+              val (foundIt, d') = insertOnlyAfterLast mode d
+            in
+              (foundIt, Group d')
+            end
+        | Rigid d =>
+            let
+              val (foundIt, d') = insertOnlyAfterLast mode d
+            in
+              (foundIt, Rigid d')
+            end
 
       val doc = insertAllBefore AboveMode doc
       val (_, doc) = insertOnlyAfterLast AboveMode doc
@@ -421,6 +445,13 @@ struct
                 (true, StringDoc.group d')
               else
                 (false, d')
+            end
+
+        | Rigid d =>
+            let
+              val (_, d') = loop d
+            in
+              (false, StringDoc.rigid d')
             end
 
       val (_, d') = loop d

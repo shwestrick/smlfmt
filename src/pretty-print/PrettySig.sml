@@ -15,9 +15,7 @@ struct
   open PrettyUtil
 
   infix 2 ++ $$ //
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
+  infix 1 \\
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -37,7 +35,7 @@ struct
             token vid ++ space ++ token colon ++ space
             ++ showTy ty
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (vall, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -51,7 +49,7 @@ struct
               , SOME (token tycon)
               ]
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (typee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -67,7 +65,7 @@ struct
               , SOME (showTy ty)
               ]
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (typee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -81,7 +79,7 @@ struct
               , SOME (token tycon)
               ]
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (eqtypee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -125,7 +123,7 @@ struct
               )
             end
         in
-          Seq.iterate op$$
+          rigidVertically
             (show_datdesc (datatypee, Seq.nth elems 0))
             (Seq.zipWith show_datdesc (delims, Seq.drop elems 1))
         end
@@ -157,7 +155,7 @@ struct
                   ]
               )
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (exceptionn, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -175,7 +173,7 @@ struct
               indent (showSigExp sigexp)
             )
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (structuree, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -199,7 +197,7 @@ struct
             ++
             (case delim of NONE => empty | SOME sc => token sc)
         in
-          Seq.iterate op$$ empty (Seq.zipWith showOne (elems, delims))
+          rigid (Seq.iterate op$$ empty (Seq.zipWith showOne (elems, delims)))
         end
 
     | Ast.Sig.Sharing {spec, sharingg, elems, delims} =>
@@ -218,7 +216,7 @@ struct
           group (
             showSpec spec
             $$
-            (token sharingg ++ space ++ stuff)
+            rigid (token sharingg ++ space ++ stuff)
           )
         end
 
@@ -238,7 +236,7 @@ struct
           group (
             showSpec spec
             $$
-            (token sharingg ++ space ++ token typee ++ space ++ stuff)
+            rigid (token sharingg ++ space ++ token typee ++ space ++ stuff)
           )
         end
 
@@ -262,14 +260,16 @@ struct
           val se = showSigExp sigexp
 
           fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
-            separateWithSpaces
-              [ SOME (token wheree) (** this could be 'and' *)
-              , SOME (token typee)
-              , maybeShowSyntaxSeq tyvars token
-              , SOME (token (MaybeLongToken.getToken tycon))
-              , SOME (token eq)
-              , SOME (showTy ty)
-              ]
+            indent (
+              separateWithSpaces
+                [ SOME (token wheree) (** this could be 'and' *)
+                , SOME (token typee)
+                , maybeShowSyntaxSeq tyvars token
+                , SOME (token (MaybeLongToken.getToken tycon))
+                , SOME (token eq)
+                , SOME (showTy ty)
+                ]
+            )
         in
           Seq.iterate op$$ se (Seq.map showElem elems)
         end
@@ -285,7 +285,7 @@ struct
           indent (showSigExp sigexp)
         )
     in
-      Seq.iterate op$$
+      rigidVertically
         (showOne (signaturee, Seq.nth elems 0))
         (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end
