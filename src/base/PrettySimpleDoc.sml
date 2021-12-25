@@ -187,6 +187,34 @@ struct
     CustomString.fromString (CharVector.tabulate (count, fn _ => #" "))
 
 
+  datatype item =
+    Spaces of int
+  | Newline
+  | Stuff of CustomString.t
+
+
+  fun revAndStripTrailingWhitespace (items: item list) =
+    let
+      fun loopStrip acc items =
+        case items of
+          [] => acc
+        | Spaces _ :: items' =>
+            loopStrip acc items'
+        | x :: items' =>
+            loopKeep (x :: acc) items'
+
+      and loopKeep acc items =
+        case items of
+          [] => acc
+        | Newline :: items' =>
+            loopStrip (Newline :: acc) items'
+        | x :: items' =>
+            loopKeep (x :: acc) items'
+    in
+      loopStrip [] items
+    end
+
+
   fun pretty {ribbonFrac, maxWidth, indentWidth} inputDoc =
     let
       val ribbonWidth =
@@ -197,7 +225,7 @@ struct
         UseCurrentCol
       | ResetTo of int
 
-      type layout_state = above_mode * int * int * (CustomString.t list)
+      type layout_state = above_mode * int * int * (item list)
 
       val newline = CustomString.fromString "\n"
       val sp = CustomString.fromString " "
@@ -207,19 +235,19 @@ struct
           Empty =>
             (am, lnStart, col, acc)
         | Space _ =>
-            (am, lnStart, col + 1, sp :: acc)
+            (am, lnStart, col + 1, Spaces 1 :: acc)
         | Indent d =>
             let
               val (col, acc) =
                 if col = lnStart then
-                  (col + indentWidth, spaces indentWidth :: acc)
+                  (col + indentWidth, Spaces indentWidth :: acc)
                 else
                   (col, acc)
             in
               layout (am, lnStart + indentWidth, col, acc) d
             end
         | Text str =>
-            (am, lnStart, col + CustomString.size str, str :: acc)
+            (am, lnStart, col + CustomString.size str, Stuff str :: acc)
         | Beside (doc1, doc2) =>
             layout (layout (am, lnStart, col, acc) doc1) doc2
         | BesideAndAbove (withSpace, doc1, doc2) =>
@@ -230,7 +258,7 @@ struct
                 | ResetTo r => ResetTo r
               val (_, lnStart, col, acc) = layout (am, lnStart, col, acc) doc1
               val (col, acc) =
-                if withSpace then (col+1, sp :: acc) else (col, acc)
+                if withSpace then (col+1, Spaces 1 :: acc) else (col, acc)
             in
               layout (newAm, lnStart, col, acc) doc2
             end
@@ -241,7 +269,7 @@ struct
                 case am of
                   UseCurrentCol => col
                 | ResetTo r => r
-              val acc = spaces newLnStart :: newline :: acc
+              val acc = Spaces newLnStart :: Newline :: acc
             in
               layout (UseCurrentCol, newLnStart, newLnStart, acc) doc2
             end
@@ -257,9 +285,17 @@ struct
             end
         | Rigid d => layout (am, lnStart, col, acc) d
 
-      val (_, _, _, strs) = layout (UseCurrentCol, 0, 0, []) inputDoc
+      val (_, _, _, items) = layout (UseCurrentCol, 0, 0, []) inputDoc
+
+      val items = revAndStripTrailingWhitespace items
+
+      fun itemToString x =
+        case x of
+          Newline => newline
+        | Spaces n => spaces n
+        | Stuff s => s
     in
-      CustomString.concat (List.rev strs)
+      CustomString.concat (List.map itemToString items)
     end
 
 
