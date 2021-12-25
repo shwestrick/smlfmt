@@ -451,7 +451,7 @@ struct
             let
               val (_, d') = loop d
             in
-              (false, d')
+              (false, StringDoc.rigid d')
             end
 
       val (_, d') = loop d

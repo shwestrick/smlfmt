@@ -71,8 +71,9 @@ struct
   | Beside of doc * doc
   | BesideAndAbove of bool * doc * doc
   | Above of bool * doc * doc
-  | Choice of {flattened: (bool * doc * int * bool), normal: doc}
+  | Choice of {flattened: flattened, normal: doc}
   | Rigid of doc
+  withtype flattened = bool * doc * int * bool
 
 
   type t = doc
@@ -111,19 +112,19 @@ struct
 
   val indent = Indent
 
-  fun flatten doc =
+  fun flatten (doc : doc) : flattened option =
     let
       (** Returns (space-before?, flattened, flattened size, space-after?) *)
-      fun loop doc =
+      fun loop (doc : doc) : flattened option =
         case doc of
           Empty =>
-            (false, Empty, 0, false)
+            SOME (false, Empty, 0, false)
         | Space keepSpace =>
-            (keepSpace, Empty, 0, keepSpace)
+            SOME (keepSpace, Empty, 0, keepSpace)
         | Indent d =>
             loop d
         | Text str =>
-            (false, Text str, CustomString.size str, false)
+            SOME (false, Text str, CustomString.size str, false)
         | Beside (d1, d2) =>
             loopBeside (d1, d2)
         | BesideAndAbove (withSpace, d1, d2) =>
@@ -137,35 +138,37 @@ struct
             else
               loopBeside (d1, d2)
         | Choice {flattened, ...} =>
-            flattened
-        | Rigid d => (false, Rigid d, 0, false)
+            SOME flattened
+        | Rigid _ => NONE
 
       and loopBeside (d1, d2) =
-        let
-          val (l1, flat1, sz1, r1) = loop d1
-          val (l2, flat2, sz2, r2) = loop d2
-
-          (** Beside(flat1, flat2), but put a space between if
-            * necessary, and compute the size too. This might result in
-            * spaces l or r on either side, if flat1 or flat2 is Empty
-            *)
-          val (l, m, sz, r) =
-            case (flat1, r1 orelse l2, flat2) of
-              (Empty, b, _) =>
-                (b, flat2, sz2, false)
-            | (_, b, Empty) =>
-                (false, flat1, sz1, b)
-            | (_, false, _) =>
-                (false, Beside (flat1, flat2), sz1+sz2, false)
-            | _ =>
-                (false, Beside (flat1, Beside (Space true, flat2)), sz1+sz2+1, false)
-        in
-          ( l1 orelse l
-          , m
-          , sz
-          , r2 orelse r
-          )
-        end
+        case (loop d1, loop d2) of
+          (NONE, _) => NONE
+        | (_, NONE) => NONE
+        | (SOME (l1, flat1, sz1, r1), SOME (l2, flat2, sz2, r2)) =>
+            let
+              (** Beside(flat1, flat2), but put a space between if
+                * necessary, and compute the size too. This might result in
+                * spaces l or r on either side, if flat1 or flat2 is Empty
+                *)
+              val (l, m, sz, r) =
+                case (flat1, r1 orelse l2, flat2) of
+                  (Empty, b, _) =>
+                    (b, flat2, sz2, false)
+                | (_, b, Empty) =>
+                    (false, flat1, sz1, b)
+                | (_, false, _) =>
+                    (false, Beside (flat1, flat2), sz1+sz2, false)
+                | _ =>
+                    (false, Beside (flat1, Beside (Space true, flat2)), sz1+sz2+1, false)
+            in
+              SOME
+                ( l1 orelse l
+                , m
+                , sz
+                , r2 orelse r
+                )
+            end
 
     in
       loop doc
@@ -173,7 +176,9 @@ struct
 
 
   fun group doc =
-    Choice {flattened = flatten doc, normal = doc}
+    case flatten doc of
+      NONE => doc
+    | SOME flattened => Choice {flattened = flattened, normal = doc}
 
   val rigid = Rigid
 
@@ -250,7 +255,7 @@ struct
               else
                 layout (am, lnStart, col, acc) normal
             end
-        | Rigid doc => layout (am, lnStart, col, acc) doc
+        | Rigid d => layout (am, lnStart, col, acc) d
 
       val (_, _, _, strs) = layout (UseCurrentCol, 0, 0, []) inputDoc
     in
