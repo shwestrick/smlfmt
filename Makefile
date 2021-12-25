@@ -1,11 +1,14 @@
 SOURCES = $(wildcard src/*.sml) $(wildcard src/*.mlb) $(wildcard src/**/*.sml) $(wildcard src/**/*.mlb)
 
-main: $(SOURCES)
-	mlton -mlb-path-var 'COMPAT mlton' -output main src/main.mlb
+smlfmt: $(SOURCES)
+	mlton -mlb-path-var 'COMPAT mlton' -output smlfmt src/smlfmt.mlb
 
-main.dbg: $(SOURCES)
-	mlton -mlb-path-var 'COMPAT mlton' -const 'Exn.keepHistory true' -output main.dbg src/main.mlb
+demo: $(SOURCES)
+	mlton -mlb-path-var 'COMPAT mlton' -output demo src/demo.mlb
+
+demo.dbg: $(SOURCES)
+	mlton -mlb-path-var 'COMPAT mlton' -const 'Exn.keepHistory true' -output demo.dbg src/demo.mlb
 
 .PHONY: clean
 clean:
-	rm -f main
+	rm -f demo smlfmt

@@ -1,4 +1,4 @@
 parse-mlb/sources.mlb
 pretty-print/sources.mlb
 syntax-highlighting/sources.mlb
-main.sml
+smlfmt.sml
