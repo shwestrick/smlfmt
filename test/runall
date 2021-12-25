@@ -26,11 +26,11 @@ def info(msg):
   print('[INFO] ' + msg)
 
 info('building parser...')
-MAKE_CMD = ['make', '-C', ROOT, 'main']
+MAKE_CMD = ['make', '-C', ROOT, 'demo']
 run_must_succeed(MAKE_CMD)
 info('built parser successfully')
 
-MAIN = os.path.join(ROOT, 'main')
+MAIN = os.path.join(ROOT, 'demo')
 
 def run_test(path, expect_success=True):
   cmd = [MAIN, '--no-skip-basis', '--pretty', path]
