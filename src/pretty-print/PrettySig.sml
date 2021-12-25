@@ -35,7 +35,7 @@ struct
             token vid ++ space ++ token colon ++ space
             ++ showTy ty
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (vall, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -49,7 +49,7 @@ struct
               , SOME (token tycon)
               ]
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (typee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -65,7 +65,7 @@ struct
               , SOME (showTy ty)
               ]
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (typee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -79,7 +79,7 @@ struct
               , SOME (token tycon)
               ]
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (eqtypee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -123,7 +123,7 @@ struct
               )
             end
         in
-          Seq.iterate op$$
+          rigidVertically
             (show_datdesc (datatypee, Seq.nth elems 0))
             (Seq.zipWith show_datdesc (delims, Seq.drop elems 1))
         end
@@ -155,7 +155,7 @@ struct
                   ]
               )
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (exceptionn, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -173,7 +173,7 @@ struct
               indent (showSigExp sigexp)
             )
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (structuree, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
@@ -216,7 +216,7 @@ struct
           group (
             showSpec spec
             $$
-            (token sharingg ++ space ++ stuff)
+            rigid (token sharingg ++ space ++ stuff)
           )
         end
 
@@ -236,7 +236,7 @@ struct
           group (
             showSpec spec
             $$
-            (token sharingg ++ space ++ token typee ++ space ++ stuff)
+            rigid (token sharingg ++ space ++ token typee ++ space ++ stuff)
           )
         end
 
@@ -246,18 +246,14 @@ struct
       Ast.Sig.Ident id =>
         token id
 
-    | Ast.Sig.Spec {sigg, spec, endd} => (
-        case spec of
-          Ast.Sig.EmptySpec => token sigg ++ space ++ token endd
-        | _ =>
-            rigid (
-              token sigg
-              $$
-              indent (showSpec spec)
-              $$
-              token endd
-            )
-      )
+    | Ast.Sig.Spec {sigg, spec, endd} =>
+        group (
+          token sigg
+          $$
+          indent (showSpec spec)
+          $$
+          token endd
+        )
 
     | Ast.Sig.WhereType {sigexp, elems} =>
         let
@@ -289,7 +285,7 @@ struct
           indent (showSigExp sigexp)
         )
     in
-      Seq.iterate op$$
+      rigidVertically
         (showOne (signaturee, Seq.nth elems 0))
         (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end

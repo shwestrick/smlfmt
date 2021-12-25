@@ -52,6 +52,10 @@ struct
           List.foldl (fn (next, prev) => prev ++ space ++ next) first rest
     end
 
+  fun rigidVertically (item: doc) (items: doc Seq.t) : doc =
+    if Seq.length items = 0 then item else
+      rigid (Seq.iterate op$$ item items)
+
 
   fun maybeShowSyntaxSeq s f =
     case s of

@@ -56,7 +56,7 @@ struct
               ]
         \\ showStrExp strexp
     in
-      Seq.iterate op$$
+      rigidVertically
         (showFunctor (functorr, Seq.nth elems 0))
         (Seq.map showFunctor (Seq.zip (delims, Seq.drop elems 1)))
     end

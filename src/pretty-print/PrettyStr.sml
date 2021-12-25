@@ -70,7 +70,7 @@ struct
             else
               group topPart
         in
-          rigid (
+          group (
             topPart
             $$
             indent (group (showStrExp strexp))
@@ -104,7 +104,7 @@ struct
                   ]
             \\ showStrExp strexp
         in
-          Seq.iterate op$$
+          rigidVertically
             (showOne (structuree, Seq.nth elems 0))
             (Seq.map showOne (Seq.zip (delims, (Seq.drop elems 1))))
         end
@@ -155,7 +155,7 @@ struct
             front
             $$
             indent (
-              Seq.iterate op$$
+              rigidVertically
                 (token (MaybeLongToken.getToken (Seq.nth elems 0)))
                 (Seq.zipWith showOne (delims, Seq.drop elems 1))
             )
