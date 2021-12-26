@@ -388,21 +388,24 @@ struct
       | Typed {exp, colon, ty} =>
           showExp exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
-          group (
-            group (
-              token iff
+          let
+            val combinator =
+              case exp3 of
+                IfThenElse _ => besideAndAboveOrSpace
+              | _ => aboveOrSpace
+          in
+              group (
+                token iff
+                $$
+                indent (showExp exp1)
+                $$
+                token thenn
+              )
               $$
-              indent (showExp exp1)
+              indent (showExp exp2)
               $$
-              token thenn
-            )
-            $$
-            indent (showExp exp2)
-            $$
-            token elsee
-            $$
-            indent (showExp exp3)
-          )
+              combinator (token elsee, indent (showExp exp3))
+          end
       | While {whilee, exp1, doo, exp2} =>
           group (
             group (
