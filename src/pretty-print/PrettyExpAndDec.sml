@@ -394,17 +394,17 @@ struct
                 IfThenElse _ => besideAndAboveOrSpace
               | _ => aboveOrSpace
           in
-              group (
-                token iff
-                $$
-                indent (showExp exp1)
-                $$
-                token thenn
-              )
+            group (
+              token iff
               $$
-              indent (showExp exp2)
+              indent (showExp exp1)
               $$
-              combinator (token elsee, indent (showExp exp3))
+              token thenn
+            )
+            $$
+            indent (showExp exp2)
+            $$
+            combinator (token elsee, indent (showExp exp3))
           end
       | While {whilee, exp1, doo, exp2} =>
           group (
