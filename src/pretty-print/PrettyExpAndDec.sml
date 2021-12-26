@@ -14,9 +14,7 @@ struct
   open PrettyUtil
 
   infix 2 ++ $$ // +/+ +$+
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
+  infix 1 \\
   fun x +/+ y = besideAndAbove (x, y)
   fun x +$+ y = besideAndAboveOrSpace (x, y)
 
@@ -26,18 +24,16 @@ struct
   fun showTypbind (front, typbind: Ast.Exp.typbind as {elems, delims}) =
     let
       fun showOne (starter, {tyvars, tycon, ty, eq}) =
-        group (
-          separateWithSpaces
-            [ SOME (token starter)
-            , maybeShowSyntaxSeq tyvars token
-            , SOME (token tycon)
-            , SOME (token eq)
-            ]
-          $$
-          indent (showTy ty)
-        )
+        separateWithSpaces
+          [ SOME (token starter)
+          , maybeShowSyntaxSeq tyvars token
+          , SOME (token tycon)
+          , SOME (token eq)
+          ]
+        \\
+        showTy ty
     in
-      Seq.iterate op$$
+      rigidVertically
         (showOne (front, Seq.nth elems 0))
         (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end
@@ -52,7 +48,7 @@ struct
           separateWithSpaces
             [ Option.map token opp
             , SOME (token id)
-            , Option.map (fn {off, ty} => token off $$ indent (showTy ty)) arg
+            , Option.map (fn {off, ty} => token off \\ showTy ty) arg
             ]
         )
 
@@ -79,7 +75,7 @@ struct
           )
         end
     in
-      Seq.iterate op$$
+      rigidVertically
         (showOne (front, Seq.nth elems 0))
         (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end
@@ -143,7 +139,7 @@ struct
           val firstParams = (empty, firstIndentExp)
           val restParams = (spaces 2, restIndentExp)
         in
-          Seq.iterate op$$
+          rigidVertically
             (showClause firstParams (starter, Seq.nth innerElems 0))
             (Seq.zipWith (showClause restParams)
               (Seq.map token delims, Seq.drop innerElems 1))
@@ -152,7 +148,7 @@ struct
       val front =
         separateWithSpaces [SOME (token funn), maybeShowSyntaxSeq tyvars token]
     in
-      Seq.iterate op$$
+      rigidVertically
         (mkFunction (front, Seq.nth elems 0))
         (Seq.zipWith mkFunction (Seq.map token delims, Seq.drop elems 1))
     end
@@ -166,35 +162,31 @@ struct
         DecVal {vall, tyvars, elems, delims} =>
           let
             fun mk (delim, {recc, pat, eq, exp}) =
-              group (
-                separateWithSpaces
-                  [ SOME (token delim)
-                  , Option.map token recc
-                  , SOME (showPat pat)
-                  , SOME (token eq)
-                  ]
-                $$
-                indent (showExp exp)
-              )
+              separateWithSpaces
+                [ SOME (token delim)
+                , Option.map token recc
+                , SOME (showPat pat)
+                , SOME (token eq)
+                ]
+              \\ showExp exp
 
             val first =
               let
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
-                group (
-                  separateWithSpaces
-                    [ SOME (token vall)
-                    , maybeShowSyntaxSeq tyvars token
-                    , Option.map token recc
-                    , SOME (showPat pat)
-                    , SOME (token eq)
-                    ]
-                  $$
-                  indent (showExp exp)
-                )
+                separateWithSpaces
+                  [ SOME (token vall)
+                  , maybeShowSyntaxSeq tyvars token
+                  , Option.map token recc
+                  , SOME (showPat pat)
+                  , SOME (token eq)
+                  ]
+                \\
+                showExp exp
               end
           in
-            Seq.iterate op$$ first
+            rigidVertically
+              first
               (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end
 
@@ -255,13 +247,13 @@ struct
             fun showOne (starter, elem) =
               token starter ++ space ++ showExbind elem
           in
-            Seq.iterate op$$
+            rigidVertically
               (showOne (exceptionn, Seq.nth elems 0))
               (Seq.zipWith showOne (delims, Seq.drop elems 1))
           end
 
       | DecLocal {locall, left_dec, inn, right_dec, endd} =>
-          group (
+          rigid (
             token locall
             $$
             indent (showDec left_dec)
@@ -282,8 +274,7 @@ struct
                 NONE => empty
               | SOME semicolon => token semicolon)
           in
-            Util.loop (0, Seq.length elems) empty
-              (fn (prev, i) => prev $$ f i)
+            rigid (Util.loop (0, Seq.length elems) empty (fn (prev, i) => prev $$ f i))
           end
 
       | DecEmpty =>
@@ -359,18 +350,15 @@ struct
       | Record {left, elems, delims, right} =>
           let
             fun showRow {lab, eq, exp} =
-              group (
-                (token lab ++ space ++ token eq)
-                $$
-                indent (showExp exp)
-              )
+              (token lab ++ space ++ token eq)
+              \\ showExp exp
           in
             sequence left delims right (Seq.map showRow elems)
           end
       | Select {hash, label} =>
           token hash ++ space ++ token label
       | App {left, right} =>
-          group (showExp left $$ indent (showExp right))
+          showExp left \\ showExp right
       | Infix {left, id, right} =>
           let
             fun showInfix (Infix {left=l', id=i', right=r'}) i r =
@@ -400,23 +388,24 @@ struct
       | Typed {exp, colon, ty} =>
           showExp exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
-            let
-                val combinator = case exp3 of
-                                      IfThenElse _ => besideAndAboveOrSpace
-                                    | _ => aboveOrSpace
-            in
-                group (
-                  token iff
-                  $$
-                  indent (showExp exp1)
-                  $$
-                  token thenn
-                )
-                $$
-                indent (showExp exp2)
-                $$
-                combinator(token elsee, indent (showExp exp3))
-            end
+          let
+            val combinator =
+              case exp3 of
+                IfThenElse _ => besideAndAboveOrSpace
+              | _ => aboveOrSpace
+          in
+            group (
+              token iff
+              $$
+              indent (showExp exp1)
+              $$
+              token thenn
+            )
+            $$
+            indent (showExp exp2)
+            $$
+            combinator (token elsee, indent (showExp exp3))
+          end
       | While {whilee, exp1, doo, exp2} =>
           group (
             group (
@@ -431,101 +420,62 @@ struct
           )
 
       | Raise {raisee, exp} =>
-          group (token raisee $$ indent (showExp exp))
+          token raisee \\ showExp exp
 
       | Handle {exp=expLeft, handlee, elems, delims} =>
           let
-            val first = Seq.nth elems 0
-            val rest = Seq.drop elems 1
-
-            fun mk (delim, {pat, arrow, exp}) =
-              group (
-                (token delim ++ space ++ showPat pat ++ space ++ token arrow)
-                $$
-                indent (indent (showExp exp))
-              )
-
-            val {pat, arrow, exp} = first
-            val initial =
-              group (
-                showExp expLeft
-                $$
-                group (
-                  token handlee
-                  $$
-                  indent (showPat pat ++ space ++ token arrow)
-                  $$
-                  indent (indent (showExp exp))
-                )
-              )
+            fun showBranch {pat, arrow, exp} =
+              showPat pat ++ space ++ token arrow
+              \\ showExp exp
+            fun mk (delim, branch) = token delim ++ space ++ showBranch branch
           in
-            group (
-              Seq.iterate
-                (fn (prev, next) => prev $$ mk next)
-                initial
-                (Seq.zip (delims, rest))
+            showExp expLeft
+            \\
+            (
+              token handlee
+              \\
+              rigidVertically
+                (indent (showBranch (Seq.nth elems 0)))
+                (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
             )
           end
 
       | Case {casee, exp=expTop, off, elems, delims} =>
           let
-            val first = Seq.nth elems 0
-            val rest = Seq.drop elems 1
-
-            fun mk (delim, {pat, arrow, exp}) =
-              group (
-                (token delim ++ space ++ showPat pat ++ space ++ token arrow)
-                $$
-                indent (indent (showExp exp))
-              )
-
-            val {pat, arrow, exp} = first
-            val initial =
-              (token casee ++ space ++
-              showExp expTop ++ space ++ token off)
-              $$
-              indent (
-                group (
-                  (showPat pat ++ space ++ token arrow)
-                  $$
-                  indent (showExp exp)
-                )
-              )
+            fun showBranch {pat, arrow, exp} =
+              showPat pat ++ space ++ token arrow
+              \\ showExp exp
+            fun mk (delim, branch) = token delim ++ space ++ showBranch branch
           in
-            group (
-              Seq.iterate
-                (fn (prev, next) => prev $$ mk next)
-                initial
-                (Seq.zip (delims, rest))
+            rigid (
+              token casee ++ space ++ showExp expTop ++ space ++ token off
+              $$
+              rigidVertically
+                (indent (showBranch (Seq.nth elems 0)))
+                (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
             )
           end
 
       | Fn {fnn, elems, delims} =>
           let
-            val first = Seq.nth elems 0
-            val rest = Seq.drop elems 1
-
             fun mk (delim, {pat, arrow, exp}) =
               space ++
-              group (
+              (
                 (token delim ++ space ++ showPat pat ++ space ++ token arrow)
-                $$
-                (spaces 2 ++ indent (showExp exp))
+                \\
+                showExp exp
               )
 
-            val {pat, arrow, exp} = first
+            val {pat, arrow, exp} = Seq.nth elems 0
             val initial =
-              group (
-                (token fnn ++ space ++ showPat pat ++ space ++ token arrow)
-                $$
-                (spaces 2 ++ indent (showExp exp))
-              )
+              (token fnn ++ space ++ showPat pat ++ space ++ token arrow)
+              \\
+              showExp exp
           in
             group (
-              Seq.iterate
-                (fn (prev, next) => prev $$ mk next)
+              Seq.iterate op$$
                 initial
-                (Seq.zip (delims, rest))
+                (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
             )
           end
 
