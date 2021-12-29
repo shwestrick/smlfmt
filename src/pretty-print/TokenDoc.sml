@@ -193,6 +193,79 @@ struct
     end
 
 
+  fun raiseComments doc =
+    let
+      fun finalize (doc, commBefore, commAfter) =
+        aboveOrSpace (commBefore, aboveOrSpace (doc, commAfter))
+
+      fun modifyDoc g (ht, doc, cb, ca) =
+        (ht, g doc, cb, ca)
+
+      fun combine bin (hasToks1, d1, cb1, ca1) (hasToks2, d2, cb2, ca2) =
+        let
+          val (resultDoc, cb, ca) =
+            if hasToks1 andalso hasToks2 then
+              ( bin (d1, bin (ca1, bin (cb2, d2)))
+              , cb1
+              , ca2
+              )
+            else if hasToks1 andalso not hasToks2 then
+              ( bin (d1, d2)
+              , cb1
+              , bin (ca1, bin (cb2, ca2))
+              )
+            else if not hasToks1 andalso hasToks2 then
+              ( bin (d1, d2)
+              , bin (cb1, bin (ca1, cb2))
+              , ca2
+              )
+            else
+              ( bin (d1, d2)
+              , bin (cb1, bin (ca1, bin (cb2, ca2)))
+              , Empty
+              )
+        in
+          (hasToks1 orelse hasToks2, resultDoc, cb, ca)
+        end
+
+      (* returns (containsTokens?, doc', commentsBefore, commentsAfter) *)
+      fun loop doc =
+        case doc of
+          Empty =>
+            (false, Empty, Empty, Empty)
+        | Space b =>
+            (false, Space b, Empty, Empty)
+        | Indent doc =>
+            let
+              val (hasToks, doc', cb, ca) = loop doc
+            in
+              if hasToks then
+                (true, Indent (finalize (doc', cb, ca)), Empty, Empty)
+              else
+                (false, Indent doc', cb, ca)
+            end
+        | Token t =>
+            if Token.isComment t then
+              (false, Empty, Token t, Empty)
+            else
+              (true, Token t, Empty, Empty)
+        | Beside (d1, d2) =>
+            combine beside (loop d1) (loop d2)
+        | BesideAndAbove (withSpace, d1, d2) =>
+            combine (besideAndAbove' withSpace) (loop d1) (loop d2)
+        | Above (withSpace, d1, d2) =>
+            combine (above' withSpace) (loop d1) (loop d2)
+        | Group doc =>
+            modifyDoc Group (loop doc)
+        | Rigid doc =>
+            modifyDoc Rigid (loop doc)
+
+      val (_, doc, commBefore, commAfter) = loop doc
+    in
+      finalize (doc, commBefore, commAfter)
+    end
+
+
   fun insertComments doc =
     let
       (** Does this doc most recently appear beside something,
@@ -305,6 +378,7 @@ struct
 
       val doc = insertAllBefore AboveMode doc
       val (_, doc) = insertOnlyAfterLast AboveMode doc
+      val doc = raiseComments doc
     in
       doc
     end
