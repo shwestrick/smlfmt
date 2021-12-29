@@ -6,21 +6,13 @@
 structure TCS = TerminalColorString
 structure TC = TerminalColors
 fun boldc c x = TCS.bold (TCS.foreground c (TCS.fromString x))
-
-val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
-val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
-val maxWidth = CommandLineArgs.parseInt "max-width" 80
-val tabWidth = CommandLineArgs.parseInt "tab-width" 4
-val indentWidth = CommandLineArgs.parseInt "indent-width" 2
-val inputfiles = CommandLineArgs.positional ()
-
-val doForce = CommandLineArgs.parseFlag "force"
-val doHelp = CommandLineArgs.parseFlag "help"
-val preview = CommandLineArgs.parseFlag "preview"
+fun printErr m = TextIO.output (TextIO.stdErr, m)
 
 val optionalArgDesc =
 "  [--force]              overwrite files without interactive confirmation\n\
 \  [--preview]            show formatted before writing to file\n\
+\  [--preview-only]       show formatted output and skip file overwrite\n\
+\                         (incompatible with --force)\n\
 \  [-max-width W]         try to use at most <W> columns in each line\n\
 \                         (default 80)\n\
 \  [-ribbon-frac R]       controls how dense each line should be\n\
@@ -37,10 +29,32 @@ fun usage () =
   "Optional arguments:\n" ^
   optionalArgDesc
 
+
+val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
+val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
+val maxWidth = CommandLineArgs.parseInt "max-width" 80
+val tabWidth = CommandLineArgs.parseInt "tab-width" 4
+val indentWidth = CommandLineArgs.parseInt "indent-width" 2
+val inputfiles = CommandLineArgs.positional ()
+
+val doForce = CommandLineArgs.parseFlag "force"
+val doHelp = CommandLineArgs.parseFlag "help"
+val preview = CommandLineArgs.parseFlag "preview"
+val previewOnly = CommandLineArgs.parseFlag "preview-only"
+val showPreview = preview orelse previewOnly
+
 val _ =
   if doHelp orelse List.null inputfiles then
     ( print (usage ())
     ; OS.Process.exit OS.Process.success
+    )
+  else ()
+
+val _ =
+  if previewOnly andalso doForce then
+    ( TCS.printErr (boldc Palette.red
+        "ERROR: --force incompatible with --preview-only\n")
+    ; OS.Process.exit OS.Process.failure
     )
   else ()
 
@@ -63,9 +77,6 @@ fun handleLexOrParseError exn =
       print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
     OS.Process.exit OS.Process.failure
   end
-
-fun printErr m =
-  TextIO.output (TextIO.stdErr, m)
 
 
 fun doSMLAst (fp, ast) =
@@ -104,7 +115,7 @@ fun doSMLAst (fp, ast) =
               printErr ("skipping " ^ hfp ^ "\n")
       )
   in
-    if not preview then ()
+    if not showPreview then ()
     else
       ( TCS.print (boldc Palette.lightblue ("---- " ^ hfp ^ " ----"))
       ; print "\n"
@@ -114,7 +125,8 @@ fun doSMLAst (fp, ast) =
       ; print "\n"
       );
 
-    if doForce then
+    if previewOnly then ()
+    else if doForce then
       writeOut ()
     else
       confirm ()
