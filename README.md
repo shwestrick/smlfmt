@@ -68,6 +68,9 @@ $ ./smlfmt --preview src/smlfmt.sml
 `--preview` also prints any formatted code to stdout,
 with syntax highlighting (if shown on terminal supporting ANSI colors).
 
+`--preview-only` is the same as `--preview`, but also skips writing to file.
+(This is incompatible with `--force`.)
+
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
 [MLton's path maps](http://mlton.org/MLBasisPathMap).
 
