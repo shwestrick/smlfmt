@@ -49,8 +49,8 @@
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -b",
 		"watch": "tsc -b -w",
-		"lint": "eslint ./client/src ./server/src --ext .ts,.tsx",
-		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+		"lint": "eslint ./client/src ./sample-server/src --ext .ts,.tsx",
+		"postinstall": "cd client && npm install && cd ../sample-server && npm install && cd ..",
 		"test": "sh ./scripts/e2e.sh"
 	},
 	"devDependencies": {
@@ -58,7 +58,7 @@
 		"@types/node": "^12.12.0",
 		"@typescript-eslint/eslint-plugin": "^4.23.0",
 		"@typescript-eslint/parser": "^4.23.0",
-		"eslint": "^7.26.0",
+		"eslint": "^7.32.0",
 		"mocha": "^8.3.2",
 		"typescript": "^4.4.3"
 	}
