@@ -1,4 +1,4 @@
 .PHONY: main
 
 main:
-	mlton main.sml
+	mlton main.mlb

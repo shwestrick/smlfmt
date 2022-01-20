@@ -1,0 +1,8 @@
+local $(SML_LIB)/basis/basis.mlb
+      basis MONO_MAP = bas map/MONO_MAP.mlb end
+      local open MONO_MAP
+      in map/IntMapImpl.sml
+      end
+in open MONO_MAP
+   map/IntMap.sml
+end

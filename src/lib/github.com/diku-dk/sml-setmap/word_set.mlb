@@ -1,0 +1,8 @@
+local $(SML_LIB)/basis/basis.mlb
+      basis MONO_SET = bas set/MONO_SET.mlb end
+      local open MONO_SET
+      in set/WordSetImpl.sml
+      end
+in open MONO_SET
+   set/WordSet.sml
+end

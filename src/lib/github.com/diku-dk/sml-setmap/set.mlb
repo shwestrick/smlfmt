@@ -1,0 +1,5 @@
+local $(SML_LIB)/basis/basis.mlb
+in set/SET_COMPARE.sig
+   set/SetEq.sml
+(*   set/SetOrd.sml *)
+end

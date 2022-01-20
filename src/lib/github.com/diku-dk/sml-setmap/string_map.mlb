@@ -1,0 +1,5 @@
+local $(SML_LIB)/basis/basis.mlb
+   mono_map.mlb
+in map/MONO_MAP.mlb
+   map/StringMap.sml
+end

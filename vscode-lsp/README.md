@@ -2,6 +2,7 @@ Much of this is taken from https://code.visualstudio.com/api/language-extensions
 
 ## Running the Sample
 
+- Run `nvm use node` to make sure you're using the most recent NodeJS.
 - Run `npm install` in this folder.
 - Run `npm run compile` in this folder.
 - Run `cd server && make` in this folder.

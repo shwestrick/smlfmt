@@ -1,0 +1,5 @@
+local $(SML_LIB)/basis/basis.mlb
+   mono_set.mlb
+in set/MONO_SET.mlb
+   set/StringSet.sml
+end

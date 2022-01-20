@@ -1,0 +1,5 @@
+local $(SML_LIB)/basis/basis.mlb
+      ../sml-setmap/string_map.mlb
+in json.sig
+   json.sml
+end
