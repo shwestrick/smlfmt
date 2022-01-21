@@ -43,7 +43,22 @@
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}
-		}
+		},
+    "languages": [
+			{
+				"id": "sml",
+				"aliases": [
+					"sml",
+					"SML",
+					"Standard ML"
+				],
+				"extensions": [
+					".fun",
+					".sig",
+					".sml"
+				]
+      }
+    ]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
