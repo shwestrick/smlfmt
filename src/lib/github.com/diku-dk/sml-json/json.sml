@@ -63,6 +63,9 @@ structure Json :> JSON = struct
   fun streamFromString (s:string) : stream = (s,0)
   fun getc ((s,n):stream):(char*stream)option = if n >= size s then NONE
                                                 else SOME(String.sub(s,n),(s,n+1))
+  fun gets ((s,n):stream) (len: int) : (string*stream)option =
+    if len < 0 orelse n+len > size s then NONE
+    else SOME(String.substring(s,n,len),(s,n+len))
   fun pos ((s,n):stream):int = n
   fun extract ((s,n0),(_,n1)) = String.substring(s,n0,n1-n0)
 
@@ -72,9 +75,32 @@ structure Json :> JSON = struct
         | SOME (c,cs1) => if Char.isAlphaNum c orelse c = #"_" then lex_id(cs0,cs1,ts)
                           else (cs,Id (extract(cs0,cs)) :: ts)
 
+  (* returns first index after the escape sequence
+   * cs: index immediately after the backslash
+   * possibilities:
+   *   \b \f \n \r \t \" \\ \uXXXX
+   *)
+  fun lex_str_escaped cs =
+    case getc cs of
+      NONE => die "incomplete escape inside string"
+    | SOME (#"u",cs1) =>
+        (case gets cs1 4 of
+          NONE => die "incomplete \\uXXXX escape inside string"
+        | SOME (xxxx, cs1') =>
+            if List.all Char.isHexDigit (String.explode xxxx) then
+              cs1'
+            else
+              die "invalid \\uXXXX escape inside string")
+    | SOME (c,cs1) =>
+        if Char.contains "bfnrt\"\\" c then
+          cs1
+        else
+          die "invalid escape inside string"
+
   fun lex_str (cs0,cs,ts) =
       case getc cs of
           NONE => die "lexer found unclosed string"
+        | SOME (#"\\",cs1) => lex_str (cs0, lex_str_escaped cs1, ts)
         | SOME (#"\"",cs1) => (cs1,Str(extract(cs0,cs))::ts)
         | SOME (_,cs) => lex_str(cs0,cs,ts)
 
