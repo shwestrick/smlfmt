@@ -66,8 +66,10 @@ fun mainLoop () =
     val _ = log ("received: " ^ Message.toString msg)
   in
     case msg of
-      Message.Initialize {id, params} =>
+      Message.Initialize {id, ...} =>
         print (serializeMessage (initialResponse (Message.Id.toJson id)))
+    | Message.Initialized =>
+        log "initialization handshake completed"
     | _ => ();
 
     mainLoop ()

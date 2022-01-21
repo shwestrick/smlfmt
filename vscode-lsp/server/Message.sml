@@ -26,15 +26,22 @@ struct
   datatype t =
     Initialize of
       { id: Id.t
-      , params:
-          { processId: int option
-          , clientInfo: {name: string, version: string option} option
-          , locale: string option
-          , initializationOptions: Json.t option
-          , capabilities: Json.t
-          , trace: Json.t option
-          , workspaceFolders: Json.t list option
-          }
+      , processId: int option
+      , clientInfo: {name: string, version: string option} option
+      , locale: string option
+      , initializationOptions: Json.t option
+      , capabilities: Json.t
+      , trace: Json.t option
+      , workspaceFolders: Json.t list option
+      }
+
+  | Initialized
+
+  | TextDocumentDidOpen of
+      { uri: Json.t
+      , languageId: string
+      , version: int
+      , text: string
       }
 
   | Other of Json.obj
@@ -84,15 +91,27 @@ struct
     in
       Initialize
         { id = id
-        , params =
-            { processId = optional int "processId" params
-            , clientInfo = optional (clientInfo o object) "clientInfo" params
-            , locale = optional string "locale" params
-            , initializationOptions = optional json "initializationOptions" params
-            , capabilities = required json "capabilities" params
-            , trace = optional json "trace" params
-            , workspaceFolders = optional (array json) "workspaceFolders" params
-            }
+        , processId = optional int "processId" params
+        , clientInfo = optional (clientInfo o object) "clientInfo" params
+        , locale = optional string "locale" params
+        , initializationOptions = optional json "initializationOptions" params
+        , capabilities = required json "capabilities" params
+        , trace = optional json "trace" params
+        , workspaceFolders = optional (array json) "workspaceFolders" params
+        }
+    end
+
+
+  fun makeTextDocumentDidOpen obj =
+    let
+      val params = required object "params" obj
+      val textDocument = required object "textDocument" params
+    in
+      TextDocumentDidOpen
+        { uri = required json "uri" textDocument
+        , languageId = required string "languageId" textDocument
+        , version = required int "version" textDocument
+        , text = required string "text" textDocument
         }
     end
 
@@ -107,6 +126,12 @@ struct
       case Json.objLook obj "method" of
         SOME (Json.STRING "initialize") =>
           makeInitialize obj
+
+      | SOME (Json.STRING "initialized") =>
+          Initialized
+
+      | SOME (Json.STRING "textDocument/didOpen") =>
+          makeTextDocumentDidOpen obj
 
       | _ =>
           Other obj
@@ -155,8 +180,17 @@ struct
 
   fun toString msg =
     case msg of
-      Other obj => Json.toString (Json.OBJECT obj)
-    | Initialize {id, params} =>
-        "Initialize(id = " ^ Id.toString id ^ ", params = ...)"
+      Other obj => "OTHER(" ^ Json.toString (Json.OBJECT obj) ^ ")"
+    | Initialize {id, ...} =>
+        "Initialize(id = " ^ Id.toString id ^ ", ...)"
+    | Initialized =>
+        "Initialized()"
+    | TextDocumentDidOpen {uri, languageId, version, text} =>
+        "TextDocumentDidOpen("
+        ^ "uri = " ^ Json.toString uri ^ ", "
+        ^ "languageId = " ^ languageId ^ ", "
+        ^ "version = " ^ Int.toString version ^ ", "
+        ^ "text = " ^ Json.toString (Json.STRING text)
+        ^ ")"
 
 end
