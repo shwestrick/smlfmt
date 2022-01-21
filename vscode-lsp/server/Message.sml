@@ -76,19 +76,17 @@ struct
     let
       val id = required Id.fromJson "id" obj
       val params = required object "params" obj
+
+      fun clientInfo x =
+        { name = required string "name" x
+        , version = optional string "version" x
+        }
     in
       Initialize
         { id = id
         , params =
             { processId = optional int "processId" params
-            , clientInfo =
-                optional
-                  ((fn x => { name = required string "name" x
-                            , version = optional string "version" x
-                            })
-                   o object)
-                  "clientInfo"
-                  params
+            , clientInfo = optional (clientInfo o object) "clientInfo" params
             , locale = optional string "locale" params
             , initializationOptions = optional json "initializationOptions" params
             , capabilities = required json "capabilities" params
@@ -141,6 +139,7 @@ struct
       val _ = getUntilSeparator()
       val payload = TextIO.inputN (TextIO.stdIn, contentLength)
     in
+      (* log ("received payload: " ^ payload); *)
       fromJson (Json.fromString payload)
     end
 
