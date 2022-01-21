@@ -6,36 +6,7 @@ fun die msg =
   ; OS.Process.exit OS.Process.failure
   )
 
-fun expect str =
-  let
-    val n = String.size str
-    val stuff = TextIO.inputN (TextIO.stdIn, n)
-  in
-    if stuff = str then () else
-    die ("Expected '" ^ str ^ "' but got '" ^ stuff ^ "'")
-	end
-
-fun getUntilSeparator () =
-  let
-    fun loop (#"\n" :: #"\r" :: rest) = String.implode (List.rev rest)
-      | loop acc =
-          case TextIO.input1 TextIO.stdIn of
-            SOME c => loop (c :: acc)
-          | NONE => die "Input stream ended unexpectedly"
-  in
-    loop []
-  end
-
-fun receiveMessage () =
-  let
-    val _ = expect "Content-Length:"
-    val contentLength = valOf (Int.fromString (getUntilSeparator ()))
-    val _ = getUntilSeparator()
-    val payload = TextIO.inputN (TextIO.stdIn, contentLength)
-  in
-    Json.fromString payload
-  end
-
+(*
 fun receiveMessages () : Json.t list =
   let
     fun loop msgs =
@@ -47,16 +18,7 @@ fun receiveMessages () : Json.t list =
   in
     loop [receiveMessage ()]
   end
-
-fun myToString json =
-  case json of
-    Json.RAW x => "RAW(" ^ x ^ ")"
-  | Json.OBJECT obj => "OBJECT(...)"
-  | Json.STRING str => "STRING(" ^ str ^ ")"
-  | Json.ARRAY xs => "ARRAY[" ^ String.concatWith "," (List.map myToString xs) ^ "]"
-  | Json.NULL => "NULL"
-  | Json.BOOL b => "BOOL(" ^ (if b then "true" else "false") ^ ")"
-  | Json.NUMBER x => "NUMBER(" ^ x ^ ")"
+*)
 
 fun inspect x =
   case x of
@@ -100,17 +62,12 @@ fun serializeMessage json =
 
 fun mainLoop () =
   let
-    val msg as (Json.OBJECT obj) = receiveMessage ()
-    val kvs = inspect msg
-    val _ = log "received message:"
-    val _ =
-      log
-        (String.concatWith "\n"
-          (List.map (fn (k, v) => "  " ^ k ^ ": " ^ myToString v) kvs))
+    val msg = Message.receive ()
+    val _ = log ("received: " ^ Message.toString msg)
   in
-    case Json.objLook obj "method" of
-      SOME (Json.STRING "initialize") =>
-        print (serializeMessage (initialResponse (valOf (Json.objLook obj "id"))))
+    case msg of
+      Message.Initialize {id, params} =>
+        print (serializeMessage (initialResponse (Message.Id.toJson id)))
     | _ => ();
 
     mainLoop ()
