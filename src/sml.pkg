@@ -1,3 +1,4 @@
 require {
   github.com/diku-dk/sml-json 0.1.0 #6b1772bc3e1902f0d3e5be4361788d472b285600
+  github.com/shwestrick/sml-uri 0.1.0 #3550051d7a4dcbe02f838a00d246477f6a042a25
 }

@@ -1,5 +1,6 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/basis/mlton.mlb
 ../../src/lib/github.com/diku-dk/sml-json/json.mlb
+../../src/lib/github.com/shwestrick/sml-uri/uri.mlb
 Message.sml
 main.sml
