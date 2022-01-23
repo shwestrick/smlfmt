@@ -44,6 +44,11 @@ struct
       , text: string
       }
 
+  | TextDocumentSemanticTokensFull of
+      { id: Id.t
+      , uri: URI.t
+      }
+
   | Other of Json.obj
 
 
@@ -116,6 +121,20 @@ struct
     end
 
 
+  fun makeTextDocumentSemanticTokensFull obj =
+    let
+      val id = required Id.fromJson "id" obj
+      val params = required object "params" obj
+      val textDocument = required object "textDocument" params
+      val uri = required (URI.fromString o string) "uri" textDocument
+    in
+      TextDocumentSemanticTokensFull
+        { id = id
+        , uri = uri
+        }
+    end
+
+
   fun fromJson json =
     let
       val obj =
@@ -132,6 +151,9 @@ struct
 
       | SOME (Json.STRING "textDocument/didOpen") =>
           makeTextDocumentDidOpen obj
+
+      | SOME (Json.STRING "textDocument/semanticTokens/full") =>
+          makeTextDocumentSemanticTokensFull obj
 
       | _ =>
           Other obj
@@ -193,5 +215,9 @@ struct
         ^ "version = " ^ Int.toString version ^ ", "
         ^ "text = " ^ Json.toString (Json.STRING text)
         ^ ")"
+    | TextDocumentSemanticTokensFull {id, uri} =>
+        "TextDocumentSemanticTokensFull("
+        ^ "id = " ^ Id.toString id ^ ", "
+        ^ "uri = " ^ URI.toString uri ^ " )"
 
 end

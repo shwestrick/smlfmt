@@ -137,6 +137,11 @@ fun mainLoop state =
           else
             ServerState.textDocumentDidOpen uri state
 
+      | Message.TextDocumentSemanticTokensFull args =>
+          ( print (serializeMessage (SemanticTokens.makeResponse state args))
+          ; state
+          )
+
       | _ => state
   in
     mainLoop state

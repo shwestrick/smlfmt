@@ -26,4 +26,7 @@ struct
 
   val initialState = T {openFiles = URIDict.empty}
 
+  fun get (T {openFiles}) uri =
+    URIDict.lookup openFiles uri
+
 end

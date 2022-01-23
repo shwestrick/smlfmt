@@ -4,6 +4,7 @@ $(SML_LIB)/basis/mlton.mlb
 ../../src/lib/github.com/shwestrick/sml-uri/uri.mlb
 ../../src/base/sources.mlb
 ../../src/lex/sources.mlb
-Message.sml
 ServerState.sml
+Message.sml
+SemanticTokens.sml
 main.sml
