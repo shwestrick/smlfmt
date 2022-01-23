@@ -38,7 +38,7 @@ struct
   | Initialized
 
   | TextDocumentDidOpen of
-      { uri: Json.t
+      { uri: URI.t
       , languageId: string
       , version: int
       , text: string
@@ -108,7 +108,7 @@ struct
       val textDocument = required object "textDocument" params
     in
       TextDocumentDidOpen
-        { uri = required json "uri" textDocument
+        { uri = required (URI.fromString o string) "uri" textDocument
         , languageId = required string "languageId" textDocument
         , version = required int "version" textDocument
         , text = required string "text" textDocument
@@ -187,7 +187,7 @@ struct
         "Initialized()"
     | TextDocumentDidOpen {uri, languageId, version, text} =>
         "TextDocumentDidOpen("
-        ^ "uri = " ^ Json.toString uri ^ ", "
+        ^ "uri = " ^ URI.toString uri ^ ", "
         ^ "languageId = " ^ languageId ^ ", "
         ^ "version = " ^ Int.toString version ^ ", "
         ^ "text = " ^ Json.toString (Json.STRING text)

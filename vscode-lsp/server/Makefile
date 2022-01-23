@@ -1,4 +1,4 @@
 .PHONY: main
 
 main:
-	mlton main.mlb
+	mlton -mlb-path-var 'COMPAT mlton' main.mlb

@@ -60,26 +60,38 @@ fun serializeMessage json =
     ^ str
   end
 
-fun mainLoop () =
+fun mainLoop state =
   let
     val msg = Message.receive ()
     val _ = log ("received: " ^ Message.toString msg)
-  in
-    case msg of
-      Message.Initialize {id, ...} =>
-        print (serializeMessage (initialResponse (Message.Id.toJson id)))
-    | Message.Initialized =>
-        log "initialization handshake completed"
-    | _ => ();
 
-    mainLoop ()
+    val state =
+      case msg of
+        Message.Initialize {id, ...} =>
+          ( print (serializeMessage (initialResponse (Message.Id.toJson id)))
+          ; state
+          )
+      | Message.Initialized =>
+          ( log "initialization handshake completed"
+          ; state
+          )
+      | Message.TextDocumentDidOpen {uri, ...} =>
+          if URI.scheme uri <> "file" then
+            state
+          else
+            ServerState.textDocumentDidOpen uri state
+
+      | _ => state
+  in
+    mainLoop state
   end
   handle e =>
     ( log ("Whoops: " ^ exnMessage e)
-    ; mainLoop ()
+    ; mainLoop state
     )
 
-val _ = mainLoop ()
+val state = ServerState.initialState
+val _ = mainLoop state
 
 (*
 fun consumeInput () =
