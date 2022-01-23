@@ -50,67 +50,38 @@ struct
     let
       val toks = Seq.filter (not o Token.isWhitespace) toks
 
-      type tok_info = {line: int, startChar: int, length: int, tokenType: int, tokenModifiers: int}
-
-      fun encodeOne (tok: Token.t) : tok_info =
+      fun info tok =
         let
           val src = Token.getSource tok
           val {line, col} = Source.absoluteStart src
-          val line = line-1
-          val col = col-1
         in
-          { line = line
-          , startChar = col
-          , length = Source.length src
-          , tokenType = tokenType tok
-          , tokenModifiers = 0 (* nothing for now *)
-          }
+          (line-1, col-1, Source.length src)
         end
 
-      val tokInfos = Seq.map encodeOne toks
-
-      fun delta (prev: tok_info) (curr: tok_info) =
-        { deltaLine = #line curr - #line prev
-        , deltaStartChar =
-            if #line prev = #line curr then
-              #startChar curr - #startChar prev
-            else
-              #startChar curr
-        , length = #length curr
-        , tokenType = #tokenType curr
-        , tokenModifiers = #tokenModifiers curr
-        }
-
-      fun deltaAt i =
-        if i > 0 then
-          delta (Seq.nth tokInfos (i-1)) (Seq.nth tokInfos i)
-        else
-          let val {line, startChar, length, tokenType, tokenModifiers} =
-                Seq.nth tokInfos i
-          in { deltaLine = line
-             , deltaStartChar = startChar
-             , length = length
-             , tokenType = tokenType
-             , tokenModifiers = tokenModifiers
-             }
-          end
-
-      val output = ForkJoin.alloc (5 * Seq.length toks)
-    in
-      ForkJoin.parfor 1000 (0, Seq.length toks) (fn i =>
+      fun encodeAt i =
         let
-          val {deltaLine, deltaStartChar, length, tokenType, tokenModifiers} =
-            deltaAt i
-          fun put j x = Array.update (output, 5*i + j, x)
-        in
-          put 0 deltaLine;
-          put 1 deltaStartChar;
-          put 2 length;
-          put 3 tokenType;
-          put 4 tokenModifiers
-        end);
+          val (lPrev, cPrev, _) =
+            if i = 0 then
+              (0, 0, 0)
+            else
+              info (Seq.nth toks (i-1))
 
-      ArraySlice.full output
+          val tok = Seq.nth toks i
+          val (l, c, n) = info tok
+
+          val dl = l - lPrev
+          val dc = if l = lPrev then c-cPrev else c
+        in
+          Seq.fromList
+            [ dl             (* deltaLine *)
+            , dc             (* deltaStartChar *)
+            , n              (* length *)
+            , tokenType tok  (* tokenType *)
+            , 0              (* tokenModifier *)
+            ]
+        end
+    in
+      Seq.flatten (Seq.tabulate encodeAt (Seq.length toks))
     end
 
 
