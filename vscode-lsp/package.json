@@ -60,6 +60,11 @@
       }
     ]
 	},
+  "configurationDefaults": {
+    "[sml]": {
+      "editor.semanticHighlighting.enabled": true
+    }
+  },
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -b",

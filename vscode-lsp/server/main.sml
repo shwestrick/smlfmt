@@ -29,6 +29,45 @@ fun inspect x =
 fun object kvs = Json.OBJECT (Json.objFromList kvs)
 fun bool b = Json.BOOL b
 fun num n = Json.NUMBER (Int.toString n)
+fun array a = Json.ARRAY a
+
+val tokenModifiers = [
+        "declaration",
+        "definition",
+        "readonly",
+        "static",
+        "deprecated",
+        "abstract",
+        "async",
+        "modification",
+        "documentation",
+        "defaultLibrary"
+      ]
+
+val tokenTypes = [
+        "namespace",
+        "type",
+        "class",
+        "enum",
+        "interface",
+        "struct",
+        "typeParameter",
+        "parameter",
+        "variable",
+        "property",
+        "enumMember",
+        "event",
+        "function",
+        "method",
+        "macro",
+        "keyword",
+        "modifier",
+        "comment",
+        "string",
+        "number",
+        "regexp",
+        "operator"
+      ]
 
 val initialResponseResult =
   object
@@ -38,6 +77,23 @@ val initialResponseResult =
             , object
                 [ ("openClose", bool true)
                 , ("change", num 2) (* TextDocumentSyncKind.Incremental *)
+                ]
+            )
+          , ( "semanticTokensProvider"
+            , object
+                [ ( "full"
+                  , bool true
+                  )
+                , ( "legend"
+                  , object
+                      [ ( "tokenTypes"
+                        , array (List.map Json.STRING tokenTypes)
+                        )
+                      , ( "tokenModifiers"
+                        , array (List.map Json.STRING tokenModifiers)
+                        )
+                      ]
+                  )
                 ]
             )
           ]

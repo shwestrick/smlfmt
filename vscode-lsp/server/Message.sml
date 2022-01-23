@@ -181,8 +181,9 @@ struct
   fun toString msg =
     case msg of
       Other obj => "OTHER(" ^ Json.toString (Json.OBJECT obj) ^ ")"
-    | Initialize {id, ...} =>
-        "Initialize(id = " ^ Id.toString id ^ ", ...)"
+    | Initialize {id, capabilities, ...} =>
+        "Initialize(id = " ^ Id.toString id
+        ^ ", ..., capabilities = " ^ Json.toString capabilities ^ ")"
     | Initialized =>
         "Initialized()"
     | TextDocumentDidOpen {uri, languageId, version, text} =>
