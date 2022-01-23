@@ -41,6 +41,24 @@ sig
     * Remember, 1-indexing for line nums, ugh.
     *)
   val wholeLine: source -> int -> source
+
+  type range = {start: {line: int, col: int}, stop: {line: int, col: int}}
+
+  (** `edit src range newtext`
+    *
+    * Produces a new source, with the same filename, where the specified
+    * range has been deleted and replaced with the supplied new text.
+    * This allows for both insertions and deletions simultaneously.
+    *
+    * The source given as input should be an entire file, not a slice of it.
+    * If `src` is a slice, the result is essentially the same as instead
+    * doing `edit (wholeFile src) range newtext`.
+    *
+    * Note: this function is pure. The input source is not modified, and
+    * neither is the underlying file of the source. The output source is
+    * therefore out-of-sync with any file on disk or elsewhere.
+    *)
+  val edit: source -> range -> string -> source
 end =
 struct
 
@@ -55,9 +73,8 @@ struct
   type t = source
 
 
-  fun loadFromFile path =
+  fun fromData (path, contents) =
     let
-      val contents = ReadFile.contentsSeq (FilePath.toHostPath path)
       val n = Seq.length contents
 
       (** Check that we can use the slice base as the actual base. *)
@@ -77,6 +94,9 @@ struct
       , newlineIdxs = newlineIdxs
       }
     end
+
+  fun loadFromFile path =
+    fromData (path, ReadFile.contentsSeq (FilePath.toHostPath path))
 
   fun fileName (s: source) = #fileName s
 
@@ -199,6 +219,48 @@ struct
       val off = absoluteStartOffset s
     in
       Seq.tabulate (fn i => (start i - off, endd i - off)) numLines
+    end
+
+
+  fun lineColToOffset (s as {newlineIdxs, ...}: source) {line, col} =
+    let
+      val len = length s
+
+      (* convert to 0-indexing *)
+      val (line, col) = (line-1, col-1)
+
+      val lineOffset =
+        if line = 0 then 0 else 1 + Seq.nth newlineIdxs (line-1)
+    in
+      lineOffset + col
+    end
+
+
+  type range = {start: {line: int, col: int}, stop: {line: int, col: int}}
+
+  fun edit src ({start, stop}: range) newText =
+    let
+      val src = wholeFile src
+
+      val startOffset = lineColToOffset src start
+      val stopOffset = lineColToOffset src stop
+
+      val rangeLength = stopOffset - startOffset
+      val diff = rangeLength - String.size newText
+
+      val newLen = length src - diff
+
+      fun newChar i =
+        if i < startOffset then
+          nth src i
+        else if i >= startOffset andalso i < startOffset + String.size newText then
+          String.sub (newText, i-startOffset)
+        else
+          nth src (i + diff)
+
+      val newData = Seq.tabulate newChar newLen
+    in
+      fromData (fileName src, newData)
     end
 
 end
