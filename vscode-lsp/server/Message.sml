@@ -44,6 +44,12 @@ struct
       , text: string
       }
 
+  | TextDocumentDidChange of
+      { uri: URI.t
+      , version: int
+      , contentChanges: Json.t (* opaque for now. TODO handle this. *)
+      }
+
   | TextDocumentSemanticTokensFull of
       { id: Id.t
       , uri: URI.t
@@ -135,6 +141,22 @@ struct
     end
 
 
+  fun makeTextDocumentDidChange obj =
+    let
+      val params = required object "params" obj
+      val textDocument = required object "textDocument" params
+      val contentChanges = required json "contentChanges" params
+      val uri = required (URI.fromString o string) "uri" textDocument
+      val version = required int "version" textDocument
+    in
+      TextDocumentDidChange
+        { uri = uri
+        , version = version
+        , contentChanges = contentChanges
+        }
+    end
+
+
   fun fromJson json =
     let
       val obj =
@@ -151,6 +173,9 @@ struct
 
       | SOME (Json.STRING "textDocument/didOpen") =>
           makeTextDocumentDidOpen obj
+
+      | SOME (Json.STRING "textDocument/didChange") =>
+          makeTextDocumentDidChange obj
 
       | SOME (Json.STRING "textDocument/semanticTokens/full") =>
           makeTextDocumentSemanticTokensFull obj
@@ -210,10 +235,16 @@ struct
         "Initialized()"
     | TextDocumentDidOpen {uri, languageId, version, text} =>
         "TextDocumentDidOpen("
-        ^ "uri = " ^ URI.toString uri ^ ", "
+        ^ "uri = " ^ URI.toString uri ^ " , "
         ^ "languageId = " ^ languageId ^ ", "
         ^ "version = " ^ Int.toString version ^ ", "
         ^ "text = " ^ Json.toString (Json.STRING text)
+        ^ ")"
+    | TextDocumentDidChange {uri, version, contentChanges} =>
+        "TextDocumentDidChange("
+        ^ "uri = " ^ URI.toString uri ^ " , "
+        ^ "version = " ^ Int.toString version ^ ", "
+        ^ "contentChanges = " ^ Json.toString contentChanges
         ^ ")"
     | TextDocumentSemanticTokensFull {id, uri} =>
         "TextDocumentSemanticTokensFull("

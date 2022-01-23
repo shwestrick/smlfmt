@@ -127,11 +127,19 @@ fun mainLoop state =
           ( print (serializeMessage (initialResponse (Message.Id.toJson id)))
           ; state
           )
+
       | Message.Initialized =>
           ( log "initialization handshake completed"
           ; state
           )
+
       | Message.TextDocumentDidOpen {uri, ...} =>
+          if URI.scheme uri <> "file" then
+            state
+          else
+            ServerState.textDocumentDidOpen uri state
+
+      | Message.TextDocumentDidChange {uri, ...} =>
           if URI.scheme uri <> "file" then
             state
           else
