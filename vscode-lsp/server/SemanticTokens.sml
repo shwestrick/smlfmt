@@ -87,7 +87,7 @@ struct
 
   fun makeResponse serverState {id, uri} =
     let
-      val toks = ServerState.get serverState uri
+      val toks = Lexer.tokens (ServerState.get serverState uri)
       val data = encode toks
 
       val result =

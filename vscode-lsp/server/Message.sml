@@ -23,6 +23,25 @@ struct
     fun toString x = Json.toString x
   end
 
+  structure ContentChange =
+  struct
+    datatype t =
+      Range of {range: Source.range, text: string}
+    | Whole of string
+
+    fun lctos {line, col} =
+      "{line = " ^ Int.toString line ^ ", col = " ^ Int.toString col ^ "}"
+
+    fun toString x =
+      case x of
+        Range {range = {start, stop}, text} =>
+          "Range(start = " ^ lctos start
+          ^ ", stop = " ^ lctos stop
+          ^ ", text = \"" ^ text ^ "\")"
+      | Whole text =>
+          "Whole(\"" ^ text ^ "\")"
+  end
+
   datatype t =
     Initialize of
       { id: Id.t
@@ -47,7 +66,7 @@ struct
   | TextDocumentDidChange of
       { uri: URI.t
       , version: int
-      , contentChanges: Json.t (* opaque for now. TODO handle this. *)
+      , contentChanges: ContentChange.t list
       }
 
   | TextDocumentSemanticTokensFull of
@@ -145,9 +164,38 @@ struct
     let
       val params = required object "params" obj
       val textDocument = required object "textDocument" params
-      val contentChanges = required json "contentChanges" params
       val uri = required (URI.fromString o string) "uri" textDocument
       val version = required int "version" textDocument
+
+      fun positionSourceLineCol obj =
+        let
+          val line = required int "line" obj
+          val character = required int "character" obj
+        in
+          (* convert to 1-indexing *)
+          {line = line+1, col = character+1}
+        end
+
+      fun range obj =
+        let
+          val start = required (positionSourceLineCol o object) "start" obj
+          val stop = required (positionSourceLineCol o object) "end" obj
+        in
+          {start = start, stop = stop}
+        end
+
+      fun contentChange obj =
+        let
+          val text = required string "text" obj
+          val range = optional (range o object) "range" obj
+        in
+          case range of
+            SOME r => ContentChange.Range {range = r, text = text}
+          | NONE => ContentChange.Whole text
+        end
+
+      val contentChanges =
+        required (array (contentChange o object)) "contentChanges" params
     in
       TextDocumentDidChange
         { uri = uri
@@ -244,7 +292,10 @@ struct
         "TextDocumentDidChange("
         ^ "uri = " ^ URI.toString uri ^ " , "
         ^ "version = " ^ Int.toString version ^ ", "
-        ^ "contentChanges = " ^ Json.toString contentChanges
+        ^ "contentChanges = [" ^
+            String.concatWith ","
+              (List.map ContentChange.toString contentChanges)
+          ^ "]"
         ^ ")"
     | TextDocumentSemanticTokensFull {id, uri} =>
         "TextDocumentSemanticTokensFull("

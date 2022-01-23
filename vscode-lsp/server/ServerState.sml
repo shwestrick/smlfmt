@@ -12,16 +12,38 @@ struct
 
   datatype t =
     T of
-      { openFiles: Token.t Seq.t URIDict.t  (* lexer output for now *)
+      { openFiles: Source.t URIDict.t  (* lexer output for now *)
       }
 
-  fun textDocumentDidOpen uri (T {openFiles}) =
+  fun textDocumentDidOpen (T {openFiles}) uri =
     let
       val filepath = FilePath.fromUnixPath (URI.path uri)
-      val tokens = Lexer.tokens (Source.loadFromFile filepath)
+      val source = Source.loadFromFile filepath
     in
       log ("loaded file " ^ FilePath.toUnixPath filepath);
-      T {openFiles = URIDict.insert openFiles (uri, tokens)}
+      T {openFiles = URIDict.insert openFiles (uri, source)}
+    end
+
+  fun textDocumentDidChange (T {openFiles}) {uri, contentChanges} =
+    let
+      fun loop changes source =
+        case changes of
+          [] => source
+        | Message.ContentChange.Range {range, text} :: changes' =>
+            loop changes' (Source.edit source range text)
+        | Message.ContentChange.Whole text :: changes' =>
+            let
+              val range =
+                { start = Source.absoluteStart source
+                , stop = Source.absoluteEnd source
+                }
+            in
+              loop changes' (Source.edit source range text)
+            end
+
+      val newSource = loop contentChanges (URIDict.lookup openFiles uri)
+    in
+      T {openFiles = URIDict.insert openFiles (uri, newSource)}
     end
 
   val initialState = T {openFiles = URIDict.empty}

@@ -137,13 +137,14 @@ fun mainLoop state =
           if URI.scheme uri <> "file" then
             state
           else
-            ServerState.textDocumentDidOpen uri state
+            ServerState.textDocumentDidOpen state uri
 
-      | Message.TextDocumentDidChange {uri, ...} =>
+      | Message.TextDocumentDidChange {uri, contentChanges, ...} =>
           if URI.scheme uri <> "file" then
             state
           else
-            ServerState.textDocumentDidOpen uri state
+            ServerState.textDocumentDidChange state
+              {uri=uri, contentChanges=contentChanges}
 
       | Message.TextDocumentSemanticTokensFull args =>
           ( print (serializeMessage (SemanticTokens.makeResponse state args))
