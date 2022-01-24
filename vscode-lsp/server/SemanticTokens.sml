@@ -36,6 +36,7 @@ struct
     case Token.getClass tok of
       Token.Comment => 17
     | Token.IntegerConstant => 19
+    | Token.RealConstant => 19
     | Token.WordConstant => 19
     | Token.CharConstant => 18
     | Token.StringConstant => 18
@@ -103,5 +104,36 @@ struct
         , ("result", result)
         ])
     end
+    handle exn =>
+      let
+        (*
+        val response =
+          Json.OBJECT (Json.objFromList
+            [ ("id", Message.Id.toJson id)
+            , ( "error"
+              , Json.OBJECT (Json.objFromList
+                  [ ("code", Json.NUMBER "-32700")
+                  , ("message", Json.STRING (exnMessage exn))
+                  ])
+              )
+            ])
+        *)
+
+        val response =
+          Json.OBJECT (Json.objFromList
+            [ ("id", Message.Id.toJson id)
+            , ("result", Json.NULL)
+            ])
+      in
+        case exn of
+          Error.Error e =>
+            TerminalColorString.printErr
+              (Error.show {highlighter = SOME SyntaxHighlighter.fuzzyHighlight} e)
+        | _ => ();
+
+        response
+      end
+
+
 
 end
