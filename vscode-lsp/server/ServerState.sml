@@ -30,7 +30,7 @@ struct
         case changes of
           [] => source
         | Message.ContentChange.Range {range, text} :: changes' =>
-            loop changes' (Source.edit source range text)
+            loop changes' (Source.edit source range (JsonUtil.unescape text))
         | Message.ContentChange.Whole text :: changes' =>
             let
               val range =
@@ -38,7 +38,7 @@ struct
                 , stop = Source.absoluteEnd source
                 }
             in
-              loop changes' (Source.edit source range text)
+              loop changes' (Source.edit source range (JsonUtil.unescape text))
             end
 
       val newSource = loop contentChanges (URIDict.lookup openFiles uri)
