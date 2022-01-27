@@ -56,14 +56,19 @@ struct
     | Token.MLtonReserved => 15
     | _ => raise Fail "SemanticTokens.tokenType: unsupported token class"
 
-  val qualifiertt = 0
+  val qualifiertt = (*0*) 5
   val vartt = 8
 
   fun refine tt interestingNess =
-    case interestingNess of
-      (* InterestingTokensFromAst.Constructor => *)
-      InterestingTokensFromAst.Function => 12
-    | _ => tt
+    let
+      open InterestingTokensFromAst
+    in
+      case interestingNess of
+        (* InterestingTokensFromAst.Constructor => *)
+        Function => 12
+      | InfixOp => 21
+      | _ => tt
+    end
 
   fun encode toks =
     let
@@ -191,10 +196,30 @@ struct
     end
 
 
+  fun keepToken tok =
+    let
+      open Token
+    in
+      case getClass tok of
+        Whitespace => false
+      | Reserved r =>
+          (case r of
+            Comma => false
+          | OpenParen => false
+          | CloseParen => false
+          | OpenSquareBracket => false
+          | CloseSquareBracket => false
+          | Underscore => false
+          | _ => true
+          )
+      | _ => true
+    end
+
+
   fun makeResponse serverState {id, uri} =
     let
       val contents = ServerState.get serverState uri
-      val toks = Seq.filter (not o Token.isWhitespace) (Lexer.tokens contents)
+      val toks = Seq.filter keepToken (Lexer.tokens contents)
 
       val interestingToks =
         InterestingTokensFromAst.extract (Parser.parse contents)

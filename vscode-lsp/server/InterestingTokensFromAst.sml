@@ -3,6 +3,7 @@ sig
   datatype info =
     Constructor
   | Function
+  | InfixOp
   | NotInteresting (* defer to lexer token class *)
 
   (** Pull out some interesting tokens from the full parse tree. Doesn't
@@ -17,6 +18,7 @@ struct
   datatype info =
     Constructor
   | Function
+  | InfixOp
   | NotInteresting
 
   type acc = (Token.t * info) list
@@ -42,7 +44,8 @@ struct
 
       | App {left, right} => exp (exp (acc, left), right)
 
-      | Infix {left, right, ...} => exp (exp (acc, left), right)
+      | Infix {left, id, right} =>
+          (id, InfixOp) :: exp (exp (acc, left), right)
 
       | Typed {exp=e', ...} => exp (acc, e')
 
@@ -110,6 +113,21 @@ struct
           Seq.iterate mutualval acc mutuals
         end
 
+    | Ast.Exp.DecLocal {left_dec, right_dec, ...} =>
+        dec (dec (acc, left_dec), right_dec)
+
+    | Ast.Exp.DecMultiple {elems, ...} =>
+        Seq.iterate dec acc elems
+
+    | Ast.Exp.DecInfix {elems, ...} =>
+        Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
+
+    | Ast.Exp.DecInfixr {elems, ...} =>
+        Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
+
+    | Ast.Exp.DecNonfix {elems, ...} =>
+        Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
+
     | _ => acc
 
 
@@ -143,11 +161,23 @@ struct
     | _ => acc
 
 
+  fun fundec (acc, d) =
+    case d of
+      Ast.Fun.DecFunctor {elems = mutuals, ...} =>
+        let
+          fun mutualfun (acc, {strexp=se, ...}) =
+            strexp (acc, se)
+        in
+          Seq.iterate mutualfun acc mutuals
+        end
+
+
   fun extract (Ast.Ast topdecs) =
     let
       fun topdec (acc, {topdec=d, ...}) =
         case d of
           Ast.StrDec sd => strdec (acc, sd)
+        | Ast.FunDec fd => fundec (acc, fd)
         | _ => acc
 
       val elems = Seq.iterate topdec [] topdecs

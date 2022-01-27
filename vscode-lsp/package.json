@@ -56,7 +56,8 @@
 					".fun",
 					".sig",
 					".sml"
-				]
+				],
+        "configuration": "./sml.configuration.json"
       }
     ]
 	},
