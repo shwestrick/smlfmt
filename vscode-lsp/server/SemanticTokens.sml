@@ -1,7 +1,7 @@
 structure SemanticTokens:
 sig
 
-  val encode: Token.t Seq.t -> int Seq.t
+  val encode: (Token.t * InterestingTokensFromAst.info) Seq.t -> int Seq.t
 
   val makeResponse: ServerState.t -> {id: Message.Id.t, uri: URI.t} -> Json.t
 
@@ -46,17 +46,27 @@ struct
         else
           8
     | Token.LongIdentifier => 0
-    | Token.Reserved _ => 15
+    | Token.Reserved r =>
+        (case r of
+          Token.OpenParen => 20
+        | Token.CloseParen => 20
+        | Token.Comma => 20
+        | _ => 15
+        )
     | Token.MLtonReserved => 15
     | _ => raise Fail "SemanticTokens.tokenType: unsupported token class"
 
   val qualifiertt = 0
   val vartt = 8
 
+  fun refine tt interestingNess =
+    case interestingNess of
+      (* InterestingTokensFromAst.Constructor => *)
+      InterestingTokensFromAst.Function => 12
+    | _ => tt
+
   fun encode toks =
     let
-      val toks = Seq.filter (not o Token.isWhitespace) toks
-
       fun sourceInfo tt src =
         let
           val {line, col} = Source.absoluteStart src
@@ -64,7 +74,7 @@ struct
           (line-1, col-1, Source.length src, tt)
         end
 
-      fun tokInfo tok =
+      fun tokInfo (tok, interestingNess) =
         if Token.isComment tok orelse Token.isStringConstant tok then
           (** Comments or strings might be multiline tokens. Not all clients
             * support multiline semantic tokens. Rather than check for whether
@@ -76,20 +86,26 @@ struct
               Seq.map (fn (i, j) => Source.slice whole (i, j-i))
                 (Source.lineRanges whole)
           in
-            Seq.map (sourceInfo (tokenType tok)) linePieces
+            Seq.map (sourceInfo (refine (tokenType tok) interestingNess)) linePieces
           end
         else
           case Token.splitLongIdentifier tok of
             NONE =>
               (* tok is not a long identifier *)
-              Seq.singleton (sourceInfo (tokenType tok) (Token.getSource tok))
+              Seq.singleton
+                (sourceInfo (refine (tokenType tok) interestingNess)
+                  (Token.getSource tok))
 
           | SOME srcs =>
               let
                 val lastIdx = Seq.length srcs - 1
               in
                 Seq.mapIdx (fn (i, src) =>
-                    sourceInfo (if i = lastIdx then vartt else qualifiertt) src)
+                    sourceInfo
+                      (if i = lastIdx then
+                         refine vartt interestingNess
+                       else qualifiertt)
+                      src)
                   srcs
               end
 
@@ -121,10 +137,72 @@ struct
     end
 
 
+
+  fun mergeTokensWithInfo
+    (lexToks: Token.t Seq.t)
+    (interestingToks: (Token.t * InterestingTokensFromAst.info) Seq.t)
+    =
+    let
+      open InterestingTokensFromAst
+      val () = ()
+
+      (** This is a bit of a mess, but...
+        * The gist is to sort in order to remove duplicates. We know that
+        * each token will appear at most twice: once from lexing, and again
+        * if it is interesting. To group duplicate tokens, we can sort by their
+        * start offset. But we also would like to ensure that if a token is
+        * interesting, it appears earlier (to make it easy to deduplicate by
+        * just taking the earlier in any set of duplicates). So, we sort
+        * lexicographically first by start offset, and then next by
+        * interesting-ness.
+        *)
+      fun cmp ((t1, c1), (t2, c2)) =
+        case
+          Int.compare
+            ( Source.absoluteStartOffset (Token.getSource t1)
+            , Source.absoluteStartOffset (Token.getSource t2)
+            )
+        of
+          EQUAL =>
+            (case (c1, c2) of
+              (NotInteresting, NotInteresting) => EQUAL
+            | (NotInteresting, _) => GREATER
+            | _ => LESS
+            )
+        | other => other
+
+      val lexToks =
+        Seq.map (fn t => (t, NotInteresting)) lexToks
+      val together =
+        Mergesort.sort cmp (Seq.append (lexToks, interestingToks))
+
+      fun isUnique (i, (tCurr, _)) =
+        if i = 0 then true else
+        let
+          val (tPrev, _) = Seq.nth together (i-1)
+        in
+          (* keep it if it is different from the previous *)
+          Source.absoluteStartOffset (Token.getSource tPrev)
+          <>
+          Source.absoluteStartOffset (Token.getSource tCurr)
+        end
+    in
+      Seq.filterIdx isUnique together
+    end
+
+
   fun makeResponse serverState {id, uri} =
     let
-      val toks = Lexer.tokens (ServerState.get serverState uri)
-      val data = encode toks
+      val contents = ServerState.get serverState uri
+      val toks = Seq.filter (not o Token.isWhitespace) (Lexer.tokens contents)
+
+      val interestingToks =
+        InterestingTokensFromAst.extract (Parser.parse contents)
+        handle _ => Seq.empty ()
+
+      val allToks = mergeTokensWithInfo toks interestingToks
+
+      val data = encode allToks
 
       val result =
         Json.OBJECT (Json.objFromList
