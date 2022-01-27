@@ -65,19 +65,33 @@ struct
         end
 
       fun tokInfo tok =
-        case Token.splitLongIdentifier tok of
-          NONE =>
-            (* tok is not a long identifier *)
-            Seq.singleton (sourceInfo (tokenType tok) (Token.getSource tok))
+        if Token.isComment tok orelse Token.isStringConstant tok then
+          (** Comments or strings might be multiline tokens. Not all clients
+            * support multiline semantic tokens. Rather than check for whether
+            * or not they do... screw it. Just split into multiple lines.
+            *)
+          let
+            val whole = Token.getSource tok
+            val linePieces =
+              Seq.map (fn (i, j) => Source.slice whole (i, j-i))
+                (Source.lineRanges whole)
+          in
+            Seq.map (sourceInfo (tokenType tok)) linePieces
+          end
+        else
+          case Token.splitLongIdentifier tok of
+            NONE =>
+              (* tok is not a long identifier *)
+              Seq.singleton (sourceInfo (tokenType tok) (Token.getSource tok))
 
-        | SOME srcs =>
-            let
-              val lastIdx = Seq.length srcs - 1
-            in
-              Seq.mapIdx (fn (i, src) =>
-                  sourceInfo (if i = lastIdx then vartt else qualifiertt) src)
-                srcs
-            end
+          | SOME srcs =>
+              let
+                val lastIdx = Seq.length srcs - 1
+              in
+                Seq.mapIdx (fn (i, src) =>
+                    sourceInfo (if i = lastIdx then vartt else qualifiertt) src)
+                  srcs
+              end
 
       val infos = Seq.flatten (Seq.map tokInfo toks)
 
