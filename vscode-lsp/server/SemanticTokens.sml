@@ -40,35 +40,56 @@ struct
     | Token.WordConstant => 19
     | Token.CharConstant => 18
     | Token.StringConstant => 18
-    | Token.Identifier => 8
+    | Token.Identifier =>
+        if Token.isTyVar tok then
+          6
+        else
+          8
     | Token.LongIdentifier => 0
     | Token.Reserved _ => 15
     | Token.MLtonReserved => 15
     | _ => raise Fail "SemanticTokens.tokenType: unsupported token class"
 
+  val qualifiertt = 0
+  val vartt = 8
 
   fun encode toks =
     let
       val toks = Seq.filter (not o Token.isWhitespace) toks
 
-      fun info tok =
+      fun sourceInfo tt src =
         let
-          val src = Token.getSource tok
           val {line, col} = Source.absoluteStart src
         in
-          (line-1, col-1, Source.length src)
+          (line-1, col-1, Source.length src, tt)
         end
+
+      fun tokInfo tok =
+        case Token.splitLongIdentifier tok of
+          NONE =>
+            (* tok is not a long identifier *)
+            Seq.singleton (sourceInfo (tokenType tok) (Token.getSource tok))
+
+        | SOME srcs =>
+            let
+              val lastIdx = Seq.length srcs - 1
+            in
+              Seq.mapIdx (fn (i, src) =>
+                  sourceInfo (if i = lastIdx then vartt else qualifiertt) src)
+                srcs
+            end
+
+      val infos = Seq.flatten (Seq.map tokInfo toks)
 
       fun encodeAt i =
         let
-          val (lPrev, cPrev, _) =
+          val (lPrev, cPrev) =
             if i = 0 then
-              (0, 0, 0)
+              (0, 0)
             else
-              info (Seq.nth toks (i-1))
+              let val (l, c, _, _) = Seq.nth infos (i-1) in (l, c) end
 
-          val tok = Seq.nth toks i
-          val (l, c, n) = info tok
+          val (l, c, n, tt) = Seq.nth infos i
 
           val dl = l - lPrev
           val dc = if l = lPrev then c-cPrev else c
@@ -77,12 +98,12 @@ struct
             [ dl             (* deltaLine *)
             , dc             (* deltaStartChar *)
             , n              (* length *)
-            , tokenType tok  (* tokenType *)
+            , tt             (* tokenType *)
             , 0              (* tokenModifier *)
             ]
         end
     in
-      Seq.flatten (Seq.tabulate encodeAt (Seq.length toks))
+      Seq.flatten (Seq.tabulate encodeAt (Seq.length infos))
     end
 
 

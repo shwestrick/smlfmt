@@ -105,6 +105,13 @@ sig
     *)
   val lineDifference: token * token -> int
 
+  (** split a long identifier into a sequence of its components, throwing
+    * away the dots between components.
+    *   e.g.  Foo.Bar.baz  ==>  [Foo,Bar,baz]
+    * if the input token is not a long identifier, returns NONE.
+    *)
+  val splitLongIdentifier: token -> Source.t Seq.t option
+
   val isReserved: token -> bool
   val isStringConstant: token -> bool
   val isComment: token -> bool
@@ -282,6 +289,26 @@ struct
     in
       CharVector.tabulate (Source.length src, Source.nth src)
     end
+
+  fun splitLongIdentifier tok =
+    case getClass tok of
+      LongIdentifier =>
+        let
+          val src = getSource tok
+          val n = Source.length src
+          val dotIdxs =
+            Seq.filter (fn i => Source.nth src i = #".")
+              (Seq.tabulate (fn i => i) n)
+          fun start i = if i = 0 then 0 else 1 + Seq.nth dotIdxs (i-1)
+          fun stop i = if i = Seq.length dotIdxs then n else Seq.nth dotIdxs i
+
+          fun component i =
+            Source.slice src (start i, stop i - start i)
+        in
+          SOME (Seq.tabulate component (1 + Seq.length dotIdxs))
+        end
+
+    | _ => NONE
 
   fun tryReserved src =
     let
