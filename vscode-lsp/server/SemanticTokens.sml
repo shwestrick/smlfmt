@@ -267,8 +267,21 @@ struct
       in
         case exn of
           Error.Error e =>
-            TerminalColorString.printErr
-              (Error.show {highlighter = SOME SyntaxHighlighter.fuzzyHighlight} e)
+            let
+              val errorInfo =
+                Error.show {highlighter = SOME SyntaxHighlighter.fuzzyHighlight} e
+                handle ee =>
+                  TerminalColorString.fromString
+                    ( "Got an error, but then another error occurred while \
+                      \reporting the first: "
+                    ^ exnMessage ee ^ "\n"
+                    ^ String.concat (List.map (fn ln => "  " ^ ln ^ "\n")
+                        (MLton.Exn.history ee))
+                    )
+            in
+              TerminalColorString.printErr errorInfo
+            end
+
         | _ => ();
 
         response

@@ -15,10 +15,13 @@ struct
       { openFiles: Source.t URIDict.t  (* lexer output for now *)
       }
 
-  fun textDocumentDidOpen (T {openFiles}) uri =
+  fun textDocumentDidOpen (T {openFiles}) {uri, text} =
     let
       val filepath = FilePath.fromUnixPath (URI.path uri)
-      val source = Source.loadFromFile filepath
+      val text = JsonUtil.unescape text
+      val contents =
+        Seq.tabulate (fn i => String.sub (text, i)) (String.size text)
+      val source = Source.fromData (filepath, contents)
     in
       log ("loaded file " ^ FilePath.toUnixPath filepath);
       T {openFiles = URIDict.insert openFiles (uri, source)}

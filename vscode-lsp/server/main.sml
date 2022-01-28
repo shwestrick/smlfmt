@@ -133,18 +133,18 @@ fun mainLoop state =
           ; state
           )
 
-      | Message.TextDocumentDidOpen {uri, ...} =>
-          if URI.scheme uri <> "file" then
-            state
+      | Message.TextDocumentDidOpen {uri, text, ...} =>
+          if URI.scheme uri = "file" orelse URI.scheme uri = "untitled" then
+            ServerState.textDocumentDidOpen state {uri=uri, text=text}
           else
-            ServerState.textDocumentDidOpen state uri
+            state
 
       | Message.TextDocumentDidChange {uri, contentChanges, ...} =>
-          if URI.scheme uri <> "file" then
-            state
-          else
+          if URI.scheme uri = "file" orelse URI.scheme uri = "untitled" then
             ServerState.textDocumentDidChange state
               {uri=uri, contentChanges=contentChanges}
+          else
+            state
 
       | Message.TextDocumentSemanticTokensFull args =>
           ( print (serializeMessage (SemanticTokens.makeResponse state args))

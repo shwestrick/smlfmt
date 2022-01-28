@@ -93,7 +93,7 @@ struct
 
             val startOffset = Source.absoluteStartOffset pos
             val stopOffset = Source.absoluteEndOffset pos
-            val pointyLen = stopOffset - startOffset
+            val pointyLen = Int.max (1, stopOffset - startOffset)
 
             val line = Source.wholeLine pos lineNum
 
@@ -144,7 +144,7 @@ struct
   fun show {highlighter} {header, content} =
     let
       val desiredWidth =
-        Int.min (Terminal.currentCols (), 80)
+        Int.max (20, Int.min (Terminal.currentCols (), 80))
 
       val headerStr =
         TextFormat.rightPadWith #"-" desiredWidth ("-- " ^ header ^ " ")

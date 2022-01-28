@@ -12,6 +12,7 @@ sig
   type source
   type t = source
 
+  val fromData: FilePath.t * (char Seq.t) -> source
   val loadFromFile: FilePath.t -> source
 
   val fileName: source -> FilePath.t
@@ -171,7 +172,10 @@ struct
           1 + Seq.nth newlineIdxs (lineNum0 - 1)
 
       val lineEndOffset =
-        Seq.nth newlineIdxs lineNum0
+        if lineNum0 >= Seq.length newlineIdxs then
+          length base
+        else
+          Seq.nth newlineIdxs lineNum0
 
     in
       slice base (lineStartOffset, lineEndOffset - lineStartOffset)
