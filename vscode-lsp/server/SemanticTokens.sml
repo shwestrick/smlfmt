@@ -68,6 +68,7 @@ struct
       | InfixOp => 21
       | Constructor => 10
       | StructureId => 5
+      | Label => 13
       | _ => tt
     end
 

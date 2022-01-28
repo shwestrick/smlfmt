@@ -5,6 +5,7 @@ sig
   | Function
   | InfixOp
   | StructureId
+  | Label
   | NotInteresting (* defer to lexer token class *)
 
   (** Pull out some interesting tokens from the full parse tree. Doesn't
@@ -21,6 +22,7 @@ struct
   | Function
   | InfixOp
   | StructureId
+  | Label
   | NotInteresting
 
   type acc = (Token.t * info) list
@@ -42,6 +44,42 @@ struct
         Seq.iterate variant acc variants
     in
       Seq.iterate mutualdat acc mutuals
+    end
+
+  fun pat (acc: acc, p) : acc =
+    let
+      open Ast.Pat
+    in
+      case p of
+        List {elems, ...} =>
+          Seq.iterate pat acc elems
+      | Tuple {elems, ...} =>
+          Seq.iterate pat acc elems
+      | Parens {pat=p, ...} =>
+          pat (acc, p)
+      | Con {id, atpat, ...} =>
+          (MaybeLongToken.getToken id, Constructor) :: pat (acc, atpat)
+      | Infix {left, id, right} =>
+          (id, Constructor) :: pat (pat (acc, left), right)
+      | Typed {pat=p, ...} =>
+          pat (acc, p)
+      | Layered {pat=p, ...} =>
+          pat (acc, p)
+      | Record {elems, ...} =>
+          let
+            fun patrow (acc, pr) =
+              case pr of
+                LabEqPat {lab, pat=p, ...} =>
+                  (lab, Label) :: pat (acc, p)
+              | LabAsPat {id, aspat = SOME {pat=p, ...}, ...} =>
+                  (id, Label) :: pat (acc, p)
+              | LabAsPat {id, aspat = NONE, ...} =>
+                  (id, Label) :: acc
+              | _ => acc
+          in
+            Seq.iterate patrow acc elems
+          end
+      | _ => acc
     end
 
 
@@ -77,7 +115,8 @@ struct
 
       | Handle {exp=e', elems = clauses, ...} =>
           let
-            fun clause (acc, {exp=e', ...}) = exp (acc, e')
+            fun clause (acc, {pat=p, exp=e', ...}) =
+              pat (exp (acc, e'), p)
           in
             Seq.iterate clause (exp (acc, e')) clauses
           end
@@ -92,16 +131,26 @@ struct
 
       | Case {exp=e', elems = clauses, ...} =>
           let
-            fun clause (acc, {exp=e', ...}) = exp (acc, e')
+            fun clause (acc, {pat=p, exp=e', ...}) =
+              pat (exp (acc, e'), p)
           in
             Seq.iterate clause (exp (acc, e')) clauses
           end
 
       | Fn {elems = clauses, ...} =>
           let
-            fun clause (acc, {exp=e', ...}) = exp (acc, e')
+            fun clause (acc, {pat=p, exp=e', ...}) =
+              pat (exp (acc, e'), p)
           in
             Seq.iterate clause acc clauses
+          end
+
+      | Record {elems, ...} =>
+          let
+            fun patrow (acc, {lab, exp=e, ...}) =
+              (lab, Label) :: exp (acc, e)
+          in
+            Seq.iterate patrow acc elems
           end
 
       | _ => acc
@@ -112,14 +161,17 @@ struct
     case d of
       Ast.Exp.DecFun {fvalbind = {elems = mutuals, ...}, ...} =>
         let
-          fun fname fname_args =
-            case fname_args of
-              Ast.Exp.PrefixedFun {id, ...} => id
-            | Ast.Exp.InfixedFun {id, ...} => id
-            | Ast.Exp.CurriedInfixedFun {id, ...} => id
+          fun fname_args (acc, fna) =
+            case fna of
+              Ast.Exp.PrefixedFun {id, args, ...} =>
+                (id, Function) :: Seq.iterate pat acc args
+            | Ast.Exp.InfixedFun {id, larg, rarg} =>
+                (id, Function) :: pat (pat (acc, larg), rarg)
+            | Ast.Exp.CurriedInfixedFun {id, larg, rarg, args, ...} =>
+                (id, Function) :: Seq.iterate pat (pat (pat (acc, larg), rarg)) args
 
-          fun clause (acc, {fname_args, exp=e, ...}) =
-            (fname fname_args, Function) :: exp (acc, e)
+          fun clause (acc, {fname_args=fna, exp=e, ...}) =
+            fname_args (exp (acc, e), fna)
 
           fun mutualfunc (acc, {elems = clauses, ...}) =
             Seq.iterate clause acc clauses
@@ -129,8 +181,8 @@ struct
 
     | Ast.Exp.DecVal {elems = mutuals, ...} =>
         let
-          fun mutualval (acc, {exp=e, ...}) =
-            exp (acc, e)
+          fun mutualval (acc, {pat=p, exp=e, ...}) =
+            pat (exp (acc, e), p)
         in
           Seq.iterate mutualval acc mutuals
         end
