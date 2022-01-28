@@ -64,9 +64,10 @@ struct
       open InterestingTokensFromAst
     in
       case interestingNess of
-        (* InterestingTokensFromAst.Constructor => *)
         Function => 12
       | InfixOp => 21
+      | Constructor => 10
+      | StructureId => 5
       | _ => tt
     end
 

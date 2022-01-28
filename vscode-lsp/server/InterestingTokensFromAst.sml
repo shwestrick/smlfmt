@@ -4,6 +4,7 @@ sig
     Constructor
   | Function
   | InfixOp
+  | StructureId
   | NotInteresting (* defer to lexer token class *)
 
   (** Pull out some interesting tokens from the full parse tree. Doesn't
@@ -19,9 +20,30 @@ struct
     Constructor
   | Function
   | InfixOp
+  | StructureId
   | NotInteresting
 
   type acc = (Token.t * info) list
+
+
+  fun typbind (acc, {elems = mutuals, ...}: Ast.Exp.typbind) =
+    let
+    in
+      acc
+    end
+
+
+  fun datbind (acc, {elems = mutuals, ...}: Ast.Exp.datbind) =
+    let
+      fun variant (acc, {id, ...}) =
+        (id, Constructor) :: acc
+
+      fun mutualdat (acc, {elems = variants, ...}) =
+        Seq.iterate variant acc variants
+    in
+      Seq.iterate mutualdat acc mutuals
+    end
+
 
   fun exp (acc: acc, e) : acc =
     let
@@ -128,22 +150,30 @@ struct
     | Ast.Exp.DecNonfix {elems, ...} =>
         Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
 
+    | Ast.Exp.DecDatatype {datbind=db, withtypee = SOME {typbind = tb, ...}, ...} =>
+        datbind (typbind (acc, tb), db)
+
+    | Ast.Exp.DecDatatype {datbind=db, withtypee = NONE, ...} =>
+        datbind (acc, db)
+
     | _ => acc
 
 
   fun strexp (acc, e) =
     case e of
-      Ast.Str.Struct {strdec=sd, ...} =>
+      Ast.Str.Ident x =>
+        (MaybeLongToken.getToken x, StructureId) :: acc
+    | Ast.Str.Struct {strdec=sd, ...} =>
         strdec (acc, sd)
     | Ast.Str.Constraint {strexp=se, ...} =>
         strexp (acc, se)
-    | Ast.Str.FunAppExp {strexp=se, ...} =>
-        strexp (acc, se)
-    | Ast.Str.FunAppDec {strdec=sd, ...} =>
-        strdec (acc, sd)
+    | Ast.Str.FunAppExp {funid, strexp=se, ...} =>
+        (funid, StructureId) :: strexp (acc, se)
+    | Ast.Str.FunAppDec {funid, strdec=sd, ...} =>
+        (funid, StructureId) :: strdec (acc, sd)
     | Ast.Str.LetInEnd {strdec=sd, strexp=se, ...} =>
         strexp (strdec (acc, sd), se)
-    | _ => acc
+    (* | _ => acc *)
 
 
   and strdec (acc, d) =
@@ -153,11 +183,13 @@ struct
     | Ast.Str.DecCore cd => dec (acc, cd)
     | Ast.Str.DecStructure {elems = mutuals, ...} =>
         let
-          fun mutualstruct (acc, {strexp=se, ...}) =
-            strexp (acc, se)
+          fun mutualstruct (acc, {strid, strexp=se, ...}) =
+            (strid, StructureId) :: strexp (acc, se)
         in
           Seq.iterate mutualstruct acc mutuals
         end
+    | Ast.Str.DecLocalInEnd {strdec1, strdec2, ...} =>
+        strdec (strdec (acc, strdec1), strdec2)
     | _ => acc
 
 
@@ -165,8 +197,8 @@ struct
     case d of
       Ast.Fun.DecFunctor {elems = mutuals, ...} =>
         let
-          fun mutualfun (acc, {strexp=se, ...}) =
-            strexp (acc, se)
+          fun mutualfun (acc, {funid, strexp=se, ...}) =
+            (funid, StructureId) :: strexp (acc, se)
         in
           Seq.iterate mutualfun acc mutuals
         end
