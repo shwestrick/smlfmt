@@ -6,6 +6,8 @@ sig
   | InfixOp
   | StructureId
   | Label
+  | Type
+  | StarInTupleType
   | SpecialKeyword (* fuzzy... *)
   | NotInteresting (* defer to lexer token class *)
 
@@ -24,29 +26,87 @@ struct
   | InfixOp
   | StructureId
   | Label
+  | Type
+  | StarInTupleType
   | SpecialKeyword
   | NotInteresting
 
   type acc = (Token.t * info) list
 
 
+  fun syntaxseq (f: acc * 'a -> acc) (acc, ss: 'a Ast.SyntaxSeq.t) =
+    let
+      open Ast.SyntaxSeq
+    in
+      case ss of
+        Empty => acc
+      | One x => f (acc, x)
+      | Many {elems, ...} =>
+          Seq.iterate f acc elems
+    end
+
+
+  fun ty (acc, t) =
+    let
+      open Ast.Ty
+    in
+      case t of
+        Var t => (t, Type) :: acc
+
+      | Con {args, id} =>
+          (MaybeLongToken.getToken id, Type) :: syntaxseq ty (acc, args)
+
+      | Record {elems, ...} =>
+          let
+            fun row (acc, {lab, ty=t, ...}) =
+              (lab, Label) :: ty (acc, t)
+          in
+            Seq.iterate row acc elems
+          end
+
+      | Arrow {from, to, ...} =>
+          ty (ty (acc, from), to)
+
+      | Tuple {elems, delims} =>
+          let
+            fun delim (acc, star) =
+              (star, StarInTupleType) :: acc
+          in
+            Seq.iterate delim (Seq.iterate ty acc elems) delims
+          end
+
+      | _ => acc
+    end
+
+
+
   fun typbind (acc, {elems = mutuals, ...}: Ast.Exp.typbind) =
     let
+      fun mutual (acc, {ty=t, ...}) =
+        ty (acc, t)
     in
-      acc
+      Seq.iterate mutual acc mutuals
     end
 
 
   fun datbind (acc, {elems = mutuals, ...}: Ast.Exp.datbind) =
     let
-      fun variant (acc, {id, ...}) =
-        (id, Constructor) :: acc
+      fun variant (acc, {id, arg, ...}) =
+        let
+          val acc =
+            case arg of
+              SOME {ty=t, ...} => ty (acc, t)
+            | NONE => acc
+        in
+          (id, Constructor) :: acc
+        end
 
       fun mutualdat (acc, {elems = variants, ...}) =
         Seq.iterate variant acc variants
     in
       Seq.iterate mutualdat acc mutuals
     end
+
 
   fun pat (acc: acc, p) : acc =
     let
@@ -55,32 +115,64 @@ struct
       case p of
         List {elems, ...} =>
           Seq.iterate pat acc elems
+
       | Tuple {elems, ...} =>
           Seq.iterate pat acc elems
+
       | Parens {pat=p, ...} =>
           pat (acc, p)
+
+      | Ident {id, ...} =>
+          (** Funny hack: if id is a long identifier, then it must be a
+            * constructor. (If it's not a long identifier, we're not sure.
+            * Could just be a variable binding in this case.) In the future,
+            * this hack should be subsumed in favor of full type inference.
+            *)
+          if MaybeLongToken.isLong id then
+            (MaybeLongToken.getToken id, Constructor) :: acc
+          else
+            acc
+
       | Con {id, atpat, ...} =>
           (MaybeLongToken.getToken id, Constructor) :: pat (acc, atpat)
+
       | Infix {left, id, right} =>
           (id, Constructor) :: pat (pat (acc, left), right)
-      | Typed {pat=p, ...} =>
+
+      | Typed {pat=p, ty=t, ...} =>
+          pat (ty (acc, t), p)
+
+      | Layered {pat=p, ty = SOME {ty=t, ...}, ...} =>
+          pat (ty (acc, t), p)
+
+      | Layered {pat=p, ty=NONE, ...} =>
           pat (acc, p)
-      | Layered {pat=p, ...} =>
-          pat (acc, p)
+
       | Record {elems, ...} =>
           let
             fun patrow (acc, pr) =
               case pr of
                 LabEqPat {lab, pat=p, ...} =>
                   (lab, Label) :: pat (acc, p)
-              | LabAsPat {id, aspat = SOME {pat=p, ...}, ...} =>
-                  (id, Label) :: pat (acc, p)
-              | LabAsPat {id, aspat = NONE, ...} =>
-                  (id, Label) :: acc
+              | LabAsPat {id, ty=tty, aspat} =>
+                  let
+                    val acc =
+                      case tty of
+                        SOME {ty=t, ...} => ty (acc, t)
+                      | NONE => acc
+
+                    val acc =
+                      case aspat of
+                        SOME {pat=p, ...} => pat (acc, p)
+                      | NONE => acc
+                  in
+                    (id, Label) :: acc
+                  end
               | _ => acc
           in
             Seq.iterate patrow acc elems
           end
+
       | _ => acc
     end
 
@@ -109,7 +201,7 @@ struct
       | Infix {left, id, right} =>
           (id, InfixOp) :: exp (exp (acc, left), right)
 
-      | Typed {exp=e', ...} => exp (acc, e')
+      | Typed {exp=e', ty=t, ...} => exp (ty (acc, t), e')
 
       | Andalso {left, right, ...} => exp (exp (acc, left), right)
 
@@ -175,8 +267,15 @@ struct
               | CurriedInfixedFun {id, larg, rarg, args, ...} =>
                   (id, Function) :: Seq.iterate pat (pat (pat (acc, larg), rarg)) args
 
-            fun clause (acc, {fname_args=fna, exp=e, ...}) =
-              fname_args (exp (acc, e), fna)
+            fun clause (acc, {fname_args=fna, exp=e, ty=tty, ...}) =
+              let
+                val acc =
+                  case tty of
+                    SOME {ty=t, ...} => ty (acc, t)
+                  | NONE => acc
+              in
+                fname_args (exp (acc, e), fna)
+              end
 
             fun mutualfunc (acc, {elems = clauses, ...}) =
               Seq.iterate clause acc clauses
@@ -230,8 +329,19 @@ struct
       open Ast.Sig
     in
       case e of
-        Ident x => (x, StructureId) :: acc
-      | WhereType {sigexp=se, ...} => sigexp (acc, se)
+        Ident x =>
+          (x, StructureId) :: acc
+
+      | WhereType {sigexp=se, elems, ...} =>
+          let
+            fun elem (acc, {wheree, typee, ty=t, ...}) =
+              (wheree, SpecialKeyword)
+              :: (typee, SpecialKeyword)
+              :: ty (acc, t)
+          in
+            Seq.iterate elem (sigexp (acc, se)) elems
+          end
+
       | Spec {sigg, spec=s, endd} =>
           (sigg, SpecialKeyword) :: (endd, SpecialKeyword) :: spec (acc, s)
     end
@@ -244,15 +354,21 @@ struct
       case s of
         Multiple {elems, ...} =>
           Seq.iterate spec acc elems
+
       | Datatype {elems = mutuals, ...} =>
           let
-            fun clause (acc, {vid, ...}) =
-              (vid, Constructor) :: acc
+            fun clause (acc, {vid, arg}) =
+              (vid, Constructor) ::
+                (case arg of
+                  SOME {ty=t, ...} => ty (acc, t)
+                | NONE => acc)
+
             fun mutualdat (acc, {elems = clauses, ...}) =
               Seq.iterate clause acc clauses
           in
             Seq.iterate mutualdat acc mutuals
           end
+
       | Structure {elems = mutuals, ...} =>
           let
             fun mutualstr (acc, {sigexp=se, ...}) =
@@ -260,6 +376,23 @@ struct
           in
             Seq.iterate mutualstr acc mutuals
           end
+
+      | Val {elems = mutuals, ...} =>
+          let
+            fun mutual (acc, {ty=t, ...}) =
+              ty (acc, t)
+          in
+            Seq.iterate mutual acc mutuals
+          end
+
+      | TypeAbbreviation {elems = mutuals, ...} =>
+          let
+            fun mutual (acc, {ty=t, ...}) =
+              ty (acc, t)
+          in
+            Seq.iterate mutual acc mutuals
+          end
+
       | _ => acc
     end
 

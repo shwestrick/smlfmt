@@ -77,6 +77,9 @@ struct
           | Type => 14
           | Exception => 14
           | And => 14
+          | If => 14
+          | Then => 14
+          | Else => 14
 
           | _ => 15
           )
@@ -98,6 +101,8 @@ struct
       | StructureId => 5
       | Label => 14
       | SpecialKeyword => 14
+      | StarInTupleType => 20
+      | Type => 1
       | _ => tt
     end
 
