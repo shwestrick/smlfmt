@@ -33,28 +33,56 @@ struct
    *)
 
   fun tokenType tok =
-    case Token.getClass tok of
-      Token.Comment => 17
-    | Token.IntegerConstant => 19
-    | Token.RealConstant => 19
-    | Token.WordConstant => 19
-    | Token.CharConstant => 18
-    | Token.StringConstant => 18
-    | Token.Identifier =>
-        if Token.isTyVar tok then
-          6
-        else
-          8
-    | Token.LongIdentifier => 0
-    | Token.Reserved r =>
-        (case r of
-          Token.OpenParen => 20
-        | Token.CloseParen => 20
-        | Token.Comma => 20
-        | _ => 15
-        )
-    | Token.MLtonReserved => 15
-    | _ => raise Fail "SemanticTokens.tokenType: unsupported token class"
+    let
+      open Token
+    in
+      case getClass tok of
+        Comment => 17
+      | IntegerConstant => 19
+      | RealConstant => 19
+      | WordConstant => 19
+      | CharConstant => 18
+      | StringConstant => 18
+      | Identifier =>
+          if isTyVar tok then
+            6
+          else
+            8
+      | LongIdentifier => 0
+      | Reserved r =>
+          (case r of
+            OpenParen => 20
+          | CloseParen => 20
+          | OpenCurlyBracket => 20
+          | CloseCurlyBracket => 20
+          | OpenSquareBracket => 20
+          | CloseSquareBracket => 20
+          | Comma => 20
+          | Arrow => 20
+          (* | FatArrow => 20 *)
+          | Underscore => 20
+          | DotDotDot => 20
+          | Semicolon => 20
+          | Colon => 20
+          | ColonArrow => 20
+
+          | Fun => 14
+          | Val => 14
+          | Datatype => 14
+          | Open => 14
+          | Infix => 14
+          | Infixr => 14
+          | Nonfix => 14
+          | Structure => 14
+          | Type => 14
+          | Exception => 14
+          | And => 14
+
+          | _ => 15
+          )
+      | MLtonReserved => 15
+      | _ => raise Fail "SemanticTokens.tokenType: unsupported token class"
+    end
 
   val qualifiertt = (*0*) 5
   val vartt = 8
@@ -65,10 +93,11 @@ struct
     in
       case interestingNess of
         Function => 12
-      | InfixOp => 21
+      | InfixOp => 20
       | Constructor => 10
       | StructureId => 5
-      | Label => 13
+      | Label => 14
+      | SpecialKeyword => 14
       | _ => tt
     end
 
@@ -204,8 +233,8 @@ struct
     in
       case getClass tok of
         Whitespace => false
-      | Reserved r =>
-          (case r of
+      | Reserved r => true
+          (* (case r of
             Comma => false
           | OpenParen => false
           | CloseParen => false
@@ -213,7 +242,7 @@ struct
           | CloseSquareBracket => false
           | Underscore => false
           | _ => true
-          )
+          ) *)
       | _ => true
     end
 

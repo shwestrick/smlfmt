@@ -6,6 +6,7 @@ sig
   | InfixOp
   | StructureId
   | Label
+  | SpecialKeyword (* fuzzy... *)
   | NotInteresting (* defer to lexer token class *)
 
   (** Pull out some interesting tokens from the full parse tree. Doesn't
@@ -23,6 +24,7 @@ struct
   | InfixOp
   | StructureId
   | Label
+  | SpecialKeyword
   | NotInteresting
 
   type acc = (Token.t * info) list
@@ -158,65 +160,116 @@ struct
 
 
   and dec (acc, d) =
-    case d of
-      Ast.Exp.DecFun {fvalbind = {elems = mutuals, ...}, ...} =>
-        let
-          fun fname_args (acc, fna) =
-            case fna of
-              Ast.Exp.PrefixedFun {id, args, ...} =>
-                (id, Function) :: Seq.iterate pat acc args
-            | Ast.Exp.InfixedFun {id, larg, rarg} =>
-                (id, Function) :: pat (pat (acc, larg), rarg)
-            | Ast.Exp.CurriedInfixedFun {id, larg, rarg, args, ...} =>
-                (id, Function) :: Seq.iterate pat (pat (pat (acc, larg), rarg)) args
+    let
+      open Ast.Exp
+    in
+      case d of
+        DecFun {fvalbind = {elems = mutuals, ...}, ...} =>
+          let
+            fun fname_args (acc, fna) =
+              case fna of
+                PrefixedFun {id, args, ...} =>
+                  (id, Function) :: Seq.iterate pat acc args
+              | InfixedFun {id, larg, rarg} =>
+                  (id, Function) :: pat (pat (acc, larg), rarg)
+              | CurriedInfixedFun {id, larg, rarg, args, ...} =>
+                  (id, Function) :: Seq.iterate pat (pat (pat (acc, larg), rarg)) args
 
-          fun clause (acc, {fname_args=fna, exp=e, ...}) =
-            fname_args (exp (acc, e), fna)
+            fun clause (acc, {fname_args=fna, exp=e, ...}) =
+              fname_args (exp (acc, e), fna)
 
-          fun mutualfunc (acc, {elems = clauses, ...}) =
-            Seq.iterate clause acc clauses
-        in
-          Seq.iterate mutualfunc acc mutuals
-        end
+            fun mutualfunc (acc, {elems = clauses, ...}) =
+              Seq.iterate clause acc clauses
+          in
+            Seq.iterate mutualfunc acc mutuals
+          end
 
-    | Ast.Exp.DecVal {elems = mutuals, ...} =>
-        let
-          fun mutualval (acc, {pat=p, exp=e, ...}) =
-            pat (exp (acc, e), p)
-        in
-          Seq.iterate mutualval acc mutuals
-        end
+      | DecVal {elems = mutuals, ...} =>
+          let
+            fun mutualval (acc, {pat=p, exp=e, ...}) =
+              pat (exp (acc, e), p)
+          in
+            Seq.iterate mutualval acc mutuals
+          end
 
-    | Ast.Exp.DecLocal {left_dec, right_dec, ...} =>
-        dec (dec (acc, left_dec), right_dec)
+      | DecLocal {left_dec, right_dec, ...} =>
+          dec (dec (acc, left_dec), right_dec)
 
-    | Ast.Exp.DecMultiple {elems, ...} =>
-        Seq.iterate dec acc elems
+      | DecMultiple {elems, ...} =>
+          Seq.iterate dec acc elems
 
-    | Ast.Exp.DecInfix {elems, ...} =>
-        Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
+      | DecInfix {elems, ...} =>
+          Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
 
-    | Ast.Exp.DecInfixr {elems, ...} =>
-        Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
+      | DecInfixr {elems, ...} =>
+          Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
 
-    | Ast.Exp.DecNonfix {elems, ...} =>
-        Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
+      | DecNonfix {elems, ...} =>
+          Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
 
-    | Ast.Exp.DecDatatype {datbind=db, withtypee = SOME {typbind = tb, ...}, ...} =>
-        datbind (typbind (acc, tb), db)
+      | DecDatatype {datbind=db, withtypee = SOME {typbind = tb, ...}, ...} =>
+          datbind (typbind (acc, tb), db)
 
-    | Ast.Exp.DecDatatype {datbind=db, withtypee = NONE, ...} =>
-        datbind (acc, db)
+      | DecDatatype {datbind=db, withtypee = NONE, ...} =>
+          datbind (acc, db)
 
-    | _ => acc
+      | DecOpen {elems, ...} =>
+          let
+            fun elem (acc, t) =
+              (MaybeLongToken.getToken t, StructureId) :: acc
+          in
+            Seq.iterate elem acc elems
+          end
+
+      | _ => acc
+    end
+
+
+  fun sigexp (acc, e) =
+    let
+      open Ast.Sig
+    in
+      case e of
+        Ident x => (x, StructureId) :: acc
+      | WhereType {sigexp=se, ...} => sigexp (acc, se)
+      | Spec {sigg, spec=s, endd} =>
+          (sigg, SpecialKeyword) :: (endd, SpecialKeyword) :: spec (acc, s)
+    end
+
+
+  and spec (acc, s) =
+    let
+      open Ast.Sig
+    in
+      case s of
+        Multiple {elems, ...} =>
+          Seq.iterate spec acc elems
+      | Datatype {elems = mutuals, ...} =>
+          let
+            fun clause (acc, {vid, ...}) =
+              (vid, Constructor) :: acc
+            fun mutualdat (acc, {elems = clauses, ...}) =
+              Seq.iterate clause acc clauses
+          in
+            Seq.iterate mutualdat acc mutuals
+          end
+      | Structure {elems = mutuals, ...} =>
+          let
+            fun mutualstr (acc, {sigexp=se, ...}) =
+              sigexp (acc, se)
+          in
+            Seq.iterate mutualstr acc mutuals
+          end
+      | _ => acc
+    end
 
 
   fun strexp (acc, e) =
     case e of
       Ast.Str.Ident x =>
         (MaybeLongToken.getToken x, StructureId) :: acc
-    | Ast.Str.Struct {strdec=sd, ...} =>
-        strdec (acc, sd)
+    | Ast.Str.Struct {structt, strdec=sd, endd} =>
+        (structt, SpecialKeyword) :: (endd, SpecialKeyword) :: strdec (acc, sd)
     | Ast.Str.Constraint {strexp=se, ...} =>
         strexp (acc, se)
     | Ast.Str.FunAppExp {funid, strexp=se, ...} =>
@@ -235,8 +288,11 @@ struct
     | Ast.Str.DecCore cd => dec (acc, cd)
     | Ast.Str.DecStructure {elems = mutuals, ...} =>
         let
-          fun mutualstruct (acc, {strid, strexp=se, ...}) =
-            (strid, StructureId) :: strexp (acc, se)
+          fun mutualstruct (acc, {strid, strexp=se, constraint, ...}) =
+            case constraint of
+              NONE => (strid, StructureId) :: strexp (acc, se)
+            | SOME {sigexp=sige, ...} =>
+                (strid, StructureId) :: strexp (sigexp (acc, sige), se)
         in
           Seq.iterate mutualstruct acc mutuals
         end
