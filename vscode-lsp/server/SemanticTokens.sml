@@ -253,9 +253,18 @@ struct
       val contents = ServerState.get serverState uri
       val toks = Seq.filter keepToken (Lexer.tokens contents)
 
+      val ast = Parser.parse contents
       val interestingToks =
-        InterestingTokensFromAst.extract (Parser.parse contents)
+        InterestingTokensFromAst.extract ast
         handle _ => Seq.empty ()
+
+      val _ =
+        let
+          val bs = BindingSites.fromAst ast
+        in
+          TextIO.output (TextIO.stdErr, BindingSites.toString bs)
+        end
+        handle _ => ()
 
       val allToks = mergeTokensWithInfo toks interestingToks
 
