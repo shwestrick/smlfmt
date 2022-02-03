@@ -33,6 +33,18 @@ struct
 
   type acc = (Token.t * info) list
 
+  (** add more to this to extract more *)
+  fun shouldExtract info =
+    case info of
+      Function => true
+    | _ => false
+
+  fun add (tok, info) acc =
+    if shouldExtract info then
+      (tok, info) :: acc
+    else
+      acc
+
 
   fun syntaxseq (f: acc * 'a -> acc) (acc, ss: 'a Ast.SyntaxSeq.t) =
     let
@@ -51,15 +63,15 @@ struct
       open Ast.Ty
     in
       case t of
-        Var t => (t, Type) :: acc
+        Var t => add (t, Type) acc
 
       | Con {args, id} =>
-          (MaybeLongToken.getToken id, Type) :: syntaxseq ty (acc, args)
+          add (MaybeLongToken.getToken id, Type) (syntaxseq ty (acc, args))
 
       | Record {elems, ...} =>
           let
             fun row (acc, {lab, ty=t, ...}) =
-              (lab, Label) :: ty (acc, t)
+              add (lab, Label) (ty (acc, t))
           in
             Seq.iterate row acc elems
           end
@@ -70,7 +82,7 @@ struct
       | Tuple {elems, delims} =>
           let
             fun delim (acc, star) =
-              (star, StarInTupleType) :: acc
+              add (star, StarInTupleType) acc
           in
             Seq.iterate delim (Seq.iterate ty acc elems) delims
           end
@@ -98,7 +110,7 @@ struct
               SOME {ty=t, ...} => ty (acc, t)
             | NONE => acc
         in
-          (id, Constructor) :: acc
+          add (id, Constructor) acc
         end
 
       fun mutualdat (acc, {elems = variants, ...}) =
@@ -129,15 +141,15 @@ struct
             * this hack should be subsumed in favor of full type inference.
             *)
           if MaybeLongToken.isLong id then
-            (MaybeLongToken.getToken id, Constructor) :: acc
+            add (MaybeLongToken.getToken id, Constructor) acc
           else
             acc
 
       | Con {id, atpat, ...} =>
-          (MaybeLongToken.getToken id, Constructor) :: pat (acc, atpat)
+          add (MaybeLongToken.getToken id, Constructor) (pat (acc, atpat))
 
       | Infix {left, id, right} =>
-          (id, Constructor) :: pat (pat (acc, left), right)
+          add (id, Constructor) (pat (pat (acc, left), right))
 
       | Typed {pat=p, ty=t, ...} =>
           pat (ty (acc, t), p)
@@ -153,7 +165,7 @@ struct
             fun patrow (acc, pr) =
               case pr of
                 LabEqPat {lab, pat=p, ...} =>
-                  (lab, Label) :: pat (acc, p)
+                  add (lab, Label) (pat (acc, p))
               | LabAsPat {id, ty=tty, aspat} =>
                   let
                     val acc =
@@ -166,7 +178,7 @@ struct
                         SOME {pat=p, ...} => pat (acc, p)
                       | NONE => acc
                   in
-                    (id, Label) :: acc
+                    add (id, Label) acc
                   end
               | _ => acc
           in
@@ -199,7 +211,7 @@ struct
       | App {left, right} => exp (exp (acc, left), right)
 
       | Infix {left, id, right} =>
-          (id, InfixOp) :: exp (exp (acc, left), right)
+          add (id, InfixOp) (exp (exp (acc, left), right))
 
       | Typed {exp=e', ty=t, ...} => exp (ty (acc, t), e')
 
@@ -242,7 +254,7 @@ struct
       | Record {elems, ...} =>
           let
             fun patrow (acc, {lab, exp=e, ...}) =
-              (lab, Label) :: exp (acc, e)
+              add (lab, Label) (exp (acc, e))
           in
             Seq.iterate patrow acc elems
           end
@@ -261,11 +273,12 @@ struct
             fun fname_args (acc, fna) =
               case fna of
                 PrefixedFun {id, args, ...} =>
-                  (id, Function) :: Seq.iterate pat acc args
+                  add (id, Function) (Seq.iterate pat acc args)
               | InfixedFun {id, larg, rarg} =>
-                  (id, Function) :: pat (pat (acc, larg), rarg)
+                  add (id, Function) (pat (pat (acc, larg), rarg))
               | CurriedInfixedFun {id, larg, rarg, args, ...} =>
-                  (id, Function) :: Seq.iterate pat (pat (pat (acc, larg), rarg)) args
+                  add (id, Function)
+                    (Seq.iterate pat (pat (pat (acc, larg), rarg)) args)
 
             fun clause (acc, {fname_args=fna, exp=e, ty=tty, ...}) =
               let
@@ -315,7 +328,7 @@ struct
       | DecOpen {elems, ...} =>
           let
             fun elem (acc, t) =
-              (MaybeLongToken.getToken t, StructureId) :: acc
+              add (MaybeLongToken.getToken t, StructureId) acc
           in
             Seq.iterate elem acc elems
           end
@@ -330,20 +343,20 @@ struct
     in
       case e of
         Ident x =>
-          (x, StructureId) :: acc
+          add (x, StructureId) acc
 
       | WhereType {sigexp=se, elems, ...} =>
           let
             fun elem (acc, {wheree, typee, ty=t, ...}) =
-              (wheree, SpecialKeyword)
-              :: (typee, SpecialKeyword)
-              :: ty (acc, t)
+              add (wheree, SpecialKeyword)
+                (add (typee, SpecialKeyword) (ty (acc, t)))
           in
             Seq.iterate elem (sigexp (acc, se)) elems
           end
 
       | Spec {sigg, spec=s, endd} =>
-          (sigg, SpecialKeyword) :: (endd, SpecialKeyword) :: spec (acc, s)
+          add (sigg, SpecialKeyword)
+            (add (endd, SpecialKeyword) (spec (acc, s)))
     end
 
 
@@ -358,7 +371,7 @@ struct
       | Datatype {elems = mutuals, ...} =>
           let
             fun clause (acc, {vid, arg}) =
-              (vid, Constructor) ::
+              add (vid, Constructor)
                 (case arg of
                   SOME {ty=t, ...} => ty (acc, t)
                 | NONE => acc)
@@ -400,15 +413,16 @@ struct
   fun strexp (acc, e) =
     case e of
       Ast.Str.Ident x =>
-        (MaybeLongToken.getToken x, StructureId) :: acc
+        add (MaybeLongToken.getToken x, StructureId) acc
     | Ast.Str.Struct {structt, strdec=sd, endd} =>
-        (structt, SpecialKeyword) :: (endd, SpecialKeyword) :: strdec (acc, sd)
+        add (structt, SpecialKeyword)
+          (add (endd, SpecialKeyword) (strdec (acc, sd)))
     | Ast.Str.Constraint {strexp=se, ...} =>
         strexp (acc, se)
     | Ast.Str.FunAppExp {funid, strexp=se, ...} =>
-        (funid, StructureId) :: strexp (acc, se)
+        add (funid, StructureId) (strexp (acc, se))
     | Ast.Str.FunAppDec {funid, strdec=sd, ...} =>
-        (funid, StructureId) :: strdec (acc, sd)
+        add (funid, StructureId) (strdec (acc, sd))
     | Ast.Str.LetInEnd {strdec=sd, strexp=se, ...} =>
         strexp (strdec (acc, sd), se)
     (* | _ => acc *)
@@ -423,9 +437,9 @@ struct
         let
           fun mutualstruct (acc, {strid, strexp=se, constraint, ...}) =
             case constraint of
-              NONE => (strid, StructureId) :: strexp (acc, se)
+              NONE => add (strid, StructureId) (strexp (acc, se))
             | SOME {sigexp=sige, ...} =>
-                (strid, StructureId) :: strexp (sigexp (acc, sige), se)
+                add (strid, StructureId) (strexp (sigexp (acc, sige), se))
         in
           Seq.iterate mutualstruct acc mutuals
         end
@@ -439,7 +453,7 @@ struct
       Ast.Fun.DecFunctor {elems = mutuals, ...} =>
         let
           fun mutualfun (acc, {funid, strexp=se, ...}) =
-            (funid, StructureId) :: strexp (acc, se)
+            add (funid, StructureId) (strexp (acc, se))
         in
           Seq.iterate mutualfun acc mutuals
         end

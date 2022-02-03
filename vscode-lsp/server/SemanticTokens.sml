@@ -232,23 +232,19 @@ struct
     end
 
 
+  (** These tokens are kept directly from the lexing info.
+    *
+    * For tokens that we want to extract from parsing info, see
+    * InterestingTokensFromAst
+    *)
   fun keepToken tok =
     let
       open Token
     in
       case getClass tok of
-        Whitespace => false
-      | Reserved r => true
-          (* (case r of
-            Comma => false
-          | OpenParen => false
-          | CloseParen => false
-          | OpenSquareBracket => false
-          | CloseSquareBracket => false
-          | Underscore => false
-          | _ => true
-          ) *)
-      | _ => true
+        CharConstant => true
+      | StringConstant => true
+      | _ => false
     end
 
 
