@@ -239,6 +239,92 @@ struct
 
 
 
+  fun pat ((acc, ctx), p) =
+    let
+      open Ast.Pat
+    in
+      case p of
+        Ident {id, ...} =>
+          if MaybeLongToken.isLong id then
+            (** Definitely a constructor, not a variable binding *)
+            (acc, Ctx.empty)
+          else
+            (** TODO: need to know the constructors that are in scope to
+              * determine whether or not this is a constructor binding.
+              * For now, we'll assume it is.
+              *)
+            let
+              val tok = MaybeLongToken.getToken id
+              val (acc, i) = Acc.newBinding acc tok
+            in
+              (acc, Ctx.singleton (Token.toString tok, i))
+            end
+
+      | List {elems, ...} =>
+          Seq.iterate (growCtx (withCtx ctx pat)) (acc, Ctx.empty) elems
+
+      | Tuple {elems, ...} =>
+          Seq.iterate (growCtx (withCtx ctx pat)) (acc, Ctx.empty) elems
+
+      | Parens {pat=p, ...} =>
+          pat ((acc, ctx), p)
+
+      | Con {id, atpat, ...} =>
+          (** the id here is definitely a constructor *)
+          pat ((acc, ctx), atpat)
+
+      | Infix {left, id, right} =>
+          let
+            val (acc, new1) = pat ((acc, ctx), left)
+            val (acc, new2) = pat ((acc, ctx), right)
+          in
+            (acc, Ctx.union (new1, new2))
+          end
+
+      | Typed {pat=p, ty=t, ...} =>
+          pat ((acc, ctx), p)
+
+      | Layered {id, pat=p, ...} =>
+          let
+            val (acc, i) = Acc.newBinding acc id
+            val new1 = Ctx.singleton (Token.toString id, i)
+            val (acc, new2) = pat ((acc, ctx), p)
+          in
+            (acc, Ctx.union (new1, new2))
+          end
+(*
+
+      | Record {elems, ...} =>
+          let
+            fun patrow (acc, pr) =
+              case pr of
+                LabEqPat {lab, pat=p, ...} =>
+                  add (lab, Label) (pat (acc, p))
+              | LabAsPat {id, ty=tty, aspat} =>
+                  let
+                    val acc =
+                      case tty of
+                        SOME {ty=t, ...} => ty (acc, t)
+                      | NONE => acc
+
+                    val acc =
+                      case aspat of
+                        SOME {pat=p, ...} => pat (acc, p)
+                      | NONE => acc
+                  in
+                    add (id, Label) acc
+                  end
+              | _ => acc
+          in
+            Seq.iterate patrow acc elems
+          end
+*)
+
+      | _ => (acc, Ctx.empty)
+    end
+
+
+
   fun exp ctx (acc, e) =
     let
       open Ast.Exp
@@ -256,30 +342,61 @@ struct
               | SOME i => Acc.newUse acc (tok, i)
             end
 
-        (* Tuple {elems, ...} =>
-          Seq.iterate exp acc elems
+      | Tuple {elems, ...} =>
+          Seq.iterate (exp ctx) acc elems
 
       | List {elems, ...} =>
-          Seq.iterate exp acc elems
+          Seq.iterate (exp ctx) acc elems
 
       | Sequence {elems, ...} =>
-          Seq.iterate exp acc elems
+          Seq.iterate (exp ctx) acc elems
 
       | LetInEnd {dec=d, exps, ...} =>
-          Seq.iterate exp (dec (acc, d)) exps
+          let
+            val (acc, ctx') = growCtx dec ((acc, ctx), d)
+          in
+            Seq.iterate (exp ctx') acc exps
+          end
 
-      | Parens {exp=e', ...} => exp (acc, e')
+      | Parens {exp=e', ...} => exp ctx (acc, e')
 
-      | App {left, right} => exp (exp (acc, left), right)
+      | App {left, right} => exp ctx (exp ctx (acc, left), right)
 
       | Infix {left, id, right} =>
-          add (id, InfixOp) (exp (exp (acc, left), right))
+          exp ctx (exp ctx (acc, left), right)
 
-      | Typed {exp=e', ty=t, ...} => exp (ty (acc, t), e')
+      | Typed {exp=e', ty=t, ...} =>
+          exp ctx (acc, e')
 
-      | Andalso {left, right, ...} => exp (exp (acc, left), right)
+      | Andalso {left, right, ...} =>
+          exp ctx (exp ctx (acc, left), right)
 
-      | Orelse {left, right, ...} => exp (exp (acc, left), right)
+      | Orelse {left, right, ...} =>
+          exp ctx (exp ctx (acc, left), right)
+
+      | IfThenElse {exp1, exp2, exp3, ...} =>
+          exp ctx (exp ctx (exp ctx (acc, exp1), exp2), exp3)
+
+      | Record {elems, ...} =>
+          let
+            fun patrow (acc, {lab, exp=e, ...}) =
+              exp ctx (acc, e)
+          in
+            Seq.iterate patrow acc elems
+          end
+
+      | Case {exp=e', elems = clauses, ...} =>
+          let
+            fun clause (acc, {pat=p, exp=e', ...}) =
+              let
+                val (acc, ctx') = growCtx pat ((acc, ctx), p)
+              in
+                exp ctx' (acc, e')
+              end
+          in
+            Seq.iterate clause (exp ctx (acc, e')) clauses
+          end
+(*
 
       | Handle {exp=e', elems = clauses, ...} =>
           let
@@ -291,19 +408,8 @@ struct
 
       | Raise {exp=e', ...} => exp (acc, e')
 
-      | IfThenElse {exp1, exp2, exp3, ...} =>
-          exp (exp (exp (acc, exp1), exp2), exp3)
-
       | While {exp1, exp2, ...} =>
           exp (exp (acc, exp1), exp2)
-
-      | Case {exp=e', elems = clauses, ...} =>
-          let
-            fun clause (acc, {pat=p, exp=e', ...}) =
-              pat (exp (acc, e'), p)
-          in
-            Seq.iterate clause (exp (acc, e')) clauses
-          end
 
       | Fn {elems = clauses, ...} =>
           let
@@ -313,13 +419,7 @@ struct
             Seq.iterate clause acc clauses
           end
 
-      | Record {elems, ...} =>
-          let
-            fun patrow (acc, {lab, exp=e, ...}) =
-              add (lab, Label) (exp (acc, e))
-          in
-            Seq.iterate patrow acc elems
-          end *)
+*)
 
       | _ => acc
     end
@@ -364,17 +464,26 @@ struct
             (Seq.iterate mutualfunc acc mutuals, newNames)
           end
 
-      (*| DecVal {elems = mutuals, ...} =>
+      | DecVal {elems = mutuals, ...} =>
           let
-            fun mutualval (acc, {pat=p, exp=e, ...}) =
-              pat (exp (acc, e), p)
+            fun mutualval ((acc, ctx), {pat=p, exp=e, ...}) =
+              let
+                val acc = exp ctx (acc, e)
+                val (acc, new) = pat ((acc, ctx), p)
+              in
+                (acc, new)
+              end
           in
-            Seq.iterate mutualval acc mutuals
+            Seq.iterate (growCtx (withCtx ctx mutualval)) (acc, Ctx.empty) mutuals
           end
 
       | DecLocal {left_dec, right_dec, ...} =>
-          dec (dec (acc, left_dec), right_dec)
-
+          let
+            val (acc, ctx') = growCtx dec ((acc, ctx), left_dec)
+          in
+            dec ((acc, ctx'), right_dec)
+          end
+(*
 
       | DecInfix {elems, ...} =>
           Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
