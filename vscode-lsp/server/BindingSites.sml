@@ -467,8 +467,33 @@ struct
 
             val ctx' = Ctx.union (ctx, newNames)
 
-            fun clause (acc, {exp=e, ...}) =
-              exp ctx' (acc, e)
+            fun args ((acc, ctx), fna) =
+              case fna of
+                PrefixedFun {id, args, ...} =>
+                  Seq.iterate (growCtx (withCtx ctx pat)) (acc, Ctx.empty) args
+              | InfixedFun {id, larg, rarg} =>
+                  let
+                    val (acc, new1) = pat ((acc, ctx), larg)
+                    val (acc, new2) = pat ((acc, ctx), rarg)
+                  in
+                    (acc, Ctx.union (new1, new2))
+                  end
+              | CurriedInfixedFun {id, larg, rarg, args, ...} =>
+                  let
+                    val (acc, new1) = pat ((acc, ctx), larg)
+                    val (acc, new2) = pat ((acc, ctx), rarg)
+                    val (acc, new3) =
+                      Seq.iterate (growCtx (withCtx ctx pat)) (acc, Ctx.empty) args
+                  in
+                    (acc, Ctx.union (Ctx.union (new1, new2), new3))
+                  end
+
+            fun clause (acc, {fname_args=fna, exp=e, ...}) =
+              let
+                val (acc, new) = args ((acc, ctx'), fna)
+              in
+                exp (Ctx.union (ctx', new)) (acc, e)
+              end
 
             fun mutualfunc (acc, {elems = clauses, ...}) =
               Seq.iterate clause acc clauses
