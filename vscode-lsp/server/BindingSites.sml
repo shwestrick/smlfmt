@@ -108,32 +108,53 @@ struct
     type t
     type ctx = t
 
+    datatype kind = Val | Struct
+
     val empty: ctx
-    val singleton: string * int -> ctx
-    val insert: ctx -> string * int -> ctx
-    val find: ctx -> string -> int option
+    val singleton: kind * string * int -> ctx
+    val insert: ctx -> kind * string * int -> ctx
+    val find: ctx -> kind * string -> int option
     val union: ctx * ctx -> ctx
   end =
   struct
+    datatype kind = Val | Struct
+
     datatype t =
       Ctx of
-        { vars: int StringDict.t } (* TODO: structure ids... *)
+        { vals: int StringDict.t
+        , structs: int StringDict.t
+        }
 
     type ctx = t
 
-    val empty = Ctx {vars = StringDict.empty}
+    val empty = Ctx
+      { vals = StringDict.empty
+      , structs = StringDict.empty
+      }
 
-    fun singleton (var, i) =
-      Ctx {vars = StringDict.singleton (var, i)}
+    fun union (Ctx c1, Ctx c2) =
+      Ctx
+        { vals = StringDict.unionWith #2 (#vals c1, #vals c2)
+        , structs = StringDict.unionWith #2 (#structs c1, #structs c2)
+        }
 
-    fun union (Ctx {vars=v1}, Ctx {vars=v2}) =
-      Ctx {vars = StringDict.unionWith #2 (v1, v2)}
+    fun insert (Ctx {vals, structs}) (kind, var, i) =
+      let
+        val (vals, structs) =
+          case kind of
+            Val => (StringDict.insert vals (var, i), structs)
+          | Struct => (vals, StringDict.insert structs (var, i))
+      in
+        Ctx {vals=vals, structs=structs}
+      end
 
-    fun insert (Ctx {vars}) (var, i) =
-      Ctx {vars = StringDict.insert vars (var, i)}
+    fun singleton (kind, var, i) =
+      insert empty (kind, var, i)
 
-    fun find (Ctx {vars}) var =
-      StringDict.find vars var
+    fun find (Ctx {vals, structs}) (kind, var) =
+      case kind of
+        Val => StringDict.find vals var
+      | Struct => StringDict.find structs var
   end
 
 
@@ -271,7 +292,7 @@ struct
               val tok = MaybeLongToken.getToken id
               val (acc, i) = Acc.newBinding acc tok
             in
-              (acc, Ctx.singleton (Token.toString tok, i))
+              (acc, Ctx.singleton (Ctx.Val, Token.toString tok, i))
             end
 
       | List {elems, ...} =>
@@ -301,7 +322,7 @@ struct
       | Layered {id, pat=p, ...} =>
           let
             val (acc, i) = Acc.newBinding acc id
-            val new1 = Ctx.singleton (Token.toString id, i)
+            val new1 = Ctx.singleton (Ctx.Val, Token.toString id, i)
             val (acc, new2) = pat ((acc, ctx), p)
           in
             (acc, Ctx.union (new1, new2))
@@ -317,7 +338,7 @@ struct
               | LabAsPat {id, ty=tty, aspat} =>
                   let
                     val (acc, i) = Acc.newBinding acc id
-                    val new1 = Ctx.singleton (Token.toString id, i)
+                    val new1 = Ctx.singleton (Ctx.Val, Token.toString id, i)
 
                     val (acc, new2) =
                       case aspat of
@@ -349,7 +370,7 @@ struct
             let
               val tok = MaybeLongToken.getToken id
             in
-              case Ctx.find ctx (Token.toString tok) of
+              case Ctx.find ctx (Ctx.Val, Token.toString tok) of
                 NONE => acc
               | SOME i => Acc.newUse acc (tok, i)
             end
@@ -464,7 +485,7 @@ struct
                 val tok = name fname_args
                 val (acc, i) = Acc.newBinding acc tok
               in
-                (acc, Ctx.insert ctx (Token.toString tok, i))
+                (acc, Ctx.insert ctx (Ctx.Val, Token.toString tok, i))
               end
 
             val (acc, newNames) =
@@ -542,9 +563,18 @@ struct
 
   fun strexp ctx (acc, e) =
     case e of
-      Ast.Str.Ident x =>
-        (* TODO: structure/functor bindings *)
-        acc
+      Ast.Str.Ident id =>
+        if MaybeLongToken.isLong id then
+          (** TODO: qualified bindings... *)
+          acc
+        else
+          let
+            val tok = MaybeLongToken.getToken id
+          in
+            case Ctx.find ctx (Ctx.Struct, Token.toString tok) of
+              NONE => acc
+            | SOME i => Acc.newUse acc (tok, i)
+          end
     | Ast.Str.Struct {structt, strdec=sd, endd} =>
         let
           val (acc, _) = strdec ((acc, ctx), sd)
@@ -579,11 +609,15 @@ struct
         dec ((acc, ctx), cd)
     | Ast.Str.DecStructure {elems = mutuals, ...} =>
         let
-          fun mutualstruct (acc, {strid, strexp=se, constraint, ...}) =
-            (* TODO: structure/functor bindings *)
-            strexp ctx (acc, se)
+          fun mutualstruct ((acc, ctx), {strid, strexp=se, constraint, ...}) =
+            let
+              val (acc, i) = Acc.newBinding acc strid
+              val new = Ctx.singleton (Ctx.Struct, Token.toString strid, i)
+            in
+              (strexp ctx (acc, se), new)
+            end
         in
-          (Seq.iterate mutualstruct acc mutuals, Ctx.empty)
+          Seq.iterate (growCtx (withCtx ctx mutualstruct)) (acc, Ctx.empty) mutuals
         end
     | Ast.Str.DecLocalInEnd {strdec1, strdec2, ...} =>
         let
