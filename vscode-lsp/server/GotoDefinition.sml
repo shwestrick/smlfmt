@@ -45,21 +45,37 @@ struct
         let
           val src = Token.getSource token
           val startOff = Source.absoluteStartOffset src
-          val stopOff = Source.absoluteEndOffset src
-        in
-          if targetOffset < startOff then
-            LESS
-          else if targetOffset >= startOff andalso targetOffset < stopOff then
-            EQUAL
-          else if targetOffset = stopOff then
+          val endOff = Source.absoluteEndOffset src
+
+          (* targetOffset = startOff *)
+          fun targetIsAtStart () =
+            if Token.isIdentifier token orelse Token.isLongIdentifier token then
+              EQUAL
+            else
+              LESS
+
+          (* targetOffset = endOff *)
+          fun targetIsAtEnd () =
             case Token.nextToken token of
               NONE => EQUAL
             | SOME nextTok =>
-                if Source.absoluteStartOffset (Token.getSource nextTok) = stopOff
+                if
+                  Source.absoluteStartOffset (Token.getSource nextTok) = endOff
+                  andalso
+                  (Token.isIdentifier nextTok orelse Token.isLongIdentifier nextTok)
                 then
                   GREATER
                 else
                   EQUAL
+        in
+          if targetOffset < startOff then
+            LESS
+          else if targetOffset = startOff then
+            targetIsAtStart ()
+          else if targetOffset > startOff andalso targetOffset < endOff then
+            EQUAL
+          else if targetOffset = endOff then
+            targetIsAtEnd ()
           else
             GREATER
         end
