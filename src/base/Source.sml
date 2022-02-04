@@ -22,6 +22,9 @@ sig
   val absoluteStartOffset: source -> int
   val absoluteEndOffset: source -> int
 
+  (* needs to be whole file source *)
+  val lineColToOffset: source -> {line: int, col: int} -> int
+
   val length: source -> int
   val nth: source -> int -> char
   val slice: source -> int * int -> source

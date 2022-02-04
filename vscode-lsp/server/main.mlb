@@ -6,10 +6,11 @@ $(SML_LIB)/basis/mlton.mlb
 ../../src/lex/sources.mlb
 ../../src/parse/sources.mlb
 ../../src/syntax-highlighting/sources.mlb
-BindingSites.sml
 JsonUtil.sml
 Message.sml
 ServerState.sml
+BindingSites.sml
+GotoDefinition.sml
 InterestingTokensFromAst.sml
 SemanticTokens.sml
 main.sml

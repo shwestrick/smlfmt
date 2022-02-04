@@ -166,6 +166,8 @@ sig
   val fromPre: Pretoken.t -> token
   val makeGroup: Pretoken.t Seq.t -> token Seq.t
 
+  val regroup: token Seq.t -> token Seq.t
+
 end =
 struct
 
@@ -731,13 +733,16 @@ struct
           ]
     | _ => false
 
-
-
   fun makeGroup (s: pretoken Seq.t): token Seq.t =
     Seq.tabulate (fn i => {idx = i, context = s}) (Seq.length s)
 
   fun fromPre (t: pretoken) =
     Seq.nth (makeGroup (Seq.singleton t)) 0
+
+  fun toPre ({idx = i, context = s}: token) =
+    Seq.nth s i
+
+  fun regroup s = makeGroup (Seq.map toPre s)
 
   fun nextToken ({idx=i, context}: token) =
     if i+1 < Seq.length context then

@@ -79,6 +79,9 @@ val initialResponseResult =
                 , ("change", num 2) (* TextDocumentSyncKind.Incremental *)
                 ]
             )
+          , ( "definitionProvider"
+            , bool true
+            )
           , ( "semanticTokensProvider"
             , object
                 [ ( "full"
@@ -145,6 +148,15 @@ fun mainLoop state =
               {uri=uri, contentChanges=contentChanges}
           else
             state
+
+      | Message.TextDocumentDefinition args =>
+          let
+            val response = GotoDefinition.makeResponse state args
+          in
+            log ("sending: " ^ Json.toString response);
+            print (serializeMessage response);
+            state
+          end
 
       | Message.TextDocumentSemanticTokensFull args =>
           ( print (serializeMessage (SemanticTokens.makeResponse state args))

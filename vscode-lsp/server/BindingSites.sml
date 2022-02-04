@@ -10,7 +10,7 @@ sig
     * If the input is not an identifier or is free (not bound) within the
     * scope of the given AST, returns NONE.
     *)
-  (* val bindingSite: bs -> Token.t -> Token.t option *)
+  val bindingSite: bs -> Token.t -> Token.t option
 
   val fromAst: Ast.t -> bs
   val toString: bs -> string
@@ -84,6 +84,20 @@ struct
       String.concatWith "\n" (List.map oneBinding (IntDict.toList binding))
       ^ "\n"
     end
+
+
+  fun bindingSite (BS {ids, binding, uses}) token =
+    case TokenDict.find ids token of
+      NONE => NONE
+    | SOME i => IntDict.find binding i
+
+
+  (** =======================================================================
+    * =======================================================================
+    * ======== everything below is the implementation of `fromAst`
+    * =======================================================================
+    * =======================================================================
+    *)
 
 
   (** the loop context, used while we traverse the Ast to map identifiers to

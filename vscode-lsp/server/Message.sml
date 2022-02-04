@@ -74,6 +74,12 @@ struct
       , uri: URI.t
       }
 
+  | TextDocumentDefinition of
+      { id: Id.t
+      , uri: URI.t
+      , position: {line: int, col: int}
+      }
+
   | Other of Json.obj
 
 
@@ -205,6 +211,32 @@ struct
     end
 
 
+  fun makeTextDocumentDefinition obj =
+    let
+      val id = required Id.fromJson "id" obj
+      val params = required object "params" obj
+      val textDocument = required object "textDocument" params
+      val uri = required (URI.fromString o string) "uri" textDocument
+
+      fun position obj =
+        let
+          val line = required int "line" obj
+          val character = required int "character" obj
+        in
+          (* convert to 1-indexing *)
+          {line = line+1, col = character+1}
+        end
+
+      val position = required (position o object) "position" params
+    in
+      TextDocumentDefinition
+        { id = id
+        , uri = uri
+        , position = position
+        }
+    end
+
+
   fun fromJson json =
     let
       val obj =
@@ -224,6 +256,9 @@ struct
 
       | SOME (Json.STRING "textDocument/didChange") =>
           makeTextDocumentDidChange obj
+
+      | SOME (Json.STRING "textDocument/definition") =>
+          makeTextDocumentDefinition obj
 
       | SOME (Json.STRING "textDocument/semanticTokens/full") =>
           makeTextDocumentSemanticTokensFull obj
@@ -297,6 +332,11 @@ struct
               (List.map ContentChange.toString contentChanges)
           ^ "]"
         ^ ")"
+    | TextDocumentDefinition {id, uri, position} =>
+        "TextDocumentDefinition("
+        ^ "id = " ^ Id.toString id ^ ", "
+        ^ "uri = " ^ URI.toString uri ^ " , "
+        ^ "position = " ^ ContentChange.lctos position ^ ")"
     | TextDocumentSemanticTokensFull {id, uri} =>
         "TextDocumentSemanticTokensFull("
         ^ "id = " ^ Id.toString id ^ ", "
