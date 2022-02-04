@@ -306,33 +306,31 @@ struct
           in
             (acc, Ctx.union (new1, new2))
           end
-(*
 
       | Record {elems, ...} =>
           let
-            fun patrow (acc, pr) =
+            fun patrow ((acc, ctx), pr) =
               case pr of
                 LabEqPat {lab, pat=p, ...} =>
-                  add (lab, Label) (pat (acc, p))
+                  pat ((acc, ctx), p)
+
               | LabAsPat {id, ty=tty, aspat} =>
                   let
-                    val acc =
-                      case tty of
-                        SOME {ty=t, ...} => ty (acc, t)
-                      | NONE => acc
+                    val (acc, i) = Acc.newBinding acc id
+                    val new1 = Ctx.singleton (Token.toString id, i)
 
-                    val acc =
+                    val (acc, new2) =
                       case aspat of
-                        SOME {pat=p, ...} => pat (acc, p)
-                      | NONE => acc
+                        NONE => (acc, Ctx.empty)
+                      | SOME {pat=p, ...} => pat ((acc, ctx), p)
                   in
-                    add (id, Label) acc
+                    (acc, Ctx.union (new1, new2))
                   end
-              | _ => acc
+
+              | _ => (acc, Ctx.empty)
           in
-            Seq.iterate patrow acc elems
+            Seq.iterate (growCtx (withCtx ctx patrow)) (acc, Ctx.empty) elems
           end
-*)
 
       | _ => (acc, Ctx.empty)
     end
