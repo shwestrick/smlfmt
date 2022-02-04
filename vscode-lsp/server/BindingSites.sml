@@ -408,30 +408,35 @@ struct
           in
             Seq.iterate clause (exp ctx (acc, e')) clauses
           end
-(*
 
       | Handle {exp=e', elems = clauses, ...} =>
           let
             fun clause (acc, {pat=p, exp=e', ...}) =
-              pat (exp (acc, e'), p)
+              let
+                val (acc, ctx') = growCtx pat ((acc, ctx), p)
+              in
+                exp ctx' (acc, e')
+              end
           in
-            Seq.iterate clause (exp (acc, e')) clauses
+            Seq.iterate clause (exp ctx (acc, e')) clauses
           end
 
-      | Raise {exp=e', ...} => exp (acc, e')
+      | Raise {exp=e', ...} => exp ctx (acc, e')
 
       | While {exp1, exp2, ...} =>
-          exp (exp (acc, exp1), exp2)
+          exp ctx (exp ctx (acc, exp1), exp2)
 
       | Fn {elems = clauses, ...} =>
           let
             fun clause (acc, {pat=p, exp=e', ...}) =
-              pat (exp (acc, e'), p)
+              let
+                val (acc, ctx') = growCtx pat ((acc, ctx), p)
+              in
+                exp ctx' (acc, e')
+              end
           in
             Seq.iterate clause acc clauses
           end
-
-*)
 
       | _ => acc
     end
@@ -523,27 +528,12 @@ struct
 (*
 
       | DecInfix {elems, ...} =>
-          Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
-
       | DecInfixr {elems, ...} =>
-          Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
-
       | DecNonfix {elems, ...} =>
-          Seq.toList (Seq.map (fn t => (t, InfixOp)) elems) @ acc
-
       | DecDatatype {datbind=db, withtypee = SOME {typbind = tb, ...}, ...} =>
-          datbind (typbind (acc, tb), db)
-
       | DecDatatype {datbind=db, withtypee = NONE, ...} =>
-          datbind (acc, db)
-
       | DecOpen {elems, ...} =>
-          let
-            fun elem (acc, t) =
-              add (MaybeLongToken.getToken t, StructureId) acc
-          in
-            Seq.iterate elem acc elems
-          end *)
+*)
 
       | _ => (acc, Ctx.empty)
     end
