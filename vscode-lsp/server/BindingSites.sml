@@ -3,32 +3,50 @@ sig
   type t
   type bs = t
 
-  (** If the input token is an identifier (variable, constructor, etc.),
-    * return where that identifier was bound (e.g. as an argument of an
-    * enclosing function, inside a pattern of an early let-binding, etc.)
+  structure Selection:
+  sig
+    (** We might request the binding site of a whole token, or (in the case of
+      * a long identifier) just one of its qualifiers. In the
+      * `Qualifier {longIdentifier, idx}` case, the selected component is:
+      *     let val SOME s = Token.splitLongIdentifier longIdentifier
+      *     in Seq.nth s idx
+      *     end
+      *)
+    datatype selection =
+      WholeToken of Token.t
+    | Qualifier of {longIdentifier: Token.t, idx: int}
+
+    type t = selection
+
+    val getSource: selection -> Source.t
+  end
+
+  (** If the input source is an identifier (variable, constructor, qualifier,
+    * etc.), return where that identifier was bound (e.g. as an argument of an
+    * enclosing function, inside a pattern of an earlier let-binding, etc.)
     *
-    * If the input is not an identifier or is free (not bound) within the
-    * scope of the given AST, returns NONE.
+    * If the input is either not an identifier, or is free (not bound) within
+    * the scope of the given AST, this returns NONE.
     *)
-  val bindingSite: bs -> Token.t -> Token.t option
+  val bindingSite: bs -> Selection.t -> Token.t option
 
   val fromAst: Ast.t -> bs
   val toString: bs -> string
 end =
 struct
 
-  structure TokenKey =
+  structure SourceKey =
   struct
-    type t = Token.t
+    type t = Source.t
 
-    (** Simple way to compare tokens: within a file, each token has as unique
-      * start offset. Otherwise, we can just compare the name of the files they
-      * came from.
+    (** The keys here either are whole tokens, or the qualifiers of a token.
+      * A simple way to compare them is to just compare their starting offsets,
+      * as these keys will never overlap. If two keys have the same start
+      * offset, then we also need to double check that they come from the same
+      * file.
       *)
-    fun compare (tok1, tok2) =
+    fun compare (src1, src2) =
       let
-        val src1 = Token.getSource tok1
-        val src2 = Token.getSource tok2
         fun soff src = Source.absoluteStartOffset src
         fun pathstr s = FilePath.toUnixPath (Source.fileName s)
       in
@@ -45,9 +63,28 @@ struct
   structure IntKey =
     struct type t = int val compare = Int.compare end
 
-  structure TokenDict = Dict(TokenKey)
+  structure SourceDict = Dict(SourceKey)
   structure StringDict = Dict(StringKey)
   structure IntDict = Dict(IntKey)
+
+
+  structure Selection =
+  struct
+
+    datatype selection =
+      WholeToken of Token.t
+    | Qualifier of {longIdentifier: Token.t, idx: int}
+
+    type t = selection
+
+
+    fun getSource s =
+      case s of
+        WholeToken tok => Token.getSource tok
+      | Qualifier {longIdentifier, idx} =>
+          Seq.nth (valOf (Token.splitLongIdentifier longIdentifier)) idx
+  end
+
 
   (** high level idea is to assign a unique identifier (integer) to each
     * identifier token, and then for each unique identifier, we keep track
@@ -55,17 +92,18 @@ struct
     *)
   datatype t =
     BS of
-      { ids: int TokenDict.t
+      { ids: int SourceDict.t
       , binding: Token.t IntDict.t
-      , uses: (Token.t list) IntDict.t
+      , uses: (Source.t list) IntDict.t
       }
   type bs = t
 
+
   fun toString (BS {ids, binding, uses}) =
     let
-      fun oneUse tok =
+      fun oneUse src =
         let
-          val {line, col} = Source.absoluteStart (Token.getSource tok)
+          val {line, col} = Source.absoluteStart src
         in
           "  line " ^ Int.toString line ^ ", col " ^ Int.toString col
         end
@@ -86,10 +124,14 @@ struct
     end
 
 
-  fun bindingSite (BS {ids, binding, uses}) token =
-    case TokenDict.find ids token of
-      NONE => NONE
-    | SOME i => IntDict.find binding i
+  fun bindingSite (BS {ids, binding, uses}) selection =
+    let
+      val src = Selection.getSource selection
+    in
+      case SourceDict.find ids src of
+        NONE => NONE
+      | SOME i => IntDict.find binding i
+    end
 
 
   (** =======================================================================
@@ -166,7 +208,7 @@ struct
     val initial: acc
     (* val newUnique: acc -> (acc * int) *)
     val newBinding: acc -> Token.t -> acc * int
-    val newUse: acc -> Token.t * int -> acc
+    val newUse: acc -> Selection.t * int -> acc
     val bs: acc -> bs
   end =
   struct
@@ -182,7 +224,7 @@ struct
       Acc
         { nextUnique = 0
         , bs = BS
-            { ids = TokenDict.empty
+            { ids = SourceDict.empty
             , binding = IntDict.empty
             , uses = IntDict.empty
             }
@@ -194,7 +236,7 @@ struct
     fun newBinding (Acc {nextUnique, bs = BS {ids, binding, uses}}) tok =
       let
         val i = nextUnique
-        val ids = TokenDict.insert ids (tok, i)
+        val ids = SourceDict.insert ids (Token.getSource tok, i)
         val binding = IntDict.insert binding (i, tok)
         val uses = IntDict.insert uses (i, [])
 
@@ -210,11 +252,12 @@ struct
         (result, i)
       end
 
-    fun newUse (Acc {nextUnique, bs = BS {ids, binding, uses}}) (tok, i) =
+    fun newUse (Acc {nextUnique, bs = BS {ids, binding, uses}}) (selection, i) =
       let
-        val ids = TokenDict.insert ids (tok, i)
+        val src = Selection.getSource selection
+        val ids = SourceDict.insert ids (src, i)
         val otherUses = IntDict.lookup uses i
-        val uses = IntDict.insert uses (i, tok :: otherUses)
+        val uses = IntDict.insert uses (i, src :: otherUses)
       in
         Acc
           { nextUnique = nextUnique
@@ -365,14 +408,26 @@ struct
       case e of
         Ident {id, ...} =>
           if MaybeLongToken.isLong id then
-            acc
+            let
+              (** TODO: handle qualified bindings. (Right now, we only grab
+                * the outermost strid, which is unqualified.)
+                *)
+              val tok = MaybeLongToken.getToken id
+              val s = valOf (Token.splitLongIdentifier tok)
+              val src = Seq.nth s 0
+              val selection = Selection.Qualifier {longIdentifier=tok, idx=0}
+            in
+              case Ctx.find ctx (Ctx.Struct, Source.toString src) of
+                NONE => acc
+              | SOME i => Acc.newUse acc (selection, i)
+            end
           else
             let
               val tok = MaybeLongToken.getToken id
             in
               case Ctx.find ctx (Ctx.Val, Token.toString tok) of
                 NONE => acc
-              | SOME i => Acc.newUse acc (tok, i)
+              | SOME i => Acc.newUse acc (Selection.WholeToken tok, i)
             end
 
       | Tuple {elems, ...} =>
@@ -565,15 +620,26 @@ struct
     case e of
       Ast.Str.Ident id =>
         if MaybeLongToken.isLong id then
-          (** TODO: qualified bindings... *)
-          acc
+          let
+            (** TODO: handle qualified bindings. (Right now, we only grab
+              * the outermost strid, which is unqualified.)
+              *)
+            val tok = MaybeLongToken.getToken id
+            val s = valOf (Token.splitLongIdentifier tok)
+            val src = Seq.nth s 0
+            val selection = Selection.Qualifier {longIdentifier=tok, idx=0}
+          in
+            case Ctx.find ctx (Ctx.Struct, Source.toString src) of
+              NONE => acc
+            | SOME i => Acc.newUse acc (selection, i)
+          end
         else
           let
             val tok = MaybeLongToken.getToken id
           in
             case Ctx.find ctx (Ctx.Struct, Token.toString tok) of
               NONE => acc
-            | SOME i => Acc.newUse acc (tok, i)
+            | SOME i => Acc.newUse acc (Selection.WholeToken tok, i)
           end
     | Ast.Str.Struct {structt, strdec=sd, endd} =>
         let

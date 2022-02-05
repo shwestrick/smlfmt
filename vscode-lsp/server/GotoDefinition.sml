@@ -35,7 +35,7 @@ struct
     end
 
 
-  fun tokenAtPosition (tokens: Token.t Seq.t) lineColPosition =
+  fun selectionAtPosition (tokens: Token.t Seq.t) lineColPosition =
     if Seq.length tokens = 0 then NONE else
     let
       val wholefile = Source.wholeFile (Token.getSource (Seq.nth tokens 0))
@@ -80,7 +80,35 @@ struct
             GREATER
         end
     in
-      binsearch tokens whereIsTarget
+      case binsearch tokens whereIsTarget of
+        NONE => NONE
+      | SOME t =>
+          if not (Token.isLongIdentifier t) then
+            SOME (BindingSites.Selection.WholeToken t)
+          else
+            let
+              val s = valOf (Token.splitLongIdentifier t)
+              fun findQualifier idx =
+                if idx >= Seq.length s then
+                  raise Fail "GotoDefinition.selectionAtPosition.findQualifier: bug"
+                else
+                  let
+                    val component: Source.t = Seq.nth s idx
+                    val startOff = Source.absoluteStartOffset component
+                    val endOff = Source.absoluteEndOffset component
+                  in
+                    if targetOffset >= startOff andalso targetOffset <= endOff
+                    then
+                      idx
+                    else
+                      findQualifier (idx+1)
+                  end
+
+              val idx = findQualifier 0
+            in
+              SOME (BindingSites.Selection.Qualifier
+                {longIdentifier = t, idx = idx})
+            end
     end
 
 
@@ -99,8 +127,8 @@ struct
       val ast = Parser.parse contents
       val bs = BindingSites.fromAst ast
 
-      val tok = tokenAtPosition tokens position
-      val site = Option.mapPartial (BindingSites.bindingSite bs) tok
+      val selection = selectionAtPosition tokens position
+      val site = Option.mapPartial (BindingSites.bindingSite bs) selection
 
       fun lcToJson {line, col} =
         (** have to convert back to 0-indexing... *)
