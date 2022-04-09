@@ -153,8 +153,17 @@ struct
     datatype kind = Val | Struct
 
     val empty: ctx
-    val singleton: kind * string * int -> ctx
-    val insert: ctx -> kind * string * int -> ctx
+
+    val singletonVal: string * int -> ctx
+    val insertVal: ctx -> string * int -> ctx
+
+    (* each struct has contents (an entire `ctx` for the bindings within
+     * the struct)
+     *)
+    val singletonStruct: string * int * ctx -> ctx
+    val insertStruct: ctx -> string * int * ctx -> ctx
+
+    (* TODO: allow for qualified lookups *)
     val find: ctx -> kind * string -> int option
     val union: ctx * ctx -> ctx
   end =
@@ -165,6 +174,7 @@ struct
       Ctx of
         { vals: int StringDict.t
         , structs: int StringDict.t
+        , structContents: t StringDict.t
         }
 
     type ctx = t
@@ -172,28 +182,35 @@ struct
     val empty = Ctx
       { vals = StringDict.empty
       , structs = StringDict.empty
+      , structContents = StringDict.empty
       }
 
     fun union (Ctx c1, Ctx c2) =
       Ctx
         { vals = StringDict.unionWith #2 (#vals c1, #vals c2)
         , structs = StringDict.unionWith #2 (#structs c1, #structs c2)
+        , structContents = StringDict.unionWith #2
+            (#structContents c1, #structContents c2)
         }
 
-    fun insert (Ctx {vals, structs}) (kind, var, i) =
-      let
-        val (vals, structs) =
-          case kind of
-            Val => (StringDict.insert vals (var, i), structs)
-          | Struct => (vals, StringDict.insert structs (var, i))
-      in
-        Ctx {vals=vals, structs=structs}
-      end
+    fun insertVal (Ctx {vals, structs, structContents}) (var, i) =
+      Ctx
+        { vals = StringDict.insert vals (var, i)
+        , structs = structs
+        , structContents = structContents
+        }
 
-    fun singleton (kind, var, i) =
-      insert empty (kind, var, i)
+    fun insertStruct (Ctx {vals, structs, structContents}) (var, i, contents) =
+      Ctx
+        { vals = vals
+        , structs = StringDict.insert structs (var, i)
+        , structContents = StringDict.insert structContents (var, contents)
+        }
 
-    fun find (Ctx {vals, structs}) (kind, var) =
+    fun singletonVal (var, i) = insertVal empty (var, i)
+    fun singletonStruct (var, i, contents) = insertStruct empty (var, i, contents)
+
+    fun find (Ctx {vals, structs, structContents}) (kind, var) =
       case kind of
         Val => StringDict.find vals var
       | Struct => StringDict.find structs var
@@ -335,7 +352,7 @@ struct
               val tok = MaybeLongToken.getToken id
               val (acc, i) = Acc.newBinding acc tok
             in
-              (acc, Ctx.singleton (Ctx.Val, Token.toString tok, i))
+              (acc, Ctx.singletonVal (Token.toString tok, i))
             end
 
       | List {elems, ...} =>
@@ -365,7 +382,7 @@ struct
       | Layered {id, pat=p, ...} =>
           let
             val (acc, i) = Acc.newBinding acc id
-            val new1 = Ctx.singleton (Ctx.Val, Token.toString id, i)
+            val new1 = Ctx.singletonVal (Token.toString id, i)
             val (acc, new2) = pat ((acc, ctx), p)
           in
             (acc, Ctx.union (new1, new2))
@@ -381,7 +398,7 @@ struct
               | LabAsPat {id, ty=tty, aspat} =>
                   let
                     val (acc, i) = Acc.newBinding acc id
-                    val new1 = Ctx.singleton (Ctx.Val, Token.toString id, i)
+                    val new1 = Ctx.singletonVal (Token.toString id, i)
 
                     val (acc, new2) =
                       case aspat of
@@ -540,7 +557,7 @@ struct
                 val tok = name fname_args
                 val (acc, i) = Acc.newBinding acc tok
               in
-                (acc, Ctx.insert ctx (Ctx.Val, Token.toString tok, i))
+                (acc, Ctx.insertVal ctx (Token.toString tok, i))
               end
 
             val (acc, newNames) =
@@ -677,8 +694,9 @@ struct
         let
           fun mutualstruct ((acc, ctx), {strid, strexp=se, constraint, ...}) =
             let
+              val contents = Ctx.empty (* TODO: get contents of struct *)
               val (acc, i) = Acc.newBinding acc strid
-              val new = Ctx.singleton (Ctx.Struct, Token.toString strid, i)
+              val new = Ctx.singletonStruct (Token.toString strid, i, contents)
             in
               (strexp ctx (acc, se), new)
             end
