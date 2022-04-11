@@ -163,8 +163,9 @@ struct
     val singletonStruct: string * int * ctx -> ctx
     val insertStruct: ctx -> string * int * ctx -> ctx
 
-    (* TODO: allow for qualified lookups *)
     val find: ctx -> kind * string -> int option
+    val findQualified: ctx -> string Seq.t -> kind * string -> int option
+
     val union: ctx * ctx -> ctx
   end =
   struct
@@ -214,6 +215,20 @@ struct
       case kind of
         Val => StringDict.find vals var
       | Struct => StringDict.find structs var
+
+    fun findQualified (ctx as Ctx {vals, structs, structContents}) quals (kind, var) =
+      if Seq.length quals = 0 then
+        find ctx (kind, var)
+      else
+        let
+          val q = Seq.nth quals 0
+          val quals' = Seq.drop quals 1
+        in
+          case StringDict.find structContents q of
+            SOME c => findQualified c quals' (kind, var)
+          | NONE => NONE
+        end
+
   end
 
 
@@ -426,17 +441,28 @@ struct
         Ident {id, ...} =>
           if MaybeLongToken.isLong id then
             let
-              (** TODO: handle qualified bindings. (Right now, we only grab
-                * the outermost strid, which is unqualified.)
-                *)
               val tok = MaybeLongToken.getToken id
-              val s = valOf (Token.splitLongIdentifier tok)
-              val src = Seq.nth s 0
-              val selection = Selection.Qualifier {longIdentifier=tok, idx=0}
+              val pieces =
+                Seq.map Source.toString (valOf (Token.splitLongIdentifier tok))
+
+              fun loop (acc, idx) =
+                if idx >= Seq.length pieces then acc
+                else
+                  let
+                    val selection = Selection.Qualifier {longIdentifier=tok, idx=idx}
+                    val name = Seq.nth pieces idx
+                    val quals = Seq.take pieces idx
+                    val kind =
+                      if idx < Seq.length pieces - 1 then Ctx.Struct else Ctx.Val
+                    val acc =
+                      case Ctx.findQualified ctx quals (kind, name) of
+                        NONE => acc
+                      | SOME i => Acc.newUse acc (selection, i)
+                  in
+                    loop (acc, idx+1)
+                  end
             in
-              case Ctx.find ctx (Ctx.Struct, Source.toString src) of
-                NONE => acc
-              | SOME i => Acc.newUse acc (selection, i)
+              loop (acc, 0)
             end
           else
             let
@@ -638,26 +664,35 @@ struct
       Ast.Str.Ident id =>
         if MaybeLongToken.isLong id then
           let
-            (** TODO: handle qualified bindings. (Right now, we only grab
-              * the outermost strid, which is unqualified.)
-              *)
-            val tok = MaybeLongToken.getToken id
-            val s = valOf (Token.splitLongIdentifier tok)
-            val src = Seq.nth s 0
-            val selection = Selection.Qualifier {longIdentifier=tok, idx=0}
-          in
-            case Ctx.find ctx (Ctx.Struct, Source.toString src) of
-              NONE => acc
-            | SOME i => Acc.newUse acc (selection, i)
-          end
-        else
-          let
-            val tok = MaybeLongToken.getToken id
-          in
-            case Ctx.find ctx (Ctx.Struct, Token.toString tok) of
-              NONE => acc
-            | SOME i => Acc.newUse acc (Selection.WholeToken tok, i)
-          end
+              val tok = MaybeLongToken.getToken id
+              val pieces =
+                Seq.map Source.toString (valOf (Token.splitLongIdentifier tok))
+
+              fun loop (acc, idx) =
+                if idx >= Seq.length pieces then acc
+                else
+                  let
+                    val selection = Selection.Qualifier {longIdentifier=tok, idx=idx}
+                    val name = Seq.nth pieces idx
+                    val quals = Seq.take pieces idx
+                    val acc =
+                      case Ctx.findQualified ctx quals (Ctx.Struct, name) of
+                        NONE => acc
+                      | SOME i => Acc.newUse acc (selection, i)
+                  in
+                    loop (acc, idx+1)
+                  end
+            in
+              loop (acc, 0)
+            end
+          else
+            let
+              val tok = MaybeLongToken.getToken id
+            in
+              case Ctx.find ctx (Ctx.Struct, Token.toString tok) of
+                NONE => acc
+              | SOME i => Acc.newUse acc (Selection.WholeToken tok, i)
+            end
     | Ast.Str.Struct {structt, strdec=sd, endd} =>
         let
           val (acc, _) = strdec ((acc, ctx), sd)
@@ -684,6 +719,23 @@ struct
         end
 
 
+  (** similar to `strexp`, except that it also returns the contents of the
+    * structure, packaged as a thing of type `ctx`.
+    *)
+  and strexpEvalContents ((acc, ctx), se) =
+    case se of
+      Ast.Str.Struct {strdec=sd, ...} =>
+        strdec ((acc, ctx), sd)
+
+    (** TODO: more cases.
+      * We can always fail gracefully by producing empty contents.
+      * The result for the language server is that it doesn't have def/use
+      * info for the contents of these structs, but that's fine. We can
+      * iteratively improve.
+      *)
+    | _ => (strexp ctx (acc, se), Ctx.empty)
+
+
   and strdec ((acc, ctx), d) =
     case d of
       Ast.Str.DecMultiple {elems, ...} =>
@@ -694,11 +746,11 @@ struct
         let
           fun mutualstruct ((acc, ctx), {strid, strexp=se, constraint, ...}) =
             let
-              val contents = Ctx.empty (* TODO: get contents of struct *)
+              val (acc, contents) = strexpEvalContents ((acc, ctx), se)
               val (acc, i) = Acc.newBinding acc strid
               val new = Ctx.singletonStruct (Token.toString strid, i, contents)
             in
-              (strexp ctx (acc, se), new)
+              (acc, new)
             end
         in
           Seq.iterate (growCtx (withCtx ctx mutualstruct)) (acc, Ctx.empty) mutuals
