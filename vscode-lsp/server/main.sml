@@ -126,9 +126,9 @@ fun mainLoop state =
 
     val state =
       case msg of
-        Message.Initialize {id, ...} =>
+        Message.Initialize {id, workspaceFolders, ...} =>
           ( print (serializeMessage (initialResponse (Message.Id.toJson id)))
-          ; state
+          ; ServerState.initialize state {workspaceFolders=workspaceFolders}
           )
 
       | Message.Initialized =>

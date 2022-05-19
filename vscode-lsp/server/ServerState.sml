@@ -1,4 +1,27 @@
-structure ServerState =
+structure ServerState:
+sig
+  type t
+  type state = t
+
+  val initialState: state
+
+  val get: state -> URI.t -> Source.t
+
+  val initialize:
+    state
+    -> {workspaceFolders: {name: string, uri: URI.t} list option}
+    -> state
+
+  val textDocumentDidOpen:
+    state
+    -> {uri: URI.t, text: string}
+    -> state
+
+  val textDocumentDidChange:
+    state
+    -> {uri: URI.t, contentChanges: Message.ContentChange.t list}
+    -> state
+end =
 struct
 
   fun log str =
@@ -13,9 +36,26 @@ struct
   datatype t =
     T of
       { openFiles: Source.t URIDict.t  (* lexer output for now *)
+      , roots: {name: string, path: FilePath.t} list
       }
 
-  fun textDocumentDidOpen (T {openFiles}) {uri, text} =
+  type state = t
+
+  fun initialize (s as T {openFiles, roots}) {workspaceFolders} =
+    case workspaceFolders of
+      NONE => s
+    | SOME folders =>
+        T { openFiles = openFiles
+          , roots =
+              List.map
+                (fn {name, uri} =>
+                  { name = name
+                  , path = FilePath.fromUnixPath (URI.path uri)
+                  })
+                folders
+          }
+
+  fun textDocumentDidOpen (T {openFiles, roots}) {uri, text} =
     let
       val filepath = FilePath.fromUnixPath (URI.path uri)
       val text = JsonUtil.unescape text
@@ -24,10 +64,12 @@ struct
       val source = Source.fromData (filepath, contents)
     in
       log ("loaded file " ^ FilePath.toUnixPath filepath);
-      T {openFiles = URIDict.insert openFiles (uri, source)}
+      T { openFiles = URIDict.insert openFiles (uri, source)
+        , roots = roots
+        }
     end
 
-  fun textDocumentDidChange (T {openFiles}) {uri, contentChanges} =
+  fun textDocumentDidChange (T {openFiles, roots}) {uri, contentChanges} =
     let
       fun loop changes source =
         case changes of
@@ -46,12 +88,17 @@ struct
 
       val newSource = loop contentChanges (URIDict.lookup openFiles uri)
     in
-      T {openFiles = URIDict.insert openFiles (uri, newSource)}
+      T { openFiles = URIDict.insert openFiles (uri, newSource)
+        , roots = roots
+        }
     end
 
-  val initialState = T {openFiles = URIDict.empty}
+  val initialState = T
+    { openFiles = URIDict.empty
+    , roots = []
+    }
 
-  fun get (T {openFiles}) uri =
+  fun get (T {openFiles, ...}) uri =
     URIDict.lookup openFiles uri
 
 end

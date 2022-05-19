@@ -51,7 +51,7 @@ struct
       , initializationOptions: Json.t option
       , capabilities: Json.t
       , trace: Json.t option
-      , workspaceFolders: Json.t list option
+      , workspaceFolders: {name: string, uri: URI.t} list option
       }
 
   | Initialized
@@ -124,6 +124,13 @@ struct
         { name = required string "name" x
         , version = optional string "version" x
         }
+
+      fun workspaceFolder x =
+        { name = required string "name" x
+        , uri = required (URI.fromString o string) "uri" x
+        }
+
+      val workspaceFolders = array (workspaceFolder o object)
     in
       Initialize
         { id = id
@@ -133,7 +140,7 @@ struct
         , initializationOptions = optional json "initializationOptions" params
         , capabilities = required json "capabilities" params
         , trace = optional json "trace" params
-        , workspaceFolders = optional (array json) "workspaceFolders" params
+        , workspaceFolders = optional workspaceFolders "workspaceFolders" params
         }
     end
 
@@ -311,9 +318,19 @@ struct
   fun toString msg =
     case msg of
       Other obj => "OTHER(" ^ Json.toString (Json.OBJECT obj) ^ ")"
-    | Initialize {id, capabilities, ...} =>
+    | Initialize {id, capabilities, workspaceFolders, ...} =>
         "Initialize(id = " ^ Id.toString id
-        ^ ", ..., capabilities = " ^ Json.toString capabilities ^ ")"
+        ^ ", ..., capabilities = " ^ Json.toString capabilities
+        ^ (case workspaceFolders of
+            NONE => ""
+          | SOME folders =>
+              ", workspaceFolders = ["
+              ^ String.concatWith "," (List.map
+                  (fn {name, uri} =>
+                    "{name = \"" ^ name ^ "\", uri = \"" ^ URI.toString uri ^ "\"}")
+                  folders)
+              ^ "]")
+        ^ ")"
     | Initialized =>
         "Initialized()"
     | TextDocumentDidOpen {uri, languageId, version, text} =>
