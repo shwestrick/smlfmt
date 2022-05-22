@@ -5,6 +5,8 @@ sig
 
   val initialState: state
 
+  val roots: state -> {name: string, path: FilePath.t} list
+
   val get: state -> URI.t -> Source.t
 
   val initialize:
@@ -40,6 +42,8 @@ struct
       }
 
   type state = t
+
+  fun roots (T {roots=r, ...}) = r
 
   fun initialize (s as T {openFiles, roots}) {workspaceFolders} =
     case workspaceFolders of

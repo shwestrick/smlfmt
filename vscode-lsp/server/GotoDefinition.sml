@@ -119,8 +119,20 @@ struct
       ])
 
 
+  fun dumpMLBs (root as {name, path}) =
+    let
+      val allMLBs = FindAllMLB.find {root = path}
+    in
+      log ("all MLBs within " ^ name ^ " (" ^ FilePath.toHostPath path ^ "): "
+        ^ Seq.toString FilePath.toHostPath allMLBs)
+    end
+
+
   fun makeResponse serverState {id, uri, position} =
     let
+      val roots = ServerState.roots serverState
+      val _ = List.app dumpMLBs roots
+
       val contents = ServerState.get serverState uri
       val tokens = Token.regroup
         (Seq.filter (not o Token.isWhitespace) (Lexer.tokens contents))

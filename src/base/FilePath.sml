@@ -27,6 +27,8 @@ sig
 
   val fromUnixPath: string -> filepath
   val toUnixPath: filepath -> string
+
+  val fromHostPath: string -> filepath
   val toHostPath: filepath -> string
 
   val isAbsolute: filepath -> bool
@@ -92,4 +94,7 @@ struct
 
   fun toHostPath path =
     OS.Path.fromUnixPath (toUnixPath path)
+
+  fun fromHostPath pathstr =
+    fromUnixPath (OS.Path.toUnixPath pathstr)
 end

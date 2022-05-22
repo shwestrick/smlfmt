@@ -6,6 +6,7 @@ $(SML_LIB)/basis/mlton.mlb
 ../../src/lex/sources.mlb
 ../../src/parse/sources.mlb
 ../../src/syntax-highlighting/sources.mlb
+FindAllMLB.sml
 JsonUtil.sml
 Message.sml
 ServerState.sml
