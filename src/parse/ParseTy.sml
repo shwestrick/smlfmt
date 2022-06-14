@@ -46,7 +46,7 @@ struct
             else if isReserved Token.OpenParen i then
               let
                 val leftParen = tok i
-                val (i, ty) = parse_tyWithRestriction {permitArrows=true} (i+1)
+                val (i, ty) = parse_tyWithRestriction {permitArrows=true, permitTuple=true} (i+1)
               in
                 parse_tyParensOrSequence leftParen [ty] [] i
               end
@@ -78,7 +78,7 @@ struct
         *   ty longtycon    -- type constructor
         *   ty * ...        -- tuple
         *)
-      and parse_afterTy (restriction as {permitArrows: bool}) ty i =
+      and parse_afterTy (restriction as {permitArrows: bool, permitTuple: bool}) ty i =
         let
           val (again, (i, ty)) =
             if check Token.isMaybeLongTyCon i then
@@ -92,7 +92,7 @@ struct
               )
             else if permitArrows andalso isReserved Token.Arrow i then
               (true, parse_tyArrow ty (i+1))
-            else if check Token.isStar i then
+            else if permitTuple andalso check Token.isStar i then
               (true, parse_tyTuple [ty] [] (i+1))
             else
               (false, (i, ty))
@@ -113,7 +113,7 @@ struct
             let
               val (i, lab) = parse_recordLabel i
               val (i, colon) = parse_reserved Token.Colon i
-              val (i, ty) = parse_tyWithRestriction {permitArrows = true} i
+              val (i, ty) = parse_tyWithRestriction {permitArrows = true, permitTuple = true} i
             in
               ( i
               , { lab = lab
@@ -150,7 +150,7 @@ struct
       and parse_tyArrow fromTy i =
         let
           val arrow = tok (i-1)
-          val (i, toTy) = parse_tyWithRestriction {permitArrows=true} i
+          val (i, toTy) = parse_tyWithRestriction {permitArrows=true,permitTuple=true} i
         in
           ( i
           , Ast.Ty.Arrow
@@ -168,7 +168,7 @@ struct
       and parse_tyTuple tys delims i =
         let
           val star = tok (i-1)
-          val (i, ty) = parse_tyWithRestriction {permitArrows=false} i
+          val (i, ty) = parse_tyWithRestriction {permitArrows=false, permitTuple=false} i
           val tys = ty :: tys
           val delims = star :: delims
         in
@@ -196,7 +196,8 @@ struct
         else if isReserved Token.Comma i then
           let
             val comma = tok i
-            val (i, ty) = parse_tyWithRestriction {permitArrows=true} (i+1)
+            val (i, ty) =
+              parse_tyWithRestriction {permitArrows=true, permitTuple=true} (i+1)
           in
             parse_tyParensOrSequence leftParen (ty :: tys) (comma :: delims) i
           end
@@ -252,7 +253,7 @@ struct
         end
 
     in
-      parse_tyWithRestriction {permitArrows=true} start
+      parse_tyWithRestriction {permitArrows=true, permitTuple=true} start
     end
 
 
