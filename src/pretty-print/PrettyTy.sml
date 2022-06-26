@@ -54,17 +54,17 @@ struct
           end
       | Arrow {from = left, arrow, to = right} =>
           let
-            fun show_arrow ldoc arrow r =
+            fun show_arrow l arrow r =
               case (r, right) of
                 (Arrow {from = l', arrow = arrow', to = r'}, _) =>
-                  ldoc
-                  $$ (token arrow +$+ show_arrow (showTy l') arrow' r')
+                  showTy l
+                  $$ ((spaces 2 ++ token arrow) +$+ show_arrow l' arrow' r')
               | (_, Arrow _) =>
-                  ldoc
-                  $$ (token arrow ++ space ++ showTy r)
-              | _ => ldoc ++ space ++ token arrow ++ space ++ showTy r
+                  showTy l
+                  $$ (spaces 2 ++ token arrow ++ space ++ showTy r)
+              | _ => showTy l ++ space ++ token arrow ++ space ++ showTy r
           in
-            group (show_arrow (spaces 3 ++ showTy left) arrow right)
+            group (show_arrow left arrow right)
           end
     end
 
