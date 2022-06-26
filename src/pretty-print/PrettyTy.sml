@@ -12,10 +12,13 @@ struct
   open TokenDoc
   open PrettyUtil
 
-  infix 2 ++ $$ //
+  infix 2 ++ $$ // +/+ +$+
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
+
+  fun x +/+ y = besideAndAbove (x, y)
+  fun x +$+ y = besideAndAboveOrSpace (x, y)
 
   fun showTy ty =
     let
@@ -49,8 +52,20 @@ struct
           in
             sequence left delims right (Seq.map showElem elems)
           end
-      | Arrow {from, arrow, to} =>
-          showTy from ++ space ++ token arrow ++ space ++ showTy to
+      | Arrow {from = left, arrow, to = right} =>
+          let
+            fun show_arrow l arrow r =
+              case (r, right) of
+                (Arrow {from = l', arrow = arrow', to = r'}, _) =>
+                  showTy l
+                  $$ ((spaces 2 ++ token arrow) +$+ show_arrow l' arrow' r')
+              | (_, Arrow _) =>
+                  showTy l
+                  $$ (spaces 2 ++ token arrow ++ space ++ showTy r)
+              | _ => showTy l ++ space ++ token arrow ++ space ++ showTy r
+          in
+            group (show_arrow left arrow right)
+          end
     end
 
 end
