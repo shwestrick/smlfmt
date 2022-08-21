@@ -1,4 +1,6 @@
-lib/sources.mlb
+../lib/github.com/mpllang/mpllib/sources.mlton.mlb
+
+TerminalColors.sml
 
 TextFormat.sml
 FilePath.sml

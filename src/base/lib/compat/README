@@ -1,3 +1,0 @@
-These definitions provide the "primitives" for each different compiler we
-might use. For each top-level config/XXX option, there should be a XXX.mlb
-here.
