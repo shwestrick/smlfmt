@@ -1,0 +1,3 @@
+require {
+  github.com/mpllang/mpllib 0.3.0 #e013a3ddd9e972949c3e48a5327c656a92066028
+}
