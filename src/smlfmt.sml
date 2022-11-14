@@ -79,6 +79,21 @@ fun handleLexOrParseError exn =
   end
 
 
+fun exnToString exn =
+  let
+    val header = "UNHANDLED EXCEPTION: " ^ exnMessage exn
+    val stackTrace =
+      if List.null (MLton.Exn.history exn) then
+        ""
+      else
+        "\nSTACK TRACE:\n" ^
+        List.foldl op^ ""
+          (List.map (fn s => "  " ^ s ^ "\n") (MLton.Exn.history exn))
+  in
+    header ^ stackTrace
+  end
+
+
 fun doSMLAst (fp, ast) =
   let
     val hfp = FilePath.toHostPath fp
@@ -132,8 +147,7 @@ fun doSMLAst (fp, ast) =
       confirm ()
   end
   handle exn =>
-    TCS.printErr (boldc Palette.red ("ERROR: " ^ exnMessage exn ^ "\n"))
-
+    TCS.printErr (boldc Palette.red (exnToString exn ^ "\n"))
 
 
 fun doSML filepath =
