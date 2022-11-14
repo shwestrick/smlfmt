@@ -81,6 +81,21 @@ struct
     end
 
 
+  (* returns SOME (left, token, right) if `<left> <token> <right>` can be
+   * viewed as an infix expression.
+   *)
+  fun tryViewAsInfix exp =
+    let
+      open Ast.Exp
+    in
+      case exp of
+        Infix {left, id, right} => SOME (left, id, right)
+      | Orelse {left, orelsee, right} => SOME (left, orelsee, right)
+      | Andalso {left, andalsoo, right} => SOME (left, andalsoo, right)
+      | _ => NONE
+    end
+
+
   fun showDecFun {funn, tyvars, fvalbind={elems, delims}} =
     let
       open Ast.Exp
@@ -360,31 +375,11 @@ struct
       | App {left, right} =>
           showExp left \\ showExp right
       | Infix {left, id, right} =>
-          let
-            fun showInfix (Infix {left=l', id=i', right=r'}) i r =
-                        (showInfix l' i' r')
-                        $$ token i
-                        ++ space
-                        ++ showExp r
-              | showInfix l i r =
-                        (case left of
-                              Infix _ => showExp l
-                                         $$ token i
-                                         ++ space
-                                         ++ showExp r
-                            | _ => showExp l
-                                   ++ space
-                                   ++ token i
-                                   ++ space
-                                   ++ showExp r
-                        )
-          in
-            showInfix left id right
-          end
+          showInfixedExp (left, id, right)
       | Andalso {left, andalsoo, right} =>
-          showExp left ++ space ++ token andalsoo ++ space ++ showExp right
+          showInfixedExp (left, andalsoo, right)
       | Orelse {left, orelsee, right} =>
-          showExp left ++ space ++ token orelsee ++ space ++ showExp right
+          showInfixedExp (left, orelsee, right)
       | Typed {exp, colon, ty} =>
           showExp exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
@@ -515,6 +510,59 @@ struct
       | MLtonSpecific {underscore, directive, contents, semicolon} =>
           token underscore ++ token directive
           ++ space ++ seqWithSpaces contents token ++ token semicolon
+    end
+
+  
+  (* TODO: This is still not quite right *)
+  and showInfixedExp (l, t, r) =
+    let
+      open Ast.Exp
+
+      fun tryLeft () =
+        case tryViewAsInfix l of
+          NONE => NONE
+        | SOME (ll, lt, lr) =>
+            if not (Token.same (t, lt)) then
+              NONE
+            else
+              SOME (group (
+                group (
+                  showInfixedExp (ll, lt, lr)
+                  $$ token t
+                )
+                +$+
+                showExp r
+              ))
+      
+      fun tryRight () =
+        case tryViewAsInfix r of
+          NONE => NONE
+        | SOME (rl, rt, rr) =>
+            if not (Token.same (t, rt)) then
+              NONE
+            else
+              SOME (group (
+                group (
+                  showExp l
+                  $$
+                  token t
+                )
+                +$+
+                showInfixedExp (rl, rt, rr)
+              ))
+
+      fun normal () =
+        group (group (showExp l $$ token t) +$+ showExp r)
+    in
+      case tryLeft () of
+        SOME x => x
+      | NONE =>
+
+      case tryRight () of
+        SOME x => x
+      | NONE =>
+
+      normal ()
     end
 
 end
