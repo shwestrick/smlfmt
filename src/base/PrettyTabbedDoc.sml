@@ -277,7 +277,7 @@ struct
               | Tab.ActivatedIndented i =>
                   addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
               | _ =>
-                  raise Fail "PrettyTabbedDoc.pretty: bad tab"
+                  raise Fail "PrettyTabbedDoc.pretty.layout.Break: bad tab"
             end
 
         | NewTab {tab, doc} =>
@@ -286,31 +286,39 @@ struct
                 case Tab.getState tab of
                   Tab.Fresh =>
                     ( Tab.setState tab Tab.Flattened
-                    ; SOME (lnStart, col, acc)
+                    ; (true, (lnStart, col, acc))
                     )
                 | Tab.Flattened =>
                     ( Tab.setState tab (Tab.ActivatedInPlace col)
-                    ; SOME (lnStart, col, acc)
+                    ; (true, (lnStart, col, acc))
                     )
                 | Tab.ActivatedInPlace _ =>
                     if col = lnStart then
                       ( Tab.setState tab (Tab.ActivatedIndented lnStart)
-                      ; SOME (lnStart, col, acc)
+                      ; (true, (lnStart, col, acc))
                       )
                     else
                       let
                         val i = lnStart + indentWidth
                       in
                         Tab.setState tab (Tab.ActivatedIndented i);
-                        SOME (i, i, Spaces i :: Newline :: acc)
+                        (true, (i, i, Spaces i :: Newline :: acc))
                       end
-                | _ => NONE
+                | Tab.ActivatedIndented i =>
+                    ( false
+                    , if col = lnStart then
+                        (lnStart, col, acc)
+                      else
+                        (i, i, Spaces i :: Newline :: acc)
+                    )
+                | _ =>
+                    raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.tryPromote: bad tab"
 
               fun doit () =
                 case tryPromote () of
-                  NONE =>
+                  (false, (lnStart, col, acc)) =>
                     layout (addDebugOutput tab (false, lnStart, col, acc)) doc
-                | SOME (lnStart, col, acc) => 
+                | (true, (lnStart, col, acc)) => 
                     (layout (addDebugOutput tab (true, lnStart, col, acc)) doc
                      handle DoPromote => 
                        ( ()

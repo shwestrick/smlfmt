@@ -28,7 +28,42 @@ struct
   fun showExp e = newTab (fn tab => showExpAt tab e)
   and showDec d = newTab (fn tab => showDecAt tab d)
 
-  and showExpAt _ _ = text "<exp>"
+  and showExpAt tab exp =
+    let
+      open Ast.Exp
+    in
+      case exp of
+        Const tok =>
+          token tok
+      | Unit {left, right} =>
+          token left ++ token right
+      | Ident {opp, id} =>
+          separateWithSpaces
+            [ Option.map token opp
+            , SOME (token (MaybeLongToken.getToken id))
+            ]
+      | Parens {left, exp, right} =>
+          token left ++ showExp exp ++ token right
+      | Tuple {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showExp elems)
+      | Sequence {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showExp elems)
+      | List {left, elems, delims, right} =>
+          sequence left delims right (Seq.map showExp elems)
+      | Record {left, elems, delims, right} =>
+          let
+            fun showRow {lab, eq, exp} =
+              token lab ++ space ++ token eq ++ showExp exp
+          in
+            sequence left delims right (Seq.map showRow elems)
+          end
+      | Select {hash, label} =>
+          token hash ++ space ++ token label
+      | App {left, right} =>
+          showExp left ++ space ++ showExp right
+
+      | _ => text "<exp>"
+    end
 
   and showDecAt tab dec =
     let

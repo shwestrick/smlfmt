@@ -19,7 +19,7 @@ sig
   val break: 'a tab -> 'a doc
   val breakspace: 'a tab -> 'a doc
 
-  val toStringDoc: TabbedStringDoc.tab doc -> TabbedStringDoc.t
+  val toStringDoc: {tabWidth: int} -> TabbedStringDoc.tab doc -> TabbedStringDoc.t
 end =
 struct
 
@@ -54,23 +54,91 @@ struct
       NewTab {tab=t, doc=d}
     end
 
+  
+  (* ====================================================================== *)
 
-  fun toStringDoc doc =
+  structure TCS = TerminalColorString
+  structure D = TabbedStringDoc
+
+  fun tokenToStringDoc tabWidth tok =
+    let
+      val src = Token.getSource tok
+
+      (** effective offset of the beginning of this token within its line,
+        * counting tab-widths appropriately.
+        *)
+      val effectiveOffset =
+        let
+          val {col, line=lineNum} = Source.absoluteStart src
+          val len = col-1
+          val charsBeforeOnSameLine =
+            Source.take (Source.wholeLine src lineNum) len
+          fun loop effOff i =
+            if i >= len then effOff
+            else if #"\t" = Source.nth charsBeforeOnSameLine i then
+              (* advance up to next tabstop *)
+              loop (effOff + tabWidth - effOff mod tabWidth) (i+1)
+            else
+              loop (effOff+1) (i+1)
+        in
+          loop 0 0
+        end
+
+      fun strip line =
+        let
+          val (_, ln) =
+            TCS.stripEffectiveWhitespace
+              {tabWidth=tabWidth, removeAtMost=effectiveOffset}
+              line
+        in
+          ln
+        end
+
+      val t = SyntaxHighlighter.highlightToken tok
+
+      val pieces =
+        Seq.map
+          (fn (i, j) => D.text (strip (TCS.substring (t, i, j-i))))
+          (Source.lineRanges src)
+    in
+      if Seq.length pieces = 1 then
+        (false, D.text t)
+      else
+        ( true
+        , D.newTab (fn tab =>
+            Seq.iterate
+              D.concat (Seq.nth pieces 0)
+              (Seq.map (fn x => D.concat (D.break tab, x))
+                (Seq.drop pieces 1)))
+        )
+    end
+
+
+  (* ====================================================================== *)
+
+
+  fun toStringDoc (args as {tabWidth}) doc =
     case doc of
-      Empty => TabbedStringDoc.empty
-    | Space => TabbedStringDoc.space
-    | Concat (d1, d2) => TabbedStringDoc.concat (toStringDoc d1, toStringDoc d2)
-    | Text str => TabbedStringDoc.text (TerminalColorString.fromString str)
-    | Token tok => TabbedStringDoc.text (SyntaxHighlighter.highlightToken tok)
+      Empty => D.empty
+    | Space => D.space
+    | Concat (d1, d2) => D.concat (toStringDoc args d1, toStringDoc args d2)
+    | Text str => D.text (TerminalColorString.fromString str)
+    | Token tok =>
+        let
+          val (shouldBeRigid, doc) = tokenToStringDoc tabWidth tok
+        in
+          (* TODO: rigidity (don't allow flattening) *)
+          doc
+        end
     | Break {keepSpace, tab} =>
         if keepSpace then
-          TabbedStringDoc.breakspace (Option.valOf (!tab))
+          D.breakspace (Option.valOf (!tab))
         else
-          TabbedStringDoc.break (Option.valOf (!tab))
+          D.break (Option.valOf (!tab))
     | NewTab {tab, doc} =>
-        TabbedStringDoc.newTab (fn tab' =>
+        D.newTab (fn tab' =>
           ( tab := SOME tab'
-          ; toStringDoc doc
+          ; toStringDoc args doc
           ))
 
 end
