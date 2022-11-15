@@ -61,6 +61,17 @@ struct
           token hash ++ space ++ token label
       | App {left, right} =>
           showExp left ++ space ++ showExp right
+      | Typed {exp, colon, ty} =>
+          showExp exp ++ space ++ token colon ++ space ++ showTy ty
+      | IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
+          let
+          in
+            token iff ++ space ++ showExp exp1
+            ++ breakspace tab ++ token thenn ++ space
+            ++ showExp exp2
+            ++ breakspace tab ++ token elsee ++ space
+            ++ showExp exp3
+          end
 
       | _ => text "<exp>"
     end

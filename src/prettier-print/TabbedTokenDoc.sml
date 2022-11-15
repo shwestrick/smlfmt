@@ -18,6 +18,7 @@ sig
   val newTab: ('a tab -> 'a doc) -> 'a doc
   val break: 'a tab -> 'a doc
   val breakspace: 'a tab -> 'a doc
+  val spaceIfNotFlat: 'a tab -> 'a doc
 
   val toStringDoc: {tabWidth: int} -> TabbedStringDoc.tab doc -> TabbedStringDoc.t
 end =
@@ -29,6 +30,7 @@ struct
   datatype 'a doc =
     Empty
   | Space
+  | SpaceIfNotFlat of 'a tab
   | Concat of 'a doc * 'a doc
   | Token of Token.t
   | Text of string
@@ -42,6 +44,7 @@ struct
   val token = Token
   val text = Text
   val concat = Concat
+  val spaceIfNotFlat = SpaceIfNotFlat
 
   fun break t = Break {keepSpace=false, tab=t}
   fun breakspace t = Break {keepSpace=true, tab=t}
@@ -121,6 +124,7 @@ struct
     case doc of
       Empty => D.empty
     | Space => D.space
+    | SpaceIfNotFlat tab => D.spaceIfNotFlat (Option.valOf (!tab))
     | Concat (d1, d2) => D.concat (toStringDoc args d1, toStringDoc args d2)
     | Text str => D.text (TerminalColorString.fromString str)
     | Token tok =>

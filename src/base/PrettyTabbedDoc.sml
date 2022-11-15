@@ -31,6 +31,7 @@ sig
                           * activated? Needs a constraint though, that
                           * the unactivated version is "smaller"
                           *)
+  val spaceIfNotFlat: tab -> doc
 
   (* "under the hood" version of newTab. On input (t, d), requires that tab t
    * is used in d and nowhere else. *)
@@ -98,6 +99,7 @@ struct
   datatype doc =
     Empty
   | Space
+  | SpaceIfNotFlat of tab
   | Concat of doc * doc
   | Text of CustomString.t
   | Break of {keepSpace: bool, tab: tab}
@@ -111,6 +113,7 @@ struct
   val break = Break
   fun break t = Break {keepSpace=false, tab=t}
   fun breakspace t = Break {keepSpace=true, tab=t}
+  val spaceIfNotFlat = SpaceIfNotFlat
   (* fun newTab' (t, d) = NewTab {tab=t, doc=d} *)
 
   fun concat (d1, d2) =
@@ -258,6 +261,15 @@ struct
         | Space =>
             check (ap, lnStart, col + 1, Spaces 1 :: acc)
 
+        | SpaceIfNotFlat tab =>
+            let in
+              case Tab.getState tab of
+                Tab.Flattened =>
+                  (ap, lnStart, col, acc)
+              | _ =>
+                  check (ap, lnStart, col + 1, Spaces 1 :: acc)
+            end
+
         | Text s =>
             check (ap, lnStart, col + CustomString.size s, Stuff s :: acc)
 
@@ -293,7 +305,7 @@ struct
                     ; (true, (lnStart, col, acc))
                     )
                 | Tab.ActivatedInPlace _ =>
-                    if col = lnStart then
+                    if col <= lnStart + indentWidth then
                       ( Tab.setState tab (Tab.ActivatedIndented lnStart)
                       ; (true, (lnStart, col, acc))
                       )
@@ -306,7 +318,7 @@ struct
                       end
                 | Tab.ActivatedIndented i =>
                     ( false
-                    , if col = lnStart then
+                    , if col <= lnStart + indentWidth then
                         (lnStart, col, acc)
                       else
                         (i, i, Spaces i :: Newline :: acc)
