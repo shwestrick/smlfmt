@@ -1,0 +1,2 @@
+structure TabbedStringDoc =
+  PrettyTabbedDoc(TerminalColorString)

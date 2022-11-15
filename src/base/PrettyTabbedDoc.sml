@@ -31,6 +31,10 @@ sig
                           * the unactivated version is "smaller"
                           *)
 
+  (* "under the hood" version of newTab. On input (t, d), requires that tab t
+   * is used in d and nowhere else. *)
+  (* val newTab': tab * doc -> doc *)
+
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int}
            -> doc
            -> CustomString.t
@@ -72,6 +76,7 @@ struct
   val space = Space
   val text = Text
   val break = Break
+  (* fun newTab' (t, d) = NewTab {tab=t, doc=d} *)
 
   fun concat (d1, d2) =
     case (d1, d2) of

@@ -22,6 +22,9 @@ val optionalArgDesc =
 \  [-indent-width I]      use <I> spaces for indentation in output\n\
 \                         (default 2)\n\
 \  [-mlb-path-var 'K V']  MLton-style path variable\n\
+\  [-engine E]            Select a pretty printing engine.\n\
+\                         Valid options are: prettier, pretty\n\
+\                         (default 'prettier')\n\
 \  [--help]               print this message\n"
 
 fun usage () =
@@ -35,6 +38,7 @@ val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
 val maxWidth = CommandLineArgs.parseInt "max-width" 80
 val tabWidth = CommandLineArgs.parseInt "tab-width" 4
 val indentWidth = CommandLineArgs.parseInt "indent-width" 2
+val engine = CommandLineArgs.parseString "engine" "prettier"
 val inputfiles = CommandLineArgs.positional ()
 
 val doForce = CommandLineArgs.parseFlag "force"
@@ -57,6 +61,19 @@ val _ =
     ; OS.Process.exit OS.Process.failure
     )
   else ()
+
+
+val prettyPrinter =
+  case engine of
+    "prettier" => PrettierPrintAst.pretty
+  | "pretty" => PrettyPrintAst.pretty
+  | other =>
+      ( TCS.printErr (boldc Palette.red
+          ("ERROR: unknown engine '"
+           ^ other
+           ^ "'; valid options are: prettier, pretty\n"))
+      ; OS.Process.exit OS.Process.failure
+      )
 
 
 val pathmap = MLtonPathMap.getPathMap ()
@@ -99,7 +116,7 @@ fun doSMLAst (fp, ast) =
     val hfp = FilePath.toHostPath fp
 
     val prettied =
-      (PrettyPrintAst.pretty
+      (prettyPrinter
         { ribbonFrac = ribbonFrac
         , maxWidth = maxWidth
         , tabWidth = tabWidth
