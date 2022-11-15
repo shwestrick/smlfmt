@@ -36,7 +36,7 @@ sig
    * is used in d and nowhere else. *)
   (* val newTab': tab * doc -> doc *)
 
-  val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int}
+  val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int, debug: bool}
            -> doc
            -> CustomString.t
 
@@ -52,15 +52,48 @@ struct
    *           -----------------> (horizontal compaction)
    *)
 
-  datatype tabstate =
-    Fresh
-  | Flattened
-  | ActivatedInPlace of int
-  | ActivatedIndented of int
-  | Completed
 
-  type tab = tabstate ref
 
+  structure Tab =
+  struct
+    datatype state =
+      Fresh
+    | Flattened
+    | ActivatedInPlace of int
+    | ActivatedIndented of int
+    | Completed
+
+    datatype tab = Tab of state ref * int
+    type t = tab
+
+    val tabCounter = ref 0
+
+    fun make () =
+      let
+        val c = !tabCounter
+      in
+        tabCounter := c+1;
+        Tab (ref Fresh, c)
+      end
+
+    fun getState (Tab (r, _)) = !r
+    fun setState (Tab (r, _)) x = r := x
+
+    fun infoString (Tab (r, c)) =
+      let
+        val info =
+          case !r of
+            Flattened => "f"
+          | ActivatedInPlace _ => "p"
+          | ActivatedIndented _ => "i"
+          | _ => "?"
+      in
+        "[" ^ Int.toString c ^ info ^ "]"
+      end
+
+  end
+
+  type tab = Tab.t
 
   datatype doc =
     Empty
@@ -71,7 +104,6 @@ struct
   | NewTab of {tab: tab, doc: doc(*, flatsize: int*)}
 
   type t = doc
-
 
   val empty = Empty
   val space = Space
@@ -101,7 +133,7 @@ struct
   
   fun newTab genDocUsingTab =
     let
-      val t = ref Fresh
+      val t = Tab.make ()
       val d = genDocUsingTab t
     in
       NewTab {tab = t, doc = d(*, flatsize = flatsize d*)}
@@ -159,7 +191,7 @@ struct
   exception DoPromote
 
 
-  fun pretty {ribbonFrac, maxWidth, indentWidth} doc =
+  fun pretty {ribbonFrac, maxWidth, indentWidth, debug} doc =
     let
       val ribbonWidth =
         Int.max (0, Int.min (maxWidth,
@@ -170,7 +202,7 @@ struct
 
       val allTabs = allTabsInDoc doc
       val _ =
-        if List.all (fn t => !t = Fresh) allTabs then ()
+        if List.all (fn t => Tab.getState t = Tab.Fresh) allTabs then ()
         else raise Fail "PrettyTabbedDoc.pretty: bug: non-fresh input tab"
 
       (* inside promotable tab?, line start, current col, accumulator *)
@@ -184,7 +216,29 @@ struct
           if (not ap) orelse (widthOkay andalso ribbonOkay) then
             (ap, lnStart, col, acc)
           else
-            raise DoPromote
+            ( ()
+            ; if not debug then ()
+              else if not widthOkay then
+                print ("PrettyTabbedDoc.debug: width violated: lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
+              else if not ribbonOkay then
+                print ("PrettyTabbedDoc.debug: ribbon violated: lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
+              else
+                print ("PrettyTabbedDoc.debug: unknown violation?? lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
+            ; raise DoPromote
+            )
+        end
+
+
+      fun addDebugOutput tab (ap, lnStart, col, acc) =
+        let
+          val acc' =
+            if not debug then
+              acc
+            else
+              Stuff (CustomString.fromString (Tab.infoString tab))
+              :: acc
+        in
+          (ap, lnStart, col, acc')
         end
 
       
@@ -211,68 +265,79 @@ struct
             layout (layout (ap, lnStart, col, acc) doc1) doc2
 
         | Break {keepSpace, tab} =>
-            (case !tab of
-              Flattened =>
-                if not keepSpace then
-                  (ap, lnStart, col, acc)
-                else
-                  check (ap, lnStart, col+1, Spaces 1 :: acc)
-            | ActivatedInPlace i =>
-                check (ap, i, i, Spaces i :: Newline :: acc)
-            | ActivatedIndented i =>
-                check (ap, i, i, Spaces i :: Newline :: acc)
-            | _ =>
-                raise Fail "PrettyTabbedDoc.pretty: bad tab")
+            let in
+              case Tab.getState tab of
+                Tab.Flattened =>
+                  if not keepSpace then
+                    addDebugOutput tab (ap, lnStart, col, acc)
+                  else
+                    addDebugOutput tab (check (ap, lnStart, col+1, Spaces 1 :: acc))
+              | Tab.ActivatedInPlace i =>
+                  addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
+              | Tab.ActivatedIndented i =>
+                  addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
+              | _ =>
+                  raise Fail "PrettyTabbedDoc.pretty: bad tab"
+            end
 
         | NewTab {tab, doc} =>
             let
               fun tryPromote () =
-                case !tab of
-                  Flattened =>
-                    ( tab := ActivatedInPlace col
+                case Tab.getState tab of
+                  Tab.Fresh =>
+                    ( Tab.setState tab Tab.Flattened
                     ; SOME (lnStart, col, acc)
                     )
-                | ActivatedInPlace _ =>
+                | Tab.Flattened =>
+                    ( Tab.setState tab (Tab.ActivatedInPlace col)
+                    ; SOME (lnStart, col, acc)
+                    )
+                | Tab.ActivatedInPlace _ =>
                     if col = lnStart then
-                      ( tab := ActivatedIndented lnStart
+                      ( Tab.setState tab (Tab.ActivatedIndented lnStart)
                       ; SOME (lnStart, col, acc)
                       )
                     else
                       let
                         val i = lnStart + indentWidth
                       in
-                        tab := ActivatedIndented i;
+                        Tab.setState tab (Tab.ActivatedIndented i);
                         SOME (i, i, Spaces i :: Newline :: acc)
                       end
-                | Fresh =>
-                    raise Fail "PrettyTabbedDoc.pretty.NewTab.tryPromote: bug: fresh"
                 | _ => NONE
 
               fun doit () =
                 case tryPromote () of
                   NONE =>
-                    layout (false, lnStart, col, acc) doc
+                    layout (addDebugOutput tab (false, lnStart, col, acc)) doc
                 | SOME (lnStart, col, acc) => 
-                    (layout (true, lnStart, col, acc) doc
-                     handle DoPromote => doit ())
+                    (layout (addDebugOutput tab (true, lnStart, col, acc)) doc
+                     handle DoPromote => 
+                       ( ()
+                       ; if not debug then () else
+                         print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
+                       ; doit ()
+                       ))
 
-              val _ = tab := Flattened
+              val _ = Tab.setState tab Tab.Fresh
 
-              val result : layout_state =
+              val (_, lnStart', col', acc') : layout_state =
                 if ap then
-                  layout (ap, lnStart, col, acc) doc
+                  ( Tab.setState tab Tab.Flattened
+                  ; layout (addDebugOutput tab (ap, lnStart, col, acc)) doc
+                  )
                 else
                   doit ()
             in
-              tab := Completed;
-              result
+              Tab.setState tab Tab.Completed;
+              (ap, lnStart', col', acc')
             end
 
 
       val (_, _, _, items) = layout (false, 0, 0, []) doc
 
       (* reset tabs (so that if we call `pretty` again, it will work...) *)
-      val _ = List.app (fn tab => tab := Fresh) allTabs
+      val _ = List.app (fn tab => Tab.setState tab Tab.Fresh) allTabs
 
       val items = revAndStripTrailingWhitespace items
 
@@ -286,6 +351,6 @@ struct
     end
 
 
-  val toString = pretty {ribbonFrac = 0.5, maxWidth = 80, indentWidth = 2}
+  val toString = pretty {ribbonFrac = 0.5, maxWidth = 80, indentWidth = 2, debug = false}
 
 end

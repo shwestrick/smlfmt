@@ -23,15 +23,67 @@ struct
   fun showTy ty = PrettierTy.showTy ty
   fun showPat pat = PrettierPat.showPat pat
   fun showExp exp = PrettierExpAndDec.showExp exp
-  fun showDec dec = PrettierExpAndDec.showDec dec
+  fun showDecAt tab dec = PrettierExpAndDec.showDecAt tab dec
   fun showSpec spec = PrettierSig.showSpec spec
   fun showSigExp sigexp = PrettierSig.showSigExp sigexp
   fun showSigExpAt tab sigexp = PrettierSig.showSigExpAt tab sigexp
   fun showSigDec sigdec = PrettierSig.showSigDec sigdec
 
 
-  fun showStrExp _ = text "<strexp>"
-  and showStrExpAt tab _ = text "<strexp>"
+  fun showStrExp e = newTab (fn tab => showStrExpAt tab e)
+
+  and showStrExpAt tab e =
+    let
+      open Ast.Str
+    in
+      case e of
+        Ident id =>
+          token (MaybeLongToken.getToken id)
+
+      | Struct {structt, strdec, endd} =>
+          token structt ++ showStrDec strdec ++ token endd
+(*
+
+      | Constraint {strexp, colon, sigexp} =>
+          showStrExp strexp
+          ++ space ++ token colon
+          \\ showSigExp sigexp
+
+      | FunAppExp {funid, lparen, strexp, rparen} =>
+          token funid
+          \\ token lparen ++ showStrExp strexp ++ token rparen
+
+      | FunAppDec {funid, lparen, strdec, rparen} =>
+          token funid
+          \\ token lparen ++ showStrDec strdec ++ token rparen
+
+      | LetInEnd {lett, strdec, inn, strexp, endd} =>
+          let
+            val topPart =
+              token lett
+              $$
+              indent (showStrDec strdec)
+              $$
+              token inn
+
+            val topPart =
+              if isMultipleDecs strdec then
+                topPart
+              else
+                group topPart
+          in
+            group (
+              topPart
+              $$
+              indent (group (showStrExp strexp))
+              $$
+              token endd
+            )
+          end
+*)
+      | _ => text "<strexp>"
+
+    end
 
   and showStrDec d = newTab (fn tab => showStrDecAt tab d)
 
@@ -44,7 +96,7 @@ struct
           empty
 
       | DecCore d =>
-          showDec d
+          showDecAt tab d
 
       | DecStructure {structuree, elems, delims} =>
           let
@@ -74,7 +126,7 @@ struct
       | DecMultiple {elems, delims} =>
           let
             fun f i =
-              showStrDecAt tab (Seq.nth elems i)
+              showStrDec (Seq.nth elems i)
               ++
               (case Seq.nth delims i of
                 NONE => empty

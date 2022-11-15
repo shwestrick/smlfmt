@@ -3,6 +3,9 @@ SOURCES = $(wildcard src/*.sml) $(wildcard src/*.mlb) $(wildcard src/**/*.sml) $
 smlfmt: $(SOURCES)
 	mlton -output smlfmt src/smlfmt.mlb
 
+smlfmt.dbg: $(SOURCES)
+	mlton -const 'Exn.keepHistory true' -output smlfmt.dbg src/smlfmt.mlb
+
 demo: $(SOURCES)
 	mlton -output demo src/demo.mlb
 

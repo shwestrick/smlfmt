@@ -5,7 +5,7 @@
 
 structure PrettyPrintAst:
 sig
-  val pretty: {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int}
+  val pretty: {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int, debug: bool}
            -> Ast.t
            -> TerminalColorString.t
 end =
@@ -58,7 +58,7 @@ struct
       end
 
 
-  fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent}) ast =
+  fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
     let
       val doc = showAst ast
       val doc = TokenDoc.insertComments doc

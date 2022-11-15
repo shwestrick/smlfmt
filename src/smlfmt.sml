@@ -25,6 +25,7 @@ val optionalArgDesc =
 \  [-engine E]            Select a pretty printing engine.\n\
 \                         Valid options are: prettier, pretty\n\
 \                         (default 'prettier')\n\
+\  [--debug-engine]       Enable debugging output (for devs)\n\
 \  [--help]               print this message\n"
 
 fun usage () =
@@ -41,6 +42,7 @@ val indentWidth = CommandLineArgs.parseInt "indent-width" 2
 val engine = CommandLineArgs.parseString "engine" "prettier"
 val inputfiles = CommandLineArgs.positional ()
 
+val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
 val preview = CommandLineArgs.parseFlag "preview"
@@ -121,6 +123,7 @@ fun doSMLAst (fp, ast) =
         , maxWidth = maxWidth
         , tabWidth = tabWidth
         , indent = indentWidth
+        , debug = doDebug
         }
         ast)
 

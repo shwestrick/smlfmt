@@ -5,7 +5,7 @@
 
 structure PrettierPrintAst:
 sig
-  val pretty: {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int}
+  val pretty: {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int, debug: bool}
            -> Ast.t
            -> TerminalColorString.t
 end =
@@ -38,9 +38,9 @@ struct
           let
             val td =
               case topdec of
-                Ast.StrDec d => showStrDecAt tab d
-              | Ast.SigDec d => showSigDecAt tab d
-              | Ast.FunDec d => showFunDecAt tab d
+                Ast.StrDec d => showStrDec d
+              | Ast.SigDec d => showSigDec d
+              | Ast.FunDec d => showFunDec d
             val sc =
               case semicolon of
                 NONE => empty
@@ -60,14 +60,14 @@ struct
       end
 
 
-  fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent}) ast =
+  fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
     let
       val doc = showAst ast
       (* val doc = TokenDoc.insertComments doc
       val doc = TokenDoc.insertBlankLines doc *)
     in
       TabbedStringDoc.pretty
-        {ribbonFrac=ribbonFrac, maxWidth=maxWidth, indentWidth=indent}
+        {ribbonFrac=ribbonFrac, maxWidth=maxWidth, indentWidth=indent, debug=debug}
         (toStringDoc doc)
     end
 
