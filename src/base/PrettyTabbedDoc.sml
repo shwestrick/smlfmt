@@ -233,12 +233,17 @@ struct
                     ; SOME (lnStart, col, acc)
                     )
                 | ActivatedInPlace _ =>
-                    let
-                      val i = lnStart + indentWidth
-                    in
-                      tab := ActivatedIndented i;
-                      SOME (i, i, Spaces i :: Newline :: acc)
-                    end
+                    if col = lnStart then
+                      ( tab := ActivatedIndented lnStart
+                      ; SOME (lnStart, col, acc)
+                      )
+                    else
+                      let
+                        val i = lnStart + indentWidth
+                      in
+                        tab := ActivatedIndented i;
+                        SOME (i, i, Spaces i :: Newline :: acc)
+                      end
                 | Fresh =>
                     raise Fail "PrettyTabbedDoc.pretty.NewTab.tryPromote: bug: fresh"
                 | _ => NONE
