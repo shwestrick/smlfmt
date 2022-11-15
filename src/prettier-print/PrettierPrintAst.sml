@@ -22,22 +22,25 @@ struct
   fun showSpec spec = PrettierSig.showSpec spec
   fun showSigExp sigexp = PrettierSig.showSigExp sigexp
   fun showSigDec sigdec = PrettierSig.showSigDec sigdec
+  fun showSigDecAt tab strdec = PrettierSig.showSigDecAt tab strdec
   fun showStrExp strexp = PrettierStr.showStrExp strexp
   fun showStrDec strdec = PrettierStr.showStrDec strdec
+  fun showStrDecAt tab strdec = PrettierStr.showStrDecAt tab strdec
   fun showFunDec fundec = PrettierFun.showFunDec fundec
+  fun showFunDecAt tab strdec = PrettierFun.showFunDecAt tab strdec
 
   fun showAst (Ast.Ast tds) =
     if Seq.length tds = 0 then
       empty
     else
       let
-        fun showOne tab {topdec, semicolon} =
+        fun showOneAt tab {topdec, semicolon} =
           let
             val td =
               case topdec of
-                Ast.StrDec d => break tab ++ showStrDec d
-              | Ast.SigDec d => break tab ++ showSigDec d
-              | Ast.FunDec d => break tab ++ showFunDec d
+                Ast.StrDec d => showStrDecAt tab d
+              | Ast.SigDec d => showSigDecAt tab d
+              | Ast.FunDec d => showFunDecAt tab d
             val sc =
               case semicolon of
                 NONE => empty
@@ -49,9 +52,10 @@ struct
       in
         newTab (fn tab =>
           let
-            val all = Seq.map (showOne tab) tds
+            val all = Seq.map (showOneAt tab) tds
           in
-            Seq.iterate op++ (Seq.nth all 0) (Seq.drop all 1)
+            Seq.iterate op++ (Seq.nth all 0)
+              (Seq.map (fn x => break tab ++ x) (Seq.drop all 1))
           end)
       end
 

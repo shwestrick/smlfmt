@@ -17,6 +17,7 @@ sig
   type 'a tab
   val newTab: ('a tab -> 'a doc) -> 'a doc
   val break: 'a tab -> 'a doc
+  val breakspace: 'a tab -> 'a doc
 
   val toStringDoc: TabbedStringDoc.tab doc -> TabbedStringDoc.t
 end =
@@ -31,7 +32,7 @@ struct
   | Concat of 'a doc * 'a doc
   | Token of Token.t
   | Text of string
-  | Break of 'a tab
+  | Break of {keepSpace: bool, tab: 'a tab}
   | NewTab of {tab: 'a tab, doc: 'a doc}
 
   type 'a t = 'a doc
@@ -41,7 +42,9 @@ struct
   val token = Token
   val text = Text
   val concat = Concat
-  val break = Break
+
+  fun break t = Break {keepSpace=false, tab=t}
+  fun breakspace t = Break {keepSpace=true, tab=t}
 
   fun newTab (genDocUsingTab: 'a tab -> 'a doc) =
     let
@@ -59,7 +62,11 @@ struct
     | Concat (d1, d2) => TabbedStringDoc.concat (toStringDoc d1, toStringDoc d2)
     | Text str => TabbedStringDoc.text (TerminalColorString.fromString str)
     | Token tok => TabbedStringDoc.text (SyntaxHighlighter.highlightToken tok)
-    | Break tab => TabbedStringDoc.break (Option.valOf (!tab))
+    | Break {keepSpace, tab} =>
+        if keepSpace then
+          TabbedStringDoc.breakspace (Option.valOf (!tab))
+        else
+          TabbedStringDoc.break (Option.valOf (!tab))
     | NewTab {tab, doc} =>
         TabbedStringDoc.newTab (fn tab' =>
           ( tab := SOME tab'

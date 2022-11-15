@@ -25,6 +25,7 @@ sig
 
   type tab
   val newTab: (tab -> doc) -> doc
+  val breakspace: tab -> doc
   val break: tab -> doc  (* TODO: might need more general version which
                           * optionally inserts something if the tab is/isn't
                           * activated? Needs a constraint though, that
@@ -66,7 +67,7 @@ struct
   | Space
   | Concat of doc * doc
   | Text of CustomString.t
-  | Break of tab
+  | Break of {keepSpace: bool, tab: tab}
   | NewTab of {tab: tab, doc: doc(*, flatsize: int*)}
 
   type t = doc
@@ -76,6 +77,8 @@ struct
   val space = Space
   val text = Text
   val break = Break
+  fun break t = Break {keepSpace=false, tab=t}
+  fun breakspace t = Break {keepSpace=true, tab=t}
   (* fun newTab' (t, d) = NewTab {tab=t, doc=d} *)
 
   fun concat (d1, d2) =
@@ -207,10 +210,13 @@ struct
         | Concat (doc1, doc2) =>
             layout (layout (ap, lnStart, col, acc) doc1) doc2
 
-        | Break tab =>
+        | Break {keepSpace, tab} =>
             (case !tab of
               Flattened =>
-                (ap, lnStart, col, acc)
+                if not keepSpace then
+                  (ap, lnStart, col, acc)
+                else
+                  check (ap, lnStart, col+1, Spaces 1 :: acc)
             | ActivatedInPlace i =>
                 check (ap, i, i, Spaces i :: Newline :: acc)
             | ActivatedIndented i =>
