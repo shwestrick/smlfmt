@@ -29,6 +29,18 @@ struct
   fun showSigExpAt tab sigexp = PrettierSig.showSigExpAt tab sigexp
   fun showSigDec sigdec = PrettierSig.showSigDec sigdec
 
+  (* ====================================================================== *)
+
+  fun strExpWantsSameTabAsDec e =
+    let
+      open Ast.Str
+    in
+      case e of
+        Ident _ => false
+      | _ => true
+    end
+  
+  (* ====================================================================== *)
 
   fun showStrExp e = newTab (fn tab => showStrExpAt tab e)
 
@@ -38,7 +50,7 @@ struct
     in
       case e of
         Ident id =>
-          token (MaybeLongToken.getToken id)
+          newTab (fn _ => token (MaybeLongToken.getToken id))
 
       | Struct {structt, strdec, endd} =>
           token structt ++ showStrDec strdec ++ token endd
@@ -113,7 +125,7 @@ struct
                 ]
               ++ showConstraint constraint
               ++ space ++ token eq
-              ++ breakspace tab
+              ++ (if strExpWantsSameTabAsDec strexp then breakspace tab else space)
               ++ showStrExpAt tab strexp
           in
             Seq.iterate op++ 
@@ -126,7 +138,7 @@ struct
       | DecMultiple {elems, delims} =>
           let
             fun f i =
-              showStrDec (Seq.nth elems i)
+              showStrDecAt tab (Seq.nth elems i)
               ++
               (case Seq.nth delims i of
                 NONE => empty

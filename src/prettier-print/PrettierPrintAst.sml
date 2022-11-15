@@ -29,6 +29,8 @@ struct
   fun showFunDec fundec = PrettierFun.showFunDec fundec
   fun showFunDecAt tab strdec = PrettierFun.showFunDecAt tab strdec
 
+  (* ====================================================================== *)
+
   fun showAst (Ast.Ast tds) =
     if Seq.length tds = 0 then
       empty
@@ -38,9 +40,9 @@ struct
           let
             val td =
               case topdec of
-                Ast.StrDec d => showStrDec d
-              | Ast.SigDec d => showSigDec d
-              | Ast.FunDec d => showFunDec d
+                Ast.StrDec d => showStrDecAt tab d
+              | Ast.SigDec d => showSigDecAt tab d
+              | Ast.FunDec d => showFunDecAt tab d
             val sc =
               case semicolon of
                 NONE => empty
