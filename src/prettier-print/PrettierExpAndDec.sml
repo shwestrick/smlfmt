@@ -25,6 +25,14 @@ struct
 
   (* ====================================================================== *)
 
+  (* fun findChain acc exp =
+    case exp of
+      IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
+        findChain ({iff=iff, exp1=exp1, thenn=thenn, exp2=exp2, elsee=elsee} :: acc) exp3
+    | _ => (Seq.fromRevList acc, exp) *)
+
+  (* ====================================================================== *)
+
   fun showExp e = newTab (fn tab => showExpAt tab e)
   and showDec d = newTab (fn tab => showDecAt tab d)
 
@@ -60,18 +68,21 @@ struct
       | Select {hash, label} =>
           token hash ++ space ++ token label
       | App {left, right} =>
-          showExp left ++ space ++ showExp right
+          showExpAt tab left ++ space ++ showExp right
       | Typed {exp, colon, ty} =>
           showExp exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
-          let
-          in
-            token iff ++ space ++ showExp exp1
-            ++ breakspace tab ++ token thenn ++ space
-            ++ showExp exp2
-            ++ breakspace tab ++ token elsee ++ space
-            ++ showExp exp3
-          end
+          token iff ++ space
+          ++ newTab (fn tab' =>
+              showExpAt tab' exp1
+              ++ cond tab' {flat=space, notflat = break tab}
+              ++ token thenn)
+          ++ space
+          ++ showExp exp2
+          ++ breakspace tab ++ token elsee ++ space
+          ++ (case exp3 of
+                IfThenElse _ => showExpAt tab exp3
+              | _ => showExp exp3)
 
       | _ => text "<exp>"
     end
