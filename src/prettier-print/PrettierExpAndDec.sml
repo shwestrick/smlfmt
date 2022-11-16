@@ -74,8 +74,9 @@ struct
           end
       | Select {hash, label} =>
           token hash ++ space ++ token label
-      | App _ =>
-          let
+      | App {left, right} =>
+          showExpAt tab left ++ space ++ showExp right
+          (*let
             val (funcExp, args) = appChain [] exp
             fun withBreak tab (a, b) = a ++ breakspace tab ++ b
           in
@@ -85,7 +86,7 @@ struct
                 (withBreak inner)
                 (showExpAt inner (Seq.nth args 0))
                 (Seq.drop (Seq.map (showExpAt inner) args) 1))
-          end
+          end*)
       | Typed {exp, colon, ty} =>
           showExp exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse _ (*{iff, exp1, thenn, exp2, elsee, exp3}*) =>
