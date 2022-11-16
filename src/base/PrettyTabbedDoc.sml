@@ -18,6 +18,8 @@ sig
   type doc
   type t = doc
 
+  exception InvalidDoc
+
   val empty: doc
   val space: doc
   val text: CustomString.t -> doc
@@ -26,6 +28,8 @@ sig
   type tab
   val newTab: (tab -> doc) -> doc
   val break: tab -> doc
+
+  (* Requires flat doc has no breaks; raises InvalidDoc otherwise *)
   val cond: tab -> {flat: doc, notflat: doc} -> doc
 
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int, debug: bool}
@@ -45,6 +49,7 @@ struct
    *)
 
 
+  (* ====================================================================== *)
 
   structure Tab =
   struct
@@ -68,8 +73,25 @@ struct
         Tab (ref Fresh, c)
       end
 
+    fun eq (Tab (_, c1), Tab (_, c2)) =
+      c1 = c2
+
     fun getState (Tab (r, _)) = !r
     fun setState (Tab (r, _)) x = r := x
+
+    fun isActivated (Tab (r, _)) =
+      case !r of
+        ActivatedInPlace _ => true
+      | ActivatedIndented _ => true
+      | Flattened => false
+      | _ => raise Fail "PrettyTabbedDoc.Tab.isActivated: bad tab"
+
+    fun isPromotable (Tab (r, _)) =
+      case !r of
+        Flattened => true
+      | ActivatedInPlace _ => true
+      | ActivatedIndented _ => false
+      | _ => raise Fail "PrettyTabbedDoc.Tab.isPromotable: bad tab"
 
     fun infoString (Tab (r, c)) =
       let
@@ -84,6 +106,10 @@ struct
       end
 
   end
+
+  (* ====================================================================== *)
+
+  exception InvalidDoc
 
   type tab = Tab.t
 
@@ -103,7 +129,23 @@ struct
   val text = Text
   val break = Break
 
-  fun cond tab {flat, notflat} = Cond {tab=tab, flat=flat, notflat=notflat}
+  fun hasNoBreaks doc =
+    case doc of
+      Break _ => false
+    | Concat (d1, d2) => hasNoBreaks d1 andalso hasNoBreaks d2
+    | NewTab {doc=d, ...} => hasNoBreaks d
+    | Cond {flat, notflat, ...} =>
+        (* TODO: check: can omit `hasNoBreaks flat`, because previous `cond`
+         * will have checked this.
+         *)
+        hasNoBreaks flat andalso hasNoBreaks notflat
+    | _ => true
+
+  fun cond tab {flat, notflat} =
+    if hasNoBreaks flat then
+      Cond {tab=tab, flat=flat, notflat=notflat}
+    else
+      raise InvalidDoc
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -119,6 +161,70 @@ struct
       NewTab {tab = t, doc = d}
     end
 
+  (* ====================================================================== *)
+
+
+  fun ifActivatedHasAtLeastOneBreak tab doc =
+    case doc of
+      Empty => false
+    | Space => false
+    | Concat (d1, d2) =>
+        ifActivatedHasAtLeastOneBreak tab d1
+        orelse ifActivatedHasAtLeastOneBreak tab d2
+    | Text _ => false
+    | Break tab' => Tab.eq (tab, tab')
+    | NewTab {doc=d, ...} => ifActivatedHasAtLeastOneBreak tab d
+    | Cond {notflat, ...} =>
+        ifActivatedHasAtLeastOneBreak tab notflat
+        
+
+  fun allOuterBreaksActivated tab doc =
+    let
+      fun isInList xs x =
+        List.exists (fn y => Tab.eq (x, y)) xs
+
+      fun loop innerTabs doc =
+        case doc of
+          Empty => true
+        | Space => true
+        | Concat (d1, d2) =>
+            loop innerTabs d1
+            andalso loop innerTabs d2
+        | Text _ => true
+        | Break tab' => isInList innerTabs tab' orelse Tab.isActivated tab'
+        | NewTab {tab=tab', doc=d, ...} => loop (tab' :: innerTabs) d
+        | Cond {notflat, ...} => loop innerTabs notflat
+    in
+      loop [tab] doc
+    end
+  
+
+  (* A tab can be activated if
+   *   (1) it has at least one break, and
+   *   (2) every ancestor break within scope is activated
+   *
+   * This function should only be called on a NewTab{tab,doc}
+   *)
+  fun tabCanBeActivated debug tab doc =
+    let
+      val x = ifActivatedHasAtLeastOneBreak tab doc
+      val y = allOuterBreaksActivated tab doc
+      val result = x andalso y
+      
+      val _ =
+        if not debug then ()
+        else if result then
+          print ("PrettyTabbedDoc.debug: tab " ^ Tab.infoString tab ^ " can be activated\n")
+        else 
+          print ("PrettyTabbedDoc.debug: tab "
+            ^ Tab.infoString tab
+            ^ " CANNOT be activated: "
+            ^ (if x then "has breaks" else "no breaks") ^ "; "
+            ^ (if y then "all outer activated" else "outer inactive")
+            ^ "\n")
+    in
+      result
+    end
   
   (* ====================================================================== *)
 
@@ -185,6 +291,9 @@ struct
       val _ =
         if List.all (fn t => Tab.getState t = Tab.Fresh) allTabs then ()
         else raise Fail "PrettyTabbedDoc.pretty: bug: non-fresh input tab"
+
+      (* initially, all tabs inactive *)
+      val _ = List.app (fn t => Tab.setState t Tab.Flattened) allTabs
 
       (* inside promotable tab?, line start, current col, accumulator *)
       type layout_state = bool * int * int * (item list)
@@ -271,11 +380,7 @@ struct
             let
               fun tryPromote () =
                 case Tab.getState tab of
-                  Tab.Fresh =>
-                    ( Tab.setState tab Tab.Flattened
-                    ; (true, (lnStart, col, acc))
-                    )
-                | Tab.Flattened =>
+                  Tab.Flattened =>
                     ( Tab.setState tab (Tab.ActivatedInPlace col)
                     ; (true, (lnStart, col, acc))
                     )
@@ -301,30 +406,39 @@ struct
                 | _ =>
                     raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.tryPromote: bad tab"
 
-              fun doit () =
-                case tryPromote () of
-                  (false, (lnStart, col, acc)) =>
-                    layout (addDebugOutput tab (false, lnStart, col, acc)) doc
-                | (true, (lnStart, col, acc)) => 
-                    (layout (addDebugOutput tab (true, lnStart, col, acc)) doc
-                     handle DoPromote => 
-                       ( ()
-                       ; if not debug then () else
-                         print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
-                       ; doit ()
-                       ))
-
-              val _ = Tab.setState tab Tab.Fresh
+              fun doit (lnStart, col, acc) =
+                ( ()
+                ; if not debug then () else
+                  print ("PrettyTabbedDoc.debug: attempting promotable " ^ Tab.infoString tab ^ "\n")
+                ; (layout (addDebugOutput tab (true, lnStart, col, acc)) doc
+                    handle DoPromote => 
+                    let
+                      val _ = 
+                        if not debug then () else
+                        print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
+                      
+                      val (success, (lnStart', col', acc')) = tryPromote ()
+                    in
+                      if not success then
+                        layout (addDebugOutput tab (false, lnStart', col', acc')) doc
+                      else
+                        doit (lnStart', col', acc')
+                    end)
+                )
+            
+              val _ = Tab.setState tab Tab.Flattened
 
               val (_, lnStart', col', acc') : layout_state =
-                if ap then
-                  ( Tab.setState tab Tab.Flattened
-                  ; layout (addDebugOutput tab (ap, lnStart, col, acc)) doc
-                  )
+                if ap orelse not (tabCanBeActivated debug tab doc) then
+                  layout (addDebugOutput tab (ap, lnStart, col, acc)) doc
                 else
-                  doit ()
+                  doit (lnStart, col, acc)
             in
+              if not debug then () else
+              print ("PrettyTabbedDoc.debug: finishing " ^ Tab.infoString tab ^ "\n");
+
               Tab.setState tab Tab.Completed;
+
               (ap, lnStart', col', acc')
             end
 
