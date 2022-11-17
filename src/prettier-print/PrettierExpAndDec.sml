@@ -60,17 +60,17 @@ struct
       | Parens {left, exp, right} =>
           token left ++ showExp exp ++ token right
       | Tuple {left, elems, delims, right} =>
-          sequence left delims right (Seq.map showExp elems)
+          sequenceAt tab left delims right (Seq.map showExp elems)
       | Sequence {left, elems, delims, right} =>
-          sequence left delims right (Seq.map showExp elems)
+          sequenceAt tab left delims right (Seq.map showExp elems)
       | List {left, elems, delims, right} =>
-          sequence left delims right (Seq.map showExp elems)
+          sequenceAt tab left delims right (Seq.map showExp elems)
       | Record {left, elems, delims, right} =>
           let
             fun showRow {lab, eq, exp} =
               token lab ++ space ++ token eq ++ showExp exp
           in
-            sequence left delims right (Seq.map showRow elems)
+            sequenceAt tab left delims right (Seq.map showRow elems)
           end
       | Select {hash, label} =>
           token hash ++ space ++ token label
@@ -95,25 +95,31 @@ struct
     end
 
 
-  and showIfThenElseAt tab exp =
+  and showIfThenElseAt outerTab exp =
     let
       open Ast.Exp
-      
-      (* val (chain, last) = ifThenElseChain [] exp *)
+      val (chain, last) = ifThenElseChain [] exp
+
+      fun f innerTab i =
+        let
+          val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain i
+        in
+          space ++ token iff
+          ++ space ++ showExp exp1
+          ++ space ++ token thenn
+          ++ breakspace innerTab ++ showExpAt innerTab exp2
+          ++ breakspace outerTab ++ token elsee
+        end
+
+      val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain 0
     in
-      case exp of IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
-      (* if Seq.length chain = 1 then *)
-        token iff ++ space
-        ++ newTab (fn tab' =>
-            showExpAt tab' exp1
-            ++ cond tab' {flat=space, notflat = break tab}
-            ++ token thenn)
-        ++ space
-        ++ showExp exp2
-        ++ breakspace tab ++ token elsee ++ space
-        ++ (case exp3 of IfThenElse _ => showExpAt tab exp3 | _ => showExp exp3)
-      
-      | _ => raise Fail "PrettierExpAndDec.showIfThenElseAt: not IfThenElse"
+      token iff ++ space ++ showExp exp1 ++ space ++ token thenn ++ space
+      ++ newTab (fn innerTab =>
+        showExpAt innerTab exp2
+        ++ breakspace outerTab ++ token elsee
+        ++ Util.loop (1, Seq.length chain) empty (fn (d, i) => d ++ f innerTab i)
+        ++ breakspace innerTab
+        ++ showExpAt innerTab last)
     end
 
 

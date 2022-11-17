@@ -27,20 +27,22 @@ struct
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
-  fun sequence openn delims close (xs: 'a doc Seq.t) =
+  fun sequenceAt tab openn delims close (xs: 'a doc Seq.t) =
     if Seq.length xs = 0 then
       token openn ++ token close
     else
       let
-        fun top tab = token openn ++ (spaceIfNotFlat tab) ++ Seq.nth xs 0
-        fun f tab (delim, x) = break tab ++ token delim ++ space ++ x
+        val top = token openn ++ (spaceIfNotFlat tab) ++ Seq.nth xs 0
+        fun f (delim, x) = break tab ++ token delim ++ space ++ x
       in
-        newTab (fn tab =>
-          Seq.iterate op++ (top tab) (Seq.map (f tab) (Seq.zip (delims, Seq.drop xs 1)))
-          ++
-          break tab ++ token close
-        )
+        Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
+        ++
+        break tab ++ token close
       end
+
+  
+  fun sequence openn delims close (xs: 'a doc Seq.t) =
+    newTab (fn tab => sequenceAt tab openn delims close xs)
 
 
   fun separateWithSpaces (items: 'a doc option list) : 'a doc =
