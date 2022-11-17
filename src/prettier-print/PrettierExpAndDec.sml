@@ -91,7 +91,31 @@ struct
           showExp exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse _ (*{iff, exp1, thenn, exp2, elsee, exp3}*) =>
           showIfThenElseAt tab exp
+      | LetInEnd xxx =>
+          showLetInEndAt tab xxx
       | _ => text "<exp>"
+    end
+
+  
+  (* Not quite right. Using the same tab for both the top and bottom
+   * can do weird things... *)
+  and showLetInEndAt outerTab {lett, dec, inn, exps, delims, endd} =
+    let
+      val numExps = Seq.length exps
+      fun d i = Seq.nth delims i
+      fun withDelims innerTab =
+        Seq.mapIdx (fn (i, e) =>
+          breakspace innerTab
+          ++ showExpAt innerTab e
+          ++ (if i = numExps - 1 then empty else token (d i)))
+        exps
+    in
+      token lett ++ space ++
+      newTab (fn innerTab =>
+        showDecAt innerTab dec
+        ++ breakspace outerTab ++ token inn
+        ++ Seq.iterate op++ empty (withDelims innerTab))
+      ++ breakspace outerTab ++ token endd
     end
 
 
