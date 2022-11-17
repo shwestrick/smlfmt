@@ -356,7 +356,10 @@ struct
                 Tab.Usable (Tab.Flattened, _) =>
                   addDebugOutput tab (ap, lnStart, col, acc)
               | Tab.Usable (Tab.Activated, Tab.LocInPlace i) =>
-                  addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
+                  if i < col then
+                    addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
+                  else
+                    addDebugOutput tab (check (ap, lnStart, i, Spaces (i-col) :: acc))
               | Tab.Usable (Tab.Activated, Tab.LocIndented i) =>
                   addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
               | _ =>

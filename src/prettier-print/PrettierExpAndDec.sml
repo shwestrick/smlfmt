@@ -97,8 +97,6 @@ struct
     end
 
   
-  (* Not quite right. Using the same tab for both the top and bottom
-   * can do weird things... *)
   and showLetInEndAt outerTab {lett, dec, inn, exps, delims, endd} =
     let
       val numExps = Seq.length exps
@@ -110,11 +108,9 @@ struct
           ++ (if i = numExps - 1 then empty else token (d i)))
         exps
     in
-      token lett ++ space ++
-      newTab (fn innerTab =>
-        showDecAt innerTab dec
-        ++ breakspace outerTab ++ token inn
-        ++ Seq.iterate op++ empty (withDelims innerTab))
+      token lett ++ space ++ showDec dec ++
+      breakspace outerTab ++ token inn ++
+      newTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
       ++ breakspace outerTab ++ token endd
     end
 
