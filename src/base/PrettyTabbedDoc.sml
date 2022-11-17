@@ -336,7 +336,7 @@ struct
        * Promotion is implemented by throwing an exception (DoPromote), which
        * is caught by the oldest ancestor.
        *)
-      fun layout ((ap, lnStart, col, acc): layout_state) doc : layout_state =
+      fun layout tabCtx ((ap, lnStart, col, acc): layout_state) doc : layout_state =
         case doc of
           Empty => 
             (ap, lnStart, col, acc)
@@ -348,7 +348,7 @@ struct
             check (ap, lnStart, col + CustomString.size s, Stuff s :: acc)
 
         | Concat (doc1, doc2) =>
-            layout (layout (ap, lnStart, col, acc) doc1) doc2
+            layout tabCtx (layout tabCtx (ap, lnStart, col, acc) doc1) doc2
 
         | Break tab =>
             let in
@@ -365,12 +365,21 @@ struct
 
         | Cond {tab, flat, notflat} =>
             if Tab.isActivated tab then
-              layout (ap, lnStart, col, acc) notflat
+              layout tabCtx (ap, lnStart, col, acc) notflat
             else
-              layout (ap, lnStart, col, acc) flat
+              layout tabCtx (ap, lnStart, col, acc) flat
 
         | NewTab {tab, doc} =>
             let
+              val parentTabCol =
+                case tabCtx of
+                  [] => 0
+                | parent :: _ =>
+                case Tab.getState parent of
+                  Tab.Usable (_, Tab.LocInPlace col) => col
+                | Tab.Usable (_, Tab.LocIndented col) => col
+                | _ => raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.parentTabCol: bad tab"
+
               fun tryPromote () =
                 (* try to activate first *)
                 if not (Tab.isActivated tab) andalso activationOkay debug tab doc then
@@ -380,20 +389,20 @@ struct
                 else (* next, try to relocate *)
                 case Tab.getState tab of
                   Tab.Usable (astate, Tab.LocInPlace _) =>
-                    if col <= lnStart + indentWidth then
-                      ( Tab.setState tab (Tab.Usable (astate, Tab.LocIndented lnStart))
+                    if col <= parentTabCol + indentWidth then
+                      ( Tab.setState tab (Tab.Usable (astate, Tab.LocIndented col))
                       ; (true, (lnStart, col, acc))
                       )
                     else
                       let
-                        val i = lnStart + indentWidth
+                        val i = parentTabCol + indentWidth
                       in
                         Tab.setState tab (Tab.Usable (astate, Tab.LocIndented i));
                         (true, (i, i, Spaces i :: Newline :: acc))
                       end
                 | Tab.Usable (astate, Tab.LocIndented i) =>
                     ( false
-                    , if col <= lnStart + indentWidth then
+                    , if col <= parentTabCol + indentWidth then
                         (lnStart, col, acc)
                       else
                         (i, i, Spaces i :: Newline :: acc)
@@ -405,7 +414,7 @@ struct
                 ( ()
                 ; if not debug then () else
                   print ("PrettyTabbedDoc.debug: attempting promotable " ^ Tab.infoString tab ^ "\n")
-                ; (layout (addDebugOutput tab (true, lnStart, col, acc)) doc
+                ; (layout (tab :: tabCtx) (addDebugOutput tab (true, lnStart, col, acc)) doc
                     handle DoPromote => 
                     let
                       val _ = 
@@ -415,7 +424,7 @@ struct
                       val (success, (lnStart', col', acc')) = tryPromote ()
                     in
                       if not success then
-                        layout (addDebugOutput tab (false, lnStart', col', acc')) doc
+                        layout (tab :: tabCtx) (addDebugOutput tab (false, lnStart', col', acc')) doc
                       else
                         doit (lnStart', col', acc')
                     end)
@@ -425,7 +434,7 @@ struct
 
               val (_, lnStart', col', acc') : layout_state =
                 if ap then
-                  layout (addDebugOutput tab (ap, lnStart, col, acc)) doc
+                  layout (tab :: tabCtx) (addDebugOutput tab (ap, lnStart, col, acc)) doc
                 else
                   doit (lnStart, col, acc)
             in
@@ -438,7 +447,7 @@ struct
             end
 
 
-      val (_, _, _, items) = layout (false, 0, 0, []) doc
+      val (_, _, _, items) = layout [] (false, 0, 0, []) doc
 
       (* reset tabs (so that if we call `pretty` again, it will work...) *)
       val _ = List.app (fn tab => Tab.setState tab Tab.Fresh) allTabs
