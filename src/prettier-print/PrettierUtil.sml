@@ -42,7 +42,7 @@ struct
 
   
   fun sequence openn delims close (xs: 'a doc Seq.t) =
-    newTab (fn tab => sequenceAt tab openn delims close xs)
+    newTab (fn tab => break tab ++ sequenceAt tab openn delims close xs)
 
 
   fun separateWithSpaces (items: 'a doc option list) : 'a doc =

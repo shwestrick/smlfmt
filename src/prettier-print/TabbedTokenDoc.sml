@@ -60,6 +60,11 @@ struct
       NewTab {tab=t, doc=d}
     end
 
+  (* ====================================================================== *)
+
+  (* TODO: Use this to automatically insert spaces, rather than inserting
+   * manually in this interface. *)
+  fun ensureSpacesBetweenTokens doc = raise Fail "not yet implemented"
   
   (* ====================================================================== *)
 
@@ -113,9 +118,9 @@ struct
         ( true
         , D.newTab (fn tab =>
             Seq.iterate
-              D.concat (Seq.nth pieces 0)
-              (Seq.map (fn x => D.concat (D.break tab, x))
-                (Seq.drop pieces 1)))
+              D.concat
+              D.empty
+              (Seq.map (fn x => D.concat (D.break tab, x)) pieces))
         )
     end
 

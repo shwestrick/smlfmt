@@ -40,8 +40,8 @@ struct
 
   (* ====================================================================== *)
 
-  fun showExp e = newTab (fn tab => showExpAt tab e)
-  and showDec d = newTab (fn tab => showDecAt tab d)
+  fun showExp e = newTab (fn tab => break tab ++ showExpAt tab e)
+  and showDec d = newTab (fn tab => break tab ++ showDecAt tab d)
 
   and showExpAt tab exp =
     let
@@ -148,6 +148,7 @@ struct
     in
       token iff ++ space ++
       newTab (fn innerTab1 =>
+        break innerTab1 ++ 
         showExpAt innerTab1 exp1 ++
         breakspace outerTab ++
         token thenn ++ space ++

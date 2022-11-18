@@ -42,7 +42,7 @@ struct
   
   (* ====================================================================== *)
 
-  fun showStrExp e = newTab (fn tab => showStrExpAt tab e)
+  fun showStrExp e = newTab (fn tab => break tab ++ showStrExpAt tab e)
 
   and showStrExpAt tab e =
     let
@@ -50,7 +50,7 @@ struct
     in
       case e of
         Ident id =>
-          newTab (fn _ => token (MaybeLongToken.getToken id))
+          newTab (fn tab => break tab ++ token (MaybeLongToken.getToken id))
 
       | Struct {structt, strdec, endd} =>
           token structt ++ showStrDec strdec ++ token endd
@@ -97,7 +97,7 @@ struct
 
     end
 
-  and showStrDec d = newTab (fn tab => showStrDecAt tab d)
+  and showStrDec d = newTab (fn tab => break tab ++ showStrDecAt tab d)
 
   and showStrDecAt tab d =
     let

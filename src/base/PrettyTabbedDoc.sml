@@ -53,11 +53,11 @@ struct
 
   structure Tab =
   struct
-    datatype activation_state = Flattened | Activated
-    datatype location_state = LocUnknown | LocInPlace of int | LocIndented of int
+    datatype activation_state = Flattened | Activated of int option
+    (* datatype location_state = LocUnknown | LocInPlace | LocIndented  *)
     datatype state =
       Fresh
-    | Usable of activation_state * location_state
+    | Usable of activation_state
     | Completed
 
     datatype tab = Tab of state ref * int
@@ -81,21 +81,17 @@ struct
 
     fun isActivated (Tab (r, _)) =
       case !r of
-        Usable (Activated, _) => true
-      | Usable (Flattened, _) => false
+        Usable (Activated _) => true
+      | Usable (Flattened) => false
       | _ => raise Fail "PrettyTabbedDoc.Tab.isActivated: bad tab"
 
     fun infoString (Tab (r, c)) =
       let
         val info =
           case !r of
-            Usable (a, l) =>
-              let
-                val aa = case a of Flattened => "f" | _ => "a"
-                val ll = case l of LocUnknown => "?" | LocInPlace _ => "p" | _ => "i"
-              in
-                aa ^ ll
-              end
+            Usable Flattened => "f"
+          | Usable (Activated NONE) => "a?"
+          | Usable (Activated (SOME _)) => "a"
           | _ => "x"
       in
         "[" ^ Int.toString c ^ info ^ "]"
@@ -201,7 +197,7 @@ struct
    *
    * This function should only be called on a NewTab{tab,doc}
    *)
-(*
+
   fun activationOkay debug tab doc =
     let
       val x = ifActivatedHasAtLeastOneBreak tab doc
@@ -222,11 +218,11 @@ struct
     in
       result
     end
-*)
 
 
-  fun activationOkay debug tab doc =
-    allOuterBreaksActivated tab doc
+
+  (* fun activationOkay debug tab doc =
+    allOuterBreaksActivated tab doc *)
   
   (* ====================================================================== *)
 
@@ -295,7 +291,7 @@ struct
         else raise Fail "PrettyTabbedDoc.pretty: bug: non-fresh input tab"
 
       (* initially, all tabs inactive, and their placement is unknown *)
-      val _ = List.app (fn t => Tab.setState t (Tab.Usable (Tab.Flattened, Tab.LocUnknown))) allTabs
+      val _ = List.app (fn t => Tab.setState t (Tab.Usable Tab.Flattened)) allTabs
 
       (* inside promotable tab?, line start, current col, accumulator *)
       type layout_state = bool * int * int * (item list)
@@ -359,77 +355,79 @@ struct
         | Break tab =>
             let in
               case Tab.getState tab of
-                Tab.Usable (Tab.Flattened, _) =>
+                Tab.Usable Tab.Flattened =>
                   addDebugOutput tab (ap, lnStart, col, acc)
-              | Tab.Usable (Tab.Activated, Tab.LocInPlace i) =>
+              | Tab.Usable (Tab.Activated NONE) =>
+                  ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
+                  ; addDebugOutput tab (ap, lnStart, col, acc)
+                  )
+              | Tab.Usable (Tab.Activated (SOME i)) =>
                   if i < col then
                     addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
                   else
                     addDebugOutput tab (check (ap, lnStart, i, Spaces (i-col) :: acc))
-              | Tab.Usable (Tab.Activated, Tab.LocIndented i) =>
-                  addDebugOutput tab (check (ap, i, i, Spaces i :: Newline :: acc))
               | _ =>
                   raise Fail "PrettyTabbedDoc.pretty.layout.Break: bad tab"
             end
 
         | Cond {tab, flat, notflat} =>
-            if Tab.isActivated tab then
-              layout tabCtx (ap, lnStart, col, acc) notflat
-            else
-              layout tabCtx (ap, lnStart, col, acc) flat
+            let in
+              case Tab.getState tab of
+                Tab.Usable (Tab.Activated NONE) =>
+                  raise Fail "PrettyTabbedDoc.pretty.layout.Cond: tab activated but not placed"
+              | Tab.Usable (Tab.Activated (SOME _)) =>
+                  layout tabCtx (ap, lnStart, col, acc) notflat
+              | Tab.Usable Tab.Flattened =>
+                  layout tabCtx (ap, lnStart, col, acc) flat
+              | _ =>
+                  raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
+            end
 
         | NewTab {tab, doc} =>
             let
-              val parentTabCol =
+              fun parentTabCol () =
                 case tabCtx of
                   [] => 0
                 | parent :: _ =>
                 case Tab.getState parent of
-                  Tab.Usable (_, Tab.LocInPlace col) => col
-                | Tab.Usable (_, Tab.LocIndented col) => col
-                | _ => raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.parentTabCol: bad tab"
+                  Tab.Usable (Tab.Activated (SOME i)) => i
+                | _ => raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.parentTabCol: bad tab"  
 
               fun tryPromote () =
                 (* try to activate first *)
                 if not (Tab.isActivated tab) then
                   if activationOkay debug tab doc then
-                    ( Tab.setState tab (Tab.Usable (Tab.Activated, Tab.LocInPlace col))
-                    ; (true, true, (lnStart, col, acc))
+                    ( Tab.setState tab (Tab.Usable (Tab.Activated NONE))
+                    ; (true, true)
                     )
                   else
-                    (false, false, (lnStart, col, acc))
+                    (false, false)
                 else (* if activated, try to relocate *)
                 case Tab.getState tab of
-                  Tab.Usable (astate, Tab.LocInPlace _) =>
-                    if col <= parentTabCol + indentWidth then
-                      ( Tab.setState tab (Tab.Usable (astate, Tab.LocIndented col))
-                      ; (false, true, (lnStart, col, acc))
-                      )
-                    else
-                      let
-                        val i = parentTabCol + indentWidth
-                      in
-                        Tab.setState tab (Tab.Usable (astate, Tab.LocIndented i));
-                        (false, true, (i, i, Spaces i :: Newline :: acc))
-                      end
-                | Tab.Usable (astate, Tab.LocIndented i) =>
-                    ( false
-                    , true
-                    , if col <= parentTabCol + indentWidth then
-                        (lnStart, col, acc)
-                      else
-                        (i, i, Spaces i :: Newline :: acc)
-                    )
+                  Tab.Usable (Tab.Activated NONE) =>
+                    let
+                      val desired = parentTabCol () + indentWidth
+                    in
+                      Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)));
+                      (false, true)
+                    end
+                | Tab.Usable (Tab.Activated (SOME i)) =>
+                    let
+                      val desired = Int.min (i, parentTabCol () + indentWidth)
+                    in
+                      Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)));
+                      (false, true)
+                    end
                 | _ =>
                     raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.tryPromote: bad tab"
 
-              fun doit thisTabActive (lnStart, col, acc) =
+              fun doit thisTabActive =
                 ( ()
                 ; if not debug then () else
                   print ("PrettyTabbedDoc.debug: attempting promotable " ^ Tab.infoString tab ^ "\n")
                 ; (layout
                      (if thisTabActive then tab :: tabCtx else tabCtx)
-                     (addDebugOutput tab (true, lnStart, col, acc))
+                     (true, lnStart, col, acc)
                      doc
                     handle DoPromote => 
                     let
@@ -437,25 +435,25 @@ struct
                         if not debug then () else
                         print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
                       
-                      val (promotable, thisTabActive', (lnStart', col', acc')) = tryPromote ()
+                      val (promotable, thisTabActive') = tryPromote ()
                     in
                       if promotable then
-                        doit thisTabActive' (lnStart', col', acc')
+                        doit thisTabActive'
                       else
                         layout
                           (if thisTabActive' then tab :: tabCtx else tabCtx)
-                          (addDebugOutput tab (false, lnStart', col', acc'))
+                          (false, lnStart, col, acc)
                           doc
                     end)
                 )
             
-              val _ = Tab.setState tab (Tab.Usable (Tab.Flattened, Tab.LocUnknown))
+              val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
 
               val (_, lnStart', col', acc') : layout_state =
                 if ap then
-                  layout tabCtx (addDebugOutput tab (ap, lnStart, col, acc)) doc
+                  layout tabCtx (true, lnStart, col, acc) doc
                 else
-                  doit false (lnStart, col, acc)
+                  doit false
             in
               if not debug then () else
               print ("PrettyTabbedDoc.debug: finishing " ^ Tab.infoString tab ^ "\n");
