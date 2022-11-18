@@ -41,8 +41,8 @@ struct
       end
 
   
-  fun sequence openn delims close (xs: 'a doc Seq.t) =
-    newTab (fn tab => break tab ++ sequenceAt tab openn delims close xs)
+  fun sequence currentTab openn delims close (xs: 'a doc Seq.t) =
+    newChildTab currentTab (fn tab => break tab ++ sequenceAt tab openn delims close xs)
 
 
   fun separateWithSpaces (items: 'a doc option list) : 'a doc =
@@ -56,11 +56,11 @@ struct
     end
 
 
-  fun maybeShowSyntaxSeq s f =
+  fun maybeShowSyntaxSeq currentTab s f =
     case s of
       Ast.SyntaxSeq.Empty => NONE
     | Ast.SyntaxSeq.One x => SOME (f x)
     | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
-        SOME (sequence left delims right (Seq.map f elems))
+        SOME (sequence currentTab left delims right (Seq.map f elems))
 
 end

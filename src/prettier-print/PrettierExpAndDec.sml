@@ -7,9 +7,9 @@ structure PrettierExpAndDec:
 sig
   type doc = TabbedStringDoc.tab TabbedTokenDoc.t
   type tab = TabbedStringDoc.tab TabbedTokenDoc.tab
-  val showExp: Ast.Exp.exp -> doc
+  val showExp: tab -> Ast.Exp.exp -> doc
   val showExpAt: tab -> Ast.Exp.exp -> doc
-  val showDec: Ast.Exp.dec -> doc
+  val showDec: tab -> Ast.Exp.dec -> doc
   val showDecAt: tab -> Ast.Exp.dec -> doc
 end =
 struct
@@ -40,8 +40,8 @@ struct
 
   (* ====================================================================== *)
 
-  fun showExp e = newTab (fn tab => break tab ++ showExpAt tab e)
-  and showDec d = newTab (fn tab => break tab ++ showDecAt tab d)
+  fun showExp current e = newChildTab current (fn tab => break tab ++ showExpAt tab e)
+  and showDec current d = newChildTab current (fn tab => break tab ++ showDecAt tab d)
 
   and showExpAt tab exp =
     let
@@ -58,24 +58,24 @@ struct
             , SOME (token (MaybeLongToken.getToken id))
             ]
       | Parens {left, exp, right} =>
-          token left ++ showExp exp ++ token right
+          token left ++ showExp tab exp ++ token right
       | Tuple {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map showExp elems)
+          sequenceAt tab left delims right (Seq.map (showExp tab) elems)
       | Sequence {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map showExp elems)
+          sequenceAt tab left delims right (Seq.map (showExp tab) elems)
       | List {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map showExp elems)
+          sequenceAt tab left delims right (Seq.map (showExp tab) elems)
       | Record {left, elems, delims, right} =>
           let
             fun showRow {lab, eq, exp} =
-              token lab ++ space ++ token eq ++ showExp exp
+              token lab ++ space ++ token eq ++ (showExp tab) exp
           in
             sequenceAt tab left delims right (Seq.map showRow elems)
           end
       | Select {hash, label} =>
           token hash ++ space ++ token label
       | App {left, right} =>
-          showExpAt tab left ++ space ++ showExp right
+          showExpAt tab left ++ space ++ showExp tab right
           (*let
             val (funcExp, args) = appChain [] exp
             fun withBreak tab (a, b) = a ++ breakspace tab ++ b
@@ -88,7 +88,7 @@ struct
                 (Seq.drop (Seq.map (showExpAt inner) args) 1))
           end*)
       | Typed {exp, colon, ty} =>
-          showExp exp ++ space ++ token colon ++ space ++ showTy ty
+          showExp tab exp ++ space ++ token colon ++ space ++ showTy ty
       | IfThenElse _ (*{iff, exp1, thenn, exp2, elsee, exp3}*) =>
           showIfThenElseAt tab exp
       | LetInEnd xxx =>
@@ -108,7 +108,7 @@ struct
           ++ (if i = numExps - 1 then empty else token (d i)))
         exps
     in
-      token lett ++ space ++ showDec dec ++
+      token lett ++ space ++ showDec outerTab dec ++
       breakspace outerTab ++ token inn ++
       newTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
       ++ breakspace outerTab ++ token endd
@@ -158,7 +158,7 @@ struct
                 , SOME (showPat pat)
                 , SOME (token eq)
                 ]
-              ++ space ++ showExp exp
+              ++ space ++ showExp tab exp
 
             val first =
               let
@@ -166,12 +166,12 @@ struct
               in
                 separateWithSpaces
                   [ SOME (token vall)
-                  , maybeShowSyntaxSeq tyvars token
+                  , maybeShowSyntaxSeq tab tyvars token
                   , Option.map token recc
                   , SOME (showPat pat)
                   , SOME (token eq)
                   ]
-                ++ space ++ showExp exp
+                ++ space ++ showExp tab exp
               end
           in
             Seq.iterate op++ first
