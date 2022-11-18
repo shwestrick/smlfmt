@@ -120,26 +120,47 @@ struct
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
 
-      fun f innerTab i =
+      fun showBranch innerTab1 innerTab2 thenBranchExp =
+        cond innerTab1
+          { flat = showExpAt innerTab2 thenBranchExp
+          , notflat = showExpAt innerTab1 thenBranchExp
+          }
+      
+      fun breakShowBranch innerTab1 innerTab2 thenBranchExp =
+        cond innerTab1
+          { flat = breakspace innerTab2 ++ showExpAt innerTab2 thenBranchExp
+          , notflat = breakspace innerTab1 ++ showExpAt innerTab1 thenBranchExp
+          }
+
+      fun f innerTab1 innerTab2 i =
         let
           val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain i
         in
-          space ++ token iff
-          ++ space ++ showExp exp1
-          ++ space ++ token thenn
-          ++ breakspace innerTab ++ showExpAt innerTab exp2
-          ++ breakspace outerTab ++ token elsee
+          space ++
+          token iff ++
+          breakspace innerTab1 ++ showExpAt innerTab1 exp1 ++
+          breakspace outerTab ++ token thenn ++
+          breakShowBranch innerTab1 innerTab2 exp2 ++
+          breakspace outerTab ++ token elsee
         end
 
       val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain 0
     in
-      token iff ++ space ++ showExp exp1 ++ space ++ token thenn ++ space
-      ++ newTab (fn innerTab =>
-        showExpAt innerTab exp2
-        ++ breakspace outerTab ++ token elsee
-        ++ Util.loop (1, Seq.length chain) empty (fn (d, i) => d ++ f innerTab i)
-        ++ breakspace innerTab
-        ++ showExpAt innerTab last)
+      token iff ++ space ++
+      newTab (fn innerTab1 =>
+        showExpAt innerTab1 exp1 ++
+        breakspace outerTab ++
+        token thenn ++ space ++
+        newTab (fn innerTab2 =>
+          breakShowBranch innerTab1 innerTab2 exp2 ++
+          breakspace outerTab ++
+          token elsee ++
+          Util.loop (1, Seq.length chain) empty
+            (fn (d, i) => d ++ f innerTab1 innerTab2 i)
+          ++
+          breakShowBranch innerTab1 innerTab2 last
+        )
+      )
     end
 
 
