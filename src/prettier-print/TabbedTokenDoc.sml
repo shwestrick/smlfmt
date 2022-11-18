@@ -26,7 +26,20 @@ end =
 struct
 
   (* Just need a unique name *)
-  type 'a tab = 'a option ref
+  type 'a tab = 'a option ref * int
+
+  val tabCounter = ref 0
+
+  fun mkTab () =
+    let
+      val c = !tabCounter
+    in
+      tabCounter := c+1;
+      (ref NONE, c)
+    end
+
+  fun tabToString ((_, c): 'a tab) = "[" ^ Int.toString c ^ "]"
+
 
   datatype 'a doc =
     Empty
@@ -44,17 +57,36 @@ struct
   val space = Space
   val token = Token
   val text = Text
-  val concat = Concat
   val break = Break
+
+  fun concat (d1, d2) =
+    case (d1, d2) of
+      (Empty, _) => d2
+    | (_, Empty) => d1
+    | _ => Concat (d1, d2)
 
   fun cond tab {flat, notflat} = Cond {tab=tab, flat=flat, notflat=notflat}
 
   fun breakspace t = cond t {flat = space, notflat = break t}
   fun spaceIfNotFlat t = cond t {flat = empty, notflat = space}
 
+
+  fun toString doc =
+    case doc of
+      Empty => ""
+    | Space => "_"
+    | Concat (d1, d2) => toString d1 ^ " ++ " ^ toString d2
+    | Token t => "Token('" ^ Token.toString t ^ "')"
+    | Text t => "Text('" ^ t ^ "')"
+    | Break t => "Break(" ^ tabToString t ^ ")"
+    | NewTab {tab=t, doc=d} => "NewTab(" ^ tabToString t ^ ", " ^ toString d ^ ")"
+    | Cond {tab=t, flat=df, notflat=dnf} =>
+        "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
+
+
   fun newTab (genDocUsingTab: 'a tab -> 'a doc) =
     let
-      val t = ref (NONE: 'a option)
+      val t = mkTab ()
       val d = genDocUsingTab t
     in
       NewTab {tab=t, doc=d}
@@ -141,16 +173,16 @@ struct
           (* TODO: rigidity (don't allow flattening) *)
           doc
         end
-    | Break tab =>
-        D.break (Option.valOf (!tab))
-    | Cond {tab, flat, notflat} =>
-        D.cond (Option.valOf (!tab))
+    | Break (tab as (tabref, _)) =>
+        D.break (Option.valOf (!tabref))
+    | Cond {tab = (tabref, _), flat, notflat} =>
+        D.cond (Option.valOf (!tabref))
           { flat = toStringDoc args flat
           , notflat = toStringDoc args notflat
           }
-    | NewTab {tab, doc} =>
+    | NewTab {tab=(tabref,_), doc} =>
         D.newTab (fn tab' =>
-          ( tab := SOME tab'
+          ( tabref := SOME tab'
           ; toStringDoc args doc
           ))
 

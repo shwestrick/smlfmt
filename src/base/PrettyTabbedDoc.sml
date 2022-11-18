@@ -28,8 +28,6 @@ sig
   type tab
   val newTab: (tab -> doc) -> doc
   val break: tab -> doc
-
-  (* Requires flat doc has no breaks; raises InvalidDoc otherwise *)
   val cond: tab -> {flat: doc, notflat: doc} -> doc
 
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int, debug: bool}
@@ -127,17 +125,11 @@ struct
     | Concat (d1, d2) => hasNoBreaks d1 andalso hasNoBreaks d2
     | NewTab {doc=d, ...} => hasNoBreaks d
     | Cond {flat, notflat, ...} =>
-        (* TODO: check: can omit `hasNoBreaks flat`, because previous `cond`
-         * will have checked this.
-         *)
         hasNoBreaks flat andalso hasNoBreaks notflat
     | _ => true
 
   fun cond tab {flat, notflat} =
-    (* if hasNoBreaks flat then *)
-      Cond {tab=tab, flat=flat, notflat=notflat}
-    (* else *)
-      (* raise InvalidDoc *)
+    Cond {tab=tab, flat=flat, notflat=notflat}
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -166,8 +158,11 @@ struct
     | Text _ => false
     | Break tab' => Tab.eq (tab, tab')
     | NewTab {doc=d, ...} => ifActivatedHasAtLeastOneBreak tab d
-    | Cond {notflat, ...} =>
-        ifActivatedHasAtLeastOneBreak tab notflat
+    | Cond {tab=tab', notflat, flat} =>
+        if Tab.eq (tab, tab') orelse Tab.isActivated tab' then
+          ifActivatedHasAtLeastOneBreak tab notflat
+        else
+          ifActivatedHasAtLeastOneBreak tab flat
         
 
   fun allOuterBreaksActivated tab doc =
@@ -373,9 +368,7 @@ struct
         | Cond {tab, flat, notflat} =>
             let in
               case Tab.getState tab of
-                Tab.Usable (Tab.Activated NONE) =>
-                  raise Fail "PrettyTabbedDoc.pretty.layout.Cond: tab activated but not placed"
-              | Tab.Usable (Tab.Activated (SOME _)) =>
+                Tab.Usable (Tab.Activated _) =>
                   layout tabCtx (ap, lnStart, col, acc) notflat
               | Tab.Usable Tab.Flattened =>
                   layout tabCtx (ap, lnStart, col, acc) flat

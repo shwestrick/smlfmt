@@ -115,55 +115,57 @@ struct
     end
 
 
+(*
   and showIfThenElseAt outerTab exp =
+    newTab (fn innerTab1 =>
     let
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
 
-      fun showBranch innerTab1 innerTab2 thenBranchExp =
-        cond innerTab1
-          { flat = showExpAt innerTab2 thenBranchExp
-          , notflat = showExpAt innerTab1 thenBranchExp
-          }
+      fun breakShowAt tab e = break tab ++ showExpAt tab e
       
-      fun breakShowBranch innerTab1 innerTab2 thenBranchExp =
-        cond innerTab1
-          { flat = breakspace innerTab2 ++ showExpAt innerTab2 thenBranchExp
-          , notflat = breakspace innerTab1 ++ showExpAt innerTab1 thenBranchExp
-          }
-
-      fun f innerTab1 innerTab2 i =
+      fun f i =
         let
           val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain i
         in
+          token iff ++ space ++
+          showExp exp1 ++ space ++ token thenn ++
           space ++
-          token iff ++
-          breakspace innerTab1 ++ showExpAt innerTab1 exp1 ++
-          breakspace outerTab ++ token thenn ++
-          breakShowBranch innerTab1 innerTab2 exp2 ++
-          breakspace outerTab ++ token elsee
+          breakShowAt innerTab1 exp2 ++
+          space ++
+          break outerTab ++ token elsee ++ space
         end
-
-      val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain 0
     in
-      token iff ++ space ++
-      newTab (fn innerTab1 =>
-        break innerTab1 ++ 
-        showExpAt innerTab1 exp1 ++
-        breakspace outerTab ++
-        token thenn ++ space ++
-        newTab (fn innerTab2 =>
-          breakShowBranch innerTab1 innerTab2 exp2 ++
-          breakspace outerTab ++
-          token elsee ++
-          Util.loop (1, Seq.length chain) empty
-            (fn (d, i) => d ++ f innerTab1 innerTab2 i)
-          ++
-          breakShowBranch innerTab1 innerTab2 last
-        )
-      )
-    end
+      Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
+      ++
+      breakShowAt innerTab1 last
+    end)
+*)
 
+  and showIfThenElseAt outer exp =
+    let
+      open Ast.Exp
+      val (chain, last) = ifThenElseChain [] exp
+
+      fun breakShowAt tab e = break tab ++ showExpAt tab e
+      
+      fun f i =
+        let
+          val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain i
+        in
+          token iff ++ space ++
+          newTab (fn inner =>
+            breakShowAt inner exp1 ++ space ++
+            cond inner {flat = empty, notflat = break outer}) ++
+          token thenn ++ space ++
+          newTab (fn inner => breakShowAt inner exp2) ++ space ++
+          break outer ++ token elsee ++ space
+        end
+    in
+      Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
+      ++
+      newTab (fn inner => breakShowAt inner last)
+    end
 
   and showDecAt tab dec =
     let
