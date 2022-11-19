@@ -291,19 +291,62 @@ struct
     Spaces of int
   | Newline
   | Stuff of CustomString.t
-  (* | StartDebug of int *)
-  | EndDebug of CustomString.t * int
+  | StartDebug of {tab: tab, col: int}
+  | EndDebug of {tab: tab, info: CustomString.t, col: int}
 
 
   fun implementDebugs items =
     let
-      fun newlineWithEndDebugs acc debugs =
-        if List.null debugs then Newline :: acc else
+      fun highlightActive accCurrLine acc startDebugs =
+        let
+          val orderedHighlightCols =
+            Mergesort.sort Int.compare (Seq.map #col (Seq.fromList startDebugs))
+
+          fun processItem (item, (currCol, hi, acc)) =
+            let
+              val nextHighlightCol =
+                if hi < Seq.length orderedHighlightCols then
+                  Seq.nth orderedHighlightCols hi
+                else
+                  valOf Int.maxInt
+            in
+              case item of
+                Spaces n =>
+                  if currCol + n <= nextHighlightCol then
+                    (currCol+n, hi, item :: acc)
+                  else
+                    processItem (Spaces (currCol + n - nextHighlightCol - 1),
+                      ( nextHighlightCol + 1
+                      , hi+1
+                      , Stuff (CustomString.emphasize (spaces 1))
+                        :: Spaces (nextHighlightCol - currCol) :: acc
+                      ))
+              | Stuff str =>
+                  let val n = CustomString.size str in
+                    if currCol + n <= nextHighlightCol then
+                      (currCol+n, hi, item :: acc)
+                    else
+                      (* TODO: split str, highlight one column, ... just like
+                       * above.
+                       *)
+                      (currCol+n, Seq.length orderedHighlightCols, item :: acc)
+                  end
+              | _ => raise Fail "impossible...!...!"
+            end
+              
+
+          val (_, _, acc) = List.foldr processItem (0, 0, acc) accCurrLine
+        in
+          acc
+        end
+
+      fun newlineWithEndDebugs endDebugs startDebugs acc =
+        if List.null endDebugs then Newline :: acc else
         let
           val ordered =
             Mergesort.sort
-              (fn ((_, col1), (_, col2)) => Int.compare (col1, col2))
-              (Seq.fromList debugs)
+              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
+              (Seq.fromList endDebugs)
 
           (* This is a bit cumbersome, but actually is fairly straightforward:
            * for each `(info, col)` in `X`, output `info` at column `col`.
@@ -322,10 +365,10 @@ struct
                 loop (0, Seq.fromRevList didntFit) [] 0 (Newline :: acc)
             else
             let
-              val (info, col) = Seq.nth X i
+              val entry as {info, col, ...} = Seq.nth X i
             in
               if col < currCol then
-                loop (i+1, X) ((info, col) :: didntFit) currCol acc
+                loop (i+1, X) (entry :: didntFit) currCol acc
               else
               let
                 val numSpaces = col - currCol
@@ -338,20 +381,57 @@ struct
           Newline :: loop (0, ordered) [] 0 (Newline :: acc)
         end
 
+      
+      (* remove from startDebugs any matching entry in endDebugs *)
+      fun updateStartDebugs
+            (startDebugs: {tab: tab, col: int} list)
+            (endDebugs: {tab: tab, info: CustomString.t, col: int} list) =
+        let
+          val orderedStarts =
+            Mergesort.sort
+              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
+              (Seq.fromList startDebugs)
+          val orderedEnds =
+            Mergesort.sort
+              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
+              (Seq.fromList endDebugs)
 
-      fun processItem (item, (acc, debugs)) =
+          fun loop i j acc =
+            if i >= Seq.length orderedStarts orelse j >= Seq.length orderedEnds then
+              acc
+            else
+              let
+                val sentry as {tab=st, col=scol} = Seq.nth orderedStarts i
+                val {tab=et, col=ecol, ...} = Seq.nth orderedEnds j
+              in
+                if scol < ecol then
+                  loop (i+1) j (sentry :: acc)
+                else if scol > ecol then
+                  loop i (j+1) acc
+                else if Tab.eq (st, et) then
+                  loop (i+1) (j+1) acc
+                else
+                  loop i (j+1) acc
+              end
+        in
+          loop 0 0 []
+        end
+
+
+      fun processItem (item, (accCurrLine, acc, endDebugs, startDebugs)) =
         case item of
-          EndDebug (s, col) => (acc, (s,col) :: debugs)
-        | Newline => (newlineWithEndDebugs acc debugs, [])
-        | _ => (item :: acc, debugs)
+          EndDebug entry => (accCurrLine, acc, entry :: endDebugs, startDebugs)
+        | StartDebug entry => (accCurrLine, acc, endDebugs, entry :: startDebugs)
+        | Newline => ([], newlineWithEndDebugs endDebugs startDebugs (highlightActive accCurrLine acc startDebugs), [], updateStartDebugs startDebugs endDebugs)
+        | _ => (item :: accCurrLine, acc, endDebugs, startDebugs)
 
 
-      val (acc, debugs) = List.foldr processItem ([], []) items
+      val (accCurrLine, acc, endDebugs, startDebugs) = List.foldr processItem ([], [], [], []) items
     in
-      if List.null debugs then
-        acc
+      if List.null endDebugs then
+        accCurrLine @ acc
       else
-        newlineWithEndDebugs acc debugs
+        newlineWithEndDebugs endDebugs startDebugs (highlightActive accCurrLine acc startDebugs)
     end
 
 
@@ -499,7 +579,12 @@ struct
                   (tab, lnStart, col, acc)
               | Tab.Usable (Tab.Activated NONE) =>
                   ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                  ; (tab, lnStart, col, acc)
+                  ; ( tab
+                    , lnStart
+                    , col
+                    , if not debug then acc
+                      else StartDebug {tab = tab, col = col} :: acc
+                    )
                   )
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   if i < col then
@@ -566,19 +651,30 @@ struct
                     raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.tryPromote: bad tab"
 
               fun doit () =
-                ( ()
-                ; (layout (ct, lnStart, col, acc) doc
-                    handle DoPromote p =>
-                    if not (Tab.eq (p, tab)) then raise DoPromote p else
-                    let
-                      val _ = 
-                        if not debug then () else
-                        print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
-                    in
-                      tryPromote ();
-                      doit ()
-                    end)
-                )
+                let
+                  val acc =
+                    if not debug then acc else
+                    case Tab.getState tab of
+                      Tab.Usable Tab.Flattened => acc
+                    | Tab.Usable (Tab.Activated NONE) => acc
+                    | Tab.Usable (Tab.Activated (SOME i)) =>
+                        StartDebug {tab = tab, col = i} :: acc
+                    | _ => raise Fail "impossible...!"
+                in
+                  ( ()
+                  ; (layout (ct, lnStart, col, acc) doc
+                      handle DoPromote p =>
+                      if not (Tab.eq (p, tab)) then raise DoPromote p else
+                      let
+                        val _ = 
+                          if not debug then () else
+                          print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
+                      in
+                        tryPromote ();
+                        doit ()
+                      end)
+                  )
+                end
             
               val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
 
@@ -590,7 +686,11 @@ struct
                 case Tab.getState tab of
                   Tab.Usable Tab.Flattened => acc
                 | Tab.Usable (Tab.Activated (SOME i)) =>
-                    EndDebug (CustomString.emphasize (CustomString.fromString ("^" ^ Tab.name tab)), i) :: acc
+                    EndDebug
+                      { tab = tab
+                      , info = CustomString.emphasize (CustomString.fromString ("^" ^ Tab.name tab))
+                      , col = i
+                      } :: acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
             in
               if not debug then () else
