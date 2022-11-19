@@ -10,6 +10,7 @@ functor PrettyTabbedDoc
   (CustomString:
     sig
       type t
+      val substring: t * int * int -> t
       val emphasize: t -> t (* should be visually distinct, e.g., color the background *)
       val fromString: string -> t
       val size: t -> int
@@ -295,6 +296,33 @@ struct
   | EndDebug of {tab: tab, info: CustomString.t, col: int}
 
 
+  fun itemWidth item =
+    case item of
+      Spaces n => n
+    | Stuff s => CustomString.size s
+    | _ => raise Fail "PrettyTabbedDoc.itemWidth"
+
+
+  fun splitItem item i =
+    if i < 0 orelse i+1 > itemWidth item then
+      raise Fail "PrettyTabbedDoc.splitItem: size"
+    else
+    (* i+1 <= itemWidth item *)
+    case item of  
+      Spaces n =>
+        (Spaces i, CustomString.fromString " ", Spaces (n-i-1))
+    | Stuff s =>
+        let
+          val n = CustomString.size s
+          val left = CustomString.substring (s, 0, i)
+          val mid = CustomString.substring (s, i, 1)
+          val right = CustomString.substring (s, i+1, n-i-1)
+        in
+          (Stuff left, mid, Stuff right)
+        end
+    | _ => raise Fail "PrettyTabbedDoc.splitItem: bad item"
+
+
   fun implementDebugs items =
     let
       fun highlightActive accCurrLine acc startDebugs =
@@ -309,36 +337,29 @@ struct
                   Seq.nth orderedHighlightCols hi
                 else
                   valOf Int.maxInt
-            in
-              case item of
-                Spaces n =>
-                  if currCol + n <= nextHighlightCol then
-                    (currCol+n, hi, item :: acc)
-                  else
-                    processItem (Spaces (currCol + n - nextHighlightCol - 1),
-                      ( nextHighlightCol + 1
-                      , hi+1
-                      , Stuff (CustomString.emphasize (spaces 1))
-                        :: Spaces (nextHighlightCol - currCol) :: acc
-                      ))
-              | Stuff str =>
-                  let val n = CustomString.size str in
-                    if currCol + n <= nextHighlightCol then
-                      (currCol+n, hi, item :: acc)
-                    else
-                      (* TODO: split str, highlight one column, ... just like
-                       * above.
-                       *)
-                      (currCol+n, Seq.length orderedHighlightCols, item :: acc)
-                  end
-              | _ => raise Fail "impossible...!...!"
-            end
               
+              val n = itemWidth item
+            in
+              if currCol+n <= nextHighlightCol then
+                (currCol+n, hi, item :: acc)
+              else
+                let
+                  val (left, mid, right) = splitItem item (nextHighlightCol-currCol)
+                in
+                  processItem (right,
+                   ( nextHighlightCol + 1
+                   , hi+1
+                   , Stuff (CustomString.emphasize mid)
+                     :: left :: acc
+                   ))
+                end
+            end
 
           val (_, _, acc) = List.foldr processItem (0, 0, acc) accCurrLine
         in
           acc
         end
+
 
       fun newlineWithEndDebugs endDebugs startDebugs acc =
         if List.null endDebugs then Newline :: acc else
