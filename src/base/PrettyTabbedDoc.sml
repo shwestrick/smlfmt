@@ -291,55 +291,67 @@ struct
     Spaces of int
   | Newline
   | Stuff of CustomString.t
+  (* | StartDebug of int *)
   | EndDebug of CustomString.t * int
 
 
   fun implementDebugs items =
     let
-      fun newlineWithDebugs acc debugs =
+      fun newlineWithEndDebugs acc debugs =
         if List.null debugs then Newline :: acc else
         let
           val ordered =
             Mergesort.sort
               (fn ((_, col1), (_, col2)) => Int.compare (col1, col2))
               (Seq.fromList debugs)
-          
-          fun loop (i, remaining) didntFit col acc =
-            if i >= Seq.length remaining then
+
+          (* This is a bit cumbersome, but actually is fairly straightforward:
+           * for each `(info, col)` in `X`, output `info` at column `col`.
+           *
+           * There's some trickiness though, because multiple `(info, col)`
+           * entries might overlap. For this, we check if each entry fits,
+           * and if not, we add the entry to `didntFit`, and then process
+           * `didntFit` on the next line, repeating until all entries have been
+           * output.
+           *)
+          fun loop (i, X) didntFit currCol acc =
+            if i >= Seq.length X then
               if List.null didntFit then
                 acc
               else
                 loop (0, Seq.fromRevList didntFit) [] 0 (Newline :: acc)
             else
             let
-              val (info, target) = Seq.nth remaining i
+              val (info, col) = Seq.nth X i
             in
-              if target < col then
-                loop (i+1, remaining) ((info, target) :: didntFit) col acc
+              if col < currCol then
+                loop (i+1, X) ((info, col) :: didntFit) currCol acc
               else
               let
-                val numSpaces = target-col
-                val newCol = col + numSpaces + CustomString.size info
+                val numSpaces = col - currCol
+                val newCol = currCol + numSpaces + CustomString.size info
               in
-                loop (i+1, remaining) didntFit newCol (Stuff info :: Spaces numSpaces :: acc)
+                loop (i+1, X) didntFit newCol (Stuff info :: Spaces numSpaces :: acc)
               end
             end
         in
           Newline :: loop (0, ordered) [] 0 (Newline :: acc)
         end
 
+
       fun processItem (item, (acc, debugs)) =
         case item of
           EndDebug (s, col) => (acc, (s,col) :: debugs)
-        | Newline => (newlineWithDebugs acc debugs, [])
+        | Newline => (newlineWithEndDebugs acc debugs, [])
         | _ => (item :: acc, debugs)
+
 
       val (acc, debugs) = List.foldr processItem ([], []) items
     in
       if List.null debugs then
         acc
       else
-        newlineWithDebugs acc debugs
+        newlineWithEndDebugs acc debugs
     end
 
 
@@ -574,11 +586,11 @@ struct
                 doit ()
 
               val acc =
+                if not debug then acc else
                 case Tab.getState tab of
                   Tab.Usable Tab.Flattened => acc
                 | Tab.Usable (Tab.Activated (SOME i)) =>
-                    if not debug then acc
-                    else EndDebug (CustomString.emphasize (CustomString.fromString ("^" ^ Tab.name tab)), i) :: acc
+                    EndDebug (CustomString.emphasize (CustomString.fromString ("^" ^ Tab.name tab)), i) :: acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
             in
               if not debug then () else
