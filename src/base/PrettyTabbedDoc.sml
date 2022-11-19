@@ -10,6 +10,7 @@ functor PrettyTabbedDoc
   (CustomString:
     sig
       type t
+      val emphasize: t -> t (* should be visually distinct, e.g., color the background *)
       val fromString: string -> t
       val size: t -> int
       val concat: t list -> t
@@ -133,6 +134,11 @@ struct
           in
             "[" ^ pinfo ^ Int.toString c ^ info ^ "]"
           end
+
+    fun name t =
+      case t of
+        Root => "root"
+      | Tab {id=c, ...} => Int.toString c
 
   end
 
@@ -285,6 +291,56 @@ struct
     Spaces of int
   | Newline
   | Stuff of CustomString.t
+  | EndDebug of CustomString.t * int
+
+
+  fun implementDebugs items =
+    let
+      fun newlineWithDebugs acc debugs =
+        if List.null debugs then Newline :: acc else
+        let
+          val ordered =
+            Mergesort.sort
+              (fn ((_, col1), (_, col2)) => Int.compare (col1, col2))
+              (Seq.fromList debugs)
+          
+          fun loop (i, remaining) didntFit col acc =
+            if i >= Seq.length remaining then
+              if List.null didntFit then
+                acc
+              else
+                loop (0, Seq.fromRevList didntFit) [] 0 (Newline :: acc)
+            else
+            let
+              val (info, target) = Seq.nth remaining i
+            in
+              if target < col then
+                loop (i+1, remaining) ((info, target) :: didntFit) col acc
+              else
+              let
+                val numSpaces = target-col
+                val newCol = col + numSpaces + CustomString.size info
+              in
+                loop (i+1, remaining) didntFit newCol (Stuff info :: Spaces numSpaces :: acc)
+              end
+            end
+        in
+          Newline :: loop (0, ordered) [] 0 (Newline :: acc)
+        end
+
+      fun processItem (item, (acc, debugs)) =
+        case item of
+          EndDebug (s, col) => (acc, (s,col) :: debugs)
+        | Newline => (newlineWithDebugs acc debugs, [])
+        | _ => (item :: acc, debugs)
+
+      val (acc, debugs) = List.foldr processItem ([], []) items
+    in
+      if List.null debugs then
+        acc
+      else
+        newlineWithDebugs acc debugs
+    end
 
 
   fun revAndStripTrailingWhitespace (items: item list) =
@@ -401,19 +457,6 @@ struct
               )
         end
 
-
-      fun addDebugOutput tab (ct, lnStart, col, acc) =
-        let
-          val acc' =
-            if not debug then
-              acc
-            else
-              Stuff (CustomString.fromString (Tab.infoString tab))
-              :: acc
-        in
-          (ct, lnStart, col, acc')
-        end
-
       
       (* This is a little tricky, but the idea is: try to lay out the doc,
        * and keep track of whether or not there exists an ancestor tab that
@@ -441,16 +484,28 @@ struct
             let in
               case Tab.getState tab of
                 Tab.Usable Tab.Flattened =>
-                  addDebugOutput tab (tab, lnStart, col, acc)
+                  (tab, lnStart, col, acc)
               | Tab.Usable (Tab.Activated NONE) =>
                   ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                  ; addDebugOutput tab (tab, lnStart, col, acc)
+                  ; (tab, lnStart, col, acc)
                   )
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   if i < col then
-                    addDebugOutput tab (check (tab, i, i, Spaces i :: Newline :: acc))
+                    check (tab, i, i, Spaces i :: Newline :: acc)
+                  else if i = col then
+                    (tab, i, i, acc)
                   else
-                    addDebugOutput tab (check (tab, lnStart, i, Spaces (i-col) :: acc))
+                    (* force this tab to promote, which should move onto
+                     * a new line and indent.
+                     *
+                     * an alternative here would be this:
+                     *   check (tab, lnStart, i, Spaces (i-col) :: acc)
+                     * which prefers to jump forward on the current line to
+                     * meet the tab, but IMO this can look really strange in
+                     * some situations
+                     *)
+                    raise DoPromote tab
+                    
               | _ =>
                   raise Fail "PrettyTabbedDoc.pretty.layout.Break: bad tab"
             end
@@ -515,19 +570,29 @@ struct
             
               val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
 
-              val (_, lnStart', col', acc') : layout_state =
+              val (_, lnStart, col, acc) : layout_state =
                 doit ()
+
+              val acc =
+                case Tab.getState tab of
+                  Tab.Usable Tab.Flattened => acc
+                | Tab.Usable (Tab.Activated (SOME i)) =>
+                    if not debug then acc
+                    else EndDebug (CustomString.emphasize (CustomString.fromString ("^" ^ Tab.name tab)), i) :: acc
+                | _ => raise Fail "PrettyTabbedDoc.debug: error..."
             in
               if not debug then () else
               print ("PrettyTabbedDoc.debug: finishing " ^ Tab.infoString tab ^ "\n");
 
               Tab.setState tab Tab.Completed;
 
-              (parent, lnStart', col', acc')
+              (parent, lnStart, col, acc)
             end
 
 
       val (_, _, _, items) = layout (root, 0, 0, []) doc
+
+      val items = if not debug then items else implementDebugs items
 
       (* reset tabs (so that if we call `pretty` again, it will work...) *)
       val _ = List.app (fn tab => Tab.setState tab Tab.Fresh) allTabs
@@ -539,6 +604,7 @@ struct
           Newline => newline
         | Spaces n => spaces n
         | Stuff s => s
+        | _ => raise Fail "impossible"
     in
       CustomString.concat (List.map itemToString items)
     end
