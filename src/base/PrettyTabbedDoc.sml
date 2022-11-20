@@ -152,6 +152,8 @@ struct
 
   end
 
+  structure TabDict = Dict(Tab)
+
   (* ====================================================================== *)
 
   exception InvalidDoc
@@ -343,6 +345,11 @@ struct
     | _ => raise Fail "PrettyTabbedDoc.splitItem: bad item"
 
 
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+
+
   fun implementDebugs items =
     let
       fun highlightActive accCurrLine acc startDebugs =
@@ -507,13 +514,6 @@ struct
         end
 
 
-      (* TODO: Is this assembling the StartDebugs for the wrong line?
-       * Perhaps off by one?
-       *
-       * No, this is correct I think. The problem is that the layout engine
-       * is inserting `StartDebug`s too early. Need to adjust the layout engine
-       * to insert these at the first break, rather than at the newChildTab.
-       *)
       fun processItem (item, (accCurrLine, acc, endDebugs, startDebugs)) =
         case item of
           EndDebug entry => (accCurrLine, acc, entry :: endDebugs, startDebugs)
@@ -538,6 +538,11 @@ struct
         #2 (newlineWithEndDebugs endDebugs startDebugs
               (highlightActive accCurrLine acc startDebugs))
     end
+
+
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+  (* ====================================================================== *)
 
 
   fun revAndStripTrailingWhitespace (items: item list) =
@@ -582,9 +587,28 @@ struct
       (* initially, all tabs inactive, and their placement is unknown *)
       val _ = List.app (fn t => Tab.setState t (Tab.Usable Tab.Flattened)) allTabs
 
-      (* current tab, line start, current col, accumulator *)
-      type layout_state = tab * int * int * (item list)
+      (* tab -> hit first break? *)
+      type debug_state = bool TabDict.t 
 
+      (* debug state, current tab, line start, current col, accumulator *)
+      type layout_state = debug_state * tab * int * int * (item list)
+
+      fun dbgInsert tab ((dbgState, ct, s, c, a): layout_state) : layout_state =
+        if not debug then (dbgState, ct, s, c, a) else
+        ( TabDict.insert dbgState (tab, false)
+        , ct, s, c, a
+        )
+
+      fun dbgBreak tab ((dbgState, ct, s, c, a): layout_state) : layout_state =
+        if not debug then
+          (dbgState, ct, s, c, a)
+        else if TabDict.lookup dbgState tab then
+          (dbgState, ct, s, c, a)
+        else
+          ( TabDict.insert dbgState (tab, true)
+          , ct, s, c
+          , StartDebug {tab = tab, col = c} :: a
+          )
 
       fun isPromotable' t =
         case Tab.getState t of
@@ -622,13 +646,13 @@ struct
         | NONE => SOME t
         
 
-      fun check (ct, lnStart, col, acc) =
+      fun check (dbgState, ct, lnStart, col, acc) =
         let
           val widthOkay = col <= maxWidth
           val ribbonOkay = (col - lnStart) <= ribbonWidth
         in
           if widthOkay andalso ribbonOkay then
-            (ct, lnStart, col, acc)
+            (dbgState, ct, lnStart, col, acc)
           else case oldestPromotableParent ct of
             NONE =>
               ( ()
@@ -639,7 +663,7 @@ struct
                   print ("PrettyTabbedDoc.debug: ribbon violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
                 else
                   print ("PrettyTabbedDoc.debug: unknown violation?? ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
-              ; (ct, lnStart, col, acc)
+              ; (dbgState, ct, lnStart, col, acc)
               )
           | SOME p =>
               ( ()
@@ -663,39 +687,34 @@ struct
        * Promotion is implemented by throwing an exception (DoPromote), which
        * is caught by the oldest ancestor.
        *)
-      fun layout ((ct, lnStart, col, acc): layout_state) doc : layout_state =
+      fun layout ((dbgState, ct, lnStart, col, acc): layout_state) doc : layout_state =
         case doc of
           Empty => 
-            (ct, lnStart, col, acc)
+            (dbgState, ct, lnStart, col, acc)
         
         | Space =>
-            check (ct, lnStart, col + 1, Spaces 1 :: acc)
+            check (dbgState, ct, lnStart, col + 1, Spaces 1 :: acc)
 
         | Text s =>
-            check (ct, lnStart, col + CustomString.size s, Stuff s :: acc)
+            check (dbgState, ct, lnStart, col + CustomString.size s, Stuff s :: acc)
 
         | Concat (doc1, doc2) =>
-            layout (layout (ct, lnStart, col, acc) doc1) doc2
+            layout (layout (dbgState, ct, lnStart, col, acc) doc1) doc2
 
         | Break tab =>
             let in
               case Tab.getState tab of
                 Tab.Usable Tab.Flattened =>
-                  (tab, lnStart, col, acc)
+                  (dbgState, tab, lnStart, col, acc)
               | Tab.Usable (Tab.Activated NONE) =>
                   ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                  ; ( tab
-                    , lnStart
-                    , col
-                    , if not debug then acc
-                      else StartDebug {tab = tab, col = col} :: acc
-                    )
+                  ; dbgBreak tab (dbgState, tab, lnStart, col, acc)
                   )
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   if i < col then
-                    check (tab, i, i, Spaces i :: Newline :: acc)
+                    dbgBreak tab (check (dbgState, tab, i, i, Spaces i :: Newline :: acc))
                   else if i = col then
-                    (tab, i, i, acc)
+                    dbgBreak tab (dbgState, tab, i, i, acc)
                   else
                     (* force this tab to promote, which should move onto
                      * a new line and indent.
@@ -716,9 +735,9 @@ struct
             let in
               case Tab.getState tab of
                 Tab.Usable (Tab.Activated _) =>
-                  layout (ct, lnStart, col, acc) notflat
+                  layout (dbgState, ct, lnStart, col, acc) notflat
               | Tab.Usable Tab.Flattened =>
-                  layout (ct, lnStart, col, acc) flat
+                  layout (dbgState, ct, lnStart, col, acc) flat
               | _ =>
                   raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
             end
@@ -756,18 +775,9 @@ struct
                     raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.tryPromote: bad tab"
 
               fun doit () =
-                let
-                  val acc =
-                    if not debug then acc else
-                    case Tab.getState tab of
-                      Tab.Usable Tab.Flattened => acc
-                    | Tab.Usable (Tab.Activated NONE) => acc
-                    | Tab.Usable (Tab.Activated (SOME i)) =>
-                        StartDebug {tab = tab, col = i} :: acc
-                    | _ => raise Fail "impossible...!"
-                in
+                let in
                   ( ()
-                  ; (layout (ct, lnStart, col, acc) doc
+                  ; (layout (dbgInsert tab (dbgState, ct, lnStart, col, acc)) doc
                       handle DoPromote p =>
                       if not (Tab.eq (p, tab)) then raise DoPromote p else
                       let
@@ -783,7 +793,7 @@ struct
             
               val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
 
-              val (_, lnStart, col, acc) : layout_state =
+              val (dbgState, _, lnStart, col, acc) : layout_state =
                 doit ()
 
               val acc =
@@ -803,11 +813,11 @@ struct
 
               Tab.setState tab Tab.Completed;
 
-              (parent, lnStart, col, acc)
+              (dbgState, parent, lnStart, col, acc)
             end
 
 
-      val (_, _, _, items) = layout (root, 0, 0, []) doc
+      val (_, _, _, _, items) = layout (TabDict.empty, root, 0, 0, []) doc
 
       val items = if not debug then items else implementDebugs items
 
