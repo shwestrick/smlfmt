@@ -5,8 +5,8 @@
 
 structure PrettierSig:
 sig
-  type doc = TabbedStringDoc.tab TabbedTokenDoc.t
-  type tab = TabbedStringDoc.tab TabbedTokenDoc.tab
+  type doc = TabbedTokenDoc.t
+  type tab = TabbedTokenDoc.tab
   val showSpec: Ast.Sig.spec -> doc
   val showSigExp: Ast.Sig.sigexp -> doc
   val showSigExpAt: tab -> Ast.Sig.sigexp -> doc
@@ -18,8 +18,8 @@ struct
   open TabbedTokenDoc
   open PrettierUtil
 
-  type doc = TabbedStringDoc.tab TabbedTokenDoc.t
-  type tab = TabbedStringDoc.tab TabbedTokenDoc.tab
+  type doc = TabbedTokenDoc.t
+  type tab = TabbedTokenDoc.tab
 
   fun showSpec _ = text "<spec>"
   fun showSigExp _ = text "<sigexp>"

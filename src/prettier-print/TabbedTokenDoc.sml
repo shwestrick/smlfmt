@@ -5,29 +5,29 @@
 
 structure TabbedTokenDoc :>
 sig
-  type 'a doc
-  type 'a t = 'a doc
+  type doc
+  type t = doc
 
-  val empty: 'a doc
-  val space: 'a doc
-  val token: Token.t -> 'a doc
-  val text: string -> 'a doc
-  val concat: 'a doc * 'a doc -> 'a doc
+  val empty: doc
+  val space: doc
+  val token: Token.t -> doc
+  val text: string -> doc
+  val concat: doc * doc -> doc
 
-  type 'a tab
-  val newChildTab: 'a tab -> ('a tab -> 'a doc) -> 'a doc
-  val newTab: ('a tab -> 'a doc) -> 'a doc
-  val break: 'a tab -> 'a doc
-  val breakspace: 'a tab -> 'a doc
-  val spaceIfNotFlat: 'a tab -> 'a doc
-  val cond: 'a tab -> {flat: 'a doc, notflat: 'a doc} -> 'a doc
+  type tab
+  val newChildTab: tab -> (tab -> doc) -> doc
+  val newTab: (tab -> doc) -> doc
+  val break: tab -> doc
+  val breakspace: tab -> doc
+  val spaceIfNotFlat: tab -> doc
+  val cond: tab -> {flat: doc, notflat: doc} -> doc
 
-  val toStringDoc: {tabWidth: int} -> TabbedStringDoc.tab doc -> TabbedStringDoc.t
+  val toStringDoc: {tabWidth: int} -> doc -> TabbedStringDoc.t
 end =
 struct
 
   (* Just need a unique name *)
-  type 'a tab = 'a option ref * int
+  type tab = TabbedStringDoc.tab option ref * int
 
   val tabCounter = ref 0
 
@@ -39,21 +39,28 @@ struct
       (ref NONE, c)
     end
 
-  fun tabToString ((_, c): 'a tab) = "[" ^ Int.toString c ^ "]"
+  fun tabToString ((_, c): tab) = "[" ^ Int.toString c ^ "]"
 
 
-  datatype 'a doc =
+  structure TabDict =
+    Dict(struct
+      type t = tab
+      fun compare (t1: tab, t2: tab) : order = Int.compare (#2 t1, #2 t2)
+    end)
+
+
+  datatype doc =
     Empty
   | Space
-  | Concat of 'a doc * 'a doc
+  | Concat of doc * doc
   | Token of Token.t
   | Text of string
-  | Break of 'a tab
-  | NewTab of {tab: 'a tab, doc: 'a doc}
-  | NewChildTab of {parent: 'a tab, tab: 'a tab, doc: 'a doc}
-  | Cond of {tab: 'a tab, flat: 'a doc, notflat: 'a doc}
+  | Break of tab
+  | NewTab of {tab: tab, doc: doc}
+  | NewChildTab of {parent: tab, tab: tab, doc: doc}
+  | Cond of {tab: tab, flat: doc, notflat: doc}
 
-  type 'a t = 'a doc
+  type t = doc
 
   val empty = Empty
   val space = Space
@@ -87,7 +94,7 @@ struct
         "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
 
 
-  fun newTab (genDocUsingTab: 'a tab -> 'a doc) =
+  fun newTab (genDocUsingTab: tab -> doc) =
     let
       val t = mkTab ()
       val d = genDocUsingTab t
@@ -96,7 +103,7 @@ struct
     end
 
   
-  fun newChildTab parent (genDocUsingTab: 'a tab -> 'a doc) =
+  fun newChildTab parent (genDocUsingTab: tab -> doc) =
     let
       val t = mkTab ()
       val d = genDocUsingTab t
@@ -106,10 +113,14 @@ struct
 
   (* ====================================================================== *)
 
-  (* TODO: Use this to automatically insert spaces, rather than inserting
-   * manually in this interface. *)
-  fun ensureSpacesBetweenTokens doc = raise Fail "not yet implemented"
-  
+(*
+  fun ensureSpacesBetweenTokens doc =
+    let
+      fun loop ctx doc =
+    in
+    end
+  *)
+
   (* ====================================================================== *)
 
   structure TCS = TerminalColorString
@@ -164,7 +175,7 @@ struct
             Seq.iterate
               D.concat
               D.empty
-              (Seq.map (fn x => D.concat (D.break tab, x)) pieces))
+              (Seq.map (fn x => D.concat (D.at tab, x)) pieces))
         )
     end
 
@@ -188,11 +199,11 @@ struct
               doc
             end
         | Break (tab as (tabref, _)) =>
-            D.break (Option.valOf (!tabref))
+            D.at (Option.valOf (!tabref))
         | Cond {tab = (tabref, _), flat, notflat} =>
             D.cond (Option.valOf (!tabref))
-              { flat = loop currentTab flat
-              , notflat = loop currentTab notflat
+              { inactive = loop currentTab flat
+              , active = loop currentTab notflat
               }
         | NewTab {tab=(tabref,_), doc} =>
             D.newTab currentTab (fn tab' =>

@@ -5,7 +5,7 @@
 
 structure PrettierTy:
 sig
-  val showTy: Ast.Ty.t -> TabbedStringDoc.tab TabbedTokenDoc.t
+  val showTy: Ast.Ty.t -> TabbedTokenDoc.t
 end =
 struct
 

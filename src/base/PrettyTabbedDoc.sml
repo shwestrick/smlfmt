@@ -38,8 +38,8 @@ sig
   type tab
   val root: tab
   val newTab: tab -> (tab -> doc) -> doc
-  val break: tab -> doc
-  val cond: tab -> {flat: doc, notflat: doc} -> doc
+  val at: tab -> doc
+  val cond: tab -> {inactive: doc, active: doc} -> doc
 
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int, debug: bool}
            -> doc
@@ -179,28 +179,28 @@ struct
   | Space
   | Concat of doc * doc
   | Text of CustomString.t
-  | Break of tab
+  | At of tab
   | NewTab of {parent: tab, tab: tab, doc: doc}
-  | Cond of {tab: tab, flat: doc, notflat: doc}
+  | Cond of {tab: tab, inactive: doc, active: doc}
 
   type t = doc
 
   val empty = Empty
   val space = Space
   val text = Text
-  val break = Break
+  val at = At
 
   fun hasNoBreaks doc =
     case doc of
-      Break _ => false
+      At _ => false
     | Concat (d1, d2) => hasNoBreaks d1 andalso hasNoBreaks d2
     | NewTab {doc=d, ...} => hasNoBreaks d
-    | Cond {flat, notflat, ...} =>
-        hasNoBreaks flat andalso hasNoBreaks notflat
+    | Cond {inactive, active, ...} =>
+        hasNoBreaks inactive andalso hasNoBreaks active
     | _ => true
 
-  fun cond tab {flat, notflat} =
-    Cond {tab=tab, flat=flat, notflat=notflat}
+  fun cond tab {inactive, active} =
+    Cond {tab=tab, inactive=inactive, active=active}
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -218,24 +218,6 @@ struct
 
   (* ====================================================================== *)
 
-
-  fun ifActivatedHasAtLeastOneBreak tab doc =
-    case doc of
-      Empty => false
-    | Space => false
-    | Concat (d1, d2) =>
-        ifActivatedHasAtLeastOneBreak tab d1
-        orelse ifActivatedHasAtLeastOneBreak tab d2
-    | Text _ => false
-    | Break tab' => Tab.eq (tab, tab')
-    | NewTab {doc=d, ...} => ifActivatedHasAtLeastOneBreak tab d
-    | Cond {tab=tab', notflat, flat} =>
-        if Tab.eq (tab, tab') orelse Tab.isActivated tab' then
-          ifActivatedHasAtLeastOneBreak tab notflat
-        else
-          ifActivatedHasAtLeastOneBreak tab flat
-        
-
   fun allOuterBreaksActivated tab doc =
     let
       fun isInList xs x =
@@ -249,46 +231,12 @@ struct
             loop innerTabs d1
             andalso loop innerTabs d2
         | Text _ => true
-        | Break tab' => isInList innerTabs tab' orelse Tab.isActivated tab'
+        | At tab' => isInList innerTabs tab' orelse Tab.isActivated tab'
         | NewTab {tab=tab', doc=d, ...} => loop (tab' :: innerTabs) d
-        | Cond {notflat, ...} => loop innerTabs notflat
+        | Cond {active, ...} => loop innerTabs active
     in
       loop [tab] doc
     end
-  
-
-  (* A tab can be activated if
-   *   (1) it has at least one break, and
-   *   (2) every ancestor break within scope is activated
-   *
-   * This function should only be called on a NewTab{tab,doc}
-   *)
-
-  fun activationOkay debug tab doc =
-    let
-      val x = ifActivatedHasAtLeastOneBreak tab doc
-      val y = allOuterBreaksActivated tab doc
-      val result = x andalso y
-
-      val _ =
-        if not debug then ()
-        else if result then
-          print ("PrettyTabbedDoc.debug: tab " ^ Tab.infoString tab ^ " can be activated\n")
-        else 
-          print ("PrettyTabbedDoc.debug: tab "
-            ^ Tab.infoString tab
-            ^ " CANNOT be activated: "
-            ^ (if x then "has breaks" else "no breaks") ^ "; "
-            ^ (if y then "all outer activated" else "outer inactive")
-            ^ "\n")
-    in
-      result
-    end
-
-
-
-  (* fun activationOkay debug tab doc =
-    allOuterBreaksActivated tab doc *)
   
   (* ====================================================================== *)
 
@@ -298,7 +246,7 @@ struct
         case d of
           NewTab {tab, doc, ...} => loop (tab :: acc) doc
         | Concat (d1, d2) => loop (loop acc d1) d2
-        | Cond {flat, notflat, ...} => loop (loop acc flat) notflat
+        | Cond {inactive, active, ...} => loop (loop acc inactive) active
         | _ => acc
     in
       loop [] d
@@ -712,7 +660,7 @@ struct
         | Concat (doc1, doc2) =>
             layout (layout (dbgState, ct, lnStart, col, acc) doc1) doc2
 
-        | Break tab =>
+        | At tab =>
             let in
               case Tab.getState tab of
                 Tab.Usable Tab.Flattened =>
@@ -739,16 +687,16 @@ struct
                     raise DoPromote tab
                     
               | _ =>
-                  raise Fail "PrettyTabbedDoc.pretty.layout.Break: bad tab"
+                  raise Fail "PrettyTabbedDoc.pretty.layout.At: bad tab"
             end
 
-        | Cond {tab, flat, notflat} =>
+        | Cond {tab, inactive, active} =>
             let in
               case Tab.getState tab of
                 Tab.Usable (Tab.Activated _) =>
-                  layout (dbgState, ct, lnStart, col, acc) notflat
+                  layout (dbgState, ct, lnStart, col, acc) active
               | Tab.Usable Tab.Flattened =>
-                  layout (dbgState, ct, lnStart, col, acc) flat
+                  layout (dbgState, ct, lnStart, col, acc) inactive
               | _ =>
                   raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
             end
@@ -764,10 +712,6 @@ struct
                 (* try to activate first *)
                 if not (Tab.isActivated tab) then
                   Tab.setState tab (Tab.Usable (Tab.Activated NONE))
-                  (*if activationOkay debug tab doc then
-                    Tab.setState tab (Tab.Usable (Tab.Activated NONE))
-                  else
-                    ()*)
                 else (* if activated, try to relocate *)
                 case Tab.getState tab of
                   Tab.Usable (Tab.Activated NONE) =>

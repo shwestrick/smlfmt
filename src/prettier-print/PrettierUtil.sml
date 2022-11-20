@@ -27,7 +27,7 @@ struct
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
-  fun sequenceAt tab openn delims close (xs: 'a doc Seq.t) =
+  fun sequenceAt tab openn delims close (xs: doc Seq.t) =
     if Seq.length xs = 0 then
       token openn ++ token close
     else
@@ -41,13 +41,13 @@ struct
       end
 
   
-  fun sequence currentTab openn delims close (xs: 'a doc Seq.t) =
+  fun sequence currentTab openn delims close (xs: doc Seq.t) =
     newChildTab currentTab (fn tab => break tab ++ sequenceAt tab openn delims close xs)
 
 
-  fun separateWithSpaces (items: 'a doc option list) : 'a doc =
+  fun separateWithSpaces (items: doc option list) : doc =
     let
-      val items: 'a doc list = List.mapPartial (fn x => x) items
+      val items: doc list = List.mapPartial (fn x => x) items
     in
       case items of
         [] => empty

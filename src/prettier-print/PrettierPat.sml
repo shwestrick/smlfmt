@@ -5,7 +5,7 @@
 
 structure PrettierPat:
 sig
-  val showPat: Ast.Pat.t -> TabbedStringDoc.tab TabbedTokenDoc.t
+  val showPat: Ast.Pat.t -> TabbedTokenDoc.t
 end =
 struct
 

@@ -5,8 +5,8 @@
 
 structure PrettierStr:
 sig
-  type doc = TabbedStringDoc.tab TabbedTokenDoc.t
-  type tab = TabbedStringDoc.tab TabbedTokenDoc.tab
+  type doc = TabbedTokenDoc.t
+  type tab = TabbedTokenDoc.tab
   val showStrExp: Ast.Str.strexp -> doc
   val showStrExpAt: tab -> Ast.Str.strexp -> doc
   val showStrDec: Ast.Str.strdec -> doc
@@ -17,8 +17,8 @@ struct
   open TabbedTokenDoc
   open PrettierUtil
   infix 2 ++
-  type doc = TabbedStringDoc.tab TabbedTokenDoc.t
-  type tab = TabbedStringDoc.tab TabbedTokenDoc.tab
+  type doc = TabbedTokenDoc.t
+  type tab = TabbedTokenDoc.tab
 
   fun showTy ty = PrettierTy.showTy ty
   fun showPat pat = PrettierPat.showPat pat
