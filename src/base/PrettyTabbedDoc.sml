@@ -258,39 +258,91 @@ struct
   fun spaces count =
     CustomString.fromString (CharVector.tabulate (count, fn _ => #" "))
 
+
   datatype sentry =
     StartTabHighlight of {tab: tab, col: int}
+  | StartMaxWidthHighlight of {col: int}
+
 
   datatype eentry =
     EndTabHighlight of {tab: tab, info: CustomString.t, col: int}
+  | EndMaxWidthHighlight of {col: int}
+
+
+  fun sentryCol se =
+    case se of
+      StartTabHighlight {col, ...} => col
+    | StartMaxWidthHighlight {col} => col
+
+
+  fun eentryCol ee =
+    case ee of
+      EndTabHighlight {col, ...} => col
+    | EndMaxWidthHighlight {col} => col
+
 
   fun sentryCmp (se1, se2) =
-    case (se1, se2) of (StartTabHighlight {tab=tab1, col=col1}, StartTabHighlight {tab=tab2, col=col2}) =>
-    case Int.compare (col1, col2) of
-      EQUAL => Tab.compare (tab1, tab2)
-    | other => other
+    case (se1, se2) of
+      (StartTabHighlight {tab=tab1, col=col1}, StartTabHighlight {tab=tab2, col=col2}) =>
+        (case Int.compare (col1, col2) of
+          EQUAL => Tab.compare (tab1, tab2)
+        | other => other)
+
+    | _ => Int.compare (sentryCol se1, sentryCol se2)
+
 
   fun eentryCmp (ee1, ee2) =
-    case (ee1, ee2) of (EndTabHighlight {tab=tab1, col=col1, info=_}, EndTabHighlight {tab=tab2, col=col2, info=_}) =>
-    case Int.compare (col1, col2) of
-      EQUAL => Tab.compare (tab1, tab2)
-    | other => other
+    case (ee1, ee2) of
+      (EndTabHighlight {tab=tab1, col=col1, ...}, EndTabHighlight {tab=tab2, col=col2, ...}) =>
+        (case Int.compare (col1, col2) of
+          EQUAL => Tab.compare (tab1, tab2)
+        | other => other)
 
-  fun sentryCol (StartTabHighlight {col, ...}) = col
-  fun eentryCol (EndTabHighlight {col, ...}) = col
+    | _ => Int.compare (eentryCol ee1, eentryCol ee2)
 
-  fun matchingStartEndEntries (StartTabHighlight {tab=st, col=sc}, EndTabHighlight {tab=et, col=ec, ...}) =
-    Tab.eq (st, et) andalso sc = ec
 
-  fun sentryEmphasizer (StartTabHighlight {tab, ...}) =
-    CustomString.emphasize (Tab.depth tab)
+  fun matchingStartEndEntries (se, ee) =
+    case (se, ee) of
+      ( StartTabHighlight {tab=st, col=sc}
+      , EndTabHighlight {tab=et, col=ec, ...}
+      ) =>
+        Tab.eq (st, et) andalso sc = ec
 
-  fun sentrytos (StartTabHighlight {tab=st, col=scol}) =
-    "StartTabHighlight {tab = " ^ Tab.name st ^ ", col = " ^ Int.toString scol ^ "}"
-  fun eentrytos (EndTabHighlight {tab=et, info, col=ecol}) =
-    "EndTabHighlight {tab = " ^ Tab.name et ^ ", col = " ^ Int.toString ecol ^ ", ...}"
+    | (StartMaxWidthHighlight {col=sc}, EndMaxWidthHighlight {col=ec}) =>
+        sc = ec
+    
+    | _ => false
+    
 
-  fun eentryInfo (EndTabHighlight {info, ...}) = info
+  fun sentryEmphasizer se =
+    case se of
+      StartTabHighlight {tab, ...} => CustomString.emphasize (Tab.depth tab)
+    | StartMaxWidthHighlight {...} => CustomString.emphasize 10000000
+
+
+  fun sentrytos se =
+    case se of
+      StartTabHighlight {tab=st, col=scol} =>
+        "StartTabHighlight {tab = " ^ Tab.name st ^ ", col = " ^ Int.toString scol ^ "}"
+    
+    | StartMaxWidthHighlight {col} =>
+        "StartMaxWidthHighlight {col = " ^ Int.toString col ^ "}"
+
+
+  fun eentrytos ee =
+    case ee of
+      EndTabHighlight {tab=et, info, col=ecol} =>
+        "EndTabHighlight {tab = " ^ Tab.name et ^ ", col = " ^ Int.toString ecol ^ ", ...}"
+    
+    | EndMaxWidthHighlight {col} =>
+        "EndMaxWidthHighlight {col = " ^ Int.toString col ^ "}"
+
+
+  fun eentryInfo ee =
+    case ee of
+      EndTabHighlight {info, ...} => info
+    | EndMaxWidthHighlight _ => CustomString.fromString "^maxWidth"
+
 
   datatype item =
     Spaces of int
