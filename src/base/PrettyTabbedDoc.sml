@@ -13,6 +13,7 @@ functor PrettyTabbedDoc
       val substring: t * int * int -> t
       val emphasize: t -> t (* should be visually distinct, e.g., color the background *)
       val fromString: string -> t
+      val toString: t -> string
       val size: t -> int
       val concat: t list -> t
     end) :>
@@ -303,6 +304,17 @@ struct
     | _ => raise Fail "PrettyTabbedDoc.itemWidth"
 
 
+  fun itos item =
+    case item of
+      Spaces n => "Spaces(" ^ Int.toString n ^ ")"
+    | Stuff s =>
+        if itemWidth item <= 5 then
+          "Stuff('" ^ CustomString.toString s ^ "')"
+        else
+          "Stuff('" ^ String.substring (CustomString.toString s, 0, 5) ^ "...')"
+    | _ => "???"
+
+
   fun splitItem item i =
     if i < 0 orelse i+1 > itemWidth item then
       raise Fail "PrettyTabbedDoc.splitItem: size"
@@ -330,8 +342,12 @@ struct
           val orderedHighlightCols =
             Mergesort.sort Int.compare (Seq.map #col (Seq.fromList startDebugs))
 
+          (* val _ = print ("orderedHighlightCols: " ^ Seq.toString Int.toString orderedHighlightCols ^ "\n") *)
+
           fun processItem (item, (currCol, hi, acc)) =
             let
+              val () = ()
+              (* val _ = print ("processItem " ^ itos item ^ "\n") *)
               val nextHighlightCol =
                 if hi < Seq.length orderedHighlightCols then
                   Seq.nth orderedHighlightCols hi
@@ -340,11 +356,23 @@ struct
               
               val n = itemWidth item
             in
-              if currCol+n <= nextHighlightCol then
+              if nextHighlightCol < currCol then
+                processItem (item, (currCol, hi+1, acc))
+              else if currCol+n <= nextHighlightCol then
                 (currCol+n, hi, item :: acc)
               else
                 let
                   val (left, mid, right) = splitItem item (nextHighlightCol-currCol)
+                  (* 
+                  val _ =
+                    print ("item: " ^ itos item
+                       ^ " split into (" ^ itos left ^ ", _, " ^ itos right ^ ")"
+                       ^ " nextHightlightCol: " ^ Int.toString nextHighlightCol
+                       ^ " currCol: " ^ Int.toString currCol
+                       ^ " itemWidth: " ^ Int.toString n
+                       ^ " hi: " ^ Int.toString hi
+                       ^ "\n")
+                  *)
                 in
                   processItem (right,
                    ( nextHighlightCol + 1
@@ -364,7 +392,11 @@ struct
       fun newlineWithEndDebugs endDebugs startDebugs acc =
         if List.null endDebugs then Newline :: acc else
         let
-          val ordered =
+          (*val orderedStarts =
+            Mergesort.sort
+              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
+              (Seq.fromList startDebugs)*)
+          val orderedEnds =
             Mergesort.sort
               (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
               (Seq.fromList endDebugs)
@@ -378,28 +410,30 @@ struct
            * `didntFit` on the next line, repeating until all entries have been
            * output.
            *)
-          fun loop (i, X) didntFit currCol acc =
+          fun loop (i, X) didntFit currCol accCurrLine acc =
             if i >= Seq.length X then
               if List.null didntFit then
-                acc
+                highlightActive accCurrLine acc startDebugs
               else
-                loop (0, Seq.fromRevList didntFit) [] 0 (Newline :: acc)
+                loop (0, Seq.fromRevList didntFit) [] 0
+                  []
+                  (Newline :: highlightActive accCurrLine acc startDebugs)
             else
             let
               val entry as {info, col, ...} = Seq.nth X i
             in
               if col < currCol then
-                loop (i+1, X) (entry :: didntFit) currCol acc
+                loop (i+1, X) (entry :: didntFit) currCol accCurrLine acc
               else
               let
                 val numSpaces = col - currCol
                 val newCol = currCol + numSpaces + CustomString.size info
               in
-                loop (i+1, X) didntFit newCol (Stuff info :: Spaces numSpaces :: acc)
+                loop (i+1, X) didntFit newCol (Stuff info :: Spaces numSpaces :: accCurrLine) acc
               end
             end
         in
-          Newline :: loop (0, ordered) [] 0 (Newline :: acc)
+          Newline :: loop (0, orderedEnds) [] 0 [] (Newline :: acc)
         end
 
       
@@ -418,8 +452,10 @@ struct
               (Seq.fromList endDebugs)
 
           fun loop i j acc =
-            if i >= Seq.length orderedStarts orelse j >= Seq.length orderedEnds then
+            if i >= Seq.length orderedStarts then
               acc
+            else if j >= Seq.length orderedEnds then
+              Seq.toList orderedStarts @ acc
             else
               let
                 val sentry as {tab=st, col=scol} = Seq.nth orderedStarts i
@@ -439,6 +475,13 @@ struct
         end
 
 
+      (* TODO: Is this assembling the StartDebugs for the wrong line?
+       * Perhaps off by one?
+       *
+       * No, this is correct I think. The problem is that the layout engine
+       * is inserting `StartDebug`s too early. Need to adjust the layout engine
+       * to insert these at the first break, rather than at the newChildTab.
+       *)
       fun processItem (item, (accCurrLine, acc, endDebugs, startDebugs)) =
         case item of
           EndDebug entry => (accCurrLine, acc, entry :: endDebugs, startDebugs)
