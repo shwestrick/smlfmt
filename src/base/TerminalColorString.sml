@@ -29,6 +29,7 @@ sig
 
   val foreground: color -> t -> t
   val background: color -> t -> t
+  val backgroundIfNone: color -> t -> t
   val bold: t -> t
   val italic: t -> t
   val underline: t -> t
@@ -268,6 +269,16 @@ struct
       Attributes {attr=a, child, ...} => (a, child)
     | _ => (default, t)
 
+  fun hasNoBackground t =
+    case t of
+      Append {left, right, ...} =>
+        hasNoBackground left andalso hasNoBackground right
+    | Attributes {attr, child, ...} =>
+        not (Option.isSome (#background attr))
+        andalso
+        hasNoBackground child
+    | _ => true
+
   fun foreground color t =
     let
       val (a, t) = splitAttributes t
@@ -289,6 +300,12 @@ struct
         , child = t
         }
     end
+
+  fun backgroundIfNone color t =
+    if hasNoBackground t then
+      background color t
+    else
+      t
 
   fun bold t =
     let

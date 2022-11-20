@@ -370,7 +370,27 @@ struct
                 end
             end
 
-          val (_, _, acc) = List.foldr processItem (0, 0, acc) accCurrLine
+          val (currCol, hi, acc) = List.foldr processItem (0, 0, acc) accCurrLine
+
+          (* finish out the columns to highlight, if any remaining *)
+          val (_, acc) =
+            Util.loop (hi, Seq.length orderedHighlightCols) (currCol, acc)
+            (fn ((currCol, acc), hi) =>
+              let
+                val sentry = Seq.nth orderedHighlightCols hi
+                val nextHighlightCol = #col sentry
+                val tabDepth = Tab.depth (#tab sentry)
+              in
+                if currCol > nextHighlightCol then
+                  (currCol, acc)
+                else
+                  (* currCol <= nextHighlightCol *)
+                  ( nextHighlightCol+1
+                  , Stuff (CustomString.emphasize tabDepth (spaces 1))
+                    :: Spaces (nextHighlightCol-currCol)
+                    :: acc
+                  )
+              end)
         in
           acc
         end
@@ -468,6 +488,8 @@ struct
           
           val (remainingSS, acc) =
             loop (0, orderedStarts) (0, orderedEnds) [] ([], []) 0 [] (Newline :: acc)
+          
+          val acc = highlightActive [] (Newline :: acc) remainingSS
         in
           (remainingSS, Newline :: acc)
         end
