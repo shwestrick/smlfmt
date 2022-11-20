@@ -265,7 +265,7 @@ struct
 
 
   datatype eentry =
-    EndTabHighlight of {tab: tab, info: CustomString.t, col: int}
+    EndTabHighlight of {tab: tab, col: int}
   | EndMaxWidthHighlight of {col: int}
 
 
@@ -288,14 +288,34 @@ struct
           EQUAL => Tab.compare (tab1, tab2)
         | other => other)
 
+    | (StartTabHighlight {col=col1, ...}, StartMaxWidthHighlight {col=col2}) =>
+        (case Int.compare (col1, col2) of
+          EQUAL => LESS
+        | other => other)
+    
+    | (StartMaxWidthHighlight {col=col1}, StartTabHighlight {col=col2, ...}) =>
+        (case Int.compare (col1, col2) of
+          EQUAL => GREATER
+        | other => other)
+
     | _ => Int.compare (sentryCol se1, sentryCol se2)
 
 
   fun eentryCmp (ee1, ee2) =
     case (ee1, ee2) of
-      (EndTabHighlight {tab=tab1, col=col1, ...}, EndTabHighlight {tab=tab2, col=col2, ...}) =>
+      (EndTabHighlight {tab=tab1, col=col1}, EndTabHighlight {tab=tab2, col=col2}) =>
         (case Int.compare (col1, col2) of
           EQUAL => Tab.compare (tab1, tab2)
+        | other => other)
+
+    | (EndTabHighlight {col=col1, ...}, EndMaxWidthHighlight {col=col2}) =>
+        (case Int.compare (col1, col2) of
+          EQUAL => LESS
+        | other => other)
+    
+    | (EndMaxWidthHighlight {col=col1}, EndTabHighlight {col=col2, ...}) =>
+        (case Int.compare (col1, col2) of
+          EQUAL => GREATER
         | other => other)
 
     | _ => Int.compare (eentryCol ee1, eentryCol ee2)
@@ -303,9 +323,7 @@ struct
 
   fun matchingStartEndEntries (se, ee) =
     case (se, ee) of
-      ( StartTabHighlight {tab=st, col=sc}
-      , EndTabHighlight {tab=et, col=ec, ...}
-      ) =>
+      (StartTabHighlight {tab=st, col=sc}, EndTabHighlight {tab=et, col=ec, ...}) =>
         Tab.eq (st, et) andalso sc = ec
 
     | (StartMaxWidthHighlight {col=sc}, EndMaxWidthHighlight {col=ec}) =>
@@ -331,17 +349,19 @@ struct
 
   fun eentrytos ee =
     case ee of
-      EndTabHighlight {tab=et, info, col=ecol} =>
-        "EndTabHighlight {tab = " ^ Tab.name et ^ ", col = " ^ Int.toString ecol ^ ", ...}"
+      EndTabHighlight {tab=et, col=ecol} =>
+        "EndTabHighlight {tab = " ^ Tab.name et ^ ", col = " ^ Int.toString ecol ^ "}"
     
     | EndMaxWidthHighlight {col} =>
         "EndMaxWidthHighlight {col = " ^ Int.toString col ^ "}"
 
 
-  fun eentryInfo ee =
-    case ee of
-      EndTabHighlight {info, ...} => info
-    | EndMaxWidthHighlight _ => CustomString.fromString "^maxWidth"
+  fun sentryInfo se =
+    case se of
+      StartTabHighlight {tab, col} =>
+        sentryEmphasizer se (CustomString.fromString ("^" ^ Tab.name tab))
+    | StartMaxWidthHighlight _ =>
+        sentryEmphasizer se (CustomString.fromString "^maxWidth")
 
 
   datatype item =
@@ -522,16 +542,16 @@ struct
                     (Seq.toList (Seq.drop SS i) @ remainingSS @ removedSSCurrLine))
             else
             let
-              val sentry (*as {tab=st, col=scol}*) = Seq.nth SS i
-              val eentry (*as {tab=et, info, col=ecol}*) = Seq.nth EE j
+              val sentry = Seq.nth SS i
+              val eentry = Seq.nth EE j
 
               val scol = sentryCol sentry
               val ecol = eentryCol eentry
-              val info = eentryInfo eentry
+              val info = sentryInfo sentry
 
               val _ =
                 (* check invariant *)
-                if scol < ecol orelse matchingStartEndEntries (sentry, eentry) then ()
+                if scol <= ecol then ()
                 else 
                   ( print ("sentry " ^ sentrytos sentry ^ "\n"
                          ^ "eentry " ^ eentrytos eentry ^ "\n"
@@ -542,19 +562,17 @@ struct
                   ; raise Fail "newlineWithEndDebugs.loop: invariant violated"
                   )
             in
-              if scol < ecol then
+              if scol < ecol orelse not (matchingStartEndEntries (sentry, eentry)) then
                 loop (i+1, SS) (j, EE) didntFitEE (removedSSCurrLine, sentry :: remainingSS) currCol accCurrLine acc
-              else
-              (* invariant: scol = ecol andalso Tab.eq (st, et) *)
-              if ecol < currCol then
+              else if ecol < currCol then
                 loop (i+1, SS) (j+1, EE) (eentry :: didntFitEE) (removedSSCurrLine, sentry :: remainingSS) currCol accCurrLine acc
               else
-              let
-                val numSpaces = ecol - currCol
-                val newCol = currCol + numSpaces + CustomString.size info
-              in
-                loop (i+1, SS) (j+1, EE) didntFitEE (sentry :: removedSSCurrLine, remainingSS) newCol (Stuff info :: Spaces numSpaces :: accCurrLine) acc
-              end
+                let
+                  val numSpaces = ecol - currCol
+                  val newCol = currCol + numSpaces + CustomString.size info
+                in
+                  loop (i+1, SS) (j+1, EE) didntFitEE (sentry :: removedSSCurrLine, remainingSS) newCol (Stuff info :: Spaces numSpaces :: accCurrLine) acc
+                end
             end
           
           val (remainingSS, acc) =
@@ -581,8 +599,11 @@ struct
         | _ => (item :: accCurrLine, acc, endDebugs, startDebugs)
 
 
+      val init = ([], [], [], [])
+      val init = processItem (StartDebug (StartMaxWidthHighlight {col=maxWidth}), init)
       val (accCurrLine, acc, endDebugs, startDebugs) =
-        List.foldr processItem ([], [], [], []) items
+        List.foldr processItem init
+          (EndDebug (EndMaxWidthHighlight {col=maxWidth}) :: items)
     in
       if List.null endDebugs then
         accCurrLine @ acc
@@ -849,11 +870,7 @@ struct
                 case Tab.getState tab of
                   Tab.Usable Tab.Flattened => acc
                 | Tab.Usable (Tab.Activated (SOME i)) =>
-                    EndDebug (EndTabHighlight
-                      { tab = tab
-                      , info = CustomString.emphasize (Tab.depth tab) (CustomString.fromString ("^" ^ Tab.name tab))
-                      , col = i
-                      }) :: acc
+                    EndDebug (EndTabHighlight {tab = tab, col = i}) :: acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
             in
               if not debug then () else
