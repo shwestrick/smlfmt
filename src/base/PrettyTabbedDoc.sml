@@ -258,13 +258,46 @@ struct
   fun spaces count =
     CustomString.fromString (CharVector.tabulate (count, fn _ => #" "))
 
+  datatype sentry =
+    StartTabHighlight of {tab: tab, col: int}
+
+  datatype eentry =
+    EndTabHighlight of {tab: tab, info: CustomString.t, col: int}
+
+  fun sentryCmp (se1, se2) =
+    case (se1, se2) of (StartTabHighlight {tab=tab1, col=col1}, StartTabHighlight {tab=tab2, col=col2}) =>
+    case Int.compare (col1, col2) of
+      EQUAL => Tab.compare (tab1, tab2)
+    | other => other
+
+  fun eentryCmp (ee1, ee2) =
+    case (ee1, ee2) of (EndTabHighlight {tab=tab1, col=col1, info=_}, EndTabHighlight {tab=tab2, col=col2, info=_}) =>
+    case Int.compare (col1, col2) of
+      EQUAL => Tab.compare (tab1, tab2)
+    | other => other
+
+  fun sentryCol (StartTabHighlight {col, ...}) = col
+  fun eentryCol (EndTabHighlight {col, ...}) = col
+
+  fun matchingStartEndEntries (StartTabHighlight {tab=st, col=sc}, EndTabHighlight {tab=et, col=ec, ...}) =
+    Tab.eq (st, et) andalso sc = ec
+
+  fun sentryEmphasizer (StartTabHighlight {tab, ...}) =
+    CustomString.emphasize (Tab.depth tab)
+
+  fun sentrytos (StartTabHighlight {tab=st, col=scol}) =
+    "StartTabHighlight {tab = " ^ Tab.name st ^ ", col = " ^ Int.toString scol ^ "}"
+  fun eentrytos (EndTabHighlight {tab=et, info, col=ecol}) =
+    "EndTabHighlight {tab = " ^ Tab.name et ^ ", col = " ^ Int.toString ecol ^ ", ...}"
+
+  fun eentryInfo (EndTabHighlight {info, ...}) = info
 
   datatype item =
     Spaces of int
   | Newline
   | Stuff of CustomString.t
-  | StartDebug of {tab: tab, col: int}
-  | EndDebug of {tab: tab, info: CustomString.t, col: int}
+  | StartDebug of sentry
+  | EndDebug of eentry
 
 
   fun itemWidth item =
@@ -310,21 +343,8 @@ struct
   (* ====================================================================== *)
 
 
-  fun implementDebugs items =
+  fun implementDebugs maxWidth items =
     let
-      type sentry = {tab: tab, col: int}
-      type eentry = {tab: tab, info: CustomString.t, col: int}
-
-      fun sentryCmp ({tab=tab1, col=col1}, {tab=tab2, col=col2}) =
-        case Int.compare (col1, col2) of
-          EQUAL => Tab.compare (tab1, tab2)
-        | other => other
-
-      fun eentryCmp ({tab=tab1, col=col1, info=_}, {tab=tab2, col=col2, info=_}) =
-        case Int.compare (col1, col2) of
-          EQUAL => Tab.compare (tab1, tab2)
-        | other => other
-
       fun highlightActive accCurrLine acc startDebugs =
         let
           val orderedHighlightCols =
@@ -336,7 +356,7 @@ struct
               (* val _ = print ("processItem " ^ itos item ^ "\n") *)
               val nextHighlightCol =
                 if hi < Seq.length orderedHighlightCols then
-                  #col (Seq.nth orderedHighlightCols hi)
+                  sentryCol (Seq.nth orderedHighlightCols hi)
                 else
                   valOf Int.maxInt
               
@@ -348,7 +368,7 @@ struct
                 (currCol+n, hi, item :: acc)
               else
                 let
-                  val tabDepth = Tab.depth (#tab (Seq.nth orderedHighlightCols hi))
+                  val emphasizer = sentryEmphasizer (Seq.nth orderedHighlightCols hi)
                   val (left, mid, right) = splitItem item (nextHighlightCol-currCol)
                   (* 
                   val _ =
@@ -364,7 +384,7 @@ struct
                   processItem (right,
                    ( nextHighlightCol + 1
                    , hi+1
-                   , Stuff (CustomString.emphasize tabDepth mid)
+                   , Stuff (emphasizer mid)
                      :: left :: acc
                    ))
                 end
@@ -378,15 +398,15 @@ struct
             (fn ((currCol, acc), hi) =>
               let
                 val sentry = Seq.nth orderedHighlightCols hi
-                val nextHighlightCol = #col sentry
-                val tabDepth = Tab.depth (#tab sentry)
+                val nextHighlightCol = sentryCol sentry
+                val emphasizer = sentryEmphasizer sentry
               in
                 if currCol > nextHighlightCol then
                   (currCol, acc)
                 else
                   (* currCol <= nextHighlightCol *)
                   ( nextHighlightCol+1
-                  , Stuff (CustomString.emphasize tabDepth (spaces 1))
+                  , Stuff (emphasizer (spaces 1))
                     :: Spaces (nextHighlightCol-currCol)
                     :: acc
                   )
@@ -450,17 +470,16 @@ struct
                     (Seq.toList (Seq.drop SS i) @ remainingSS @ removedSSCurrLine))
             else
             let
-              val sentry as {tab=st, col=scol} = Seq.nth SS i
-              val eentry as {tab=et, info, col=ecol} = Seq.nth EE j
+              val sentry (*as {tab=st, col=scol}*) = Seq.nth SS i
+              val eentry (*as {tab=et, info, col=ecol}*) = Seq.nth EE j
 
-              fun sentrytos {tab=st, col=scol} =
-                "{st = " ^ Tab.name st ^ ", scol = " ^ Int.toString scol ^ "}"
-              fun eentrytos {tab=et, info, col=ecol} =
-                "{et = " ^ Tab.name st ^ ", ecol = " ^ Int.toString scol ^ "}"
-              
+              val scol = sentryCol sentry
+              val ecol = eentryCol eentry
+              val info = eentryInfo eentry
+
               val _ =
                 (* check invariant *)
-                if scol < ecol orelse (scol = ecol andalso Tab.eq (st, et)) then ()
+                if scol < ecol orelse matchingStartEndEntries (sentry, eentry) then ()
                 else 
                   ( print ("sentry " ^ sentrytos sentry ^ "\n"
                          ^ "eentry " ^ eentrytos eentry ^ "\n"
@@ -588,7 +607,7 @@ struct
         else
           ( TabDict.insert dbgState (tab, true)
           , ct, s, c
-          , StartDebug {tab = tab, col = c} :: a
+          , StartDebug (StartTabHighlight {tab = tab, col = c}) :: a
           )
 
       fun isPromotable' t =
@@ -778,11 +797,11 @@ struct
                 case Tab.getState tab of
                   Tab.Usable Tab.Flattened => acc
                 | Tab.Usable (Tab.Activated (SOME i)) =>
-                    EndDebug
+                    EndDebug (EndTabHighlight
                       { tab = tab
                       , info = CustomString.emphasize (Tab.depth tab) (CustomString.fromString ("^" ^ Tab.name tab))
                       , col = i
-                      } :: acc
+                      }) :: acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
             in
               if not debug then () else
@@ -796,7 +815,7 @@ struct
 
       val (_, _, _, _, items) = layout (TabDict.empty, root, 0, 0, []) doc
 
-      val items = if not debug then items else implementDebugs items
+      val items = if not debug then items else implementDebugs maxWidth items
 
       (* reset tabs (so that if we call `pretty` again, it will work...) *)
       val _ = List.app (fn tab => Tab.setState tab Tab.Fresh) allTabs
