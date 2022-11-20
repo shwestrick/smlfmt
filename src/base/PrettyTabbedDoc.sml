@@ -11,7 +11,14 @@ functor PrettyTabbedDoc
     sig
       type t
       val substring: t * int * int -> t
-      val emphasize: t -> t (* should be visually distinct, e.g., color the background *)
+
+      (* should be visually distinct, e.g., color the background.
+       * the integer argument is a depth; this can be ignored (in which
+       * case all depths will be emphasized the same) or can be used
+       * to distinguish different tab depths 
+       *)
+      val emphasize: int -> t -> t
+
       val fromString: string -> t
       val toString: t -> string
       val size: t -> int
@@ -149,6 +156,11 @@ struct
       | (Root, Root) => EQUAL
       | (Root, _) => LESS
       | (_, Root) => GREATER
+
+    fun depth t =
+      case t of
+        Root => 0
+      | Tab {parent=p, ...} => 1 + depth p
 
   end
 
@@ -352,12 +364,23 @@ struct
 
   fun implementDebugs items =
     let
+      type sentry = {tab: tab, col: int}
+      type eentry = {tab: tab, info: CustomString.t, col: int}
+
+      fun sentryCmp ({tab=tab1, col=col1}, {tab=tab2, col=col2}) =
+        case Int.compare (col1, col2) of
+          EQUAL => Tab.compare (tab1, tab2)
+        | other => other
+
+      fun eentryCmp ({tab=tab1, col=col1, info=_}, {tab=tab2, col=col2, info=_}) =
+        case Int.compare (col1, col2) of
+          EQUAL => Tab.compare (tab1, tab2)
+        | other => other
+
       fun highlightActive accCurrLine acc startDebugs =
         let
           val orderedHighlightCols =
-            Mergesort.sort Int.compare (Seq.map #col (Seq.fromList startDebugs))
-
-          (* val _ = print ("orderedHighlightCols: " ^ Seq.toString Int.toString orderedHighlightCols ^ "\n") *)
+            Mergesort.sort sentryCmp (Seq.fromList startDebugs)
 
           fun processItem (item, (currCol, hi, acc)) =
             let
@@ -365,7 +388,7 @@ struct
               (* val _ = print ("processItem " ^ itos item ^ "\n") *)
               val nextHighlightCol =
                 if hi < Seq.length orderedHighlightCols then
-                  Seq.nth orderedHighlightCols hi
+                  #col (Seq.nth orderedHighlightCols hi)
                 else
                   valOf Int.maxInt
               
@@ -377,6 +400,7 @@ struct
                 (currCol+n, hi, item :: acc)
               else
                 let
+                  val tabDepth = Tab.depth (#tab (Seq.nth orderedHighlightCols hi))
                   val (left, mid, right) = splitItem item (nextHighlightCol-currCol)
                   (* 
                   val _ =
@@ -392,7 +416,7 @@ struct
                   processItem (right,
                    ( nextHighlightCol + 1
                    , hi+1
-                   , Stuff (CustomString.emphasize mid)
+                   , Stuff (CustomString.emphasize tabDepth mid)
                      :: left :: acc
                    ))
                 end
@@ -409,19 +433,6 @@ struct
           (startDebugs, Newline :: acc)
         else
         let
-          type sentry = {tab: tab, col: int}
-          type eentry = {tab: tab, info: CustomString.t, col: int}
-
-          fun sentryCmp ({tab=tab1, col=col1}, {tab=tab2, col=col2}) =
-            case Int.compare (col1, col2) of
-              EQUAL => Tab.compare (tab1, tab2)
-            | other => other
-
-          fun eentryCmp ({tab=tab1, col=col1, info=_}, {tab=tab2, col=col2, info=_}) =
-            case Int.compare (col1, col2) of
-              EQUAL => Tab.compare (tab1, tab2)
-            | other => other
-
           val orderedStarts =
             Mergesort.sort sentryCmp (Seq.fromList startDebugs)
           val orderedEnds =
@@ -803,7 +814,7 @@ struct
                 | Tab.Usable (Tab.Activated (SOME i)) =>
                     EndDebug
                       { tab = tab
-                      , info = CustomString.emphasize (CustomString.fromString ("^" ^ Tab.name tab))
+                      , info = CustomString.emphasize (Tab.depth tab) (CustomString.fromString ("^" ^ Tab.name tab))
                       , col = i
                       } :: acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
