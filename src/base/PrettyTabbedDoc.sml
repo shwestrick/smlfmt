@@ -142,6 +142,14 @@ struct
         Root => "root"
       | Tab {id=c, ...} => Int.toString c
 
+    
+    fun compare (t1, t2) =
+      case (t1, t2) of
+        (Tab {id=c1, ...}, Tab {id=c2, ...}) => Int.compare (c1, c2)
+      | (Root, Root) => EQUAL
+      | (Root, _) => LESS
+      | (_, Root) => GREATER
+
   end
 
   (* ====================================================================== *)
@@ -390,88 +398,112 @@ struct
 
 
       fun newlineWithEndDebugs endDebugs startDebugs acc =
-        if List.null endDebugs then Newline :: acc else
+        if List.null endDebugs then
+          (startDebugs, Newline :: acc)
+        else
         let
-          (*val orderedStarts =
-            Mergesort.sort
-              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
-              (Seq.fromList startDebugs)*)
+          type sentry = {tab: tab, col: int}
+          type eentry = {tab: tab, info: CustomString.t, col: int}
+
+          fun sentryCmp ({tab=tab1, col=col1}, {tab=tab2, col=col2}) =
+            case Int.compare (col1, col2) of
+              EQUAL => Tab.compare (tab1, tab2)
+            | other => other
+
+          fun eentryCmp ({tab=tab1, col=col1, info=_}, {tab=tab2, col=col2, info=_}) =
+            case Int.compare (col1, col2) of
+              EQUAL => Tab.compare (tab1, tab2)
+            | other => other
+
+          val orderedStarts =
+            Mergesort.sort sentryCmp (Seq.fromList startDebugs)
           val orderedEnds =
-            Mergesort.sort
-              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
-              (Seq.fromList endDebugs)
+            Mergesort.sort eentryCmp (Seq.fromList endDebugs)
 
           (* This is a bit cumbersome, but actually is fairly straightforward:
-           * for each `(info, col)` in `X`, output `info` at column `col`.
+           * for each `(info, col)` in `EE`, output `info` at column `col`.
            *
            * There's some trickiness though, because multiple `(info, col)`
            * entries might overlap. For this, we check if each entry fits,
            * and if not, we add the entry to `didntFit`, and then process
            * `didntFit` on the next line, repeating until all entries have been
            * output.
+           *
+           * Update: and now there's more trickiness, because we need to filter
+           * starts as we go to get decent output...
            *)
-          fun loop (i, X) didntFit currCol accCurrLine acc =
-            if i >= Seq.length X then
-              if List.null didntFit then
-                highlightActive accCurrLine acc startDebugs
+          fun loop
+                (i, SS: sentry Seq.t)
+                (j, EE: eentry Seq.t)
+                (didntFitEE: eentry list)
+                ( removedSSCurrLine: sentry list
+                , remainingSS: sentry list
+                )
+                (currCol: int)
+                (accCurrLine: item list)
+                (acc: item list)
+            =
+            if j >= Seq.length EE then
+              if List.null didntFitEE then
+                let
+                  val remainingSS' = Seq.toList (Seq.drop SS i) @ remainingSS
+                in
+                  ( remainingSS'
+                  , highlightActive accCurrLine acc (removedSSCurrLine @ remainingSS')
+                  )
+                end
               else
-                loop (0, Seq.fromRevList didntFit) [] 0
-                  []
-                  (Newline :: highlightActive accCurrLine acc startDebugs)
+                loop
+                  (0, Seq.append (Seq.fromRevList remainingSS, Seq.drop SS i))
+                  (0, Seq.fromRevList didntFitEE)
+                  []        (* didntFitEE *)
+                  ([], [])  (* (removedSSCurrLine, remainingSS) *)
+                  0         (* currCol *)
+                  []        (* accCurrLine *)
+                  (Newline :: highlightActive accCurrLine acc
+                    (Seq.toList (Seq.drop SS i) @ remainingSS @ removedSSCurrLine))
             else
             let
-              val entry as {info, col, ...} = Seq.nth X i
+              val sentry as {tab=st, col=scol} = Seq.nth SS i
+              val eentry as {tab=et, info, col=ecol} = Seq.nth EE j
+
+              fun sentrytos {tab=st, col=scol} =
+                "{st = " ^ Tab.name st ^ ", scol = " ^ Int.toString scol ^ "}"
+              fun eentrytos {tab=et, info, col=ecol} =
+                "{et = " ^ Tab.name st ^ ", ecol = " ^ Int.toString scol ^ "}"
+              
+              val _ =
+                (* check invariant *)
+                if scol < ecol orelse (scol = ecol andalso Tab.eq (st, et)) then ()
+                else 
+                  ( print ("sentry " ^ sentrytos sentry ^ "\n"
+                         ^ "eentry " ^ eentrytos eentry ^ "\n"
+                         ^ "i " ^ Int.toString i ^ "\n"
+                         ^ "j " ^ Int.toString j ^ "\n"
+                         ^ "SS " ^ Seq.toString sentrytos SS ^ "\n"
+                         ^ "EE " ^ Seq.toString eentrytos EE ^ "\n")
+                  ; raise Fail "newlineWithEndDebugs.loop: invariant violated"
+                  )
             in
-              if col < currCol then
-                loop (i+1, X) (entry :: didntFit) currCol accCurrLine acc
+              if scol < ecol then
+                loop (i+1, SS) (j, EE) didntFitEE (removedSSCurrLine, sentry :: remainingSS) currCol accCurrLine acc
+              else
+              (* invariant: scol = ecol andalso Tab.eq (st, et) *)
+              if ecol < currCol then
+                loop (i+1, SS) (j+1, EE) (eentry :: didntFitEE) (removedSSCurrLine, sentry :: remainingSS) currCol accCurrLine acc
               else
               let
-                val numSpaces = col - currCol
+                val numSpaces = ecol - currCol
                 val newCol = currCol + numSpaces + CustomString.size info
               in
-                loop (i+1, X) didntFit newCol (Stuff info :: Spaces numSpaces :: accCurrLine) acc
+                loop (i+1, SS) (j+1, EE) didntFitEE (sentry :: removedSSCurrLine, remainingSS) newCol (Stuff info :: Spaces numSpaces :: accCurrLine) acc
               end
             end
+          
+          val (remainingSS, acc) =
+            loop (0, orderedStarts) (0, orderedEnds) [] ([], []) 0 [] (Newline :: acc)
         in
-          Newline :: loop (0, orderedEnds) [] 0 [] (Newline :: acc)
-        end
-
-      
-      (* remove from startDebugs any matching entry in endDebugs *)
-      fun updateStartDebugs
-            (startDebugs: {tab: tab, col: int} list)
-            (endDebugs: {tab: tab, info: CustomString.t, col: int} list) =
-        let
-          val orderedStarts =
-            Mergesort.sort
-              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
-              (Seq.fromList startDebugs)
-          val orderedEnds =
-            Mergesort.sort
-              (fn ({col=col1, ...}, {col=col2, ...}) => Int.compare (col1, col2))
-              (Seq.fromList endDebugs)
-
-          fun loop i j acc =
-            if i >= Seq.length orderedStarts then
-              acc
-            else if j >= Seq.length orderedEnds then
-              Seq.toList orderedStarts @ acc
-            else
-              let
-                val sentry as {tab=st, col=scol} = Seq.nth orderedStarts i
-                val {tab=et, col=ecol, ...} = Seq.nth orderedEnds j
-              in
-                if scol < ecol then
-                  loop (i+1) j (sentry :: acc)
-                else if scol > ecol then
-                  loop i (j+1) acc
-                else if Tab.eq (st, et) then
-                  loop (i+1) (j+1) acc
-                else
-                  loop i (j+1) acc
-              end
-        in
-          loop 0 0 []
+          (remainingSS, Newline :: acc)
         end
 
 
@@ -486,16 +518,25 @@ struct
         case item of
           EndDebug entry => (accCurrLine, acc, entry :: endDebugs, startDebugs)
         | StartDebug entry => (accCurrLine, acc, endDebugs, entry :: startDebugs)
-        | Newline => ([], newlineWithEndDebugs endDebugs startDebugs (highlightActive accCurrLine acc startDebugs), [], updateStartDebugs startDebugs endDebugs)
+        | Newline =>
+            let
+              val (remainingSS, acc) =
+                newlineWithEndDebugs endDebugs startDebugs
+                  (highlightActive accCurrLine acc startDebugs)
+            in
+              ([], acc, [], remainingSS)
+            end
         | _ => (item :: accCurrLine, acc, endDebugs, startDebugs)
 
 
-      val (accCurrLine, acc, endDebugs, startDebugs) = List.foldr processItem ([], [], [], []) items
+      val (accCurrLine, acc, endDebugs, startDebugs) =
+        List.foldr processItem ([], [], [], []) items
     in
       if List.null endDebugs then
         accCurrLine @ acc
       else
-        newlineWithEndDebugs endDebugs startDebugs (highlightActive accCurrLine acc startDebugs)
+        #2 (newlineWithEndDebugs endDebugs startDebugs
+              (highlightActive accCurrLine acc startDebugs))
     end
 
 
