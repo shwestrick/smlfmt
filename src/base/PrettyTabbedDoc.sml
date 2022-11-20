@@ -786,19 +786,25 @@ struct
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   if i < col then
                     dbgBreak tab (check (dbgState, tab, i, i, Spaces i :: Newline :: acc))
-                  else if i = col then
-                    dbgBreak tab (dbgState, tab, i, i, acc)
-                  else
-                    (* force this tab to promote, which should move onto
-                     * a new line and indent.
-                     *
-                     * an alternative here would be this:
-                     *   check (tab, lnStart, i, Spaces (i-col) :: acc)
-                     * which prefers to jump forward on the current line to
-                     * meet the tab, but IMO this can look really strange in
-                     * some situations
+                  else if lnStart = i andalso i = col then
+                    (* TODO: double check this case.
+                     * The constraint `lnStart = i` seemed necessary, but I
+                     * haven't convinced myself yet that this interacts
+                     * correctly with promotion. No problems yet, but still...
                      *)
+                    dbgBreak tab (dbgState, tab, i, i, acc)
+                  else if isPromotable tab then
+                    (* force this tab to promote if possible, which should move
+                     * it onto a new line and indent. *)
                     raise DoPromote tab
+                  else if lnStart < i then
+                    (* This avoids advancing the current line to meet the tab,
+                     * if possible, which IMO results in strange layouts. *)
+                    dbgBreak tab (check (dbgState, tab, i, i, Spaces i :: Newline :: acc))
+                  else
+                    (* Fall back on advancing the current line to meet the tab,
+                     * which is a little strange, but better than nothing. *)
+                    dbgBreak tab (check (dbgState, tab, lnStart, i, Spaces (i-col) :: acc))
                     
               | _ =>
                   raise Fail "PrettyTabbedDoc.pretty.layout.At: bad tab"
