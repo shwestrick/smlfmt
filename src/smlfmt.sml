@@ -64,6 +64,13 @@ val _ =
     )
   else ()
 
+val _ =
+  if doDebug andalso not (previewOnly) then
+    ( TCS.printErr (boldc Palette.red
+        "ERROR: --debug-engine requires --preview-only\n")
+    ; OS.Process.exit OS.Process.failure
+    )
+  else ()
 
 val prettyPrinter =
   case engine of
