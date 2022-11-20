@@ -398,7 +398,7 @@ struct
 
       fun newlineWithEndDebugs endDebugs startDebugs acc =
         if List.null endDebugs then
-          (startDebugs, Newline :: acc)
+          (startDebugs, acc)
         else
         let
           val orderedStarts =
@@ -491,7 +491,7 @@ struct
           
           val acc = highlightActive [] (Newline :: acc) remainingSS
         in
-          (remainingSS, Newline :: acc)
+          (remainingSS, acc)
         end
 
 
@@ -505,7 +505,7 @@ struct
                 newlineWithEndDebugs endDebugs startDebugs
                   (highlightActive accCurrLine acc startDebugs)
             in
-              ([], acc, [], remainingSS)
+              ([], Newline :: acc, [], remainingSS)
             end
         | _ => (item :: accCurrLine, acc, endDebugs, startDebugs)
 
