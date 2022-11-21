@@ -224,93 +224,224 @@ struct
     let
       val _ = print ("ensureSpaces INPUT: " ^ toString doc ^ "\n")
 
-      datatype edge = Soft | MightBeHard
+      datatype anntab =
+        AnnRoot
+      | AnnTab of {parent: anntab, tab: tab}
+
+      fun annParent t =
+        case t of
+          AnnRoot => NONE
+        | AnnTab {parent, ...} => SOME parent
+
+      fun removeTabAnnotation t =
+        case t of
+          AnnTab {tab, ...} => tab
+        | AnnRoot => raise Fail "TabbedTokenDoc.removeTabAnnotation: Root"
+
+      datatype anndoc =
+        AnnEmpty
+      | AnnSpace
+      | AnnConcat of anndoc * anndoc
+      | AnnToken of Token.t
+      | AnnText of string
+      | AnnBreak of {mightBeFirst: bool, tab: anntab}
+      | AnnNewTab of {tab: anntab, doc: anndoc}
+      | AnnNewChildTab of {parent: anntab, tab: anntab, doc: anndoc}
+      | AnnCond of {tab: anntab, flat: anndoc, notflat: anndoc}
+
+
+      fun annotate doc =
+        let
+          val () = ()
+
+          (* if tab in broken, then tab has definitely had at least one break *)
+          fun loop currtab tabmap (doc, broken) =
+            case doc of
+              Empty => (AnnEmpty, broken)
+            | Space => (AnnSpace, broken)
+            | Token t => (AnnToken t, broken)
+            | Text t => (AnnText t, broken)
+            | Break tab =>
+                let
+                  val (mightBeFirst, broken) =
+                    if TabDict.contains broken tab then
+                      (false, broken)
+                    else
+                      (true, TabDict.insert broken (tab, ()))
+                in
+                  ( AnnBreak
+                      { mightBeFirst = mightBeFirst
+                      , tab = TabDict.lookup tabmap tab
+                      }
+                  , broken
+                  )
+                end
+            | Concat (d1, d2) =>
+                let
+                  val (d1, broken) = loop currtab tabmap (d1, broken)
+                  val (d2, broken) = loop currtab tabmap (d2, broken)
+                in
+                  (AnnConcat (d1, d2), broken)
+                end
+            | NewTab {tab, doc} =>
+                let
+                  val anntab = AnnTab {parent = currtab, tab = tab}
+                  val tabmap = TabDict.insert tabmap (tab, anntab)
+                  val (doc, broken) = loop anntab tabmap (doc, broken)
+                in
+                  (AnnNewTab {tab=anntab, doc=doc}, broken)
+                end
+            | NewChildTab {parent, tab, doc} =>
+                let
+                  val annparent = TabDict.lookup tabmap parent
+                  val anntab = AnnTab {parent = annparent, tab = tab}
+                  val tabmap = TabDict.insert tabmap (tab, anntab)
+                  val (doc, broken) = loop anntab tabmap (doc, broken)
+                in
+                  ( AnnNewChildTab 
+                     { parent = annparent
+                     , tab = anntab
+                     , doc = doc
+                     }
+                   , broken
+                   )
+                end
+            | Cond {tab, flat, notflat} =>
+                let
+                  val anntab = TabDict.lookup tabmap tab
+                  val (flat, broken1) = loop currtab tabmap (flat, broken)
+                  val (notflat, broken2) = loop currtab tabmap (notflat, broken)
+                in
+                  ( AnnCond {tab=anntab, flat=flat, notflat=notflat}
+                  , TabDict.intersectWith (fn _ => ()) (broken1, broken2)
+                  )
+                end
+          
+          val (anndoc, _) = loop AnnRoot TabDict.empty (doc, TabDict.empty)
+        in
+          anndoc
+        end
+
+      
+      fun removeAnnotations anndoc =
+        case anndoc of
+          AnnEmpty => Empty
+        | AnnSpace => Space
+        | AnnToken t => Token t
+        | AnnText t => Text t
+        | AnnBreak {tab, ...} => Break (removeTabAnnotation tab)
+        | AnnConcat (d1, d2) =>
+            Concat (removeAnnotations d1, removeAnnotations d2)
+        | AnnNewTab {tab, doc} =>
+            NewTab {tab = removeTabAnnotation tab, doc = removeAnnotations doc}
+        | AnnNewChildTab {parent, tab, doc} =>
+            NewChildTab 
+              { parent = removeTabAnnotation parent
+              , tab = removeTabAnnotation tab
+              , doc = removeAnnotations doc
+              }
+        | AnnCond {tab, flat, notflat} =>
+            Cond
+              { tab = removeTabAnnotation tab
+              , flat = removeAnnotations flat
+              , notflat = removeAnnotations notflat
+              }
+
+
+      datatype edge = Spacey | MaybeNotSpacey
+      datatype tab_constraint = Active | Inactive
+      type context = tab_constraint TabDict.t
 
       fun edgeOptToString e =
         case e of
           NONE => "NONE"
-        | SOME Soft => "Soft"
-        | SOME MightBeHard => "MightBeHard"
+        | SOME Spacey => "Spacey"
+        | SOME MaybeNotSpacey => "MaybeNotSpacey"
 
-(*
-      fun isHardOnSurface doc =
-        case doc of
-          Token _ => true
-        | Text _ => true
-        | _ => false
+      fun markInactive ctx anntab =
+        TabDict.insert ctx (removeTabAnnotation anntab, Inactive)
 
-      fun summarizeEdge possibilities =
-        case possibilities of
-          NONE => NONE
-        | SOME xs =>
-            if List.exists isHardOnSurface xs then
-              SOME MightBeHard
-            else
-              SOME Soft
-      
-      fun leftEdge doc = summarizeEdge (first doc)
-*)
+      fun markActive ctx anntab =
+        case anntab of
+          AnnRoot => ctx
+        | AnnTab {parent, tab} =>
+            markActive (TabDict.insert ctx (tab, Active)) parent
 
-      fun leftEdge doc =
+      fun leftEdge ctx doc =
         let
-          fun loop doc =
+          fun loop ctx doc =
             case doc of
-              Empty => NONE
-            | Space => SOME Soft
-            | Token _ => SOME MightBeHard
-            | Text _ => SOME MightBeHard
-            | Break tab => SOME MightBeHard
-            | Concat (d1, d2) =>
-                (case loop d1 of
+              AnnEmpty => NONE
+            | AnnSpace => SOME Spacey
+            | AnnToken _ => SOME MaybeNotSpacey
+            | AnnText _ => SOME MaybeNotSpacey
+            | AnnBreak {mightBeFirst, tab} =>
+                (case TabDict.find ctx (removeTabAnnotation tab) of
+                  SOME Inactive => NONE
+                | SOME Active => 
+                    if mightBeFirst then
+                      SOME MaybeNotSpacey
+                    else
+                      SOME Spacey
+                | _ =>
+                    SOME MaybeNotSpacey)
+            | AnnConcat (d1, d2) =>
+                (case loop ctx d1 of
                   SOME xs => SOME xs
-                | NONE => loop d2)
-            | NewTab {doc=d, ...} => loop d
-            | NewChildTab {doc=d, ...} => loop d
-            | Cond {flat, notflat, ...} =>
+                | NONE => loop ctx d2)
+            | AnnNewTab {doc=d, ...} => loop ctx d
+            | AnnNewChildTab {doc=d, ...} => loop ctx d
+            | AnnCond {tab, flat, notflat} =>
                 let
-                  val r1 = loop flat
-                  val r2 = loop notflat
+                  val r1 = loop (markInactive ctx tab) flat
+                  val r2 = loop (markActive ctx tab) notflat
                 in
                   case (r1, r2) of
-                    (SOME MightBeHard, _) => SOME MightBeHard
-                  | (_, SOME MightBeHard) => SOME MightBeHard
-                  | (SOME Soft, SOME Soft) => SOME Soft
+                    (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
+                  | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
+                  | (SOME Spacey, SOME Spacey) => SOME Spacey
                   | (NONE, _) => r2
                   | (_, NONE) => r1
                 end
         in
-          loop doc
+          loop ctx doc
         end
 
-      fun loop (doc, next) =
+      fun loop ctx (doc: anndoc, next) =
         case doc of
-          Token t =>
+          AnnToken t =>
             let
               val _ = print ("Token " ^ Token.toString t ^ " next to " ^ edgeOptToString next ^ "\n")
-              val doc = case next of SOME MightBeHard => Concat (doc, Space) | _ => doc
+              val doc = case next of SOME MaybeNotSpacey => AnnConcat (doc, AnnSpace) | _ => doc
             in
               doc
             end
-        | Text t =>
+        | AnnText t =>
             let
               val _ = print ("Text " ^ t ^ " next to " ^ edgeOptToString next ^ "\n")
-              val doc = case next of SOME MightBeHard => Concat (doc, Space) | _ => doc
+              val doc = case next of SOME MaybeNotSpacey => AnnConcat (doc, AnnSpace) | _ => doc
             in
               doc
             end
-        | Empty => doc
-        | Space => doc
-        | Break _ => doc
-        | Concat (d1, d2) =>
-            Concat (loop (d1, leftEdge d2), loop (d2, next))
-        | NewTab {tab, doc} =>
-            NewTab {tab = tab, doc = loop (doc, next)}
-        | NewChildTab {parent, tab, doc} =>
-            NewChildTab {parent = parent, tab = tab, doc = loop (doc, next)}
-        | Cond {tab, flat, notflat} =>
-            Cond {tab=tab, flat = loop (flat, next), notflat = loop (notflat, next)}
+        | AnnEmpty => doc
+        | AnnSpace => doc
+        | AnnBreak _ => doc
+        | AnnConcat (d1, d2) =>
+            AnnConcat (loop ctx (d1, leftEdge ctx d2), loop ctx (d2, next))
+        | AnnNewTab {tab, doc} =>
+            AnnNewTab {tab = tab, doc = loop ctx (doc, next)}
+        | AnnNewChildTab {parent, tab, doc} =>
+            AnnNewChildTab {parent = parent, tab = tab, doc = loop ctx (doc, next)}
+        | AnnCond {tab, flat, notflat} =>
+            let
+              val flat = loop (markInactive ctx tab) (flat, next)
+              val notflat = loop (markActive ctx tab) (notflat, next)
+            in
+              AnnCond {tab = tab, flat = flat, notflat = notflat}
+            end
       
-      val result = loop (doc, NONE)
+      val result = loop TabDict.empty (annotate doc, NONE)
+      val result = removeAnnotations result
       val _ = print ("ensureSpaces OUTPUT: " ^ toString result ^ "\n")
     in
       result
