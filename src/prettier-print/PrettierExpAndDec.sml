@@ -108,7 +108,7 @@ struct
           ++ (if i = numExps - 1 then empty else token (d i)))
         exps
     in
-      token lett ++ space ++ showDec outerTab dec ++
+      token lett (*++ space*) ++ showDec outerTab dec ++
       breakspace outerTab ++ token inn ++
       newTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
       ++ breakspace outerTab ++ token endd
