@@ -15,7 +15,7 @@ functor PrettyTabbedDoc
       (* should be visually distinct, e.g., color the background.
        * the integer argument is a depth; this can be ignored (in which
        * case all depths will be emphasized the same) or can be used
-       * to distinguish different tab depths 
+       * to distinguish different tab depths
        *)
       val emphasize: int -> t -> t
 
@@ -149,7 +149,7 @@ struct
         Root => "root"
       | Tab {id=c, ...} => Int.toString c
 
-    
+
     fun compare (t1, t2) =
       case (t1, t2) of
         (Tab {id=c1, ...}, Tab {id=c2, ...}) => Int.compare (c1, c2)
@@ -207,7 +207,7 @@ struct
       (Empty, _) => d2
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
-  
+
   fun newTab parent genDocUsingTab =
     let
       val t = Tab.make parent
@@ -237,7 +237,7 @@ struct
     in
       loop [tab] doc
     end
-  
+
   (* ====================================================================== *)
 
   fun allTabsInDoc d =
@@ -292,7 +292,7 @@ struct
         (case Int.compare (col1, col2) of
           EQUAL => LESS
         | other => other)
-    
+
     | (StartMaxWidthHighlight {col=col1}, StartTabHighlight {col=col2, ...}) =>
         (case Int.compare (col1, col2) of
           EQUAL => GREATER
@@ -312,7 +312,7 @@ struct
         (case Int.compare (col1, col2) of
           EQUAL => LESS
         | other => other)
-    
+
     | (EndMaxWidthHighlight {col=col1}, EndTabHighlight {col=col2, ...}) =>
         (case Int.compare (col1, col2) of
           EQUAL => GREATER
@@ -328,9 +328,9 @@ struct
 
     | (StartMaxWidthHighlight {col=sc}, EndMaxWidthHighlight {col=ec}) =>
         sc = ec
-    
+
     | _ => false
-    
+
 
   fun sentryEmphasizer se =
     case se of
@@ -342,7 +342,7 @@ struct
     case se of
       StartTabHighlight {tab=st, col=scol} =>
         "StartTabHighlight {tab = " ^ Tab.name st ^ ", col = " ^ Int.toString scol ^ "}"
-    
+
     | StartMaxWidthHighlight {col} =>
         "StartMaxWidthHighlight {col = " ^ Int.toString col ^ "}"
 
@@ -351,7 +351,7 @@ struct
     case ee of
       EndTabHighlight {tab=et, col=ecol} =>
         "EndTabHighlight {tab = " ^ Tab.name et ^ ", col = " ^ Int.toString ecol ^ "}"
-    
+
     | EndMaxWidthHighlight {col} =>
         "EndMaxWidthHighlight {col = " ^ Int.toString col ^ "}"
 
@@ -395,7 +395,7 @@ struct
       raise Fail "PrettyTabbedDoc.splitItem: size"
     else
     (* i+1 <= itemWidth item *)
-    case item of  
+    case item of
       Spaces n =>
         (Spaces i, CustomString.fromString " ", Spaces (n-i-1))
     | Stuff s =>
@@ -431,7 +431,7 @@ struct
                   sentryCol (Seq.nth orderedHighlightCols hi)
                 else
                   valOf Int.maxInt
-              
+
               val n = itemWidth item
             in
               if nextHighlightCol < currCol then
@@ -442,7 +442,7 @@ struct
                 let
                   val emphasizer = sentryEmphasizer (Seq.nth orderedHighlightCols hi)
                   val (left, mid, right) = splitItem item (nextHighlightCol-currCol)
-                  (* 
+                  (*
                   val _ =
                     print ("item: " ^ itos item
                        ^ " split into (" ^ itos left ^ ", _, " ^ itos right ^ ")"
@@ -498,6 +498,11 @@ struct
           val orderedEnds =
             Mergesort.sort eentryCmp (Seq.fromList endDebugs)
 
+          val _ =
+            print ("newLineWithEndDebugs:\n"
+                   ^ "  starts: " ^ Seq.toString sentrytos orderedStarts ^ "\n"
+                   ^ "  ends: " ^ Seq.toString eentrytos orderedEnds ^ "\n")
+
           (* This is a bit cumbersome, but actually is fairly straightforward:
            * for each `(info, col)` in `EE`, output `info` at column `col`.
            *
@@ -552,7 +557,7 @@ struct
               val _ =
                 (* check invariant *)
                 if scol <= ecol then ()
-                else 
+                else
                   ( print ("sentry " ^ sentrytos sentry ^ "\n"
                          ^ "eentry " ^ eentrytos eentry ^ "\n"
                          ^ "i " ^ Int.toString i ^ "\n"
@@ -574,10 +579,10 @@ struct
                   loop (i+1, SS) (j+1, EE) didntFitEE (sentry :: removedSSCurrLine, remainingSS) newCol (Stuff info :: Spaces numSpaces :: accCurrLine) acc
                 end
             end
-          
+
           val (remainingSS, acc) =
             loop (0, orderedStarts) (0, orderedEnds) [] ([], []) 0 [] (Newline :: acc)
-          
+
           val acc = highlightActive [] (Newline :: acc) remainingSS
         in
           (remainingSS, acc)
@@ -639,7 +644,7 @@ struct
       loopStrip [] items
     end
 
-  
+
   exception DoPromote of tab
 
 
@@ -661,7 +666,7 @@ struct
       val _ = List.app (fn t => Tab.setState t (Tab.Usable Tab.Flattened)) allTabs
 
       (* tab -> hit first break? *)
-      type debug_state = bool TabDict.t 
+      type debug_state = bool TabDict.t
 
       (* debug state, current tab, line start, current col, accumulator *)
       type layout_state = debug_state * tab * int * int * (item list)
@@ -697,7 +702,7 @@ struct
                 | _ => raise Fail "PrettyTabbedDoc.pretty.isPromotable: bad parent tab")
         | _ => raise Fail "PrettyTabbedDoc.pretty.isPromotable: bad tab"
 
-      
+
       fun isPromotable t =
         let
           val result = isPromotable' t
@@ -717,7 +722,7 @@ struct
             else
               oldestPromotableParent p
         | NONE => SOME t
-        
+
 
       fun check (dbgState, ct, lnStart, col, acc) =
         let
@@ -771,7 +776,7 @@ struct
               )
         end
 
-      
+
       (* This is a little tricky, but the idea is: try to lay out the doc,
        * and keep track of whether or not there exists an ancestor tab that
        * could be promoted (ap). If we ever violate either the width or
@@ -782,9 +787,9 @@ struct
        *)
       fun layout ((dbgState, ct, lnStart, col, acc): layout_state) doc : layout_state =
         case doc of
-          Empty => 
+          Empty =>
             (dbgState, ct, lnStart, col, acc)
-        
+
         | Space =>
             check (dbgState, ct, lnStart, col + 1, Spaces 1 :: acc)
 
@@ -825,7 +830,7 @@ struct
                     (* Fall back on advancing the current line to meet the tab,
                      * which is a little strange, but better than nothing. *)
                     dbgBreak tab (check (dbgState, tab, lnStart, i, Spaces (i-col) :: acc))
-                    
+
               | _ =>
                   raise Fail "PrettyTabbedDoc.pretty.layout.At: bad tab"
             end
@@ -846,7 +851,7 @@ struct
               fun parentTabCol () =
                 case Tab.getState parent of
                   Tab.Usable (Tab.Activated (SOME i)) => i
-                | _ => raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.parentTabCol: bad tab"  
+                | _ => raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.parentTabCol: bad tab"
 
               fun tryPromote () =
                 (* try to activate first *)
@@ -876,7 +881,7 @@ struct
                       handle DoPromote p =>
                       if not (Tab.eq (p, tab)) then raise DoPromote p else
                       let
-                        val _ = 
+                        val _ =
                           if not debug then () else
                           print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
                       in
@@ -885,7 +890,7 @@ struct
                       end)
                   )
                 end
-            
+
               val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
 
               val (dbgState, _, lnStart, col, acc) : layout_state =
@@ -896,7 +901,10 @@ struct
                 case Tab.getState tab of
                   Tab.Usable Tab.Flattened => acc
                 | Tab.Usable (Tab.Activated (SOME i)) =>
-                    EndDebug (EndTabHighlight {tab = tab, col = i}) :: acc
+                    if TabDict.lookup dbgState tab then
+                      EndDebug (EndTabHighlight {tab = tab, col = i}) :: acc
+                    else
+                      acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
             in
               if not debug then () else
