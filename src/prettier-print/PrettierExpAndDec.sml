@@ -111,7 +111,7 @@ struct
               ++ cond inner {inactive=empty, active=space} ++ token delim
               ++ showPat pat ++ token arrow
               ++ showExpNewChild inner exp
-            
+
             val {pat, arrow, exp} = Seq.nth elems 0
             val initial = at inner ++ token fnn ++ showPat pat ++ token arrow ++ showExpNewChild inner exp
           in
@@ -185,7 +185,7 @@ struct
 
         normal ()
       end)
-  
+
 
   and showLetInEndAt outerTab {lett, dec, inn, exps, delims, endd} =
     let
@@ -213,7 +213,7 @@ struct
       val (chain, last) = ifThenElseChain [] exp
 
       fun breakShowAt tab e = at tab ++ showExp tab e
-      
+
       fun f i =
         let
           val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain i
@@ -303,7 +303,7 @@ struct
 
       fun mkFunction (starter, {elems=innerElems, delims}) =
         let in
-          Seq.iterate op++ 
+          Seq.iterate op++
             (showClause true (starter, Seq.nth innerElems 0))
             (Seq.zipWith (showClause false)
               (Seq.map token delims, Seq.drop innerElems 1))

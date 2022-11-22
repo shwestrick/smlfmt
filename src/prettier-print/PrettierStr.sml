@@ -44,7 +44,7 @@ struct
         Ident _ => false
       | _ => true
     end
-  
+
   (* ====================================================================== *)
 
   fun showStrExpNewChild tab e = newTab tab (fn inner => showStrExp inner e)
@@ -133,7 +133,7 @@ struct
               ++ (if strExpWantsSameTabAsDec strexp then at tab else empty)
               ++ showStrExp tab strexp
           in
-            Seq.iterate op++ 
+            Seq.iterate op++
               (showOne (structuree, Seq.nth elems 0))
               (Seq.map (fn x => at tab ++ showOne x)
                 (Seq.zip (delims, (Seq.drop elems 1))))

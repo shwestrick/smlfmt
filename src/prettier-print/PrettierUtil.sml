@@ -28,11 +28,11 @@ struct
         nospace ++ at tab ++ token close
       end
 
-  
+
   fun sequence currentTab openn delims close (xs: doc Seq.t) =
     newTab currentTab (fn tab => at tab ++ sequenceAt tab openn delims close xs)
 
-  
+
   fun showSyntaxSeq currentTab s f =
     case s of
       Ast.SyntaxSeq.Empty => empty
@@ -40,7 +40,7 @@ struct
     | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
         sequence currentTab left delims right (Seq.map f elems)
 
-  
+
   fun showOption f x =
     case x of
       NONE => empty

@@ -24,7 +24,7 @@ sig
   val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
 end =
 struct
-  
+
   structure D = TabbedStringDoc
 
   (* Just need a unique name *)
@@ -42,7 +42,7 @@ struct
       Tab (ref NONE, c)
     end
 
-  
+
   val root = Root
 
 
@@ -51,13 +51,13 @@ struct
       Tab (_, c) => "[" ^ Int.toString c ^ "]"
     | Root => "[root]"
 
-  
+
   fun underlyingTab t =
     case t of
       Tab (tabref, _) => Option.valOf (!tabref)
     | Root => D.root
 
-  
+
   fun setUnderlyingTab t dt =
     case t of
       Tab (tabref, _) => tabref := SOME dt
@@ -117,7 +117,7 @@ struct
     | Cond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
 
-  
+
   fun newTab parent (genDocUsingTab: tab -> doc) =
     let
       val t = mkTab ()
@@ -162,7 +162,7 @@ struct
       | AnnNewTab of {parent: anntab, tab: anntab, doc: anndoc}
       | AnnCond of {tab: anntab, inactive: anndoc, active: anndoc}
 
-    
+
       fun annTabToString t =
         case t of
           AnnRoot => "[root]"
@@ -224,7 +224,7 @@ struct
                   val tabmap = TabDict.insert tabmap (tab, anntab)
                   val (doc, broken) = loop anntab tabmap (doc, broken)
                 in
-                  ( AnnNewTab 
+                  ( AnnNewTab
                      { parent = annparent
                      , tab = anntab
                      , doc = doc
@@ -242,14 +242,14 @@ struct
                   , TabDict.intersectWith (fn _ => ()) (broken1, broken2)
                   )
                 end
-          
+
           val init = TabDict.singleton (Root, AnnRoot)
           val (anndoc, _) = loop AnnRoot init (doc, TabDict.empty)
         in
           anndoc
         end
 
-      
+
       fun removeAnnotations anndoc =
         case anndoc of
           AnnEmpty => Empty
@@ -261,7 +261,7 @@ struct
         | AnnConcat (d1, d2) =>
             Concat (removeAnnotations d1, removeAnnotations d2)
         | AnnNewTab {parent, tab, doc} =>
-            NewTab 
+            NewTab
               { parent = removeTabAnnotation parent
               , tab = removeTabAnnotation tab
               , doc = removeAnnotations doc
@@ -304,7 +304,7 @@ struct
             | AnnText _ => SOME MaybeNotSpacey
             | AnnBreak {mightBeFirst, tab} =>
                 (case TabDict.find ctx (removeTabAnnotation tab) of
-                  SOME Active => 
+                  SOME Active =>
                     if mightBeFirst then
                       NONE
                     else
@@ -322,7 +322,7 @@ struct
             | AnnNewTab {doc=d, ...} => loop ctx d
             | AnnCond {tab, inactive, active} =>
                 let
-                  val result = 
+                  val result =
                     case TabDict.find ctx (removeTabAnnotation tab) of
                       SOME Active =>
                         let
@@ -342,7 +342,7 @@ struct
                         let
                           val r1 = loop (markInactive ctx tab) inactive
                           val r2 = loop (markActive ctx tab) active
-                          val result = 
+                          val result =
                             case (r1, r2) of
                               (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
                             | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
@@ -367,13 +367,13 @@ struct
         let
           val origDoc = doc
 
-          val doc = 
+          val doc =
             if not needSpaceBefore then doc
             else
               ( dbgprintln ("need space before " ^ annToString origDoc)
               ; AnnConcat (AnnSpace, doc)
               )
-          
+
           val doc =
             if not needSpaceAfter then doc
             else
@@ -404,7 +404,7 @@ struct
                   ( dbgprintln ("need space at INACTIVE " ^ annToString doc)
                   ; AnnSpace
                   )
-              | _ => 
+              | _ =>
                   ( dbgprintln ("need space at UNKNOWN " ^ annToString doc)
                   ; AnnConcat (AnnSpace, doc)
                   ))
@@ -425,12 +425,12 @@ struct
                 case rightEdge ctx d1 of
                   SOME MaybeNotSpacey => true
                 | _ => false
-              
+
               val d2 = loop ctx (needSpaceBefore2, needSpaceAfter) d2
             in
               AnnConcat (d1, d2)
             end
-      
+
       val anndoc = annotate doc
       val _ = dbgprintln ("ensureSpaces ANNOTATED: " ^ annToString anndoc)
 

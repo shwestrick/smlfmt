@@ -17,7 +17,7 @@ structure TabbedStringDoc =
       , 290
       , 320
       ]
-    
+
     fun niceRed depth =
       let
         val s = (compaction-1.0 +
@@ -33,5 +33,5 @@ structure TabbedStringDoc =
 
     fun emphasize depth s = backgroundIfNone (niceRed depth) s
 
-    fun toString t = TerminalColorString.toString {colors=false} t 
+    fun toString t = TerminalColorString.toString {colors=false} t
   end)

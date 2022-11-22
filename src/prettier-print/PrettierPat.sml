@@ -11,6 +11,6 @@ struct
 
   open TabbedTokenDoc
   open PrettierUtil
-  
+
   fun showPat _ = text "<pat>"
 end

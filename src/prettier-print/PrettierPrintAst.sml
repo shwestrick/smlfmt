@@ -48,7 +48,7 @@ struct
 
         val all = Seq.map (showOneAt root) tds
       in
-        at root ++ 
+        at root ++
         Seq.iterate op++ (Seq.nth all 0)
           (Seq.map (fn x => at root ++ x) (Seq.drop all 1))
       end
