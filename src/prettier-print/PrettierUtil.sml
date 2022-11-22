@@ -32,7 +32,7 @@ struct
       token openn ++ token close
     else
       let
-        val top = token openn ++ (spaceIfNotFlat tab) ++ Seq.nth xs 0
+        val top = token openn ++ (cond tab {flat = empty, notflat = space}) ++ Seq.nth xs 0
         fun f (delim, x) = break tab ++ token delim ++ x
       in
         Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))

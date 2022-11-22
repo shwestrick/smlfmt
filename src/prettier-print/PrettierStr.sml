@@ -31,6 +31,15 @@ struct
 
   (* ====================================================================== *)
 
+  fun sigExpWantsSameTabAsDec e =
+    let
+      open Ast.Sig
+    in
+      case e of
+        Ident _ => false
+      | _ => true
+    end
+
   fun strExpWantsSameTabAsDec e =
     let
       open Ast.Str
@@ -116,7 +125,9 @@ struct
               case constraint of
                 NONE => empty
               | SOME {colon, sigexp} =>
-                  token colon ++ breakspace tab ++ showSigExpAt tab sigexp
+                  token colon
+                  ++ (if sigExpWantsSameTabAsDec sigexp then break tab else empty)
+                  ++ showSigExpAt tab sigexp
 
             fun showOne (starter, {strid, constraint, eq, strexp}) =
               separateWithSpaces

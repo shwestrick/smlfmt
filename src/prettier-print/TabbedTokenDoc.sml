@@ -18,8 +18,6 @@ sig
   val newChildTab: tab -> (tab -> doc) -> doc
   val newTab: (tab -> doc) -> doc
   val break: tab -> doc
-  val breakspace: tab -> doc
-  val spaceIfNotFlat: tab -> doc
   val cond: tab -> {flat: doc, notflat: doc} -> doc
 
   val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
@@ -76,10 +74,6 @@ struct
 
   fun cond tab {flat, notflat} = Cond {tab=tab, flat=flat, notflat=notflat}
 
-  fun breakspace t = cond t {flat = space, notflat = break t}
-  fun spaceIfNotFlat t = cond t {flat = empty, notflat = space}
-
-
   fun toString doc =
     case doc of
       Empty => ""
@@ -112,113 +106,8 @@ struct
     end
 
   (* ====================================================================== *)
-
-
-(*
-  fun ensureSpaces doc =
-    let
-      val _ = print ("ensureSpaces INPUT: " ^ toString doc ^ "\n")
-      val () = ()
-
-      (* Soft edge is whitespace, hard edge is token or text.
-       * Goal is to ensure no two hard edges touch.
-       * Have to be conservative sometimes... if we can't know an edge
-       * for sure, then we assign it DefinitelyOrMaybeHard
-       *
-       * Some edges are neutral, i.e., they are neither soft nor hard.
-       *)
-      datatype edge = Soft | DefinitelyOrMaybeHard | Neutral
-
-      fun edgeUnion (e1, e2) =
-        case (e1, e2) of
-          (Neutral, _) => e2
-        | (_, Neutral) => e1
-        | (Soft, Soft) => Soft
-        | _ => DefinitelyOrMaybeHard
-
-      datatype tab_constraint = Active | Inactive
-
-      fun maybeConcatWithSpace (d1, r1, l2, d2) =
-        case (r1, l2) of
-          (DefinitelyOrMaybeHard, DefinitelyOrMaybeHard) =>
-            Concat (d1, Concat (Space, d2))
-        | _ => Concat (d1, d2)
-
-      fun loop ctx doc : edge * edge * doc =
-        case doc of
-          Empty => (Neutral, Neutral, doc)
-        | Space => (Soft, Soft, doc)
-        | Token _ => (DefinitelyOrMaybeHard, DefinitelyOrMaybeHard, doc)
-        | Text _ => (DefinitelyOrMaybeHard, DefinitelyOrMaybeHard, doc)
-        | Concat (d1, d2) =>
-            let
-              val (l1, r1, d1') = loop ctx d1
-              val (l2, r2, d2') = loop ctx d2
-            in
-              (l1, r2, maybeConcatWithSpace (d1', r1, l2, d2'))
-            end
-        | Break tab =>
-            (Neutral, Neutral, doc)
-        | NewTab {tab, doc} =>
-            let
-              val (l, r, doc') = loop ctx doc
-            in
-              (l, r, NewTab {tab=tab, doc=doc'})
-            end
-        | NewChildTab {parent, tab, doc} =>
-            let
-              val (l, r, doc') = loop ctx doc
-            in
-              (l, r, NewChildTab {parent=parent, tab=tab, doc=doc'})
-            end
-        | Cond {tab, flat=d1, notflat=d2} =>
-            let
-              val (l1, r1, d1') = loop (TabDict.insert ctx (tab, Inactive)) d1
-              val (l2, r2, d2') = loop (TabDict.insert ctx (tab, Active)) d2
-            in
-              ( edgeUnion (l1, l2)
-              , edgeUnion (r1, r2)
-              , Cond {tab=tab, flat=d1', notflat=d2'}
-              )
-            end
-      
-      val (_, _, doc') = loop TabDict.empty doc
-      val _ = print ("ensureSpaces OUTPUT: " ^ toString doc' ^ "\n")
-    in
-      doc'
-    end
-*)
-
-(*
-  fun last doc =
-    let
-      fun loop doc =
-        case doc of
-          Empty => NONE
-        | Space => SOME [doc]
-        | Token _ => SOME [doc]
-        | Text _ => SOME [doc]
-        | Break tab => NONE
-        | Concat (d1, d2) =>
-            (case loop d2 of
-              SOME xs => SOME xs
-            | NONE => loop d1)
-        | NewTab {doc=d, ...} => loop d
-        | NewChildTab {doc=d, ...} => loop d
-        | Cond {flat, notflat, ...} =>
-            let
-              val r1 = loop flat
-              val r2 = loop notflat
-            in
-              case (r1, r2) of
-                (SOME xs, SOME ys) => SOME (xs @ ys)
-              | (SOME _, _) => r1
-              | (_, SOME _) => r2
-            end
-    in
-      loop doc
-    end
-*)
+  (* ====================================================================== *)
+  (* ====================================================================== *)
 
   fun ensureSpaces debug doc =
     let
@@ -539,7 +428,8 @@ struct
       result
     end
 
-
+  (* ====================================================================== *)
+  (* ====================================================================== *)
   (* ====================================================================== *)
 
   structure TCS = TerminalColorString

@@ -150,7 +150,7 @@ struct
         DecVal {vall, tyvars, elems, delims} =>
           let
             fun mk (delim, {recc, pat, eq, exp}) =
-              breakspace tab 
+              break tab 
               ++
               separateWithSpaces
                 [ SOME (token delim)
