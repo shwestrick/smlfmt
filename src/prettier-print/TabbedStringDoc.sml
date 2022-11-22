@@ -2,7 +2,8 @@ structure TabbedStringDoc =
   PrettyTabbedDoc(struct
     open TerminalColorString
 
-    val compaction = CommandLineArgs.parseReal "s-compact" 1.05 (* must be >= 1 *)
+    val compaction = CommandLineArgs.parseReal "s-compact" 1.1 (* must be >= 1 *)
+    val maxSat = CommandLineArgs.parseReal "s-max" 0.6
 
     val hues = Seq.fromList
       [ 0
@@ -21,6 +22,7 @@ structure TabbedStringDoc =
       let
         val s = (compaction-1.0 +
           (1.0 / (1.0 + (Real.fromInt depth / compaction)))) / compaction
+        val s = s * maxSat
 
         (* val d = if depth mod 2 = 0 then 2*(depth div 2)+1 else 2*(depth div 2) *)
         val d = 3*(depth-1)
