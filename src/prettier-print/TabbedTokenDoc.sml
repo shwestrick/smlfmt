@@ -159,7 +159,6 @@ struct
       | AnnToken of Token.t
       | AnnText of string
       | AnnBreak of {mightBeFirst: bool, tab: anntab}
-      (* | AnnNewTab of {tab: anntab, doc: anndoc} *)
       | AnnNewTab of {parent: anntab, tab: anntab, doc: anndoc}
       | AnnCond of {tab: anntab, inactive: anndoc, active: anndoc}
 
@@ -320,7 +319,6 @@ struct
                   (case loop ctx d2 of
                     SOME xs => SOME xs
                   | NONE => loop ctx d1)
-            (* | AnnNewTab {doc=d, ...} => loop ctx d *)
             | AnnNewTab {doc=d, ...} => loop ctx d
             | AnnCond {tab, inactive, active} =>
                 let
@@ -410,8 +408,6 @@ struct
                   ( dbgprintln ("need space at UNKNOWN " ^ annToString doc)
                   ; AnnConcat (AnnSpace, doc)
                   ))
-        (* | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab = tab, doc = loop ctx needSpace doc} *)
         | AnnNewTab {parent, tab, doc} =>
             AnnNewTab {parent = parent, tab = tab, doc = loop ctx needSpace doc}
         | AnnCond {tab, inactive, active} =>
