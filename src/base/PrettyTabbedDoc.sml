@@ -727,6 +727,26 @@ struct
           if widthOkay andalso ribbonOkay then
             (dbgState, ct, lnStart, col, acc)
           else case oldestPromotableParent ct of
+            (* TODO: FIXME: there's a bug here. Even if the current tab (ct)
+             * doesn't have a promotable parent, there might be another
+             * promotable tab on the same line.
+             *
+             * For example: tabs s and t occupy the same line; tab s is
+             * fully promoted; tab t is inactive because it fits within the
+             * max width. After completing tab t, we return to tab s, and then
+             * get a width violation. However, tab s (the current tab) has
+             * no promotable parent.
+             *
+             *   sssssssssstttttttttsss|s
+             *   ^         ^           ^
+             *   tab s:    tab t:      max width
+             *   fully     inactive
+             *   promoted
+             *
+             * The fix in the above example is to promote tab t. So, perhaps
+             * we need to keep track of a set of promotable tabs on the
+             * current line and then choose one to promote (?)
+             *)
             NONE =>
               ( ()
               ; if not debug then ()
