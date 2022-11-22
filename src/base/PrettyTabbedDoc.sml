@@ -669,24 +669,34 @@ struct
       type debug_state = bool TabDict.t
 
       (* debug state, current tab, line start, current col, accumulator *)
-      type layout_state = debug_state * tab * int * int * (item list)
+      datatype layout_state =
+        LS of
+          debug_state *
+          tab *
+          int *
+          int *
+          (item list)
 
-      fun dbgInsert tab ((dbgState, ct, s, c, a): layout_state) : layout_state =
-        if not debug then (dbgState, ct, s, c, a) else
-        ( TabDict.insert dbgState (tab, false)
-        , ct, s, c, a
-        )
-
-      fun dbgBreak tab ((dbgState, ct, s, c, a): layout_state) : layout_state =
+      fun dbgInsert tab (LS (dbgState, ct, s, c, a): layout_state) : layout_state =
         if not debug then
-          (dbgState, ct, s, c, a)
-        else if TabDict.lookup dbgState tab then
-          (dbgState, ct, s, c, a)
+          LS (dbgState, ct, s, c, a)
         else
-          ( TabDict.insert dbgState (tab, true)
-          , ct, s, c
-          , StartDebug (StartTabHighlight {tab = tab, col = c}) :: a
-          )
+          LS
+            ( TabDict.insert dbgState (tab, false)
+            , ct, s, c, a
+            )
+
+      fun dbgBreak tab (LS (dbgState, ct, s, c, a): layout_state) : layout_state =
+        if not debug then
+          LS (dbgState, ct, s, c, a)
+        else if TabDict.lookup dbgState tab then
+          LS (dbgState, ct, s, c, a)
+        else
+          LS
+            ( TabDict.insert dbgState (tab, true)
+            , ct, s, c
+            , StartDebug (StartTabHighlight {tab = tab, col = c}) :: a
+            )
 
       fun isPromotable' t =
         case Tab.getState t of
@@ -724,13 +734,13 @@ struct
         | NONE => SOME t
 
 
-      fun check (dbgState, ct, lnStart, col, acc) =
+      fun check (state as LS (dbgState, ct, lnStart, col, acc)) =
         let
           val widthOkay = col <= maxWidth
           val ribbonOkay = (col - lnStart) <= ribbonWidth
         in
           if widthOkay andalso ribbonOkay then
-            (dbgState, ct, lnStart, col, acc)
+            state
           else case oldestPromotableParent ct of
             (* TODO: FIXME: there's a bug here. Even if the current tab (ct)
              * doesn't have a promotable parent, there might be another
@@ -761,7 +771,7 @@ struct
                   print ("PrettyTabbedDoc.debug: ribbon violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
                 else
                   print ("PrettyTabbedDoc.debug: unknown violation?? ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
-              ; (dbgState, ct, lnStart, col, acc)
+              ; state
               )
           | SOME p =>
               ( ()
@@ -777,6 +787,14 @@ struct
         end
 
 
+      fun putItemSameLine state item =
+        let
+          val LS (dbgState, ct, lnStart, col, acc) = state
+        in
+          check (LS (dbgState, ct, lnStart, col + itemWidth item, item :: acc))
+        end
+
+
       (* This is a little tricky, but the idea is: try to lay out the doc,
        * and keep track of whether or not there exists an ancestor tab that
        * could be promoted (ap). If we ever violate either the width or
@@ -785,65 +803,64 @@ struct
        * Promotion is implemented by throwing an exception (DoPromote), which
        * is caught by the oldest ancestor.
        *)
-      fun layout ((dbgState, ct, lnStart, col, acc): layout_state) doc : layout_state =
+      fun layout (state: layout_state) doc : layout_state =
         case doc of
           Empty =>
-            (dbgState, ct, lnStart, col, acc)
+            state
 
         | Space =>
-            check (dbgState, ct, lnStart, col + 1, Spaces 1 :: acc)
+            putItemSameLine state (Spaces 1)
 
         | Text s =>
-            check (dbgState, ct, lnStart, col + CustomString.size s, Stuff s :: acc)
+            putItemSameLine state (Stuff s)
 
         | Concat (doc1, doc2) =>
-            layout (layout (dbgState, ct, lnStart, col, acc) doc1) doc2
+            layout (layout state doc1) doc2
 
         | At tab =>
-            let in
+            let
+              val LS (dbgState, ct, lnStart, col, acc) = state
+            in
               case Tab.getState tab of
                 Tab.Usable Tab.Flattened =>
-                  (dbgState, tab, lnStart, col, acc)
+                  LS (dbgState, tab, lnStart, col, acc)
               | Tab.Usable (Tab.Activated NONE) =>
                   ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                  ; dbgBreak tab (dbgState, tab, lnStart, col, acc)
+                  ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
                   )
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   if i < col then
-                    dbgBreak tab (check (dbgState, tab, i, i, Spaces i :: Newline :: acc))
+                    dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
                   else if lnStart = i andalso i = col then
                     (* TODO: double check this case.
-                     * The constraint `lnStart = i` seemed necessary, but I
-                     * haven't convinced myself yet that this interacts
-                     * correctly with promotion. No problems yet, but still...
-                     *)
-                    dbgBreak tab (dbgState, tab, i, i, acc)
+                      * The constraint `lnStart = i` seemed necessary, but I
+                      * haven't convinced myself yet that this interacts
+                      * correctly with promotion. No problems yet, but still...
+                      *)
+                    dbgBreak tab (LS (dbgState, tab, i, i, acc))
                   else if isPromotable tab then
                     (* force this tab to promote if possible, which should move
-                     * it onto a new line and indent. *)
+                      * it onto a new line and indent. *)
                     raise DoPromote tab
                   else if lnStart < i then
                     (* This avoids advancing the current line to meet the tab,
-                     * if possible, which IMO results in strange layouts. *)
-                    dbgBreak tab (check (dbgState, tab, i, i, Spaces i :: Newline :: acc))
+                      * if possible, which IMO results in strange layouts. *)
+                    dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
                   else
                     (* Fall back on advancing the current line to meet the tab,
-                     * which is a little strange, but better than nothing. *)
-                    dbgBreak tab (check (dbgState, tab, lnStart, i, Spaces (i-col) :: acc))
+                      * which is a little strange, but better than nothing. *)
+                    dbgBreak tab (check (LS (dbgState, tab, lnStart, i, Spaces (i-col) :: acc)))
 
               | _ =>
-                  raise Fail "PrettyTabbedDoc.pretty.layout.At: bad tab"
+                  raise Fail "PrettyTabbedDoc.pretty.applyAt: bad tab"
             end
 
         | Cond {tab, inactive, active} =>
             let in
               case Tab.getState tab of
-                Tab.Usable (Tab.Activated _) =>
-                  layout (dbgState, ct, lnStart, col, acc) active
-              | Tab.Usable Tab.Flattened =>
-                  layout (dbgState, ct, lnStart, col, acc) inactive
-              | _ =>
-                  raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
+                Tab.Usable (Tab.Activated _) => layout state active
+              | Tab.Usable Tab.Flattened => layout state inactive
+              | _ => raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
             end
 
         | NewTab {parent, tab, doc} =>
@@ -877,7 +894,7 @@ struct
               fun doit () =
                 let in
                   ( ()
-                  ; (layout (dbgInsert tab (dbgState, ct, lnStart, col, acc)) doc
+                  ; (layout (dbgInsert tab state) doc
                       handle DoPromote p =>
                       if not (Tab.eq (p, tab)) then raise DoPromote p else
                       let
@@ -893,7 +910,7 @@ struct
 
               val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
 
-              val (dbgState, _, lnStart, col, acc) : layout_state =
+              val LS (dbgState, _, lnStart, col, acc) : layout_state =
                 doit ()
 
               val acc =
@@ -912,13 +929,13 @@ struct
 
               Tab.setState tab Tab.Completed;
 
-              (dbgState, parent, lnStart, col, acc)
+              LS (dbgState, parent, lnStart, col, acc)
             end
 
 
-      val init = (TabDict.empty, root, 0, 0, [])
+      val init = LS (TabDict.empty, root, 0, 0, [])
       val init = dbgInsert Tab.Root init
-      val (_, _, _, _, items) = layout init doc
+      val LS (_, _, _, _, items) = layout init doc
       val items =
         if not debug then items
         else EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
