@@ -10,6 +10,7 @@ sig
 
   val empty: doc
   val space: doc
+  val nospace: doc
   val token: Token.t -> doc
   val text: string -> doc
   val concat: doc * doc -> doc
@@ -50,6 +51,7 @@ struct
   datatype doc =
     Empty
   | Space
+  | NoSpace
   | Concat of doc * doc
   | Token of Token.t
   | Text of string
@@ -61,6 +63,7 @@ struct
   type t = doc
 
   val empty = Empty
+  val nospace = NoSpace
   val space = Space
   val token = Token
   val text = Text
@@ -78,6 +81,7 @@ struct
     case doc of
       Empty => ""
     | Space => "_"
+    | NoSpace => "NoSpace"
     | Concat (d1, d2) => toString d1 ^ " ++ " ^ toString d2
     | Token t => "Token('" ^ Token.toString t ^ "')"
     | Text t => "Text('" ^ t ^ "')"
@@ -132,6 +136,7 @@ struct
 
       datatype anndoc =
         AnnEmpty
+      | AnnNoSpace
       | AnnSpace
       | AnnConcat of anndoc * anndoc
       | AnnToken of Token.t
@@ -151,6 +156,7 @@ struct
         case doc of
           AnnEmpty => ""
         | AnnSpace => "_"
+        | AnnNoSpace => "NoSpace"
         | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
         | AnnToken t => "Token('" ^ Token.toString t ^ "')"
         | AnnText t => "Text('" ^ t ^ "')"
@@ -171,6 +177,7 @@ struct
             case doc of
               Empty => (AnnEmpty, broken)
             | Space => (AnnSpace, broken)
+            | NoSpace => (AnnNoSpace, broken)
             | Token t => (AnnToken t, broken)
             | Text t => (AnnText t, broken)
             | Break tab =>
@@ -239,6 +246,7 @@ struct
         case anndoc of
           AnnEmpty => Empty
         | AnnSpace => Space
+        | AnnNoSpace => NoSpace
         | AnnToken t => Token t
         | AnnText t => Text t
         | AnnBreak {tab, ...} => Break (removeTabAnnotation tab)
@@ -285,6 +293,7 @@ struct
             case doc of
               AnnEmpty => NONE
             | AnnSpace => SOME Spacey
+            | AnnNoSpace => SOME Spacey (* pretends to be a space, but then actually is elided *)
             | AnnToken _ => SOME MaybeNotSpacey
             | AnnText _ => SOME MaybeNotSpacey
             | AnnBreak {mightBeFirst, tab} =>
@@ -373,6 +382,7 @@ struct
       fun loop ctx (needSpace as (needSpaceBefore, needSpaceAfter)) doc : anndoc =
         case doc of
           AnnSpace => doc
+        | AnnNoSpace => doc
         | AnnToken t => checkInsertSpace needSpace doc
         | AnnText t => checkInsertSpace needSpace doc
         | AnnEmpty =>
@@ -499,6 +509,7 @@ struct
       fun loop currentTab doc =
         case doc of
           Empty => D.empty
+        | NoSpace => D.empty
         | Space => D.space
         | Concat (d1, d2) => D.concat (loop currentTab d1, loop currentTab d2)
         | Text str => D.text (TerminalColorString.fromString str)

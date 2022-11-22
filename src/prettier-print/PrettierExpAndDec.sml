@@ -51,14 +51,14 @@ struct
         Const tok =>
           token tok
       | Unit {left, right} =>
-          token left ++ token right
+          token left ++ nospace ++ token right
       | Ident {opp, id} =>
           separateWithSpaces
             [ Option.map token opp
             , SOME (token (MaybeLongToken.getToken id))
             ]
       | Parens {left, exp, right} =>
-          token left ++ showExp tab exp ++ token right
+          token left ++ nospace ++ showExp tab exp ++ nospace ++ token right
       | Tuple {left, elems, delims, right} =>
           sequenceAt tab left delims right (Seq.map (showExp tab) elems)
       | Sequence {left, elems, delims, right} =>
