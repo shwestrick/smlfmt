@@ -8,9 +8,7 @@ sig
   type doc = TabbedTokenDoc.t
   type tab = TabbedTokenDoc.tab
   val showExp: tab -> Ast.Exp.exp -> doc
-  val showExpAt: tab -> Ast.Exp.exp -> doc
   val showDec: tab -> Ast.Exp.dec -> doc
-  val showDecAt: tab -> Ast.Exp.dec -> doc
 end =
 struct
 
@@ -55,10 +53,10 @@ struct
 
   (* ====================================================================== *)
 
-  fun showExp current e = newChildTab current (fn tab => at tab ++ showExpAt tab e)
-  and showDec current d = newChildTab current (fn tab => at tab ++ showDecAt tab d)
+  fun showExpNewChild current e = newChildTab current (fn tab => at tab ++ showExp tab e)
+  and showDecNewChild current d = newChildTab current (fn tab => at tab ++ showDec tab d)
 
-  and showExpAt tab exp =
+  and showExp tab exp =
     let
       open Ast.Exp
     in
@@ -70,37 +68,37 @@ struct
       | Ident {opp, id} =>
           showOption token opp ++ token (MaybeLongToken.getToken id)
       | Parens {left, exp, right} =>
-          token left ++ nospace ++ showExp tab exp ++ nospace ++ token right
+          token left ++ nospace ++ showExpNewChild tab exp ++ nospace ++ token right
       | Tuple {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (showExp tab) elems)
+          sequenceAt tab left delims right (Seq.map (showExpNewChild tab) elems)
       | Sequence {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (showExp tab) elems)
+          sequenceAt tab left delims right (Seq.map (showExpNewChild tab) elems)
       | List {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (showExp tab) elems)
+          sequenceAt tab left delims right (Seq.map (showExpNewChild tab) elems)
       | Record {left, elems, delims, right} =>
           let
             fun showRow {lab, eq, exp} =
-              token lab ++ token eq ++ (showExp tab) exp
+              token lab ++ token eq ++ (showExpNewChild tab) exp
           in
             sequenceAt tab left delims right (Seq.map showRow elems)
           end
       | Select {hash, label} =>
           token hash ++ nospace ++ token label
       | App {left, right} =>
-          showExpAt tab left ++ showExp tab right
+          showExp tab left ++ showExpNewChild tab right
           (*let
             val (funcExp, args) = appChain [] exp
             fun withBreak tab (a, b) = a ++ breakspace tab ++ b
           in
-            showExpAt tab funcExp ++ space
+            showExp tab funcExp ++ space
             ++ newTab (fn inner =>
               Seq.iterate
                 (withBreak inner)
-                (showExpAt inner (Seq.nth args 0))
-                (Seq.drop (Seq.map (showExpAt inner) args) 1))
+                (showExp inner (Seq.nth args 0))
+                (Seq.drop (Seq.map (showExp inner) args) 1))
           end*)
       | Typed {exp, colon, ty} =>
-          showExp tab exp ++ token colon ++ showTy ty
+          showExpNewChild tab exp ++ token colon ++ showTy ty
       | IfThenElse _ (*{iff, exp1, thenn, exp2, elsee, exp3}*) =>
           showIfThenElseAt tab exp
       | LetInEnd xxx =>
@@ -112,10 +110,10 @@ struct
               at inner
               ++ cond inner {inactive=empty, active=space} ++ token delim
               ++ showPat pat ++ token arrow
-              ++ showExp inner exp
+              ++ showExpNewChild inner exp
             
             val {pat, arrow, exp} = Seq.nth elems 0
-            val initial = at inner ++ token fnn ++ showPat pat ++ token arrow ++ showExp inner exp
+            val initial = at inner ++ token fnn ++ showPat pat ++ token arrow ++ showExpNewChild inner exp
           in
             Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end)
@@ -123,7 +121,7 @@ struct
           newTab (fn inner =>
             let
               fun showBranch {pat, arrow, exp} =
-                showPat pat ++ token arrow ++ showExp inner exp
+                showPat pat ++ token arrow ++ showExpNewChild inner exp
               fun mk (delim, branch) =
                 at inner
                 ++ (case delim of
@@ -132,7 +130,7 @@ struct
                 ++ showBranch branch
             in
               at inner
-              ++ token casee ++ showExp inner expTop ++ token off
+              ++ token casee ++ showExpNewChild inner expTop ++ token off
               ++ Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                    (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
             end)
@@ -148,7 +146,7 @@ struct
 
   (* TODO: This is still not quite right... *)
   and showInfixedExpAt tab (l, t, r) =
-    newChildTab tab (fn tab =>
+    newChildTab tab (fn inner =>
       let
         open Ast.Exp
 
@@ -160,8 +158,8 @@ struct
                 NONE
               else
                 SOME
-                  (at tab ++ showInfixedExpAt tab (ll, lt, lr)
-                  ++ at tab ++ token t ++ showExp tab r)
+                  (at tab ++ showInfixedExpAt inner (ll, lt, lr)
+                  ++ at inner ++ token t ++ showExpNewChild inner r)
 
         fun tryRight () =
           case tryViewAsInfix r of
@@ -171,11 +169,11 @@ struct
                 NONE
               else
                 SOME
-                  (showExp tab l ++ at tab ++ token t
-                  ++ showInfixedExpAt tab (rl, rt, rr))
+                  (showExp tab l ++ at inner ++ token t
+                  ++ showInfixedExpAt inner (rl, rt, rr))
 
         fun normal () =
-          at tab ++ showExpAt tab l ++ at tab ++ token t ++ showExp tab r
+          at tab ++ showExp inner l ++ at inner ++ token t ++ showExpNewChild inner r
       in
         case tryLeft () of
           SOME x => x
@@ -196,11 +194,11 @@ struct
       fun withDelims innerTab =
         Seq.mapIdx (fn (i, e) =>
           at innerTab
-          ++ showExpAt innerTab e
+          ++ showExp innerTab e
           ++ (if i = numExps - 1 then empty else nospace ++ token (d i)))
         exps
     in
-      token lett ++ showDec outerTab dec ++
+      token lett ++ showDecNewChild outerTab dec ++
       at outerTab ++ token inn ++
       newTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
       ++ at outerTab ++ token endd
@@ -214,7 +212,7 @@ struct
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
 
-      fun breakShowAt tab e = at tab ++ showExpAt tab e
+      fun breakShowAt tab e = at tab ++ showExp tab e
       
       fun f i =
         let
@@ -234,7 +232,7 @@ struct
     end))
 
 
-  and showDecAt tab dec =
+  and showDec tab dec =
     let
       open Ast.Exp
     in
@@ -246,7 +244,7 @@ struct
               ++ showOption token recc
               ++ showPat pat
               ++ token eq
-              ++ showExp tab exp
+              ++ showExpNewChild tab exp
 
             val first =
               let
@@ -256,7 +254,7 @@ struct
                 ++ showOption token recc
                 ++ showPat pat
                 ++ token eq
-                ++ showExp tab exp
+                ++ showExpNewChild tab exp
               end
           in
             Seq.iterate op++ first
@@ -301,7 +299,7 @@ struct
         ++ showFNameArgs fname_args
         ++ showOption showColonTy ty
         ++ token eq
-        ++ showExp tab exp
+        ++ showExpNewChild tab exp
 
       fun mkFunction (starter, {elems=innerElems, delims}) =
         let in

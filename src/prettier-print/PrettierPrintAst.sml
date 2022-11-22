@@ -17,17 +17,12 @@ struct
 
   fun showTy ty = PrettierTy.showTy ty
   fun showPat pat = PrettierPat.showPat pat
-  fun showExp exp = PrettierExpAndDec.showExp exp
-  fun showDec dec = PrettierExpAndDec.showDec dec
-  fun showSpec spec = PrettierSig.showSpec spec
-  fun showSigExp sigexp = PrettierSig.showSigExp sigexp
-  fun showSigDec sigdec = PrettierSig.showSigDec sigdec
-  fun showSigDecAt tab strdec = PrettierSig.showSigDecAt tab strdec
-  fun showStrExp strexp = PrettierStr.showStrExp strexp
-  fun showStrDec strdec = PrettierStr.showStrDec strdec
-  fun showStrDecAt tab strdec = PrettierStr.showStrDecAt tab strdec
-  fun showFunDec fundec = PrettierFun.showFunDec fundec
-  fun showFunDecAt tab strdec = PrettierFun.showFunDecAt tab strdec
+  fun showSpec tab spec = PrettierSig.showSpec tab spec
+  fun showSigExp tab sigexp = PrettierSig.showSigExp tab sigexp
+  fun showSigDec tab sigdec = PrettierSig.showSigDec tab sigdec
+  fun showSigDec tab strdec = PrettierSig.showSigDec tab strdec
+  fun showStrDec tab strdec = PrettierStr.showStrDec tab strdec
+  fun showFunDec tab strdec = PrettierFun.showFunDec tab strdec
 
   (* ====================================================================== *)
 
@@ -40,9 +35,9 @@ struct
           let
             val td =
               case topdec of
-                Ast.StrDec d => showStrDecAt tab d
-              | Ast.SigDec d => showSigDecAt tab d
-              | Ast.FunDec d => showFunDecAt tab d
+                Ast.StrDec d => showStrDec tab d
+              | Ast.SigDec d => showSigDec tab d
+              | Ast.FunDec d => showFunDec tab d
             val sc =
               case semicolon of
                 NONE => empty

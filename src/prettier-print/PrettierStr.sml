@@ -7,10 +7,8 @@ structure PrettierStr:
 sig
   type doc = TabbedTokenDoc.t
   type tab = TabbedTokenDoc.tab
-  val showStrExp: Ast.Str.strexp -> doc
-  val showStrExpAt: tab -> Ast.Str.strexp -> doc
-  val showStrDec: Ast.Str.strdec -> doc
-  val showStrDecAt: tab -> Ast.Str.strdec -> doc
+  val showStrExp: tab -> Ast.Str.strexp -> doc
+  val showStrDec: tab -> Ast.Str.strdec -> doc
 end =
 struct
 
@@ -22,12 +20,10 @@ struct
 
   fun showTy ty = PrettierTy.showTy ty
   fun showPat pat = PrettierPat.showPat pat
-  fun showExp exp = PrettierExpAndDec.showExp exp
-  fun showDecAt tab dec = PrettierExpAndDec.showDecAt tab dec
-  fun showSpec spec = PrettierSig.showSpec spec
-  fun showSigExp sigexp = PrettierSig.showSigExp sigexp
-  fun showSigExpAt tab sigexp = PrettierSig.showSigExpAt tab sigexp
-  fun showSigDec sigdec = PrettierSig.showSigDec sigdec
+  fun showDec tab dec = PrettierExpAndDec.showDec tab dec
+  fun showSpec tab spec = PrettierSig.showSpec tab spec
+  fun showSigExp tab sigexp = PrettierSig.showSigExp tab sigexp
+  fun showSigDec tab sigdec = PrettierSig.showSigDec tab sigdec
 
   (* ====================================================================== *)
 
@@ -51,9 +47,10 @@ struct
   
   (* ====================================================================== *)
 
-  fun showStrExp e = newTab (fn tab => at tab ++ showStrExpAt tab e)
+  fun showStrExpNewChild tab e = newChildTab tab (fn inner => showStrExp inner e)
+  and showStrDecNewChild tab e = newChildTab tab (fn inner => showStrDec inner e)
 
-  and showStrExpAt tab e =
+  and showStrExp tab e =
     let
       open Ast.Str
     in
@@ -62,7 +59,7 @@ struct
           newTab (fn tab => at tab ++ token (MaybeLongToken.getToken id))
 
       | Struct {structt, strdec, endd} =>
-          token structt ++ showStrDec strdec ++ token endd
+          token structt ++ showStrDecNewChild tab strdec ++ token endd
 (*
 
       | Constraint {strexp, colon, sigexp} =>
@@ -106,9 +103,8 @@ struct
 
     end
 
-  and showStrDec d = newTab (fn tab => at tab ++ showStrDecAt tab d)
 
-  and showStrDecAt tab d =
+  and showStrDec tab d =
     let
       open Ast.Str
     in
@@ -117,7 +113,7 @@ struct
           empty
 
       | DecCore d =>
-          showDecAt tab d
+          showDec tab d
 
       | DecStructure {structuree, elems, delims} =>
           let
@@ -127,7 +123,7 @@ struct
               | SOME {colon, sigexp} =>
                   token colon
                   ++ (if sigExpWantsSameTabAsDec sigexp then at tab else empty)
-                  ++ showSigExpAt tab sigexp
+                  ++ showSigExp tab sigexp
 
             fun showOne (starter, {strid, constraint, eq, strexp}) =
               token starter
@@ -135,7 +131,7 @@ struct
               ++ showConstraint constraint
               ++ token eq
               ++ (if strExpWantsSameTabAsDec strexp then at tab else empty)
-              ++ showStrExpAt tab strexp
+              ++ showStrExp tab strexp
           in
             Seq.iterate op++ 
               (showOne (structuree, Seq.nth elems 0))
@@ -147,7 +143,7 @@ struct
       | DecMultiple {elems, delims} =>
           let
             fun f i =
-              showStrDecAt tab (Seq.nth elems i)
+              showStrDec tab (Seq.nth elems i)
               ++
               (case Seq.nth delims i of
                 NONE => empty
