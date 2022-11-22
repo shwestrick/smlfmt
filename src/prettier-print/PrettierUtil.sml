@@ -29,7 +29,7 @@ struct
 
   fun sequenceAt tab openn delims close (xs: doc Seq.t) =
     if Seq.length xs = 0 then
-      token openn ++ token close
+      token openn ++ nospace ++ token close
     else
       let
         val top = token openn ++ (cond tab {flat = nospace, notflat = space}) ++ Seq.nth xs 0

@@ -93,6 +93,20 @@ struct
           showIfThenElseAt tab exp
       | LetInEnd xxx =>
           showLetInEndAt tab xxx
+      | Fn {fnn, elems, delims} =>
+          newTab (fn inner => (* do we need the newTab here? *)
+          let
+            fun mk (delim, {pat, arrow, exp}) =
+              break inner
+              ++ cond inner {flat=empty, notflat=space} ++ token delim
+              ++ showPat pat ++ token arrow
+              ++ showExp inner exp
+            
+            val {pat, arrow, exp} = Seq.nth elems 0
+            val initial = break inner ++ token fnn ++ showPat pat ++ token arrow ++ showExp inner exp
+          in
+            Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
+          end)
       | _ => text "<exp>"
     end
 
