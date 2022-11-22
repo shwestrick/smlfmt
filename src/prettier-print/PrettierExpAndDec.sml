@@ -73,7 +73,7 @@ struct
             sequenceAt tab left delims right (Seq.map showRow elems)
           end
       | Select {hash, label} =>
-          token hash ++ token label
+          token hash ++ nospace ++ token label
       | App {left, right} =>
           showExpAt tab left ++ showExp tab right
           (*let
