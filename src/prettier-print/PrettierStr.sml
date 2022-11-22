@@ -56,7 +56,7 @@ struct
     in
       case e of
         Ident id =>
-          newTab (fn tab => at tab ++ token (MaybeLongToken.getToken id))
+          newChildTab tab (fn tab => at tab ++ token (MaybeLongToken.getToken id))
 
       | Struct {structt, strdec, endd} =>
           token structt ++ showStrDecNewChild tab strdec ++ token endd

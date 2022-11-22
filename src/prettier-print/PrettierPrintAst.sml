@@ -46,15 +46,11 @@ struct
             td ++ sc
           end
 
+        val all = Seq.map (showOneAt root) tds
       in
-        newTab (fn tab =>
-          let
-            val all = Seq.map (showOneAt tab) tds
-          in
-            at tab ++ 
-            Seq.iterate op++ (Seq.nth all 0)
-              (Seq.map (fn x => at tab ++ x) (Seq.drop all 1))
-          end)
+        at root ++ 
+        Seq.iterate op++ (Seq.nth all 0)
+          (Seq.map (fn x => at root ++ x) (Seq.drop all 1))
       end
 
 

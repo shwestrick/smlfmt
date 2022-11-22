@@ -908,7 +908,12 @@ struct
             end
 
 
-      val (_, _, _, _, items) = layout (TabDict.empty, root, 0, 0, []) doc
+      val init = (TabDict.empty, root, 0, 0, [])
+      val init = dbgInsert Tab.Root init
+      val (_, _, _, _, items) = layout init doc
+      val items =
+        if not debug then items
+        else EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
 
       val items = if not debug then items else implementDebugs maxWidth items
 

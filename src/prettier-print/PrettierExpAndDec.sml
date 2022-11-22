@@ -104,7 +104,7 @@ struct
       | LetInEnd xxx =>
           showLetInEndAt tab xxx
       | Fn {fnn, elems, delims} =>
-          newTab (fn inner => (* do we need the newTab here? *)
+          newChildTab tab (fn inner => (* do we need the newTab here? *)
           let
             fun mk (delim, {pat, arrow, exp}) =
               at inner
@@ -118,7 +118,7 @@ struct
             Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end)
       | Case {casee, exp=expTop, off, elems, delims} =>
-          newTab (fn inner =>
+          newChildTab tab (fn inner =>
             let
               fun showBranch {pat, arrow, exp} =
                 showPat pat ++ token arrow ++ showExpNewChild inner exp
@@ -200,7 +200,7 @@ struct
     in
       token lett ++ showDecNewChild outerTab dec ++
       at outerTab ++ token inn ++
-      newTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
+      newChildTab outerTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
       ++ at outerTab ++ token endd
     end
 
