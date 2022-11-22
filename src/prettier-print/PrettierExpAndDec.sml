@@ -53,10 +53,7 @@ struct
       | Unit {left, right} =>
           token left ++ nospace ++ token right
       | Ident {opp, id} =>
-          separateWithSpaces
-            [ Option.map token opp
-            , SOME (token (MaybeLongToken.getToken id))
-            ]
+          showOption token opp ++ token (MaybeLongToken.getToken id)
       | Parens {left, exp, right} =>
           token left ++ nospace ++ showExp tab exp ++ nospace ++ token right
       | Tuple {left, elems, delims, right} =>
@@ -164,36 +161,26 @@ struct
         DecVal {vall, tyvars, elems, delims} =>
           let
             fun mk (delim, {recc, pat, eq, exp}) =
-              at tab 
-              ++
-              separateWithSpaces
-                [ SOME (token delim)
-                , Option.map token recc
-                , SOME (showPat pat)
-                , SOME (token eq)
-                ]
+              at tab ++ token delim
+              ++ showOption token recc
+              ++ showPat pat
+              ++ token eq
               ++ showExp tab exp
 
             val first =
               let
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
-                separateWithSpaces
-                  [ SOME (token vall)
-                  , maybeShowSyntaxSeq tab tyvars token
-                  , Option.map token recc
-                  , SOME (showPat pat)
-                  , SOME (token eq)
-                  ]
+                token vall ++ showSyntaxSeq tab tyvars token
+                ++ showOption token recc
+                ++ showPat pat
+                ++ token eq
                 ++ showExp tab exp
               end
           in
             Seq.iterate op++ first
             (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end
-(*
-
-*)
 
       | _ => text "<dec>"
     end

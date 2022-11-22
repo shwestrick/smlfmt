@@ -130,10 +130,8 @@ struct
                   ++ showSigExpAt tab sigexp
 
             fun showOne (starter, {strid, constraint, eq, strexp}) =
-              separateWithSpaces
-                [ SOME (token starter)
-                , SOME (token strid)
-                ]
+              token starter
+              ++ token strid
               ++ showConstraint constraint
               ++ token eq
               ++ (if strExpWantsSameTabAsDec strexp then at tab else empty)

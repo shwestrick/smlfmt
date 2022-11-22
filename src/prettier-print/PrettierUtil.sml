@@ -7,20 +7,8 @@ structure PrettierUtil =
 struct
 
   open TabbedTokenDoc
-  infix 2 ++ (*$$ //*)
-  (* infix 1 \\ *)
+  infix 2 ++
   fun x ++ y = concat (x, y)
-  (* fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
-  fun x \\ y = group (x $$ indent y) *)
-
-
-  fun seqWithSpaces elems f =
-    if Seq.length elems = 0 then empty else
-    Seq.iterate
-      (fn (prev, tok) => prev ++ f tok)
-      (f (Seq.nth elems 0))
-      (Seq.drop elems 1)
 
 
   fun spaces n =
@@ -44,23 +32,18 @@ struct
   fun sequence currentTab openn delims close (xs: doc Seq.t) =
     newChildTab currentTab (fn tab => at tab ++ sequenceAt tab openn delims close xs)
 
-
-  fun separateWithSpaces (items: doc option list) : doc =
-    let
-      val items: doc list = List.mapPartial (fn x => x) items
-    in
-      case items of
-        [] => empty
-      | first :: rest =>
-          List.foldl (fn (next, prev) => prev ++ next) first rest
-    end
-
-
-  fun maybeShowSyntaxSeq currentTab s f =
+  
+  fun showSyntaxSeq currentTab s f =
     case s of
-      Ast.SyntaxSeq.Empty => NONE
-    | Ast.SyntaxSeq.One x => SOME (f x)
+      Ast.SyntaxSeq.Empty => empty
+    | Ast.SyntaxSeq.One x => f x
     | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
-        SOME (sequence currentTab left delims right (Seq.map f elems))
+        sequence currentTab left delims right (Seq.map f elems)
+
+  
+  fun showOption f x =
+    case x of
+      NONE => empty
+    | SOME xx => f xx
 
 end
