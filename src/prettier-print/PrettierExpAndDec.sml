@@ -104,6 +104,23 @@ struct
           in
             Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end)
+      | Case {casee, exp=expTop, off, elems, delims} =>
+          newTab (fn inner =>
+            let
+              fun showBranch {pat, arrow, exp} =
+                showPat pat ++ token arrow ++ showExp inner exp
+              fun mk (delim, branch) =
+                at inner
+                ++ (case delim of
+                     SOME d => token d
+                   | _ => cond inner {active = space ++ space, inactive = empty})
+                ++ showBranch branch
+            in
+              at inner
+              ++ token casee ++ showExp inner expTop ++ token off
+              ++ Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
+                   (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
+            end)
       | _ => text "<exp>"
     end
 
