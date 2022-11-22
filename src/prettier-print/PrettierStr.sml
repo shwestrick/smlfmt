@@ -41,10 +41,8 @@ struct
       open Ast.Str
     in
       case e of
-        Ident _ => false
-      | FunAppExp _ => false
-      | Constraint _ => false
-      | _ => true
+        Struct _ => true
+      | _ => false
     end
 
   fun decIsEmpty e =
@@ -80,11 +78,12 @@ struct
           token funid ++ nospace ++ token lparen ++ nospace ++
           showStrExp tab strexp ++ nospace ++ token rparen
 
-(*
-
       | FunAppDec {funid, lparen, strdec, rparen} =>
-          token funid
-          \\ token lparen ++ showStrDec strdec ++ token rparen
+          token funid ++ nospace ++ token lparen ++ nospace ++
+          newTab tab (fn inner =>
+            at inner ++
+            showStrDec inner strdec ++ nospace ++ token rparen)
+(*
 
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
           let
