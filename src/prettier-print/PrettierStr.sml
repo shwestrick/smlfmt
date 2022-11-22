@@ -45,6 +45,11 @@ struct
       | _ => true
     end
 
+  fun decIsEmpty e =
+    case e of
+      Ast.Str.DecEmpty => true
+    | _ => false
+
   (* ====================================================================== *)
 
   fun showStrExpNewChild tab e = newTab tab (fn inner => showStrExp inner e)
@@ -142,64 +147,48 @@ struct
 
       | DecMultiple {elems, delims} =>
           let
-            fun f i =
-              showStrDec tab (Seq.nth elems i)
-              ++
-              (case Seq.nth delims i of
-                NONE => empty
-              | SOME sc => token sc)
+            fun mk (elem, delim) =
+              at tab ++ showStrDec tab elem
+              ++ showOption (fn d => nospace ++ token d) delim
           in
-            if Seq.length elems = 0 then
-              empty
-            else
-              Util.loop (1, Seq.length elems) (f 0)
-              (fn (prev, i) => prev ++ at tab ++ f i)
+            Seq.iterate op++ empty (Seq.zipWith mk (elems, delims))
           end
 
-(*
-
       | DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
-          rigid (
-            token locall
-            $$
-            indent (showStrDec strdec1)
-            $$
-            token inn
-            $$
-            indent (showStrDec strdec2)
-            $$
-            token endd
-          )
+          showThingSimilarToLetInEnd tab
+            ( locall
+            , (decIsEmpty strdec1, fn () => showStrDecNewChild tab strdec1)
+            , inn
+            , (fn () => showStrDecNewChild tab strdec2)
+            , endd
+            )
 
       (** This is MLton-specific. Useful for testing by parsing the entire
         * MLton implementation of the standard basis.
         *)
-      | MLtonOverload
-        {underscore, overload, prec, name, colon, ty, ass, elems, delims} =>
-          let
-            val front =
-              token underscore ++ token overload
-              ++ space ++ token prec
-              ++ space ++ token name
-              ++ space ++ token colon
-              ++ space ++ showTy ty
-              ++ space ++ token ass
+      | MLtonOverload {underscore, overload, prec, name, colon, ty, ass, elems, delims} =>
+          newTab tab (fn tab =>
+            let
+              val front =
+                at tab
+                ++ token underscore ++ nospace ++ token overload
+                ++ token prec
+                ++ token name
+                ++ token colon
+                ++ showTy ty
+                ++ at tab
+                ++ token ass
+                ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
 
-            fun showOne (d, e) =
-              token d ++ space ++ token (MaybeLongToken.getToken e)
-          in
-            group (
-              front
-              $$
-              indent (
-                rigidVertically
-                  (token (MaybeLongToken.getToken (Seq.nth elems 0)))
-                  (Seq.zipWith showOne (delims, Seq.drop elems 1))
-              )
-            )
-          end
-*)
-      | _ => text "<strdec>"
+              fun showOne (d, e) =
+                at tab ++ token d ++ token (MaybeLongToken.getToken e)
+            in
+              Seq.iterate op++
+                front
+                (Seq.zipWith showOne (delims, Seq.drop elems 1))
+            end)
+
+      (* | _ => text "<strdec>" *)
     end
 
 end

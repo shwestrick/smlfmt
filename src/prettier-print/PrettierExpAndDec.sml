@@ -51,6 +51,11 @@ struct
       | _ => NONE
     end
 
+  fun decIsEmpty e =
+    case e of
+      Ast.Exp.DecEmpty => true
+    | _ => false
+
   (* ====================================================================== *)
 
   fun showExpNewChild current e = newTab current (fn tab => at tab ++ showExp tab e)
@@ -198,10 +203,13 @@ struct
           ++ (if i = numExps - 1 then empty else nospace ++ token (d i)))
         exps
     in
-      token lett ++ showDecNewChild outerTab dec ++
-      at outerTab ++ token inn ++
-      newTab outerTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
-      ++ at outerTab ++ token endd
+      showThingSimilarToLetInEnd outerTab
+        ( lett
+        , (decIsEmpty dec, fn () => showDecNewChild outerTab dec)
+        , inn
+        , (fn () => newTab outerTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab)))
+        , endd
+        )
     end
 
 
@@ -237,7 +245,9 @@ struct
       open Ast.Exp
     in
       case dec of
-        DecVal {vall, tyvars, elems, delims} =>
+        DecEmpty => empty
+
+      | DecVal {vall, tyvars, elems, delims} =>
           let
             fun mk (delim, {recc, pat, eq, exp}) =
               at tab ++ token delim
@@ -263,6 +273,31 @@ struct
 
       | DecFun args =>
           showDecFunAt tab args
+
+      | DecInfix {infixx, precedence, elems} =>
+          token infixx ++ showOption token precedence
+          ++ Seq.iterate op++ empty (Seq.map token elems)
+
+      | DecInfixr {infixrr, precedence, elems} =>
+          token infixrr ++ showOption token precedence
+          ++ Seq.iterate op++ empty (Seq.map token elems)
+
+      | DecNonfix {nonfixx, elems} =>
+          token nonfixx ++ Seq.iterate op++ empty (Seq.map token elems)
+
+      | DecMultiple {elems, delims} =>
+          let
+            fun mk (elem, delim) =
+              at tab ++ showDec tab elem
+              ++ showOption (fn d => nospace ++ token d) delim
+          in
+            Seq.iterate op++ empty (Seq.zipWith mk (elems, delims))
+          end
+
+      | DecOpen {openn, elems} =>
+          token openn ++
+          Seq.iterate op++ empty
+            (Seq.map (token o MaybeLongToken.getToken) elems)
 
       | _ => text "<dec>"
     end

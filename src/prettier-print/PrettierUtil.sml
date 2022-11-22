@@ -46,4 +46,20 @@ struct
       NONE => empty
     | SOME xx => f xx
 
+
+  fun showThingSimilarToLetInEnd outerTab
+        (start, (isEmptyA, showA), mid, showB, stop)
+    =
+    let in
+      token start ++
+      (if isEmptyA then
+          empty
+        else
+          showA () ++ at outerTab)
+      ++ token mid
+      ++ showB ()
+      (* ++ newTab outerTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab)) *)
+      ++ at outerTab ++ token stop
+    end
+
 end
