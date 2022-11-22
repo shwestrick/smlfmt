@@ -38,6 +38,21 @@ struct
       Ast.Exp.App {left, right} => appChain (right :: acc) left
     | _ => (exp, Seq.fromList acc)
 
+
+  (* returns SOME (left, token, right) if `<left> <token> <right>` can be
+   * viewed as an infix expression.
+   *)
+  fun tryViewAsInfix exp =
+    let
+      open Ast.Exp
+    in
+      case exp of
+        Infix {left, id, right} => SOME (left, id, right)
+      | Orelse {left, orelsee, right} => SOME (left, orelsee, right)
+      | Andalso {left, andalsoo, right} => SOME (left, andalsoo, right)
+      | _ => NONE
+    end
+
   (* ====================================================================== *)
 
   fun showExp current e = newChildTab current (fn tab => at tab ++ showExpAt tab e)
@@ -121,10 +136,59 @@ struct
               ++ Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                    (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
             end)
+      | Infix {left, id, right} =>
+          showInfixedExpAt tab (left, id, right)
+      | Andalso {left, andalsoo, right} =>
+          showInfixedExpAt tab (left, andalsoo, right)
+      | Orelse {left, orelsee, right} =>
+          showInfixedExpAt tab (left, orelsee, right)
       | _ => text "<exp>"
     end
 
+
+  (* TODO: This is still not quite right... *)
+  and showInfixedExpAt tab (l, t, r) =
+    newChildTab tab (fn tab =>
+      let
+        open Ast.Exp
+
+        fun tryLeft () =
+          case tryViewAsInfix l of
+            NONE => NONE
+          | SOME (ll, lt, lr) =>
+              if not (Token.same (t, lt)) then
+                NONE
+              else
+                SOME
+                  (at tab ++ showInfixedExpAt tab (ll, lt, lr)
+                  ++ at tab ++ token t ++ showExp tab r)
+
+        fun tryRight () =
+          case tryViewAsInfix r of
+            NONE => NONE
+          | SOME (rl, rt, rr) =>
+              if not (Token.same (t, rt)) then
+                NONE
+              else
+                SOME
+                  (showExp tab l ++ at tab ++ token t
+                  ++ showInfixedExpAt tab (rl, rt, rr))
+
+        fun normal () =
+          at tab ++ showExpAt tab l ++ at tab ++ token t ++ showExp tab r
+      in
+        case tryLeft () of
+          SOME x => x
+        | NONE =>
+
+        case tryRight () of
+          SOME x => x
+        | NONE =>
+
+        normal ()
+      end)
   
+
   and showLetInEndAt outerTab {lett, dec, inn, exps, delims, endd} =
     let
       val numExps = Seq.length exps
@@ -133,7 +197,7 @@ struct
         Seq.mapIdx (fn (i, e) =>
           at innerTab
           ++ showExpAt innerTab e
-          ++ (if i = numExps - 1 then empty else token (d i)))
+          ++ (if i = numExps - 1 then empty else nospace ++ token (d i)))
         exps
     in
       token lett ++ showDec outerTab dec ++
@@ -199,7 +263,60 @@ struct
             (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end
 
+      | DecFun args =>
+          showDecFunAt tab args
+
       | _ => text "<dec>"
+    end
+
+
+  and showDecFunAt tab {funn, tyvars, fvalbind={elems, delims}} =
+    let
+      open Ast.Exp
+
+      fun showArgs args =
+        Seq.iterate op++ empty (Seq.map showPat args)
+
+      fun showInfixed larg id rarg =
+        showPat larg ++ token id ++ showPat rarg
+
+      fun showFNameArgs xx =
+        case xx of
+          PrefixedFun {opp, id, args} =>
+            showOption token opp ++ token id ++ showArgs args
+        | InfixedFun {larg, id, rarg} =>
+            showInfixed larg id rarg
+        | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
+            token lparen ++ nospace
+            ++ showInfixed larg id rarg ++ nospace ++ token rparen
+            ++ showArgs args
+
+      fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
+        token colon ++ showTy ty
+
+      fun showClause isFirst (front, {fname_args, ty, eq, exp}) =
+        at tab
+        ++ (if isFirst then empty else cond tab {active=space++space, inactive=empty})
+        ++ front
+        ++ showFNameArgs fname_args
+        ++ showOption showColonTy ty
+        ++ token eq
+        ++ showExp tab exp
+
+      fun mkFunction (starter, {elems=innerElems, delims}) =
+        let in
+          Seq.iterate op++ 
+            (showClause true (starter, Seq.nth innerElems 0))
+            (Seq.zipWith (showClause false)
+              (Seq.map token delims, Seq.drop innerElems 1))
+        end
+
+      val front =
+        token funn ++ showSyntaxSeq tab tyvars token
+    in
+      Seq.iterate op++
+        (mkFunction (front, Seq.nth elems 0))
+        (Seq.zipWith mkFunction (Seq.map token delims, Seq.drop elems 1))
     end
 
 end
