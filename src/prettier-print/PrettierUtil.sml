@@ -30,7 +30,7 @@ struct
 
   
   fun sequence currentTab openn delims close (xs: doc Seq.t) =
-    newChildTab currentTab (fn tab => at tab ++ sequenceAt tab openn delims close xs)
+    newTab currentTab (fn tab => at tab ++ sequenceAt tab openn delims close xs)
 
   
   fun showSyntaxSeq currentTab s f =

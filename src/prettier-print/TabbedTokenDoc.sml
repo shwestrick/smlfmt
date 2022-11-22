@@ -17,7 +17,7 @@ sig
 
   type tab
   val root: tab
-  val newChildTab: tab -> (tab -> doc) -> doc
+  val newTab: tab -> (tab -> doc) -> doc
   val at: tab -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
@@ -84,8 +84,7 @@ struct
   | Token of Token.t
   | Text of string
   | Break of tab
-  (* | NewTab of {tab: tab, doc: doc} *)
-  | NewChildTab of {parent: tab, tab: tab, doc: doc}
+  | NewTab of {parent: tab, tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
 
   type t = doc
@@ -114,27 +113,17 @@ struct
     | Token t => "Token('" ^ Token.toString t ^ "')"
     | Text t => "Text('" ^ t ^ "')"
     | Break t => "Break(" ^ tabToString t ^ ")"
-    (* | NewTab {tab=t, doc=d} => "NewTab(" ^ tabToString t ^ ", " ^ toString d ^ ")" *)
-    | NewChildTab {parent=p, tab=t, doc=d} => "NewChildTab(" ^ tabToString p ^ ", " ^ tabToString t ^ ", " ^ toString d ^ ")"
+    | NewTab {parent=p, tab=t, doc=d} => "NewTab(" ^ tabToString p ^ ", " ^ tabToString t ^ ", " ^ toString d ^ ")"
     | Cond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
 
-
-  (* fun newTab (genDocUsingTab: tab -> doc) =
-    let
-      val t = mkTab ()
-      val d = genDocUsingTab t
-    in
-      NewTab {tab=t, doc=d}
-    end *)
-
   
-  fun newChildTab parent (genDocUsingTab: tab -> doc) =
+  fun newTab parent (genDocUsingTab: tab -> doc) =
     let
       val t = mkTab ()
       val d = genDocUsingTab t
     in
-      NewChildTab {parent=parent, tab=t, doc=d}
+      NewTab {parent=parent, tab=t, doc=d}
     end
 
   (* ====================================================================== *)
@@ -171,7 +160,7 @@ struct
       | AnnText of string
       | AnnBreak of {mightBeFirst: bool, tab: anntab}
       (* | AnnNewTab of {tab: anntab, doc: anndoc} *)
-      | AnnNewChildTab of {parent: anntab, tab: anntab, doc: anndoc}
+      | AnnNewTab of {parent: anntab, tab: anntab, doc: anndoc}
       | AnnCond of {tab: anntab, inactive: anndoc, active: anndoc}
 
     
@@ -190,8 +179,7 @@ struct
         | AnnText t => "Text('" ^ t ^ "')"
         | AnnBreak {mightBeFirst, tab} =>
             "Break" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ annTabToString tab ^ ")"
-        (* | AnnNewTab {tab=t, doc=d} => "NewTab(" ^ annTabToString t ^ ", " ^ annToString d ^ ")" *)
-        | AnnNewChildTab {parent=p, tab=t, doc=d} => "NewChildTab(" ^ annTabToString p ^ ", " ^ annTabToString t ^ ", " ^ annToString d ^ ")"
+        | AnnNewTab {parent=p, tab=t, doc=d} => "NewTab(" ^ annTabToString p ^ ", " ^ annTabToString t ^ ", " ^ annToString d ^ ")"
         | AnnCond {tab=t, inactive=df, active=dnf} =>
             "Cond(" ^ annTabToString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
 
@@ -230,22 +218,14 @@ struct
                 in
                   (AnnConcat (d1, d2), broken)
                 end
-            (* | NewTab {tab, doc} =>
-                let
-                  val anntab = AnnTab {parent = currtab, tab = tab}
-                  val tabmap = TabDict.insert tabmap (tab, anntab)
-                  val (doc, broken) = loop anntab tabmap (doc, broken)
-                in
-                  (AnnNewTab {tab=anntab, doc=doc}, broken)
-                end *)
-            | NewChildTab {parent, tab, doc} =>
+            | NewTab {parent, tab, doc} =>
                 let
                   val annparent = TabDict.lookup tabmap parent
                   val anntab = AnnTab {parent = annparent, tab = tab}
                   val tabmap = TabDict.insert tabmap (tab, anntab)
                   val (doc, broken) = loop anntab tabmap (doc, broken)
                 in
-                  ( AnnNewChildTab 
+                  ( AnnNewTab 
                      { parent = annparent
                      , tab = anntab
                      , doc = doc
@@ -281,10 +261,8 @@ struct
         | AnnBreak {tab, ...} => Break (removeTabAnnotation tab)
         | AnnConcat (d1, d2) =>
             Concat (removeAnnotations d1, removeAnnotations d2)
-        (* | AnnNewTab {tab, doc} =>
-            NewTab {tab = removeTabAnnotation tab, doc = removeAnnotations doc} *)
-        | AnnNewChildTab {parent, tab, doc} =>
-            NewChildTab 
+        | AnnNewTab {parent, tab, doc} =>
+            NewTab 
               { parent = removeTabAnnotation parent
               , tab = removeTabAnnotation tab
               , doc = removeAnnotations doc
@@ -343,7 +321,7 @@ struct
                     SOME xs => SOME xs
                   | NONE => loop ctx d1)
             (* | AnnNewTab {doc=d, ...} => loop ctx d *)
-            | AnnNewChildTab {doc=d, ...} => loop ctx d
+            | AnnNewTab {doc=d, ...} => loop ctx d
             | AnnCond {tab, inactive, active} =>
                 let
                   val result = 
@@ -434,8 +412,8 @@ struct
                   ))
         (* | AnnNewTab {tab, doc} =>
             AnnNewTab {tab = tab, doc = loop ctx needSpace doc} *)
-        | AnnNewChildTab {parent, tab, doc} =>
-            AnnNewChildTab {parent = parent, tab = tab, doc = loop ctx needSpace doc}
+        | AnnNewTab {parent, tab, doc} =>
+            AnnNewTab {parent = parent, tab = tab, doc = loop ctx needSpace doc}
         | AnnCond {tab, inactive, active} =>
             let
               val inactive = loop (markInactive ctx tab) needSpace inactive
@@ -555,12 +533,7 @@ struct
               { inactive = loop currentTab inactive
               , active = loop currentTab active
               }
-        (* | NewTab {tab, doc} =>
-            D.newTab currentTab (fn tab' =>
-              ( setUnderlyingTab tab tab'
-              ; loop tab' doc
-              )) *)
-        | NewChildTab {parent, tab, doc} =>
+        | NewTab {parent, tab, doc} =>
             D.newTab (underlyingTab parent) (fn tab' =>
               ( setUnderlyingTab tab tab'
               ; loop tab' doc

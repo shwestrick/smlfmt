@@ -47,8 +47,8 @@ struct
   
   (* ====================================================================== *)
 
-  fun showStrExpNewChild tab e = newChildTab tab (fn inner => showStrExp inner e)
-  and showStrDecNewChild tab e = newChildTab tab (fn inner => showStrDec inner e)
+  fun showStrExpNewChild tab e = newTab tab (fn inner => showStrExp inner e)
+  and showStrDecNewChild tab e = newTab tab (fn inner => showStrDec inner e)
 
   and showStrExp tab e =
     let
@@ -56,7 +56,7 @@ struct
     in
       case e of
         Ident id =>
-          newChildTab tab (fn tab => at tab ++ token (MaybeLongToken.getToken id))
+          newTab tab (fn tab => at tab ++ token (MaybeLongToken.getToken id))
 
       | Struct {structt, strdec, endd} =>
           token structt ++ showStrDecNewChild tab strdec ++ token endd
