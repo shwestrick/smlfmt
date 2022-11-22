@@ -56,9 +56,9 @@ struct
           let
             val all = Seq.map (showOneAt tab) tds
           in
-            break tab ++ 
+            at tab ++ 
             Seq.iterate op++ (Seq.nth all 0)
-              (Seq.map (fn x => break tab ++ x) (Seq.drop all 1))
+              (Seq.map (fn x => at tab ++ x) (Seq.drop all 1))
           end)
       end
 

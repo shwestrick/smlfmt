@@ -18,8 +18,8 @@ sig
   type tab
   val newChildTab: tab -> (tab -> doc) -> doc
   val newTab: (tab -> doc) -> doc
-  val break: tab -> doc
-  val cond: tab -> {flat: doc, notflat: doc} -> doc
+  val at: tab -> doc
+  val cond: tab -> {inactive: doc, active: doc} -> doc
 
   val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
 end =
@@ -58,7 +58,7 @@ struct
   | Break of tab
   | NewTab of {tab: tab, doc: doc}
   | NewChildTab of {parent: tab, tab: tab, doc: doc}
-  | Cond of {tab: tab, flat: doc, notflat: doc}
+  | Cond of {tab: tab, inactive: doc, active: doc}
 
   type t = doc
 
@@ -67,7 +67,7 @@ struct
   val space = Space
   val token = Token
   val text = Text
-  val break = Break
+  val at = Break
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -75,7 +75,7 @@ struct
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
 
-  fun cond tab {flat, notflat} = Cond {tab=tab, flat=flat, notflat=notflat}
+  fun cond tab {inactive, active} = Cond {tab=tab, inactive=inactive, active=active}
 
   fun toString doc =
     case doc of
@@ -88,7 +88,7 @@ struct
     | Break t => "Break(" ^ tabToString t ^ ")"
     | NewTab {tab=t, doc=d} => "NewTab(" ^ tabToString t ^ ", " ^ toString d ^ ")"
     | NewChildTab {parent=p, tab=t, doc=d} => "NewChildTab(" ^ tabToString p ^ ", " ^ tabToString t ^ ", " ^ toString d ^ ")"
-    | Cond {tab=t, flat=df, notflat=dnf} =>
+    | Cond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
 
 
@@ -144,7 +144,7 @@ struct
       | AnnBreak of {mightBeFirst: bool, tab: anntab}
       | AnnNewTab of {tab: anntab, doc: anndoc}
       | AnnNewChildTab of {parent: anntab, tab: anntab, doc: anndoc}
-      | AnnCond of {tab: anntab, flat: anndoc, notflat: anndoc}
+      | AnnCond of {tab: anntab, inactive: anndoc, active: anndoc}
 
     
       fun annTabToString t =
@@ -164,7 +164,7 @@ struct
             "Break" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ annTabToString tab ^ ")"
         | AnnNewTab {tab=t, doc=d} => "NewTab(" ^ annTabToString t ^ ", " ^ annToString d ^ ")"
         | AnnNewChildTab {parent=p, tab=t, doc=d} => "NewChildTab(" ^ annTabToString p ^ ", " ^ annTabToString t ^ ", " ^ annToString d ^ ")"
-        | AnnCond {tab=t, flat=df, notflat=dnf} =>
+        | AnnCond {tab=t, inactive=df, active=dnf} =>
             "Cond(" ^ annTabToString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
 
 
@@ -225,13 +225,13 @@ struct
                    , broken
                    )
                 end
-            | Cond {tab, flat, notflat} =>
+            | Cond {tab, inactive, active} =>
                 let
                   val anntab = TabDict.lookup tabmap tab
-                  val (flat, broken1) = loop currtab tabmap (flat, broken)
-                  val (notflat, broken2) = loop currtab tabmap (notflat, broken)
+                  val (inactive, broken1) = loop currtab tabmap (inactive, broken)
+                  val (active, broken2) = loop currtab tabmap (active, broken)
                 in
-                  ( AnnCond {tab=anntab, flat=flat, notflat=notflat}
+                  ( AnnCond {tab=anntab, inactive=inactive, active=active}
                   , TabDict.intersectWith (fn _ => ()) (broken1, broken2)
                   )
                 end
@@ -260,11 +260,11 @@ struct
               , tab = removeTabAnnotation tab
               , doc = removeAnnotations doc
               }
-        | AnnCond {tab, flat, notflat} =>
+        | AnnCond {tab, inactive, active} =>
             Cond
               { tab = removeTabAnnotation tab
-              , flat = removeAnnotations flat
-              , notflat = removeAnnotations notflat
+              , inactive = removeAnnotations inactive
+              , active = removeAnnotations active
               }
 
 
@@ -315,28 +315,28 @@ struct
                   | NONE => loop ctx d1)
             | AnnNewTab {doc=d, ...} => loop ctx d
             | AnnNewChildTab {doc=d, ...} => loop ctx d
-            | AnnCond {tab, flat, notflat} =>
+            | AnnCond {tab, inactive, active} =>
                 let
                   val result = 
                     case TabDict.find ctx (removeTabAnnotation tab) of
                       SOME Active =>
                         let
-                          val result = loop ctx notflat
+                          val result = loop ctx active
                         in
                           dbgprintln (annToString doc ^ ": ACTIVE: " ^ edgeOptToString result);
                           result
                         end
                     | SOME Inactive =>
                         let
-                          val result = loop ctx flat
+                          val result = loop ctx inactive
                         in
                           dbgprintln (annToString doc ^ ": INACTIVE: " ^ edgeOptToString result);
                           result
                         end
                     | NONE =>
                         let
-                          val r1 = loop (markInactive ctx tab) flat
-                          val r2 = loop (markActive ctx tab) notflat
+                          val r1 = loop (markInactive ctx tab) inactive
+                          val r2 = loop (markActive ctx tab) active
                           val result = 
                             case (r1, r2) of
                               (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
@@ -407,12 +407,12 @@ struct
             AnnNewTab {tab = tab, doc = loop ctx needSpace doc}
         | AnnNewChildTab {parent, tab, doc} =>
             AnnNewChildTab {parent = parent, tab = tab, doc = loop ctx needSpace doc}
-        | AnnCond {tab, flat, notflat} =>
+        | AnnCond {tab, inactive, active} =>
             let
-              val flat = loop (markInactive ctx tab) needSpace flat
-              val notflat = loop (markActive ctx tab) needSpace notflat
+              val inactive = loop (markInactive ctx tab) needSpace inactive
+              val active = loop (markActive ctx tab) needSpace active
             in
-              AnnCond {tab = tab, flat = flat, notflat = notflat}
+              AnnCond {tab = tab, inactive = inactive, active = active}
             end
         | AnnConcat (d1, d2) =>
             let
@@ -522,10 +522,10 @@ struct
             end
         | Break (tab as (tabref, _)) =>
             D.at (Option.valOf (!tabref))
-        | Cond {tab = (tabref, _), flat, notflat} =>
+        | Cond {tab = (tabref, _), inactive, active} =>
             D.cond (Option.valOf (!tabref))
-              { inactive = loop currentTab flat
-              , active = loop currentTab notflat
+              { inactive = loop currentTab inactive
+              , active = loop currentTab active
               }
         | NewTab {tab=(tabref,_), doc} =>
             D.newTab currentTab (fn tab' =>

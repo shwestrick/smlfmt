@@ -51,7 +51,7 @@ struct
   
   (* ====================================================================== *)
 
-  fun showStrExp e = newTab (fn tab => break tab ++ showStrExpAt tab e)
+  fun showStrExp e = newTab (fn tab => at tab ++ showStrExpAt tab e)
 
   and showStrExpAt tab e =
     let
@@ -59,7 +59,7 @@ struct
     in
       case e of
         Ident id =>
-          newTab (fn tab => break tab ++ token (MaybeLongToken.getToken id))
+          newTab (fn tab => at tab ++ token (MaybeLongToken.getToken id))
 
       | Struct {structt, strdec, endd} =>
           token structt ++ showStrDec strdec ++ token endd
@@ -106,7 +106,7 @@ struct
 
     end
 
-  and showStrDec d = newTab (fn tab => break tab ++ showStrDecAt tab d)
+  and showStrDec d = newTab (fn tab => at tab ++ showStrDecAt tab d)
 
   and showStrDecAt tab d =
     let
@@ -126,7 +126,7 @@ struct
                 NONE => empty
               | SOME {colon, sigexp} =>
                   token colon
-                  ++ (if sigExpWantsSameTabAsDec sigexp then break tab else empty)
+                  ++ (if sigExpWantsSameTabAsDec sigexp then at tab else empty)
                   ++ showSigExpAt tab sigexp
 
             fun showOne (starter, {strid, constraint, eq, strexp}) =
@@ -136,12 +136,12 @@ struct
                 ]
               ++ showConstraint constraint
               ++ token eq
-              ++ (if strExpWantsSameTabAsDec strexp then break tab else empty)
+              ++ (if strExpWantsSameTabAsDec strexp then at tab else empty)
               ++ showStrExpAt tab strexp
           in
             Seq.iterate op++ 
               (showOne (structuree, Seq.nth elems 0))
-              (Seq.map (fn x => break tab ++ showOne x)
+              (Seq.map (fn x => at tab ++ showOne x)
                 (Seq.zip (delims, (Seq.drop elems 1))))
           end
 
@@ -159,7 +159,7 @@ struct
               empty
             else
               Util.loop (1, Seq.length elems) (f 0)
-              (fn (prev, i) => prev ++ break tab ++ f i)
+              (fn (prev, i) => prev ++ at tab ++ f i)
           end
 
 (*

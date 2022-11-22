@@ -40,8 +40,8 @@ struct
 
   (* ====================================================================== *)
 
-  fun showExp current e = newChildTab current (fn tab => break tab ++ showExpAt tab e)
-  and showDec current d = newChildTab current (fn tab => break tab ++ showDecAt tab d)
+  fun showExp current e = newChildTab current (fn tab => at tab ++ showExpAt tab e)
+  and showDec current d = newChildTab current (fn tab => at tab ++ showDecAt tab d)
 
   and showExpAt tab exp =
     let
@@ -97,13 +97,13 @@ struct
           newTab (fn inner => (* do we need the newTab here? *)
           let
             fun mk (delim, {pat, arrow, exp}) =
-              break inner
-              ++ cond inner {flat=empty, notflat=space} ++ token delim
+              at inner
+              ++ cond inner {inactive=empty, active=space} ++ token delim
               ++ showPat pat ++ token arrow
               ++ showExp inner exp
             
             val {pat, arrow, exp} = Seq.nth elems 0
-            val initial = break inner ++ token fnn ++ showPat pat ++ token arrow ++ showExp inner exp
+            val initial = at inner ++ token fnn ++ showPat pat ++ token arrow ++ showExp inner exp
           in
             Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end)
@@ -117,15 +117,15 @@ struct
       fun d i = Seq.nth delims i
       fun withDelims innerTab =
         Seq.mapIdx (fn (i, e) =>
-          break innerTab
+          at innerTab
           ++ showExpAt innerTab e
           ++ (if i = numExps - 1 then empty else token (d i)))
         exps
     in
       token lett ++ showDec outerTab dec ++
-      break outerTab ++ token inn ++
+      at outerTab ++ token inn ++
       newTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab))
-      ++ break outerTab ++ token endd
+      ++ at outerTab ++ token endd
     end
 
 
@@ -136,7 +136,7 @@ struct
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
 
-      fun breakShowAt tab e = break tab ++ showExpAt tab e
+      fun breakShowAt tab e = at tab ++ showExpAt tab e
       
       fun f i =
         let
@@ -144,10 +144,10 @@ struct
         in
           token iff ++
           breakShowAt inner1 exp1 ++
-          cond inner1 {flat = empty, notflat = break outer} ++
+          cond inner1 {inactive = empty, active = at outer} ++
           token thenn ++
           breakShowAt inner2 exp2 ++
-          break outer ++ token elsee
+          at outer ++ token elsee
         end
     in
       Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
@@ -164,7 +164,7 @@ struct
         DecVal {vall, tyvars, elems, delims} =>
           let
             fun mk (delim, {recc, pat, eq, exp}) =
-              break tab 
+              at tab 
               ++
               separateWithSpaces
                 [ SOME (token delim)

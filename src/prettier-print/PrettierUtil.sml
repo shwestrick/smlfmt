@@ -32,17 +32,17 @@ struct
       token openn ++ nospace ++ token close
     else
       let
-        val top = token openn ++ (cond tab {flat = nospace, notflat = space}) ++ Seq.nth xs 0
-        fun f (delim, x) = nospace ++ break tab ++ token delim ++ x
+        val top = token openn ++ (cond tab {inactive = nospace, active = space}) ++ Seq.nth xs 0
+        fun f (delim, x) = nospace ++ at tab ++ token delim ++ x
       in
         Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
         ++
-        nospace ++ break tab ++ token close
+        nospace ++ at tab ++ token close
       end
 
   
   fun sequence currentTab openn delims close (xs: doc Seq.t) =
-    newChildTab currentTab (fn tab => break tab ++ sequenceAt tab openn delims close xs)
+    newChildTab currentTab (fn tab => at tab ++ sequenceAt tab openn delims close xs)
 
 
   fun separateWithSpaces (items: doc option list) : doc =
