@@ -42,6 +42,8 @@ struct
     in
       case e of
         Ident _ => false
+      | FunAppExp _ => false
+      | Constraint _ => false
       | _ => true
     end
 
@@ -52,8 +54,10 @@ struct
 
   (* ====================================================================== *)
 
-  fun showStrExpNewChild tab e = newTab tab (fn inner => showStrExp inner e)
-  and showStrDecNewChild tab e = newTab tab (fn inner => showStrDec inner e)
+  fun showSigExpNewChild tab e = newTab tab (fn inner => at inner ++ showSigExp inner e)
+
+  fun showStrExpNewChild tab e = newTab tab (fn inner => at inner ++ showStrExp inner e)
+  and showStrDecNewChild tab e = newTab tab (fn inner => at inner ++ showStrDec inner e)
 
   and showStrExp tab e =
     let
@@ -61,20 +65,22 @@ struct
     in
       case e of
         Ident id =>
-          newTab tab (fn tab => at tab ++ token (MaybeLongToken.getToken id))
+          token (MaybeLongToken.getToken id)
+          (* newTab tab (fn tab => at tab ++ ) *)
 
       | Struct {structt, strdec, endd} =>
-          token structt ++ showStrDecNewChild tab strdec ++ token endd
-(*
+          token structt ++ showStrDecNewChild tab strdec ++ at tab ++ token endd
 
       | Constraint {strexp, colon, sigexp} =>
-          showStrExp strexp
-          ++ space ++ token colon
-          \\ showSigExp sigexp
+          showStrExp tab strexp
+          ++ token colon
+          ++ showSigExpNewChild tab sigexp
 
       | FunAppExp {funid, lparen, strexp, rparen} =>
-          token funid
-          \\ token lparen ++ showStrExp strexp ++ token rparen
+          token funid ++ nospace ++ token lparen ++ nospace ++
+          showStrExp tab strexp ++ nospace ++ token rparen
+
+(*
 
       | FunAppDec {funid, lparen, strdec, rparen} =>
           token funid
@@ -127,16 +133,20 @@ struct
                 NONE => empty
               | SOME {colon, sigexp} =>
                   token colon
-                  ++ (if sigExpWantsSameTabAsDec sigexp then at tab else empty)
-                  ++ showSigExp tab sigexp
+                  ++ (if sigExpWantsSameTabAsDec sigexp then
+                        at tab ++ showSigExp tab sigexp
+                      else
+                        showSigExpNewChild tab sigexp)
 
             fun showOne (starter, {strid, constraint, eq, strexp}) =
               token starter
               ++ token strid
               ++ showConstraint constraint
               ++ token eq
-              ++ (if strExpWantsSameTabAsDec strexp then at tab else empty)
-              ++ showStrExp tab strexp
+              ++ (if strExpWantsSameTabAsDec strexp then
+                    at tab ++ showStrExp tab strexp
+                  else
+                    showStrExpNewChild tab strexp)
           in
             Seq.iterate op++
               (showOne (structuree, Seq.nth elems 0))
