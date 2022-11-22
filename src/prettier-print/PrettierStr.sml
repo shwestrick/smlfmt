@@ -124,8 +124,8 @@ struct
                 , SOME (token strid)
                 ]
               ++ showConstraint constraint
-              ++ space ++ token eq
-              ++ (if strExpWantsSameTabAsDec strexp then breakspace tab else space)
+              ++ token eq
+              ++ (if strExpWantsSameTabAsDec strexp then break tab else empty)
               ++ showStrExpAt tab strexp
           in
             Seq.iterate op++ 

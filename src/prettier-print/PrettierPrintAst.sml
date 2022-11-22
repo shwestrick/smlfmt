@@ -71,7 +71,7 @@ struct
     in
       TabbedStringDoc.pretty
         {ribbonFrac=ribbonFrac, maxWidth=maxWidth, indentWidth=indent, debug=debug}
-        (toStringDoc {tabWidth=tabWidth} doc)
+        (toStringDoc {tabWidth=tabWidth, debug=debug} doc)
     end
 
 end

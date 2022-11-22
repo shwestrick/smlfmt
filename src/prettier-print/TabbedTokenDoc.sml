@@ -22,7 +22,7 @@ sig
   val spaceIfNotFlat: tab -> doc
   val cond: tab -> {flat: doc, notflat: doc} -> doc
 
-  val toStringDoc: {tabWidth: int} -> doc -> TabbedStringDoc.t
+  val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
 end =
 struct
 
@@ -220,9 +220,12 @@ struct
     end
 *)
 
-  fun ensureSpaces doc =
+  fun ensureSpaces debug doc =
     let
-      val _ = print ("ensureSpaces INPUT: " ^ toString doc ^ "\n")
+      fun dbgprintln s =
+        if not debug then ()
+        else print (s ^ "\n")
+      val _ = dbgprintln ("ensureSpaces INPUT: " ^ toString doc)
 
       datatype anntab =
         AnnRoot
@@ -248,6 +251,26 @@ struct
       | AnnNewTab of {tab: anntab, doc: anndoc}
       | AnnNewChildTab of {parent: anntab, tab: anntab, doc: anndoc}
       | AnnCond of {tab: anntab, flat: anndoc, notflat: anndoc}
+
+    
+      fun annTabToString t =
+        case t of
+          AnnRoot => "[root]"
+        | AnnTab {tab, ...} => tabToString tab
+
+      fun annToString doc =
+        case doc of
+          AnnEmpty => ""
+        | AnnSpace => "_"
+        | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
+        | AnnToken t => "Token('" ^ Token.toString t ^ "')"
+        | AnnText t => "Text('" ^ t ^ "')"
+        | AnnBreak {mightBeFirst, tab} =>
+            "Break" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ annTabToString tab ^ ")"
+        | AnnNewTab {tab=t, doc=d} => "NewTab(" ^ annTabToString t ^ ", " ^ annToString d ^ ")"
+        | AnnNewChildTab {parent=p, tab=t, doc=d} => "NewChildTab(" ^ annTabToString p ^ ", " ^ annTabToString t ^ ", " ^ annToString d ^ ")"
+        | AnnCond {tab=t, flat=df, notflat=dnf} =>
+            "Cond(" ^ annTabToString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
 
 
       fun annotate doc =
@@ -367,7 +390,7 @@ struct
         | AnnTab {parent, tab} =>
             markActive (TabDict.insert ctx (tab, Active)) parent
 
-      fun leftEdge ctx doc =
+      fun edge {left: bool} ctx doc =
         let
           fun loop ctx doc =
             case doc of
@@ -377,72 +400,141 @@ struct
             | AnnText _ => SOME MaybeNotSpacey
             | AnnBreak {mightBeFirst, tab} =>
                 (case TabDict.find ctx (removeTabAnnotation tab) of
-                  SOME Inactive => NONE
-                | SOME Active => 
+                  SOME Active => 
                     if mightBeFirst then
-                      SOME MaybeNotSpacey
+                      NONE
                     else
                       SOME Spacey
-                | _ =>
-                    SOME MaybeNotSpacey)
+                | _ => NONE)
             | AnnConcat (d1, d2) =>
-                (case loop ctx d1 of
-                  SOME xs => SOME xs
-                | NONE => loop ctx d2)
+                if left then
+                  (case loop ctx d1 of
+                    SOME xs => SOME xs
+                  | NONE => loop ctx d2)
+                else
+                  (case loop ctx d2 of
+                    SOME xs => SOME xs
+                  | NONE => loop ctx d1)
             | AnnNewTab {doc=d, ...} => loop ctx d
             | AnnNewChildTab {doc=d, ...} => loop ctx d
             | AnnCond {tab, flat, notflat} =>
                 let
-                  val r1 = loop (markInactive ctx tab) flat
-                  val r2 = loop (markActive ctx tab) notflat
+                  val result = 
+                    case TabDict.find ctx (removeTabAnnotation tab) of
+                      SOME Active =>
+                        let
+                          val result = loop ctx notflat
+                        in
+                          dbgprintln (annToString doc ^ ": ACTIVE: " ^ edgeOptToString result);
+                          result
+                        end
+                    | SOME Inactive =>
+                        let
+                          val result = loop ctx flat
+                        in
+                          dbgprintln (annToString doc ^ ": INACTIVE: " ^ edgeOptToString result);
+                          result
+                        end
+                    | NONE =>
+                        let
+                          val r1 = loop (markInactive ctx tab) flat
+                          val r2 = loop (markActive ctx tab) notflat
+                          val result = 
+                            case (r1, r2) of
+                              (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
+                            | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
+                            | (SOME Spacey, SOME Spacey) => SOME Spacey
+                            | (NONE, _) => NONE
+                            | (_, NONE) => NONE
+                        in
+                          dbgprintln (annToString doc ^ ": UNSURE: ACTIVE? " ^ edgeOptToString r2 ^ "; INACTIVE? " ^ edgeOptToString r1 ^ "; OVERALL: " ^ edgeOptToString result);
+                          result
+                        end
                 in
-                  case (r1, r2) of
-                    (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
-                  | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
-                  | (SOME Spacey, SOME Spacey) => SOME Spacey
-                  | (NONE, _) => r2
-                  | (_, NONE) => r1
+                  result
                 end
         in
           loop ctx doc
         end
 
-      fun loop ctx (doc: anndoc, next) =
+      fun leftEdge ctx doc = edge {left=true} ctx doc
+      fun rightEdge ctx doc = edge {left=false} ctx doc
+
+      fun checkInsertSpace (needSpaceBefore, needSpaceAfter) doc =
+        let
+          val origDoc = doc
+
+          val doc = 
+            if not needSpaceBefore then doc
+            else
+              ( dbgprintln ("need space before " ^ annToString origDoc)
+              ; AnnConcat (AnnSpace, doc)
+              )
+          
+          val doc =
+            if not needSpaceAfter then doc
+            else
+              ( dbgprintln ("need space after " ^ annToString origDoc)
+              ; AnnConcat (doc, AnnSpace)
+              )
+        in
+          doc
+        end
+
+      fun loop ctx (needSpace as (needSpaceBefore, needSpaceAfter)) doc : anndoc =
         case doc of
-          AnnToken t =>
-            let
-              val _ = print ("Token " ^ Token.toString t ^ " next to " ^ edgeOptToString next ^ "\n")
-              val doc = case next of SOME MaybeNotSpacey => AnnConcat (doc, AnnSpace) | _ => doc
-            in
+          AnnSpace => doc
+        | AnnToken t => checkInsertSpace needSpace doc
+        | AnnText t => checkInsertSpace needSpace doc
+        | AnnEmpty =>
+            if needSpaceBefore orelse needSpaceAfter then
+              AnnSpace
+            else
+              AnnEmpty
+        | AnnBreak {mightBeFirst, tab} =>
+            if not (needSpaceBefore orelse needSpaceAfter) then
               doc
-            end
-        | AnnText t =>
-            let
-              val _ = print ("Text " ^ t ^ " next to " ^ edgeOptToString next ^ "\n")
-              val doc = case next of SOME MaybeNotSpacey => AnnConcat (doc, AnnSpace) | _ => doc
-            in
-              doc
-            end
-        | AnnEmpty => doc
-        | AnnSpace => doc
-        | AnnBreak _ => doc
-        | AnnConcat (d1, d2) =>
-            AnnConcat (loop ctx (d1, leftEdge ctx d2), loop ctx (d2, next))
+            else
+              (case TabDict.find ctx (removeTabAnnotation tab) of
+                SOME Inactive =>
+                  ( dbgprintln ("need space at INACTIVE " ^ annToString doc)
+                  ; AnnSpace
+                  )
+              | _ => 
+                  ( dbgprintln ("need space at UNKNOWN " ^ annToString doc)
+                  ; AnnConcat (AnnSpace, doc)
+                  ))
         | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab = tab, doc = loop ctx (doc, next)}
+            AnnNewTab {tab = tab, doc = loop ctx needSpace doc}
         | AnnNewChildTab {parent, tab, doc} =>
-            AnnNewChildTab {parent = parent, tab = tab, doc = loop ctx (doc, next)}
+            AnnNewChildTab {parent = parent, tab = tab, doc = loop ctx needSpace doc}
         | AnnCond {tab, flat, notflat} =>
             let
-              val flat = loop (markInactive ctx tab) (flat, next)
-              val notflat = loop (markActive ctx tab) (notflat, next)
+              val flat = loop (markInactive ctx tab) needSpace flat
+              val notflat = loop (markActive ctx tab) needSpace notflat
             in
               AnnCond {tab = tab, flat = flat, notflat = notflat}
             end
+        | AnnConcat (d1, d2) =>
+            let
+              val d1 = loop ctx (needSpaceBefore, false) d1
+
+              val needSpaceBefore2 =
+                case rightEdge ctx d1 of
+                  SOME MaybeNotSpacey => true
+                | _ => false
+              
+              val d2 = loop ctx (needSpaceBefore2, needSpaceAfter) d2
+            in
+              AnnConcat (d1, d2)
+            end
       
-      val result = loop TabDict.empty (annotate doc, NONE)
+      val anndoc = annotate doc
+      val _ = dbgprintln ("ensureSpaces ANNOTATED: " ^ annToString anndoc)
+
+      val result = loop TabDict.empty (false, false) anndoc
       val result = removeAnnotations result
-      val _ = print ("ensureSpaces OUTPUT: " ^ toString result ^ "\n")
+      val _ = dbgprintln ("ensureSpaces OUTPUT: " ^ toString result)
     in
       result
     end
@@ -510,9 +602,9 @@ struct
   (* ====================================================================== *)
 
 
-  fun toStringDoc (args as {tabWidth}) doc =
+  fun toStringDoc (args as {tabWidth, debug}) doc =
     let
-      val doc = ensureSpaces doc
+      val doc = ensureSpaces debug doc
 
       fun loop currentTab doc =
         case doc of

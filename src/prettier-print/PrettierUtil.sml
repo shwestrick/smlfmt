@@ -18,7 +18,7 @@ struct
   fun seqWithSpaces elems f =
     if Seq.length elems = 0 then empty else
     Seq.iterate
-      (fn (prev, tok) => prev ++ space ++ f tok)
+      (fn (prev, tok) => prev ++ f tok)
       (f (Seq.nth elems 0))
       (Seq.drop elems 1)
 
@@ -33,7 +33,7 @@ struct
     else
       let
         val top = token openn ++ (spaceIfNotFlat tab) ++ Seq.nth xs 0
-        fun f (delim, x) = break tab ++ token delim ++ space ++ x
+        fun f (delim, x) = break tab ++ token delim ++ x
       in
         Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
         ++
@@ -52,7 +52,7 @@ struct
       case items of
         [] => empty
       | first :: rest =>
-          List.foldl (fn (next, prev) => prev ++ space ++ next) first rest
+          List.foldl (fn (next, prev) => prev ++ next) first rest
     end
 
 
