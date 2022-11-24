@@ -15,12 +15,38 @@ struct
 
   open TabbedTokenDoc
   open PrettierUtil
-
+  infix 2 ++
   type doc = TabbedTokenDoc.t
   type tab = TabbedTokenDoc.tab
 
-  fun showSpec _ _ = text "<spec>"
-  fun showSigExp _ _ = text "<sigexp>"
+  fun showSpec tab spec =
+    let
+      open Ast.Sig
+    in
+      case spec of
+        EmptySpec => empty
+      | _ => text "<spec>"
+    end
+
+  fun showSigExp tab sigexp =
+    let
+      open Ast.Sig
+    in
+      case sigexp of
+        Ident id =>
+          token id
+
+      | Spec {sigg, spec, endd} =>
+          newTab tab (fn inner =>
+            token sigg
+            ++ at inner
+            ++ showSpec inner spec
+            ++ cond inner {inactive = empty, active = at tab}
+            ++ token endd)
+
+      | _ => text "<sigexp>"
+    end
+
   fun showSigDec _ _ = text "<sigdec>"
 
 end

@@ -21,6 +21,8 @@ struct
   fun showTy ty = PrettierTy.showTy ty
   fun showPat pat = PrettierPat.showPat pat
 
+  fun docAt tab doc = at tab ++ doc
+
   (* ====================================================================== *)
 
   fun ifThenElseChain acc exp =

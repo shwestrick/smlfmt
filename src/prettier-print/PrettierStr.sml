@@ -27,6 +27,15 @@ struct
 
   (* ====================================================================== *)
 
+  fun leftMostStrExp strexp =
+    let
+      open Ast.Str
+    in
+      case strexp of
+        Constraint {strexp, ...} => leftMostStrExp strexp
+      | _ => strexp
+    end
+
   fun sigExpWantsSameTabAsDec e =
     let
       open Ast.Sig
@@ -40,9 +49,30 @@ struct
     let
       open Ast.Str
     in
-      case e of
+      case leftMostStrExp e of
         Struct _ => true
+      | LetInEnd _ => true
       | _ => false
+    end
+
+  fun strExpInsideFunAppWantsSpaceBefore e =
+    let
+      open Ast.Str
+    in
+      case leftMostStrExp e of
+        Struct _ => true
+      | LetInEnd _ => true
+      | _ => false
+    end
+
+  fun strDecInsideFunAppWantsSpaceBefore e =
+    let
+      open Ast.Str
+    in
+      case e of
+        DecEmpty => false
+      | DecCore _ => false
+      | _ => true
     end
 
   fun decIsEmpty e =
@@ -67,7 +97,12 @@ struct
           (* newTab tab (fn tab => at tab ++ ) *)
 
       | Struct {structt, strdec, endd} =>
-          token structt ++ showStrDecNewChild tab strdec ++ at tab ++ token endd
+          newTab tab (fn inner =>
+            token structt
+            ++ at inner
+            ++ showStrDec inner strdec
+            ++ cond inner {inactive = empty, active = at tab}
+            ++ token endd)
 
       | Constraint {strexp, colon, sigexp} =>
           showStrExp tab strexp
@@ -75,41 +110,44 @@ struct
           ++ showSigExpNewChild tab sigexp
 
       | FunAppExp {funid, lparen, strexp, rparen} =>
-          token funid ++ nospace ++ token lparen ++ nospace ++
-          showStrExp tab strexp ++ nospace ++ token rparen
+          (* The check for inserting a space after the `funid` is nice to
+           * allow for both `F(G(X))` and `Fun (struct val x = 5 end)`.
+           * (Personally, I like removing the space in the former case
+           * and leaving the space in the second case, but this is certainly
+           * open to debate.)
+           *)
+          newTab tab (fn inner =>
+            token funid ++
+            (if strExpInsideFunAppWantsSpaceBefore strexp then
+               space
+             else
+               nospace) ++
+            at inner ++ token lparen ++ nospace ++
+            showStrExpNewChild inner strexp
+            ++ nospace ++ token rparen)
 
       | FunAppDec {funid, lparen, strdec, rparen} =>
-          token funid ++ nospace ++ token lparen ++ nospace ++
+          (* See note above, about the maybe-space after `funid` *)
           newTab tab (fn inner =>
-            at inner ++
-            showStrDec inner strdec ++ nospace ++ token rparen)
-(*
+            token funid ++
+            (if strDecInsideFunAppWantsSpaceBefore strdec then
+               space
+             else
+               nospace) ++
+            at inner ++ token lparen ++ nospace ++
+            showStrDecNewChild inner strdec
+            ++ nospace ++ token rparen)
 
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
-          let
-            val topPart =
-              token lett
-              $$
-              indent (showStrDec strdec)
-              $$
-              token inn
-
-            val topPart =
-              if isMultipleDecs strdec then
-                topPart
-              else
-                group topPart
-          in
-            group (
-              topPart
-              $$
-              indent (group (showStrExp strexp))
-              $$
-              token endd
+          showThingSimilarToLetInEnd tab
+            ( lett
+            , (decIsEmpty strdec, fn () => showStrDecNewChild tab strdec)
+            , inn
+            , (fn () => showStrExpNewChild tab strexp)
+            , endd
             )
-          end
-*)
-      | _ => text "<strexp>"
+
+      (* | _ => text "<strexp>" *)
 
     end
 
@@ -156,11 +194,16 @@ struct
 
       | DecMultiple {elems, delims} =>
           let
-            fun mk (elem, delim) =
-              at tab ++ showStrDec tab elem
+            fun mk first (elem, delim) =
+              (if first then empty else at tab)
+              ++ showStrDec tab elem
               ++ showOption (fn d => nospace ++ token d) delim
+
+            val things = Seq.zip (elems, delims)
           in
-            Seq.iterate op++ empty (Seq.zipWith mk (elems, delims))
+            Seq.iterate op++
+              (mk true (Seq.nth things 0))
+              (Seq.map (mk false) (Seq.drop things 1))
           end
 
       | DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>

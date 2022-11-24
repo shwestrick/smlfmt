@@ -40,11 +40,11 @@ and S = F(X)
 and T :> Y = Fun (struct type t = int val x: int = 5 end) : X
 
 and X =
-  F (type t = int
-     val x: t = 5
-     datatype P = L | R);
+  FooBun (type t = int
+          val x: t = 5
+          datatype P = L | R);
 
-structure S = F (structure X:Foo = X val hello: string = "hello")
+structure S = FunBar (structure X:Foo = X val hello: string = "hello")
 
 structure Foobar =
   let
