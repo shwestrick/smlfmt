@@ -25,6 +25,7 @@ sig
   val contains: 'a dict -> Key.t -> bool
   val remove: 'a dict -> Key.t -> 'a dict
   val fromList: (Key.t * 'a) list -> 'a dict
+  val listKeys: 'a dict -> Key.t list
 
   val unionWith: ('a * 'a -> 'a) -> ('a dict * 'a dict) -> 'a dict
   val intersectWith: ('a * 'b -> 'c) -> ('a dict * 'b dict) -> 'c dict
@@ -120,5 +121,7 @@ struct
 
   fun fromList kvs =
     List.foldl (fn ((k, v), d) => insert d (k, v)) empty kvs
+
+  val listKeys = M.listKeys
 
 end
