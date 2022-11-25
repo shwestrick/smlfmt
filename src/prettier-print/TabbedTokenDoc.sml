@@ -149,6 +149,7 @@ struct
 
   datatype anndoc =
     AnnEmpty
+  | AnnNewline
   | AnnNoSpace
   | AnnSpace
   | AnnToken of Token.t
@@ -168,6 +169,7 @@ struct
   fun annToString doc =
     case doc of
       AnnEmpty => ""
+    | AnnNewline => "Newline"
     | AnnSpace => "_"
     | AnnNoSpace => "NoSpace"
     | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
@@ -246,7 +248,7 @@ struct
       anndoc
     end
 
-
+(*
   fun removeAnnotations anndoc =
     case anndoc of
       AnnEmpty => Empty
@@ -269,6 +271,7 @@ struct
           , inactive = removeAnnotations inactive
           , active = removeAnnotations active
           }
+*)
 
 
   fun ensureSpaces debug (doc: anndoc) =
@@ -301,6 +304,7 @@ struct
           fun loop ctx doc =
             case doc of
               AnnEmpty => NONE
+            | AnnNewline => SOME Spacey
             | AnnSpace => SOME Spacey
             | AnnNoSpace => SOME Spacey (* pretends to be a space, but then actually is elided *)
             | AnnToken _ => SOME MaybeNotSpacey
@@ -391,6 +395,7 @@ struct
         case doc of
           AnnSpace => doc
         | AnnNoSpace => doc
+        | AnnNewline => doc
         | AnnToken t => checkInsertSpace needSpace doc
         | AnnText t => checkInsertSpace needSpace doc
         | AnnEmpty =>
@@ -459,13 +464,7 @@ struct
     end)
 
 
-  (* TODO: this is awkward. 'at' is not the right primitive for inserting
-   * newlines, because 'at' doesn't ensure a new line is created -- it only
-   * ensures that the content which follows is at the correct column.
-   *
-   * Should create an explicit newline primitive instead and use that.
-   *
-   * Also, bug note: inserting blank lines on 'at's is incorrect. You could
+  (* TODO: bug: inserting blank lines on 'at's is incorrect. You could
    * have multiple 'at's back-to-back that are essentially no-ops...
    *
    * An idea for a better solution? For each token, compute which tab it is
@@ -496,6 +495,7 @@ struct
           fun loop ctx doc =
             case doc of
               AnnEmpty => NONE
+            | AnnNewline => NONE
             | AnnSpace => NONE
             | AnnNoSpace => NONE
             | AnnToken t => SOME (EdgeTokens (TokenDict.singleton (t, ())))
@@ -558,8 +558,7 @@ struct
         let
           val doc =
             AnnConcat
-              ( AnnCond {tab = tab, inactive = AnnEmpty, active =
-                  AnnConcat (AnnBreak {mightBeFirst=true, tab=tab}, AnnSpace)}
+              ( AnnCond {tab = tab, inactive = AnnEmpty, active = AnnNewline}
               , doc
               )
         in
@@ -569,6 +568,7 @@ struct
       fun loop ctx (prev, doc, next) =
         case doc of
           AnnEmpty => doc
+        | AnnNewline => doc
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnToken _ => doc
@@ -703,32 +703,33 @@ struct
       (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before insertBlankLines: " ^ annToString doc) *)
       val doc = insertBlankLines debug doc
       (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc after insertBlankLines: " ^ annToString doc) *)
-      val doc = removeAnnotations doc
+      (* val doc = removeAnnotations doc *)
 
       fun loop currentTab doc =
         case doc of
-          Empty => D.empty
-        | NoSpace => D.empty
-        | Space => D.space
-        | Concat (d1, d2) => D.concat (loop currentTab d1, loop currentTab d2)
-        | Text str => D.text (TerminalColorString.fromString str)
-        | Token tok =>
+          AnnEmpty => D.empty
+        | AnnNoSpace => D.empty
+        | AnnNewline => D.newline
+        | AnnSpace => D.space
+        | AnnConcat (d1, d2) => D.concat (loop currentTab d1, loop currentTab d2)
+        | AnnText str => D.text (TerminalColorString.fromString str)
+        | AnnToken tok =>
             let
               val (shouldBeRigid, doc) = tokenToStringDoc currentTab tabWidth tok
             in
               (* TODO: rigidity (don't allow flattening) *)
               doc
             end
-        | Break tab =>
-            D.at (underlyingTab tab)
-        | Cond {tab, inactive, active} =>
-            D.cond (underlyingTab tab)
+        | AnnBreak {tab, ...} =>
+            D.at (underlyingTab (removeTabAnnotation tab))
+        | AnnCond {tab, inactive, active} =>
+            D.cond (underlyingTab (removeTabAnnotation tab))
               { inactive = loop currentTab inactive
               , active = loop currentTab active
               }
-        | NewTab {parent, tab, doc} =>
-            D.newTab (underlyingTab parent) (fn tab' =>
-              ( setUnderlyingTab tab tab'
+        | AnnNewTab {parent, tab, doc} =>
+            D.newTab (underlyingTab (removeTabAnnotation parent)) (fn tab' =>
+              ( setUnderlyingTab (removeTabAnnotation tab) tab'
               ; loop tab' doc
               ))
     in

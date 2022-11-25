@@ -32,6 +32,7 @@ sig
 
   val empty: doc
   val space: doc
+  val newline: doc
   val text: CustomString.t -> doc
   val concat: doc * doc -> doc
 
@@ -177,6 +178,7 @@ struct
   datatype doc =
     Empty
   | Space
+  | Newline
   | Concat of doc * doc
   | Text of CustomString.t
   | At of tab
@@ -186,6 +188,7 @@ struct
   type t = doc
 
   val empty = Empty
+  val newline = Newline
   val space = Space
   val text = Text
   val at = At
@@ -227,6 +230,7 @@ struct
         case doc of
           Empty => true
         | Space => true
+        | Newline => true
         | Concat (d1, d2) =>
             loop innerTabs d1
             andalso loop innerTabs d2
@@ -872,6 +876,13 @@ struct
 
         | Text s =>
             putItemSameLine state (Item.Stuff s)
+
+        | Newline =>
+            let
+              val LS (dbgState, ct, lnStart, col, acc) = state
+            in
+              check (LS (dbgState, ct, col, col, Item.Spaces col :: Item.Newline :: acc))
+            end
 
         | Concat (doc1, doc2) =>
             layout (layout state doc1) doc2
