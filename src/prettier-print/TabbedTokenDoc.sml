@@ -541,6 +541,19 @@ struct
       fun leftEdge ctx doc = edge {left=true} ctx doc
       fun rightEdge ctx doc = edge {left=false} ctx doc
 
+      fun breaksBefore doc tab n =
+        if n = 0 then doc else
+        let
+          val doc =
+            AnnConcat
+              ( AnnCond {tab = tab, inactive = AnnEmpty, active =
+                  AnnConcat (AnnBreak {mightBeFirst=true, tab=tab}, AnnSpace)}
+              , doc
+              )
+        in
+          breaksBefore doc tab (n-1)
+        end
+
       fun loop ctx (prev, doc, next) =
         case doc of
           AnnEmpty => doc
@@ -581,13 +594,11 @@ struct
                   if diff = 0 then
                     doc
                   else
-                    AnnConcat
-                     ( AnnCond {tab = tab, inactive = AnnEmpty, active =
-                         AnnConcat (AnnBreak {mightBeFirst=true, tab=tab}, AnnSpace)}
-                     , doc
-                     )
+                    breaksBefore doc tab diff
                 end
+
             | _ => doc)
+
         | AnnNewTab {parent, tab, doc} =>
             let
               val doc = loop ctx (prev, doc, next)
@@ -674,11 +685,12 @@ struct
         if not debug then ()
         else print (s ^ "\n")
 
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc INPUT: " ^ toString doc) *)
       val doc = annotate doc
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc ANNOTATED: " ^ annToString doc) *)
+      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before ensureSpaces: " ^ annToString doc) *)
       val doc = ensureSpaces debug doc
+      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before insertBlankLines: " ^ annToString doc) *)
       val doc = insertBlankLines debug doc
+      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc after insertBlankLines: " ^ annToString doc) *)
       val doc = removeAnnotations doc
 
       fun loop currentTab doc =
