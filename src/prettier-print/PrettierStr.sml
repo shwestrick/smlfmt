@@ -165,6 +165,7 @@ struct
           showDec tab d
 
       | DecStructure {structuree, elems, delims} =>
+          newTab tab (fn tab =>
           let
             fun showConstraint constraint =
               case constraint of
@@ -186,11 +187,12 @@ struct
                   else
                     showStrExpNewChild tab strexp)
           in
+            at tab ++
             Seq.iterate op++
               (showOne (structuree, Seq.nth elems 0))
               (Seq.map (fn x => at tab ++ showOne x)
                 (Seq.zip (delims, (Seq.drop elems 1))))
-          end
+          end)
 
 
       | DecMultiple {elems, delims} =>

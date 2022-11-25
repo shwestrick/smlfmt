@@ -63,6 +63,55 @@ struct
 
   (* ====================================================================== *)
 
+  fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
+    let
+      fun showOne first (starter, {tyvars, tycon, ty, eq}) =
+        (if first then empty else at tab) ++
+        token starter ++
+        showSyntaxSeq tab tyvars token ++
+        token tycon ++
+        token eq ++
+        showTyNewChild tab ty
+    in
+      Seq.iterate op++
+        (showOne true (front, Seq.nth elems 0))
+        (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+    end
+
+
+  fun showDatbind tab (front, datbind: Ast.Exp.datbind as {elems, delims}) =
+    let
+      fun showCon (starter, {opp, id, arg}) =
+        at tab ++ starter ++
+        showOption token opp ++
+        token id ++
+        showOption (fn {off, ty} => token off ++ showTyNewChild tab ty) arg
+
+      fun showOne first (starter, {tyvars, tycon, eq, elems, delims}) =
+        let
+          val initial =
+            (if first then empty else at tab) ++
+            token starter ++
+            showSyntaxSeq tab tyvars token ++
+            token tycon ++
+            token eq
+
+          val skipper = cond tab {inactive=empty, active=space++space}
+          fun dd delim = token delim ++ space
+        in
+          initial ++
+          Seq.iterate op++
+            (showCon (skipper, Seq.nth elems 0))
+            (Seq.zipWith showCon (Seq.map dd delims, Seq.drop elems 1))
+        end
+    in
+      Seq.iterate op++
+        (showOne true (front, Seq.nth elems 0))
+        (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+    end
+
+  (* ====================================================================== *)
+
   fun showExpNewChild current e = newTab current (fn tab => at tab ++ showExp tab e)
   and showDecNewChild current d = newTab current (fn tab => at tab ++ showDec tab d)
 
@@ -344,6 +393,21 @@ struct
           token openn ++
           Seq.iterate op++ empty
             (Seq.map (token o MaybeLongToken.getToken) elems)
+
+      | DecType {typee, typbind} =>
+          showTypbind tab (typee, typbind)
+
+      | DecDatatype {datatypee, datbind, withtypee} =>
+          let
+            val datbinds = showDatbind tab (datatypee, datbind)
+          in
+            case withtypee of
+              SOME {withtypee, typbind} =>
+                datbinds ++
+                at tab ++ showTypbind tab (withtypee, typbind)
+
+            | _ => datbinds
+          end
 
       | _ => text "<dec>"
     end

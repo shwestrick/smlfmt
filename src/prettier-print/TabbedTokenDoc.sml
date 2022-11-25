@@ -459,6 +459,12 @@ struct
     end)
 
 
+  (* TODO: this is awkward. 'at' is not the right primitive for inserting
+   * newlines, because 'at' doesn't ensure a new line is created -- it only
+   * ensures that the content which follows is at the correct column.
+   *
+   * Should create an explicit newline primitive instead and use that.
+   *)
   fun insertBlankLines debug (doc: anndoc) =
     let
       fun dbgprintln s =

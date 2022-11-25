@@ -5,6 +5,8 @@ fun foo (x, y) = "hello"
   | foo _ = "goodbye";
 
 type int = string
+and huh = string
+and yah = string -> string
 
 datatype X =
   XX of int (* AAA *) t
@@ -12,6 +14,8 @@ datatype X =
 | ZZZ of sheesh
 and sheesh = Sheeeesh of X
 withtype 'a t = 'a list
+
+datatype Y = Why of Y
 
 datatype Z = datatype X
 
