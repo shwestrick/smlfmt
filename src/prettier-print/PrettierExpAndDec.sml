@@ -289,11 +289,16 @@ struct
 
       | DecMultiple {elems, delims} =>
           let
-            fun mk (elem, delim) =
-              at tab ++ showDec tab elem
+            fun mk first (elem, delim) =
+              (if first then empty else at tab)
+              ++ showDec tab elem
               ++ showOption (fn d => nospace ++ token d) delim
+
+            val things = Seq.zip (elems, delims)
           in
-            Seq.iterate op++ empty (Seq.zipWith mk (elems, delims))
+            Seq.iterate op++
+              (mk true (Seq.nth things 0))
+              (Seq.map (mk false) (Seq.drop things 1))
           end
 
       | DecOpen {openn, elems} =>
@@ -329,8 +334,8 @@ struct
       fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
         token colon ++ showTy ty
 
-      fun showClause isFirst (front, {fname_args, ty, eq, exp}) =
-        at tab
+      fun showClause isVeryTop isFirst (front, {fname_args, ty, eq, exp}) =
+        (if isVeryTop then empty else at tab)
         ++ (if isFirst then empty else cond tab {active=space++space, inactive=empty})
         ++ front
         ++ showFNameArgs fname_args
@@ -338,11 +343,11 @@ struct
         ++ token eq
         ++ showExpNewChild tab exp
 
-      fun mkFunction (starter, {elems=innerElems, delims}) =
+      fun mkFunction isVeryTop (starter, {elems=innerElems, delims}) =
         let in
           Seq.iterate op++
-            (showClause true (starter, Seq.nth innerElems 0))
-            (Seq.zipWith (showClause false)
+            (showClause isVeryTop true (starter, Seq.nth innerElems 0))
+            (Seq.zipWith (showClause isVeryTop false)
               (Seq.map token delims, Seq.drop innerElems 1))
         end
 
@@ -350,8 +355,8 @@ struct
         token funn ++ showSyntaxSeq tab tyvars token
     in
       Seq.iterate op++
-        (mkFunction (front, Seq.nth elems 0))
-        (Seq.zipWith mkFunction (Seq.map token delims, Seq.drop elems 1))
+        (mkFunction true (front, Seq.nth elems 0))
+        (Seq.zipWith (mkFunction false) (Seq.map token delims, Seq.drop elems 1))
     end
 
 end
