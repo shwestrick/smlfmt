@@ -150,7 +150,43 @@ struct
           showInfixedExpAt tab (left, andalsoo, right)
       | Orelse {left, orelsee, right} =>
           showInfixedExpAt tab (left, orelsee, right)
-      | _ => text "<exp>"
+
+      | While {whilee, exp1, doo, exp2} =>
+          newTab tab (fn inner1 =>
+          newTab tab (fn inner2 =>
+            token whilee ++
+            at inner1 ++ showExp inner1 exp1 ++
+            cond inner1 {inactive = empty, active = at tab} ++
+            token doo ++
+            at inner2 ++ showExp inner2 exp2))
+
+      | Raise {raisee, exp} =>
+          token raisee ++ showExpNewChild tab exp
+
+      | Handle {exp=expLeft, handlee, elems, delims} =>
+          newTab tab (fn inner =>
+            let
+              fun showBranch {pat, arrow, exp} =
+                showPatNewChild inner pat ++ token arrow ++ showExpNewChild inner exp
+              fun mk (delim, branch) =
+                at inner
+                ++ (case delim of
+                     SOME d => token d
+                   | _ => cond inner {active = space ++ space, inactive = empty})
+                ++ showBranch branch
+            in
+              showExp tab expLeft ++
+              at inner ++
+              token handlee ++
+              Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
+                (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
+            end)
+
+      | MLtonSpecific {underscore, directive, contents, semicolon} =>
+          token underscore ++ nospace ++ token directive
+          ++ Seq.iterate op++ empty (Seq.map token contents)
+          ++ nospace ++ token semicolon
+
     end
 
 
