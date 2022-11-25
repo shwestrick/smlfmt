@@ -18,10 +18,13 @@ struct
   type doc = TabbedTokenDoc.t
   type tab = TabbedTokenDoc.tab
 
-  fun showTy ty = PrettierTy.showTy ty
-  fun showPat pat = PrettierPat.showPat pat
+  fun showTy tab ty = PrettierTy.showTy tab ty
+  fun showPat tab pat = PrettierPat.showPat tab pat
 
-  fun docAt tab doc = at tab ++ doc
+  fun showPatNewChild tab pat =
+    newTab tab (fn inner => at inner ++ showPat inner pat)
+  fun showTyNewChild tab ty =
+    newTab tab (fn inner => at inner ++ showTy inner ty)
 
   (* ====================================================================== *)
 
@@ -105,7 +108,7 @@ struct
                 (Seq.drop (Seq.map (showExp inner) args) 1))
           end*)
       | Typed {exp, colon, ty} =>
-          showExpNewChild tab exp ++ token colon ++ showTy ty
+          showExpNewChild tab exp ++ token colon ++ showTyNewChild tab ty
       | IfThenElse _ (*{iff, exp1, thenn, exp2, elsee, exp3}*) =>
           showIfThenElseAt tab exp
       | LetInEnd xxx =>
@@ -116,11 +119,11 @@ struct
             fun mk (delim, {pat, arrow, exp}) =
               at inner
               ++ cond inner {inactive=empty, active=space} ++ token delim
-              ++ showPat pat ++ token arrow
+              ++ showPatNewChild inner pat ++ token arrow
               ++ showExpNewChild inner exp
 
             val {pat, arrow, exp} = Seq.nth elems 0
-            val initial = at inner ++ token fnn ++ showPat pat ++ token arrow ++ showExpNewChild inner exp
+            val initial = at inner ++ token fnn ++ showPatNewChild inner pat ++ token arrow ++ showExpNewChild inner exp
           in
             Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end)
@@ -128,7 +131,7 @@ struct
           newTab tab (fn inner =>
             let
               fun showBranch {pat, arrow, exp} =
-                showPat pat ++ token arrow ++ showExpNewChild inner exp
+                showPatNewChild inner pat ++ token arrow ++ showExpNewChild inner exp
               fun mk (delim, branch) =
                 at inner
                 ++ (case delim of
@@ -254,7 +257,7 @@ struct
             fun mk (delim, {recc, pat, eq, exp}) =
               at tab ++ token delim
               ++ showOption token recc
-              ++ showPat pat
+              ++ showPatNewChild tab pat
               ++ token eq
               ++ showExpNewChild tab exp
 
@@ -264,7 +267,7 @@ struct
               in
                 token vall ++ showSyntaxSeq tab tyvars token
                 ++ showOption token recc
-                ++ showPat pat
+                ++ showPatNewChild tab pat
                 ++ token eq
                 ++ showExpNewChild tab exp
               end
@@ -315,10 +318,10 @@ struct
       open Ast.Exp
 
       fun showArgs args =
-        Seq.iterate op++ empty (Seq.map showPat args)
+        Seq.iterate op++ empty (Seq.map (showPatNewChild tab) args)
 
       fun showInfixed larg id rarg =
-        showPat larg ++ token id ++ showPat rarg
+        showPatNewChild tab larg ++ token id ++ showPatNewChild tab rarg
 
       fun showFNameArgs xx =
         case xx of
@@ -332,7 +335,7 @@ struct
             ++ showArgs args
 
       fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
-        token colon ++ showTy ty
+        token colon ++ showTyNewChild tab ty
 
       fun showClause isVeryTop isFirst (front, {fname_args, ty, eq, exp}) =
         (if isVeryTop then empty else at tab)

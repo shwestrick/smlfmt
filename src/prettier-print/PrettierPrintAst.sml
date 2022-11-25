@@ -16,7 +16,7 @@ struct
   infix 2 ++
 
   fun showTy ty = PrettierTy.showTy ty
-  fun showPat pat = PrettierPat.showPat pat
+  fun showPat tab pat = PrettierPat.showPat tab pat
   fun showSpec tab spec = PrettierSig.showSpec tab spec
   fun showSigExp tab sigexp = PrettierSig.showSigExp tab sigexp
   fun showSigDec tab sigdec = PrettierSig.showSigDec tab sigdec

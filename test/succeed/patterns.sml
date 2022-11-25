@@ -10,7 +10,7 @@ val ( (a, b, c)
     , (h, i, j, k, l, m, n, oo, p)
     ) =
   someLongFunctionName ()
-val [(x), (1,2,3), "hello", Option.NONE] =
+val ([(x), (1,2,3), "hello", Option.NONE]) =
   [ 0, (1,2,3), "hello", NONE ]
 
 infix 5 !!
@@ -34,8 +34,9 @@ type 'a nil = 'a
 val 1 :: 2 :: []:int :: nil = [1,2]
 
 
-val {x, y: int option as SOME (z: int), a = "hello"} =
+val {x, y: int option as SOME (z: int), a = "hello", ...} =
   { x = 1
   , y = SOME 2
   , a = "hello"
+  , b = ()
   }

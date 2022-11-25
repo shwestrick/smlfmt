@@ -18,12 +18,15 @@ struct
   type doc = TabbedTokenDoc.t
   type tab = TabbedTokenDoc.tab
 
-  fun showTy ty = PrettierTy.showTy ty
-  fun showPat pat = PrettierPat.showPat pat
+  fun showTy tab ty = PrettierTy.showTy tab ty
   fun showDec tab dec = PrettierExpAndDec.showDec tab dec
-  fun showSpec tab spec = PrettierSig.showSpec tab spec
   fun showSigExp tab sigexp = PrettierSig.showSigExp tab sigexp
-  fun showSigDec tab sigdec = PrettierSig.showSigDec tab sigdec
+
+  fun showSigExpNewChild tab e =
+    newTab tab (fn inner => at inner ++ showSigExp inner e)
+
+  fun showTyNewChild tab ty =
+    newTab tab (fn inner => at inner ++ showTy inner ty)
 
   (* ====================================================================== *)
 
@@ -81,8 +84,6 @@ struct
     | _ => false
 
   (* ====================================================================== *)
-
-  fun showSigExpNewChild tab e = newTab tab (fn inner => at inner ++ showSigExp inner e)
 
   fun showStrExpNewChild tab e = newTab tab (fn inner => at inner ++ showStrExp inner e)
   and showStrDecNewChild tab e = newTab tab (fn inner => at inner ++ showStrDec inner e)
@@ -219,21 +220,21 @@ struct
         * MLton implementation of the standard basis.
         *)
       | MLtonOverload {underscore, overload, prec, name, colon, ty, ass, elems, delims} =>
-          newTab tab (fn tab =>
+          newTab tab (fn inner =>
             let
               val front =
-                at tab
+                at inner
                 ++ token underscore ++ nospace ++ token overload
                 ++ token prec
                 ++ token name
                 ++ token colon
-                ++ showTy ty
-                ++ at tab
+                ++ showTyNewChild inner ty
+                ++ at inner
                 ++ token ass
                 ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
 
               fun showOne (d, e) =
-                at tab ++ token d ++ token (MaybeLongToken.getToken e)
+                at inner ++ token d ++ token (MaybeLongToken.getToken e)
             in
               Seq.iterate op++
                 front
