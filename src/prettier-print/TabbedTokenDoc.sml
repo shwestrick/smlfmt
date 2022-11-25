@@ -464,6 +464,12 @@ struct
    * ensures that the content which follows is at the correct column.
    *
    * Should create an explicit newline primitive instead and use that.
+   *
+   * Also, bug note: inserting blank lines on 'at's is incorrect. You could
+   * have multiple 'at's back-to-back that are essentially no-ops...
+   *
+   * An idea for a better solution? For each token, compute which tab it is
+   * 'at', and insert the appropriate 'cond tab {active=newline, ...}'.
    *)
   fun insertBlankLines debug (doc: anndoc) =
     let

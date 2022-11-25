@@ -834,6 +834,14 @@ struct
           check (LS (dbgState, ct, lnStart, col + itemWidth item, item :: acc))
         end
 
+      fun parentTabCol tab =
+        case Tab.parent tab of
+          NONE => raise Fail "PrettyTabbedDoc.pretty.parentTabCol: no parent"
+        | SOME p =>
+        case Tab.getState p of
+          Tab.Usable (Tab.Activated (SOME i)) => i
+        | _ => raise Fail "PrettyTabbedDoc.pretty.parentTabCol: bad tab"
+
 
       (* This is a little tricky, but the idea is: try to lay out the doc,
        * and keep track of whether or not there exists an ancestor tab that
@@ -860,39 +868,46 @@ struct
         | At tab =>
             let
               val LS (dbgState, ct, lnStart, col, acc) = state
+
+              fun goto i =
+                if i < col then
+                  dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
+                else if lnStart = i andalso i = col then
+                  (* TODO: double check this case.
+                   * The constraint `lnStart = i` seemed necessary, but I
+                   * haven't convinced myself yet that this interacts
+                   * correctly with promotion. No problems yet, but still...
+                   *)
+                  dbgBreak tab (LS (dbgState, tab, i, i, acc))
+                else if isPromotable tab then
+                  (* force this tab to promote if possible, which should move
+                    * it onto a new line and indent. *)
+                  raise DoPromote tab
+                else if lnStart < i then
+                  (* This avoids advancing the current line to meet the tab,
+                    * if possible, which IMO results in strange layouts. *)
+                  dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
+                else
+                  (* Fall back on advancing the current line to meet the tab,
+                    * which is a little strange, but better than nothing. *)
+                  dbgBreak tab (check (LS (dbgState, tab, lnStart, i, Spaces (i-col) :: acc)))
             in
               case Tab.getState tab of
                 Tab.Usable Tab.Flattened =>
                   LS (dbgState, tab, lnStart, col, acc)
               | Tab.Usable (Tab.Activated NONE) =>
-                  ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                  ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
-                  )
-              | Tab.Usable (Tab.Activated (SOME i)) =>
-                  if i < col then
-                    dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
-                  else if lnStart = i andalso i = col then
-                    (* TODO: double check this case.
-                      * The constraint `lnStart = i` seemed necessary, but I
-                      * haven't convinced myself yet that this interacts
-                      * correctly with promotion. No problems yet, but still...
-                      *)
-                    dbgBreak tab (LS (dbgState, tab, i, i, acc))
-                  else if isPromotable tab then
-                    (* force this tab to promote if possible, which should move
-                      * it onto a new line and indent. *)
-                    raise DoPromote tab
-                  else if lnStart < i then
-                    (* This avoids advancing the current line to meet the tab,
-                      * if possible, which IMO results in strange layouts. *)
-                    dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
+                  if col < parentTabCol tab then
+                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
+                    ; goto (parentTabCol tab)
+                    )
                   else
-                    (* Fall back on advancing the current line to meet the tab,
-                      * which is a little strange, but better than nothing. *)
-                    dbgBreak tab (check (LS (dbgState, tab, lnStart, i, Spaces (i-col) :: acc)))
-
+                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
+                    ; LS (dbgState, tab, lnStart, col, acc)
+                    )
+              | Tab.Usable (Tab.Activated (SOME i)) =>
+                  goto i
               | _ =>
-                  raise Fail "PrettyTabbedDoc.pretty.applyAt: bad tab"
+                  raise Fail "PrettyTabbedDoc.pretty.At: bad tab"
             end
 
         | Cond {tab, inactive, active} =>
@@ -905,11 +920,6 @@ struct
 
         | NewTab {parent, tab, doc} =>
             let
-              fun parentTabCol () =
-                case Tab.getState parent of
-                  Tab.Usable (Tab.Activated (SOME i)) => i
-                | _ => raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.parentTabCol: bad tab"
-
               fun tryPromote () =
                 (* try to activate first *)
                 if not (Tab.isActivated tab) then
@@ -918,13 +928,13 @@ struct
                 case Tab.getState tab of
                   Tab.Usable (Tab.Activated NONE) =>
                     let
-                      val desired = parentTabCol () + indentWidth
+                      val desired = parentTabCol tab + indentWidth
                     in
                       Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)))
                     end
                 | Tab.Usable (Tab.Activated (SOME i)) =>
                     let
-                      val desired = Int.min (i, parentTabCol () + indentWidth)
+                      val desired = Int.min (i, parentTabCol tab + indentWidth)
                     in
                       Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)))
                     end
