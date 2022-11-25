@@ -974,7 +974,7 @@ struct
 
 
       val init = LS (TabDict.empty, root, 0, 0, [])
-      val init = dbgInsert Tab.Root init
+      val init = dbgBreak Tab.Root (dbgInsert Tab.Root init)
       val LS (_, _, _, _, items) = layout init doc
       val items =
         if not debug then items
