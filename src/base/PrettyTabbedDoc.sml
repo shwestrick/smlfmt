@@ -363,52 +363,63 @@ struct
     | StartMaxWidthHighlight _ =>
         sentryEmphasizer se (CustomString.fromString "^maxWidth")
 
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+  (* ====================================================================== *)
 
-  datatype item =
-    Spaces of int
-  | Newline
-  | Stuff of CustomString.t
-  | StartDebug of sentry
-  | EndDebug of eentry
+  structure Item =
+  struct
 
+    datatype item =
+      Spaces of int
+    | Newline
+    | Stuff of CustomString.t
+    | StartDebug of sentry
+    | EndDebug of eentry
 
-  fun itemWidth item =
-    case item of
-      Spaces n => n
-    | Stuff s => CustomString.size s
-    | _ => raise Fail "PrettyTabbedDoc.itemWidth"
-
-
-  fun itos item =
-    case item of
-      Spaces n => "Spaces(" ^ Int.toString n ^ ")"
-    | Stuff s =>
-        if itemWidth item <= 5 then
-          "Stuff('" ^ CustomString.toString s ^ "')"
-        else
-          "Stuff('" ^ String.substring (CustomString.toString s, 0, 5) ^ "...')"
-    | _ => "???"
+    type t = item
 
 
-  fun splitItem item i =
-    if i < 0 orelse i+1 > itemWidth item then
-      raise Fail "PrettyTabbedDoc.splitItem: size"
-    else
-    (* i+1 <= itemWidth item *)
-    case item of
-      Spaces n =>
-        (Spaces i, CustomString.fromString " ", Spaces (n-i-1))
-    | Stuff s =>
-        let
-          val n = CustomString.size s
-          val left = CustomString.substring (s, 0, i)
-          val mid = CustomString.substring (s, i, 1)
-          val right = CustomString.substring (s, i+1, n-i-1)
-        in
-          (Stuff left, mid, Stuff right)
-        end
-    | _ => raise Fail "PrettyTabbedDoc.splitItem: bad item"
+    fun width item =
+      case item of
+        Spaces n => n
+      | Stuff s => CustomString.size s
+      | _ => raise Fail "PrettyTabbedDoc.Item.width"
 
+
+    fun toString item =
+      case item of
+        Spaces n => "Spaces(" ^ Int.toString n ^ ")"
+      | Stuff s =>
+          if width item <= 5 then
+            "Stuff('" ^ CustomString.toString s ^ "')"
+          else
+            "Stuff('" ^ String.substring (CustomString.toString s, 0, 5) ^ "...')"
+      | _ => "???"
+
+
+    fun split item i =
+      if i < 0 orelse i+1 > width item then
+        raise Fail "PrettyTabbedDoc.Item.split: size"
+      else
+      (* i+1 <= width item *)
+      case item of
+        Spaces n =>
+          (Spaces i, CustomString.fromString " ", Spaces (n-i-1))
+      | Stuff s =>
+          let
+            val n = CustomString.size s
+            val left = CustomString.substring (s, 0, i)
+            val mid = CustomString.substring (s, i, 1)
+            val right = CustomString.substring (s, i+1, n-i-1)
+          in
+            (Stuff left, mid, Stuff right)
+          end
+      | _ => raise Fail "PrettyTabbedDoc.Item.split: bad item"
+
+  end
+
+  type item = Item.t
 
   (* ====================================================================== *)
   (* ====================================================================== *)
@@ -432,7 +443,7 @@ struct
                 else
                   valOf Int.maxInt
 
-              val n = itemWidth item
+              val n = Item.width item
             in
               if nextHighlightCol < currCol then
                 processItem (item, (currCol, hi+1, acc))
@@ -441,7 +452,7 @@ struct
               else
                 let
                   val emphasizer = sentryEmphasizer (Seq.nth orderedHighlightCols hi)
-                  val (left, mid, right) = splitItem item (nextHighlightCol-currCol)
+                  val (left, mid, right) = Item.split item (nextHighlightCol-currCol)
                   (*
                   val _ =
                     print ("item: " ^ itos item
@@ -456,7 +467,7 @@ struct
                   processItem (right,
                    ( nextHighlightCol + 1
                    , hi+1
-                   , Stuff (emphasizer mid)
+                   , Item.Stuff (emphasizer mid)
                      :: left :: acc
                    ))
                 end
@@ -478,8 +489,8 @@ struct
                 else
                   (* currCol <= nextHighlightCol *)
                   ( nextHighlightCol+1
-                  , Stuff (emphasizer (spaces 1))
-                    :: Spaces (nextHighlightCol-currCol)
+                  , Item.Stuff (emphasizer (spaces 1))
+                    :: Item.Spaces (nextHighlightCol-currCol)
                     :: acc
                   )
               end)
@@ -543,7 +554,7 @@ struct
                   ([], [])  (* (removedSSCurrLine, remainingSS) *)
                   0         (* currCol *)
                   []        (* accCurrLine *)
-                  (Newline :: highlightActive accCurrLine acc
+                  (Item.Newline :: highlightActive accCurrLine acc
                     (Seq.toList (Seq.drop SS i) @ remainingSS @ removedSSCurrLine))
             else
             let
@@ -576,14 +587,14 @@ struct
                   val numSpaces = ecol - currCol
                   val newCol = currCol + numSpaces + CustomString.size info
                 in
-                  loop (i+1, SS) (j+1, EE) didntFitEE (sentry :: removedSSCurrLine, remainingSS) newCol (Stuff info :: Spaces numSpaces :: accCurrLine) acc
+                  loop (i+1, SS) (j+1, EE) didntFitEE (sentry :: removedSSCurrLine, remainingSS) newCol (Item.Stuff info :: Item.Spaces numSpaces :: accCurrLine) acc
                 end
             end
 
           val (remainingSS, acc) =
-            loop (0, orderedStarts) (0, orderedEnds) [] ([], []) 0 [] (Newline :: acc)
+            loop (0, orderedStarts) (0, orderedEnds) [] ([], []) 0 [] (Item.Newline :: acc)
 
-          val acc = highlightActive [] (Newline :: acc) remainingSS
+          val acc = highlightActive [] (Item.Newline :: acc) remainingSS
         in
           (remainingSS, acc)
         end
@@ -591,24 +602,24 @@ struct
 
       fun processItem (item, (accCurrLine, acc, endDebugs, startDebugs)) =
         case item of
-          EndDebug entry => (accCurrLine, acc, entry :: endDebugs, startDebugs)
-        | StartDebug entry => (accCurrLine, acc, endDebugs, entry :: startDebugs)
-        | Newline =>
+          Item.EndDebug entry => (accCurrLine, acc, entry :: endDebugs, startDebugs)
+        | Item.StartDebug entry => (accCurrLine, acc, endDebugs, entry :: startDebugs)
+        | Item.Newline =>
             let
               val (remainingSS, acc) =
                 newlineWithEndDebugs endDebugs startDebugs
                   (highlightActive accCurrLine acc startDebugs)
             in
-              ([], Newline :: acc, [], remainingSS)
+              ([], Item.Newline :: acc, [], remainingSS)
             end
         | _ => (item :: accCurrLine, acc, endDebugs, startDebugs)
 
 
       val init = ([], [], [], [])
-      val init = processItem (StartDebug (StartMaxWidthHighlight {col=maxWidth}), init)
+      val init = processItem (Item.StartDebug (StartMaxWidthHighlight {col=maxWidth}), init)
       val (accCurrLine, acc, endDebugs, startDebugs) =
         List.foldr processItem init
-          (EndDebug (EndMaxWidthHighlight {col=maxWidth}) :: items)
+          (Item.EndDebug (EndMaxWidthHighlight {col=maxWidth}) :: items)
     in
       if List.null endDebugs then
         accCurrLine @ acc
@@ -628,7 +639,7 @@ struct
       fun loopStrip acc items =
         case items of
           [] => acc
-        | Spaces _ :: items' =>
+        | Item.Spaces _ :: items' =>
             loopStrip acc items'
         | x :: items' =>
             loopKeep (x :: acc) items'
@@ -636,8 +647,8 @@ struct
       and loopKeep acc items =
         case items of
           [] => acc
-        | Newline :: items' =>
-            loopStrip (Newline :: acc) items'
+        | Item.Newline :: items' =>
+            loopStrip (Item.Newline :: acc) items'
         | x :: items' =>
             loopKeep (x :: acc) items'
     in
@@ -695,7 +706,7 @@ struct
           LS
             ( TabDict.insert dbgState (tab, true)
             , ct, s, c
-            , StartDebug (StartTabHighlight {tab = tab, col = c}) :: a
+            , Item.StartDebug (StartTabHighlight {tab = tab, col = c}) :: a
             )
 
       fun isPromotable' t =
@@ -831,7 +842,7 @@ struct
         let
           val LS (dbgState, ct, lnStart, col, acc) = state
         in
-          check (LS (dbgState, ct, lnStart, col + itemWidth item, item :: acc))
+          check (LS (dbgState, ct, lnStart, col + Item.width item, item :: acc))
         end
 
       fun parentTabCol tab =
@@ -857,10 +868,10 @@ struct
             state
 
         | Space =>
-            putItemSameLine state (Spaces 1)
+            putItemSameLine state (Item.Spaces 1)
 
         | Text s =>
-            putItemSameLine state (Stuff s)
+            putItemSameLine state (Item.Stuff s)
 
         | Concat (doc1, doc2) =>
             layout (layout state doc1) doc2
@@ -871,7 +882,7 @@ struct
 
               fun goto i =
                 if i < col then
-                  dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
+                  dbgBreak tab (check (LS (dbgState, tab, i, i, Item.Spaces i :: Item.Newline :: acc)))
                 else if lnStart = i andalso i = col then
                   (* TODO: double check this case.
                    * The constraint `lnStart = i` seemed necessary, but I
@@ -886,11 +897,11 @@ struct
                 else if lnStart < i then
                   (* This avoids advancing the current line to meet the tab,
                     * if possible, which IMO results in strange layouts. *)
-                  dbgBreak tab (check (LS (dbgState, tab, i, i, Spaces i :: Newline :: acc)))
+                  dbgBreak tab (check (LS (dbgState, tab, i, i, Item.Spaces i :: Item.Newline :: acc)))
                 else
                   (* Fall back on advancing the current line to meet the tab,
                     * which is a little strange, but better than nothing. *)
-                  dbgBreak tab (check (LS (dbgState, tab, lnStart, i, Spaces (i-col) :: acc)))
+                  dbgBreak tab (check (LS (dbgState, tab, lnStart, i, Item.Spaces (i-col) :: acc)))
             in
               case Tab.getState tab of
                 Tab.Usable Tab.Flattened =>
@@ -902,7 +913,7 @@ struct
                     )
                   else
                     ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                    ; LS (dbgState, tab, lnStart, col, acc)
+                    ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
                     )
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   goto i
@@ -969,7 +980,7 @@ struct
                   Tab.Usable Tab.Flattened => acc
                 | Tab.Usable (Tab.Activated (SOME i)) =>
                     if TabDict.lookup dbgState tab then
-                      EndDebug (EndTabHighlight {tab = tab, col = i}) :: acc
+                      Item.EndDebug (EndTabHighlight {tab = tab, col = i}) :: acc
                     else
                       acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
@@ -988,7 +999,7 @@ struct
       val LS (_, _, _, _, items) = layout init doc
       val items =
         if not debug then items
-        else EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
+        else Item.EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
 
       val items = if not debug then items else implementDebugs maxWidth items
 
@@ -999,9 +1010,9 @@ struct
 
       fun itemToString x =
         case x of
-          Newline => newline
-        | Spaces n => spaces n
-        | Stuff s => s
+          Item.Newline => newline
+        | Item.Spaces n => spaces n
+        | Item.Stuff s => s
         | _ => raise Fail "impossible"
     in
       CustomString.concat (List.map itemToString items)
