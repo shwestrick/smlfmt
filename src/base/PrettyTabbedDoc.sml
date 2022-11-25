@@ -36,9 +36,11 @@ sig
   val text: CustomString.t -> doc
   val concat: doc * doc -> doc
 
+  datatype style = Inplace | Indented
+
   type tab
   val root: tab
-  val newTab: tab -> (tab -> doc) -> doc
+  val newTab: tab -> style * (tab -> doc) -> doc
   val at: tab -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
@@ -61,6 +63,10 @@ struct
 
   (* ====================================================================== *)
 
+
+  datatype style = Inplace | Indented
+
+
   structure Tab =
   struct
     datatype activation_state = Flattened | Activated of int option
@@ -71,19 +77,24 @@ struct
     | Completed
 
     datatype tab =
-      Tab of {state: state ref, id: int, parent: tab}
+      Tab of {state: state ref, id: int, style: style, parent: tab}
     | Root
 
     type t = tab
 
     val tabCounter = ref 0
 
-    fun make parent =
+    fun make parent style =
       let
         val c = !tabCounter
       in
         tabCounter := c+1;
-        Tab {state = ref Fresh, id = c, parent = parent}
+        Tab
+          { state = ref Fresh
+          , id = c
+          , style = style
+          , parent = parent
+          }
       end
 
     fun eq (t1, t2) =
@@ -91,6 +102,11 @@ struct
         (Tab {id=c1, ...}, Tab {id=c2, ...}) => c1 = c2
       | (Root, Root) => true
       | _ => false
+
+    fun style t =
+      case t of
+        Root => Indented
+      | Tab {style=s, ...} => s
 
     fun getState t =
       case t of
@@ -129,7 +145,7 @@ struct
     fun infoString t =
       case t of
         Root => "[root]"
-      | Tab {state=r, id=c, parent=p} =>
+      | Tab {state=r, id=c, parent=p, ...} =>
           let
             val pinfo =
               case p of
@@ -211,9 +227,9 @@ struct
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
 
-  fun newTab parent genDocUsingTab =
+  fun newTab parent (style, genDocUsingTab) =
     let
-      val t = Tab.make parent
+      val t = Tab.make parent style
       val d = genDocUsingTab t
     in
       NewTab {parent = parent, tab = t, doc = d}
@@ -797,6 +813,8 @@ struct
        * for fully promoting a child before its parent, then it would be
        * possible to see the layout on the right. The promotion sequence
        * would need to be [0,0,1,2,3,3].
+       *
+       * UPDATE: tab styles (newly added) allow for some control over this.
        *)
       fun check (state as LS (dbgState, ct, lnStart, col, acc)) =
         let
@@ -918,14 +936,24 @@ struct
                 Tab.Usable Tab.Flattened =>
                   LS (dbgState, tab, lnStart, col, acc)
               | Tab.Usable (Tab.Activated NONE) =>
-                  if col < parentTabCol tab then
-                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
-                    ; goto (parentTabCol tab)
-                    )
-                  else
-                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                    ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
-                    )
+                  (case Tab.style tab of
+                    Indented =>
+                      let
+                        val i = indentWidth + parentTabCol tab
+                      in
+                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)))
+                        ; goto i
+                        )
+                      end
+                  | Inplace =>
+                      if col < parentTabCol tab then
+                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
+                        ; goto (parentTabCol tab)
+                        )
+                      else
+                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
+                        ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
+                        ))
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   goto i
               | _ =>

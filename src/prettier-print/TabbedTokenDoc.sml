@@ -679,7 +679,7 @@ struct
         (false, D.text t)
       else
         ( true
-        , D.newTab currentTab (fn tab =>
+        , D.newTab currentTab (D.Inplace, fn tab =>
             Seq.iterate
               D.concat
               D.empty
@@ -728,10 +728,12 @@ struct
               , active = loop currentTab active
               }
         | AnnNewTab {parent, tab, doc} =>
-            D.newTab (underlyingTab (removeTabAnnotation parent)) (fn tab' =>
-              ( setUnderlyingTab (removeTabAnnotation tab) tab'
-              ; loop tab' doc
-              ))
+            D.newTab
+              (underlyingTab (removeTabAnnotation parent))
+              (D.Inplace, fn tab' =>
+                ( setUnderlyingTab (removeTabAnnotation tab) tab'
+                ; loop tab' doc
+                ))
     in
       loop D.root doc
     end
