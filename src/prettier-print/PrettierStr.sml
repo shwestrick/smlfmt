@@ -87,6 +87,10 @@ struct
 
   fun showStrExpNewChild tab e = newTab tab (fn inner => at inner ++ showStrExp inner e)
   and showStrDecNewChild tab e = newTab tab (fn inner => at inner ++ showStrDec inner e)
+  and showStrDecNewChildWithStyle tab style e =
+    newTabWithStyle tab (style, fn inner => at inner ++ showStrDec inner e)
+  and showStrExpNewChildWithStyle tab style e =
+    newTabWithStyle tab (style, fn inner => at inner ++ showStrExp inner e)
 
   and showStrExp tab e =
     let
@@ -98,7 +102,7 @@ struct
           (* newTab tab (fn tab => at tab ++ ) *)
 
       | Struct {structt, strdec, endd} =>
-          newTab tab (fn inner =>
+          newTabWithStyle tab (Indented, fn inner =>
             token structt
             ++ at inner
             ++ showStrDec inner strdec
@@ -142,9 +146,9 @@ struct
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
           showThingSimilarToLetInEnd tab
             ( lett
-            , (decIsEmpty strdec, fn () => showStrDecNewChild tab strdec)
+            , (decIsEmpty strdec, fn () => showStrDecNewChildWithStyle tab Indented strdec)
             , inn
-            , (fn () => showStrExpNewChild tab strexp)
+            , (fn () => showStrExpNewChildWithStyle tab Indented strexp)
             , endd
             )
 
@@ -212,9 +216,9 @@ struct
       | DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
           showThingSimilarToLetInEnd tab
             ( locall
-            , (decIsEmpty strdec1, fn () => showStrDecNewChild tab strdec1)
+            , (decIsEmpty strdec1, fn () => showStrDecNewChildWithStyle tab Indented strdec1)
             , inn
-            , (fn () => showStrDecNewChild tab strdec2)
+            , (fn () => showStrDecNewChildWithStyle tab Indented strdec2)
             , endd
             )
 

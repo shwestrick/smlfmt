@@ -114,6 +114,10 @@ struct
 
   fun showExpNewChild current e = newTab current (fn tab => at tab ++ showExp tab e)
   and showDecNewChild current d = newTab current (fn tab => at tab ++ showDec tab d)
+  and showExpNewChildWithStyle current style d =
+    newTabWithStyle current (style, fn tab => at tab ++ showDec tab d)
+  and showDecNewChildWithStyle current style d =
+    newTabWithStyle current (style, fn tab => at tab ++ showDec tab d)
 
   and showExp tab exp =
     let
@@ -295,17 +299,18 @@ struct
     in
       showThingSimilarToLetInEnd outerTab
         ( lett
-        , (decIsEmpty dec, fn () => showDecNewChild outerTab dec)
+        , (decIsEmpty dec, fn () => showDecNewChildWithStyle outerTab Indented dec)
         , inn
-        , (fn () => newTab outerTab (fn innerTab => Seq.iterate op++ empty (withDelims innerTab)))
+        , (fn () => newTabWithStyle outerTab (Indented,
+            fn innerTab => Seq.iterate op++ empty (withDelims innerTab)))
         , endd
         )
     end
 
 
   and showIfThenElseAt outer exp =
-    newTab outer (fn inner2 =>
-    newTab outer (fn inner1 =>
+    newTabWithStyle outer (Indented, fn inner2 =>
+    newTabWithStyle outer (Indented, fn inner1 =>
     let
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
