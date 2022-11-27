@@ -137,13 +137,55 @@ struct
             (token includee)
             (Seq.map (withNewChild (fn _ => token) tab) sigids)
 
+      | Sharing {spec, sharingg, elems, delims} =>
+          newTab tab (fn inner =>
+            let
+              fun showOne (delim, elem) =
+                at inner
+                ++ token delim (** this is an '=' *)
+                ++ token (MaybeLongToken.getToken elem)
+
+              val first =
+                at inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
+
+              val stuff =
+                Seq.iterate op++
+                  first
+                  (Seq.zipWith showOne (delims, Seq.drop elems 1))
+            in
+              showSpec tab spec
+              ++ at tab
+              ++ token sharingg
+              ++ stuff
+            end)
+
+      | SharingType {spec, sharingg, typee, elems, delims} =>
+          newTab tab (fn inner =>
+            let
+              fun showOne (delim, elem) =
+                at inner
+                ++ token delim (** this is an '=' *)
+                ++ token (MaybeLongToken.getToken elem)
+
+              val first =
+                at inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
+
+              val stuff =
+                Seq.iterate op++
+                  first
+                  (Seq.zipWith showOne (delims, Seq.drop elems 1))
+            in
+              showSpec tab spec
+              ++ at tab
+              ++ token sharingg
+              ++ token typee
+              ++ stuff
+            end)
+
       (*
       | Datatype _
       | Eqtype _
-      | IncludeIds _
       | ReplicateDatatype _
-      | SharingType _
-      | Sharing _
       *)
 
       | _ => text "<spec>"
