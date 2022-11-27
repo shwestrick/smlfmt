@@ -110,7 +110,22 @@ struct
             ++ cond inner {inactive = empty, active = at tab}
             ++ token endd)
 
-      | _ => text "<sigexp>"
+      | WhereType {sigexp, elems} =>
+          newTab tab (fn inner =>
+            let
+              fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
+                at inner
+                ++ token wheree (** this could be 'and' *)
+                ++ token typee
+                ++ showSyntaxSeq token inner tyvars
+                ++ token (MaybeLongToken.getToken tycon)
+                ++ token eq
+                ++ withNewChild showTy inner ty
+            in
+              Seq.iterate op++
+                (showSigExp tab sigexp)
+                (Seq.map showElem elems)
+            end)
     end
 
 
