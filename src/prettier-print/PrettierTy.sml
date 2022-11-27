@@ -13,8 +13,6 @@ struct
   open PrettierUtil
   infix 2 ++
   fun x ++ y = concat (x, y)
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
 
   fun showTy tab ty =
     let
@@ -28,7 +26,7 @@ struct
           token (MaybeLongToken.getToken id)
 
       | Con {args, id} =>
-          showSyntaxSeq tab args (showTy tab)
+          showSyntaxSeq (showTy tab) tab args
           ++ token (MaybeLongToken.getToken id)
 
       | Parens {left, ty, right} =>

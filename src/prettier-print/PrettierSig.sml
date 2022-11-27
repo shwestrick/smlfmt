@@ -53,7 +53,7 @@ struct
             fun showOne first (starter, {tyvars, tycon}) =
               (if first then empty else at tab)
               ++ token starter
-              ++ showSyntaxSeq tab tyvars token
+              ++ showSyntaxSeq token tab tyvars
               ++ token tycon
           in
             Seq.iterate op++
@@ -66,7 +66,7 @@ struct
             fun showOne first (starter, {tyvars, tycon, eq, ty}) =
               (if first then empty else at tab)
               ++ token starter
-              ++ showSyntaxSeq tab tyvars token
+              ++ showSyntaxSeq token tab tyvars
               ++ token tycon
               ++ token eq
               ++ withNewChild showTy tab ty

@@ -23,7 +23,7 @@ sig
     }
     shower
 
-  val showSyntaxSeq: tab -> 'a Ast.SyntaxSeq.t -> ('a -> doc) -> doc
+  val showSyntaxSeq: ('a -> doc) -> 'a Ast.SyntaxSeq.t shower
 
   val showOption: ('a -> doc) -> 'a option -> doc
 
@@ -72,7 +72,7 @@ struct
       end
 
 
-  fun showSyntaxSeq tab s f =
+  fun showSyntaxSeq f tab s =
     case s of
       Ast.SyntaxSeq.Empty => empty
     | Ast.SyntaxSeq.One x => f x

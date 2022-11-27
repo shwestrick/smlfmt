@@ -59,7 +59,7 @@ struct
       fun showOne first (starter, {tyvars, tycon, ty, eq}) =
         (if first then empty else at tab) ++
         token starter ++
-        showSyntaxSeq tab tyvars token ++
+        showSyntaxSeq token tab tyvars ++
         token tycon ++
         token eq ++
         withNewChild showTy tab ty
@@ -83,7 +83,7 @@ struct
           val initial =
             (if first then empty else at tab) ++
             token starter ++
-            showSyntaxSeq tab tyvars token ++
+            showSyntaxSeq token tab tyvars ++
             token tycon ++
             token eq
 
@@ -378,7 +378,7 @@ struct
               let
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
-                token vall ++ showSyntaxSeq tab tyvars token
+                token vall ++ showSyntaxSeq token tab tyvars
                 ++ showOption token recc
                 ++ withNewChild showPat tab pat
                 ++ token eq
@@ -540,7 +540,7 @@ struct
         end
 
       val front =
-        token funn ++ showSyntaxSeq tab tyvars token
+        token funn ++ showSyntaxSeq token tab tyvars
     in
       Seq.iterate op++
         (mkFunction true (front, Seq.nth elems 0))
