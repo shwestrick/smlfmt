@@ -35,6 +35,9 @@ signature FOO =
     and Whatever of (int -> int) list * int
     and Failure;
 
+    structure BooBoo: BAH_BAH
+    and GooGoo: GAH_GAH where type booboo = googoo
+
     structure Module : MODULE
     and ModuleNameAgain : REALLYLONGSIGNATURENAME
     and Stack :
@@ -53,6 +56,7 @@ signature FOO =
     sharing Module.Stack = Stack
 
     include FOO;
+    include A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
     include
       sig
         type 'a t

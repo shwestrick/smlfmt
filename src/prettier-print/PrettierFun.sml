@@ -27,11 +27,20 @@ struct
       | _ => strexp
     end
 
-  fun sigExpWantsSameTabAsDec e =
+  fun leftMostSigExp e =
     let
       open Ast.Sig
     in
       case e of
+        WhereType {sigexp, ...} => leftMostSigExp sigexp
+      | _ => e
+    end
+
+  fun sigExpWantsSameTabAsDec e =
+    let
+      open Ast.Sig
+    in
+      case leftMostSigExp e of
         Ident _ => false
       | _ => true
     end

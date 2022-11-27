@@ -19,11 +19,20 @@ struct
 
   (* ======================================================================= *)
 
-  fun sigExpWantsSameTabAsDec e =
+  fun leftMostSigExp e =
     let
       open Ast.Sig
     in
       case e of
+        WhereType {sigexp, ...} => leftMostSigExp sigexp
+      | _ => e
+    end
+
+  fun sigExpWantsSameTabAsDec e =
+    let
+      open Ast.Sig
+    in
+      case leftMostSigExp e of
         Ident _ => false
       | _ => true
     end
@@ -89,6 +98,53 @@ struct
               (showOne true (Seq.nth things 0))
               (Seq.map (showOne false) (Seq.drop things 1))
           end
+
+      | Exception {exceptionn, elems, delims} =>
+          let
+            fun showOne first (starter, {vid, arg}) =
+              (if first then empty else at tab)
+              ++ token starter
+              ++ token vid
+              ++ showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
+          in
+            Seq.iterate op++
+              (showOne true (exceptionn, Seq.nth elems 0))
+              (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+          end
+
+      | Structure {structuree, elems, delims} =>
+          let
+            fun showOne first (starter, {id, colon, sigexp}) =
+              (if first then empty else at tab)
+              ++ token starter
+              ++ token id
+              ++ token colon
+              ++ (if sigExpWantsSameTabAsDec sigexp then
+                    at tab ++ showSigExp tab sigexp
+                  else
+                    withNewChild showSigExp tab sigexp)
+          in
+            Seq.iterate op++
+              (showOne true (structuree, Seq.nth elems 0))
+              (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+          end
+
+      | Include {includee, sigexp} =>
+          token includee ++ withNewChild showSigExp tab sigexp
+
+      | IncludeIds {includee, sigids} =>
+          Seq.iterate op++
+            (token includee)
+            (Seq.map (withNewChild (fn _ => token) tab) sigids)
+
+      (*
+      | Datatype _
+      | Eqtype _
+      | IncludeIds _
+      | ReplicateDatatype _
+      | SharingType _
+      | Sharing _
+      *)
 
       | _ => text "<spec>"
     end
