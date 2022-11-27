@@ -15,13 +15,9 @@ struct
 
   open TabbedTokenDoc
   open PrettierUtil
+  open PrettierTy
   infix 2 ++
   fun x ++ y = concat (x, y)
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-
-  fun showTy tab ty = PrettierTy.showTy tab ty
-  fun showTyNewChild tab ty = newTab tab (fn inner => at inner ++ showTy inner ty)
 
   (* ======================================================================= *)
 
@@ -36,10 +32,7 @@ struct
 
   (* ======================================================================= *)
 
-  fun showSigExpNewChild tab e = newTab tab (fn inner => at inner ++ showSigExp inner e)
-
-
-  and showSpec tab spec =
+  fun showSpec tab spec =
     let
       open Ast.Sig
     in
@@ -50,7 +43,7 @@ struct
           let
             fun showOne first (starter, {vid, colon, ty}) =
               (if first then empty else at tab)
-              ++ token starter ++ token vid ++ token colon ++ showTyNewChild tab ty
+              ++ token starter ++ token vid ++ token colon ++ withNewChild showTy tab ty
           in
             Seq.iterate op++
               (showOne true (vall, Seq.nth elems 0))
@@ -78,7 +71,7 @@ struct
               ++ showSyntaxSeq tab tyvars token
               ++ token tycon
               ++ token eq
-              ++ showTyNewChild tab ty
+              ++ withNewChild showTy tab ty
           in
             Seq.iterate op++
               (showOne true (typee, Seq.nth elems 0))
@@ -133,7 +126,7 @@ struct
         ++ (if sigExpWantsSameTabAsDec sigexp then
               at tab ++ showSigExp tab sigexp
             else
-              showSigExpNewChild tab sigexp)
+              withNewChild showSigExp tab sigexp)
     in
       Seq.iterate op++
         (showOne true (signaturee, Seq.nth elems 0))

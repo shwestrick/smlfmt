@@ -5,29 +5,18 @@
 
 structure PrettierStr:
 sig
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-  val showStrExp: tab -> Ast.Str.strexp -> doc
-  val showStrDec: tab -> Ast.Str.strdec -> doc
+  val showStrExp: Ast.Str.strexp PrettierUtil.shower
+  val showStrDec: Ast.Str.strdec PrettierUtil.shower
 end =
 struct
 
   open TabbedTokenDoc
   open PrettierUtil
+  open PrettierTy
+  open PrettierExpAndDec
+  open PrettierSig
   infix 2 ++
   fun x ++ y = concat (x, y)
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-
-  fun showTy tab ty = PrettierTy.showTy tab ty
-  fun showDec tab dec = PrettierExpAndDec.showDec tab dec
-  fun showSigExp tab sigexp = PrettierSig.showSigExp tab sigexp
-
-  fun showSigExpNewChild tab e =
-    newTab tab (fn inner => at inner ++ showSigExp inner e)
-
-  fun showTyNewChild tab ty =
-    newTab tab (fn inner => at inner ++ showTy inner ty)
 
   (* ====================================================================== *)
 
@@ -86,14 +75,7 @@ struct
 
   (* ====================================================================== *)
 
-  fun showStrExpNewChild tab e = newTab tab (fn inner => at inner ++ showStrExp inner e)
-  and showStrDecNewChild tab e = newTab tab (fn inner => at inner ++ showStrDec inner e)
-  and showStrDecNewChildWithStyle tab style e =
-    newTabWithStyle tab (style, fn inner => at inner ++ showStrDec inner e)
-  and showStrExpNewChildWithStyle tab style e =
-    newTabWithStyle tab (style, fn inner => at inner ++ showStrExp inner e)
-
-  and showStrExp tab e =
+  fun showStrExp tab e =
     let
       open Ast.Str
     in
@@ -116,7 +98,7 @@ struct
       | Constraint {strexp, colon, sigexp} =>
           showStrExp tab strexp
           ++ token colon
-          ++ showSigExpNewChild tab sigexp
+          ++ withNewChild showSigExp tab sigexp
 
       | FunAppExp {funid, lparen, strexp, rparen} =>
           (* The check for inserting a space after the `funid` is nice to
@@ -132,7 +114,7 @@ struct
              else
                nospace) ++
             at inner ++ token lparen ++ nospace ++
-            showStrExpNewChild inner strexp
+            withNewChild showStrExp inner strexp
             ++ nospace ++ token rparen)
 
       | FunAppDec {funid, lparen, strdec, rparen} =>
@@ -144,15 +126,15 @@ struct
              else
                nospace) ++
             at inner ++ token lparen ++ nospace ++
-            showStrDecNewChild inner strdec
+            withNewChild showStrDec inner strdec
             ++ nospace ++ token rparen)
 
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
           showThingSimilarToLetInEnd tab
             ( lett
-            , (decIsEmpty strdec, fn () => showStrDecNewChildWithStyle tab Indented strdec)
+            , (decIsEmpty strdec, fn () => withNewChildWithStyle Indented showStrDec tab strdec)
             , inn
-            , (fn () => showStrExpNewChildWithStyle tab Indented strexp)
+            , (fn () => withNewChildWithStyle Indented showStrExp tab strexp)
             , endd
             )
 
@@ -183,7 +165,7 @@ struct
                   ++ (if sigExpWantsSameTabAsDec sigexp then
                         at tab ++ showSigExp tab sigexp
                       else
-                        showSigExpNewChild tab sigexp)
+                        withNewChild showSigExp tab sigexp)
 
             fun showOne (starter, {strid, constraint, eq, strexp}) =
               token starter
@@ -193,7 +175,7 @@ struct
               ++ (if strExpWantsSameTabAsDec strexp then
                     at tab ++ showStrExp tab strexp
                   else
-                    showStrExpNewChild tab strexp)
+                    withNewChild showStrExp tab strexp)
           in
             at tab ++
             Seq.iterate op++
@@ -220,9 +202,9 @@ struct
       | DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
           showThingSimilarToLetInEnd tab
             ( locall
-            , (decIsEmpty strdec1, fn () => showStrDecNewChildWithStyle tab Indented strdec1)
+            , (decIsEmpty strdec1, fn () => withNewChildWithStyle Indented showStrDec tab strdec1)
             , inn
-            , (fn () => showStrDecNewChildWithStyle tab Indented strdec2)
+            , (fn () => withNewChildWithStyle Indented showStrDec tab strdec2)
             , endd
             )
 
@@ -238,7 +220,7 @@ struct
                 ++ token prec
                 ++ token name
                 ++ token colon
-                ++ showTyNewChild inner ty
+                ++ withNewChild showTy inner ty
                 ++ at inner
                 ++ token ass
                 ++ token (MaybeLongToken.getToken (Seq.nth elems 0))

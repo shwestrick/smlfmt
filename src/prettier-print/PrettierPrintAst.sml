@@ -13,17 +13,11 @@ struct
 
   open TabbedTokenDoc
   open PrettierUtil
+  open PrettierSig
+  open PrettierStr
+  open PrettierFun
   infix 2 ++
   fun x ++ y = concat (x, y)
-
-  fun showTy ty = PrettierTy.showTy ty
-  fun showPat tab pat = PrettierPat.showPat tab pat
-  fun showSpec tab spec = PrettierSig.showSpec tab spec
-  fun showSigExp tab sigexp = PrettierSig.showSigExp tab sigexp
-  fun showSigDec tab sigdec = PrettierSig.showSigDec tab sigdec
-  fun showSigDec tab strdec = PrettierSig.showSigDec tab strdec
-  fun showStrDec tab strdec = PrettierStr.showStrDec tab strdec
-  fun showFunDec tab strdec = PrettierFun.showFunDec tab strdec
 
   (* ====================================================================== *)
 
