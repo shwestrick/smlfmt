@@ -9,16 +9,23 @@ sig
   type doc = TabbedTokenDoc.doc
   type style = TabbedTokenDoc.style
 
-  val spaces: int -> doc
-  val sequenceAt: tab -> Token.t -> Token.t Seq.t -> Token.t -> doc Seq.t -> doc
-  val sequence: tab -> Token.t -> Token.t Seq.t -> Token.t -> doc Seq.t -> doc
-  val showSyntaxSeq: tab -> 'a Ast.SyntaxSeq.t -> ('a -> doc) -> doc
-  val showOption: ('a -> doc) -> 'a option -> doc
-
-
   type 'a shower = tab -> 'a -> doc
   val withNewChild: 'a shower -> 'a shower
   val withNewChildWithStyle: style -> 'a shower -> 'a shower
+
+  val spaces: int -> doc
+
+  val showSequence:
+    { openn: Token.t
+    , elems: doc Seq.t
+    , delims: Token.t Seq.t
+    , close: Token.t
+    }
+    shower
+
+  val showSyntaxSeq: tab -> 'a Ast.SyntaxSeq.t -> ('a -> doc) -> doc
+
+  val showOption: ('a -> doc) -> 'a option -> doc
 
   val showThingSimilarToLetInEnd:
     { lett: Token.t
@@ -38,34 +45,44 @@ struct
   fun x ++ y = concat (x, y)
 
 
+  type 'a shower = tab -> 'a -> doc
+
+  fun withNewChild shower tab x =
+    newTab tab (fn inner => at inner ++ shower inner x)
+
+  fun withNewChildWithStyle style shower tab x =
+    newTabWithStyle tab (style, fn inner => at inner ++ shower inner x)
+
+
   fun spaces n =
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
-  fun sequenceAt tab openn delims close (xs: doc Seq.t) =
-    if Seq.length xs = 0 then
+  fun showSequence tab {openn, elems, delims, close} =
+    if Seq.length elems = 0 then
       token openn ++ nospace ++ token close
     else
       let
-        val top = token openn ++ (cond tab {inactive = nospace, active = space}) ++ Seq.nth xs 0
+        val top = token openn ++ (cond tab {inactive = nospace, active = space}) ++ Seq.nth elems 0
         fun f (delim, x) = nospace ++ at tab ++ token delim ++ x
       in
-        Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
+        Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
         ++
         nospace ++ at tab ++ token close
       end
 
 
-  fun sequence currentTab openn delims close (xs: doc Seq.t) =
-    newTab currentTab (fn tab => at tab ++ sequenceAt tab openn delims close xs)
-
-
-  fun showSyntaxSeq currentTab s f =
+  fun showSyntaxSeq tab s f =
     case s of
       Ast.SyntaxSeq.Empty => empty
     | Ast.SyntaxSeq.One x => f x
     | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
-        sequence currentTab left delims right (Seq.map f elems)
+        withNewChild showSequence tab
+          { openn = left
+          , elems = Seq.map f elems
+          , delims = delims
+          , close = right
+          }
 
 
   fun showOption f x =
@@ -85,15 +102,6 @@ struct
       ++ doc2
       ++ at tab ++ token endd
     end
-
-
-  type 'a shower = tab -> 'a -> doc
-
-  fun withNewChild shower tab x =
-    newTab tab (fn inner => at inner ++ shower inner x)
-
-  fun withNewChildWithStyle style shower tab x =
-    newTabWithStyle tab (style, fn inner => at inner ++ shower inner x)
 
 
 end

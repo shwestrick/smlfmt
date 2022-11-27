@@ -48,7 +48,12 @@ struct
             fun showElem {lab, colon, ty} =
               token lab ++ token colon ++ showTy tab ty
           in
-            sequenceAt tab left delims right (Seq.map showElem elems)
+            showSequence tab
+              { openn = left
+              , elems = Seq.map showElem elems
+              , delims = delims
+              , close = right
+              }
           end
 
       | Arrow {from, arrow, to} =>

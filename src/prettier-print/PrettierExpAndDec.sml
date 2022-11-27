@@ -110,27 +110,56 @@ struct
       case exp of
         Const tok =>
           token tok
+
       | Unit {left, right} =>
           token left ++ nospace ++ token right
+
       | Ident {opp, id} =>
           showOption token opp ++ token (MaybeLongToken.getToken id)
+
       | Parens {left, exp, right} =>
           token left ++ nospace ++ withNewChild showExp tab exp ++ nospace ++ token right
+
       | Tuple {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (withNewChild showExp tab) elems)
+          showSequence tab
+            { openn = left
+            , elems = Seq.map (withNewChild showExp tab) elems
+            , delims = delims
+            , close = right
+            }
+
       | Sequence {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (withNewChild showExp tab) elems)
+          showSequence tab
+            { openn = left
+            , elems = Seq.map (withNewChild showExp tab) elems
+            , delims = delims
+            , close = right
+            }
+
       | List {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (withNewChild showExp tab) elems)
+          showSequence tab
+            { openn = left
+            , elems = Seq.map (withNewChild showExp tab) elems
+            , delims = delims
+            , close = right
+            }
+
       | Record {left, elems, delims, right} =>
           let
             fun showRow {lab, eq, exp} =
               token lab ++ token eq ++ (withNewChild showExp tab) exp
           in
-            sequenceAt tab left delims right (Seq.map showRow elems)
+            showSequence tab
+              { openn = left
+              , elems = Seq.map showRow elems
+              , delims = delims
+              , close = right
+              }
           end
+
       | Select {hash, label} =>
           token hash ++ nospace ++ token label
+
       | App {left, right} =>
           showExp tab left ++ withNewChild showExp tab right
           (*let
@@ -144,12 +173,16 @@ struct
                 (showExp inner (Seq.nth args 0))
                 (Seq.drop (Seq.map (showExp inner) args) 1))
           end*)
+
       | Typed {exp, colon, ty} =>
           withNewChild showExp tab exp ++ token colon ++ withNewChild showTy tab ty
+
       | IfThenElse _ (*{iff, exp1, thenn, exp2, elsee, exp3}*) =>
           showIfThenElseAt tab exp
+
       | LetInEnd xxx =>
           showLetInEndAt tab xxx
+
       | Fn {fnn, elems, delims} =>
           newTab tab (fn inner => (* do we need the newTab here? *)
           let
@@ -164,6 +197,7 @@ struct
           in
             Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end)
+
       | Case {casee, exp=expTop, off, elems, delims} =>
           newTab tab (fn inner =>
             let
@@ -181,10 +215,13 @@ struct
               ++ Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                    (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
             end)
+
       | Infix {left, id, right} =>
           showInfixedExpAt tab (left, id, right)
+
       | Andalso {left, andalsoo, right} =>
           showInfixedExpAt tab (left, andalsoo, right)
+
       | Orelse {left, orelsee, right} =>
           showInfixedExpAt tab (left, orelsee, right)
 

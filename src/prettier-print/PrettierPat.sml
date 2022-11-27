@@ -41,10 +41,20 @@ struct
           token left ++ nospace ++ showPatNewChild tab pat ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (showPatNewChild tab) elems)
+          showSequence tab
+            { openn = left
+            , elems = Seq.map (withNewChild showPat tab) elems
+            , delims = delims
+            , close = right
+            }
 
       | List {left, elems, delims, right} =>
-          sequenceAt tab left delims right (Seq.map (showPatNewChild tab) elems)
+          showSequence tab
+            { openn = left
+            , elems = Seq.map (withNewChild showPat tab) elems
+            , delims = delims
+            , close = right
+            }
 
       | Record {left, elems, delims, right} =>
           let
@@ -58,7 +68,12 @@ struct
                   showOption (fn {colon, ty} => token colon ++ withNewChild showTy tab ty) ty ++
                   showOption (fn {ass, pat} => token ass ++ showPatNewChild tab pat) aspat
           in
-            sequenceAt tab left delims right (Seq.map showPatRow elems)
+            showSequence tab
+              { openn = left
+              , elems = Seq.map showPatRow elems
+              , delims = delims
+              , close = right
+              }
           end
 
       | Con {opp, id, atpat} =>
