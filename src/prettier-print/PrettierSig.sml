@@ -39,6 +39,42 @@ struct
 
   (* ======================================================================= *)
 
+  (* NOTE: very similar to PrettierExpAndDec.showDatbind. The
+   * only difference: there is no possible 'op' in the condesc, ugh.
+   *)
+  fun showDatspec tab {datatypee, elems, delims} =
+    let
+      fun showCon (starter, {vid, arg}) =
+        at tab ++ starter ++
+        token vid ++
+        showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
+
+      fun showOne first (starter, {tyvars, tycon, eq, elems, delims}) =
+        let
+          val initial =
+            (if first then empty else at tab) ++
+            token starter ++
+            showSyntaxSeq token tab tyvars ++
+            token tycon ++
+            token eq
+
+          val skipper = cond tab {inactive=empty, active=space++space}
+          fun dd delim = token delim ++ space
+        in
+          initial ++
+          Seq.iterate op++
+            (showCon (skipper, Seq.nth elems 0))
+            (Seq.zipWith showCon (Seq.map dd delims, Seq.drop elems 1))
+        end
+    in
+      Seq.iterate op++
+        (showOne true (datatypee, Seq.nth elems 0))
+        (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+    end
+
+  (* ======================================================================= *)
+
+
   fun showSpec tab spec =
     let
       open Ast.Sig
@@ -82,6 +118,19 @@ struct
           in
             Seq.iterate op++
               (showOne true (typee, Seq.nth elems 0))
+              (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+          end
+
+      | Eqtype {eqtypee, elems, delims} =>
+          let
+            fun showOne first (starter, {tyvars, tycon}) =
+              (if first then empty else at tab)
+              ++ token starter
+              ++ showSyntaxSeq token tab tyvars
+              ++ token tycon
+          in
+            Seq.iterate op++
+              (showOne true (eqtypee, Seq.nth elems 0))
               (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
           end
 
@@ -182,13 +231,18 @@ struct
               ++ stuff
             end)
 
-      (*
-      | Datatype _
-      | Eqtype _
-      | ReplicateDatatype _
-      *)
+      | ReplicateDatatype
+        {left_datatypee, left_id, eq, right_datatypee, right_id} =>
+          token left_datatypee
+          ++ token left_id
+          ++ token eq
+          ++ newTab tab (fn inner =>
+              at inner
+              ++ token right_datatypee
+              ++ token (MaybeLongToken.getToken right_id))
 
-      | _ => text "<spec>"
+      | Datatype xxx =>
+          showDatspec tab xxx
     end
 
 
@@ -209,21 +263,20 @@ struct
             ++ token endd)
 
       | WhereType {sigexp, elems} =>
-          newTab tab (fn inner =>
-            let
-              fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
-                at inner
-                ++ token wheree (** this could be 'and' *)
-                ++ token typee
-                ++ showSyntaxSeq token inner tyvars
-                ++ token (MaybeLongToken.getToken tycon)
-                ++ token eq
-                ++ withNewChild showTy inner ty
-            in
-              Seq.iterate op++
-                (showSigExp tab sigexp)
-                (Seq.map showElem elems)
-            end)
+          let
+            fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
+              at tab
+              ++ token wheree (** this could be 'and' *)
+              ++ token typee
+              ++ showSyntaxSeq token tab tyvars
+              ++ token (MaybeLongToken.getToken tycon)
+              ++ token eq
+              ++ withNewChild showTy tab ty
+          in
+            Seq.iterate op++
+              (showSigExp tab sigexp)
+              (Seq.map showElem elems)
+          end
     end
 
 
