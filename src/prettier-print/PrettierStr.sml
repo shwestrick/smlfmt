@@ -102,12 +102,15 @@ struct
           (* newTab tab (fn tab => at tab ++ ) *)
 
       | Struct {structt, strdec, endd} =>
-          newTabWithStyle tab (Indented, fn inner =>
-            token structt
-            ++ at inner
-            ++ showStrDec inner strdec
-            ++ cond inner {inactive = empty, active = at tab}
-            ++ token endd)
+          if decIsEmpty strdec then
+            token structt ++ at tab ++ token endd
+          else
+            newTabWithStyle tab (Indented, fn inner =>
+              token structt
+              ++ at inner
+              ++ showStrDec inner strdec
+              ++ cond inner {inactive = empty, active = at tab}
+              ++ token endd)
 
       | Constraint {strexp, colon, sigexp} =>
           showStrExp tab strexp
