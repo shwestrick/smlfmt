@@ -282,13 +282,15 @@ struct
         exps
     in
       showThingSimilarToLetInEnd outerTab
-        ( lett
-        , (decIsEmpty dec, fn () => withNewChildWithStyle Indented showDec outerTab dec)
-        , inn
-        , (fn () => newTabWithStyle outerTab (Indented,
-            fn innerTab => Seq.iterate op++ empty (withDelims innerTab)))
-        , endd
-        )
+        { lett = lett
+        , isEmpty1 = decIsEmpty dec
+        , doc1 = withNewChildWithStyle Indented showDec outerTab dec
+        , inn = inn
+        , doc2 =
+            newTabWithStyle outerTab (Indented, fn innerTab =>
+              Seq.iterate op++ empty (withDelims innerTab))
+        , endd = endd
+        }
     end
 
 
@@ -428,12 +430,13 @@ struct
 
       | DecLocal {locall, left_dec, inn, right_dec, endd} =>
           showThingSimilarToLetInEnd tab
-            ( locall
-            , (decIsEmpty left_dec, fn () => withNewChildWithStyle Indented showDec tab left_dec)
-            , inn
-            , (fn () => withNewChildWithStyle Indented showDec tab right_dec)
-            , endd
-            )
+            { lett = locall
+            , isEmpty1 = decIsEmpty left_dec
+            , doc1 = withNewChildWithStyle Indented showDec tab left_dec
+            , inn = inn
+            , doc2 = withNewChildWithStyle Indented showDec tab right_dec
+            , endd = endd
+            }
 
       | DecAbstype {abstypee, datbind, withtypee, withh, dec, endd} =>
           let

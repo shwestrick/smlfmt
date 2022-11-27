@@ -131,12 +131,13 @@ struct
 
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
           showThingSimilarToLetInEnd tab
-            ( lett
-            , (decIsEmpty strdec, fn () => withNewChildWithStyle Indented showStrDec tab strdec)
-            , inn
-            , (fn () => withNewChildWithStyle Indented showStrExp tab strexp)
-            , endd
-            )
+            { lett = lett
+            , isEmpty1 = decIsEmpty strdec
+            , doc1 = withNewChildWithStyle Indented showStrDec tab strdec
+            , inn = inn
+            , doc2 = withNewChildWithStyle Indented showStrExp tab strexp
+            , endd = endd
+            }
 
       (* | _ => text "<strexp>" *)
 
@@ -201,12 +202,13 @@ struct
 
       | DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
           showThingSimilarToLetInEnd tab
-            ( locall
-            , (decIsEmpty strdec1, fn () => withNewChildWithStyle Indented showStrDec tab strdec1)
-            , inn
-            , (fn () => withNewChildWithStyle Indented showStrDec tab strdec2)
-            , endd
-            )
+            { lett = locall
+            , isEmpty1 = decIsEmpty strdec1
+            , doc1 = withNewChildWithStyle Indented showStrDec tab strdec1
+            , inn = inn
+            , doc2 = withNewChildWithStyle Indented showStrDec tab strdec2
+            , endd = endd
+            }
 
       (** This is MLton-specific. Useful for testing by parsing the entire
         * MLton implementation of the standard basis.

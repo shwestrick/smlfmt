@@ -14,18 +14,22 @@ sig
   val sequence: tab -> Token.t -> Token.t Seq.t -> Token.t -> doc Seq.t -> doc
   val showSyntaxSeq: tab -> 'a Ast.SyntaxSeq.t -> ('a -> doc) -> doc
   val showOption: ('a -> doc) -> 'a option -> doc
-  val showThingSimilarToLetInEnd: tab
-                               -> ( Token.t
-                                  * (bool * (unit -> doc))
-                                  * Token.t
-                                  * (unit -> doc)
-                                  * Token.t
-                                  )
-                               -> doc
+
 
   type 'a shower = tab -> 'a -> doc
   val withNewChild: 'a shower -> 'a shower
   val withNewChildWithStyle: style -> 'a shower -> 'a shower
+
+  val showThingSimilarToLetInEnd:
+    { lett: Token.t
+    , isEmpty1: bool
+    , doc1: doc
+    , inn: Token.t
+    , doc2: doc
+    , endd: Token.t
+    }
+    shower
+
 end =
 struct
 
@@ -70,16 +74,16 @@ struct
     | SOME xx => f xx
 
 
-  fun showThingSimilarToLetInEnd tab (start, (isEmptyA, showA), mid, showB, stop) =
+  fun showThingSimilarToLetInEnd tab {lett, isEmpty1, doc1, inn, doc2, endd} =
     let in
-      token start ++
-      (if isEmptyA then
+      token lett ++
+      (if isEmpty1 then
           empty
         else
-          showA () ++ at tab)
-      ++ token mid
-      ++ showB ()
-      ++ at tab ++ token stop
+          doc1 ++ at tab)
+      ++ token inn
+      ++ doc2
+      ++ at tab ++ token endd
     end
 
 
