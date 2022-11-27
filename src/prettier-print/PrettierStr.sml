@@ -147,9 +147,6 @@ struct
             , doc2 = withNewChildWithStyle Indented showStrExp tab strexp
             , endd = endd
             }
-
-      (* | _ => text "<strexp>" *)
-
     end
 
 

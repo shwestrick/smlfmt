@@ -493,8 +493,6 @@ struct
                withtypee
             ++ bottom
           end
-
-      (* | _ => text "<dec>" *)
     end
 
 
