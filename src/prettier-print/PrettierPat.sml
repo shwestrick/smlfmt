@@ -17,10 +17,7 @@ struct
 
   (* ====================================================================== *)
 
-  fun showPatNewChild tab pat =
-    newTab tab (fn inner => at inner ++ showPat inner pat)
-
-  and showPat tab pat =
+  fun showPat tab pat =
     let
       open Ast.Pat
     in
@@ -38,7 +35,7 @@ struct
           showOption token opp ++ token (MaybeLongToken.getToken id)
 
       | Parens {left, pat, right} =>
-          token left ++ nospace ++ showPatNewChild tab pat ++ nospace ++ token right
+          token left ++ nospace ++ withNewChild showPat tab pat ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
           showSequence tab
@@ -62,11 +59,11 @@ struct
               case patrow of
                 DotDotDot ddd => token ddd
               | LabEqPat {lab, eq, pat} =>
-                  token lab ++ token eq ++ showPatNewChild tab pat
+                  token lab ++ token eq ++ withNewChild showPat tab pat
               | LabAsPat {id, ty, aspat} =>
                   token id ++
                   showOption (fn {colon, ty} => token colon ++ withNewChild showTy tab ty) ty ++
-                  showOption (fn {ass, pat} => token ass ++ showPatNewChild tab pat) aspat
+                  showOption (fn {ass, pat} => token ass ++ withNewChild showPat tab pat) aspat
           in
             showSequence tab
               { openn = left
@@ -79,7 +76,7 @@ struct
       | Con {opp, id, atpat} =>
           showOption token opp
           ++ token (MaybeLongToken.getToken id)
-          ++ showPatNewChild tab atpat
+          ++ withNewChild showPat tab atpat
 
       | Typed {pat, colon, ty} =>
           showPat tab pat ++ token colon ++ withNewChild showTy tab ty
@@ -89,9 +86,9 @@ struct
           token id ++
           showOption (fn {colon, ty} => token colon ++ withNewChild showTy tab ty) ty ++
           token ass ++
-          showPatNewChild tab pat
+          withNewChild showPat tab pat
 
       | Infix {left, id, right} =>
-          showPat tab left ++ token id ++ showPatNewChild tab right
+          showPat tab left ++ token id ++ withNewChild showPat tab right
     end
 end
