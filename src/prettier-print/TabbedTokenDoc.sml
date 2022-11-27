@@ -159,8 +159,8 @@ struct
   | AnnNewline
   | AnnNoSpace
   | AnnSpace
-  | AnnToken of Token.t
-  | AnnText of string
+  | AnnToken of {at: anntab option, tok: Token.t}
+  | AnnText of {at: anntab option, txt: string}
   | AnnConcat of anndoc * anndoc
   | AnnBreak of {mightBeFirst: bool, tab: anntab}
   | AnnNewTab of {parent: anntab, style: style, tab: anntab, doc: anndoc}
@@ -180,8 +180,8 @@ struct
     | AnnSpace => "_"
     | AnnNoSpace => "NoSpace"
     | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
-    | AnnToken t => "Token('" ^ Token.toString t ^ "')"
-    | AnnText t => "Text('" ^ t ^ "')"
+    | AnnToken {tok=t, ...} => "Token('" ^ Token.toString t ^ "')"
+    | AnnText {txt=t, ...} => "Text('" ^ t ^ "')"
     | AnnBreak {mightBeFirst, tab} =>
         "Break" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ annTabToString tab ^ ")"
     | AnnNewTab {parent=p, tab=t, doc=d, ...} => "NewTab(" ^ annTabToString p ^ ", " ^ annTabToString t ^ ", " ^ annToString d ^ ")"
@@ -199,8 +199,8 @@ struct
           Empty => (AnnEmpty, broken)
         | Space => (AnnSpace, broken)
         | NoSpace => (AnnNoSpace, broken)
-        | Token t => (AnnToken t, broken)
-        | Text t => (AnnText t, broken)
+        | Token t => (AnnToken {at=NONE, tok=t}, broken)
+        | Text t => (AnnText {at=NONE, txt=t}, broken)
         | Break tab =>
             let
               val (mightBeFirst, broken) =
@@ -255,31 +255,6 @@ struct
     in
       anndoc
     end
-
-(*
-  fun removeAnnotations anndoc =
-    case anndoc of
-      AnnEmpty => Empty
-    | AnnSpace => Space
-    | AnnNoSpace => NoSpace
-    | AnnToken t => Token t
-    | AnnText t => Text t
-    | AnnBreak {tab, ...} => Break (removeTabAnnotation tab)
-    | AnnConcat (d1, d2) =>
-        Concat (removeAnnotations d1, removeAnnotations d2)
-    | AnnNewTab {parent, tab, doc} =>
-        NewTab
-          { parent = removeTabAnnotation parent
-          , tab = removeTabAnnotation tab
-          , doc = removeAnnotations doc
-          }
-    | AnnCond {tab, inactive, active} =>
-        Cond
-          { tab = removeTabAnnotation tab
-          , inactive = removeAnnotations inactive
-          , active = removeAnnotations active
-          }
-*)
 
 
   fun ensureSpaces debug (doc: anndoc) =
@@ -457,26 +432,80 @@ struct
   (* ====================================================================== *)
   (* ====================================================================== *)
 
-  structure TokenDict =
-    Dict(struct
-      type t = Token.t
-      fun compare (t1, t2) =
-        let
-          val s1 = Token.getSource t1
-          val s2 = Token.getSource t2
-        in
-          case Int.compare (Source.absoluteStartOffset s1, Source.absoluteStartOffset s2) of
-            EQUAL => Int.compare (Source.absoluteEndOffset s1, Source.absoluteEndOffset s2)
-          | other => other
-        end
-    end)
+  structure TokenKey =
+  struct
+    type t = Token.t
+    fun compare (t1, t2) =
+      let
+        val s1 = Token.getSource t1
+        val s2 = Token.getSource t2
+      in
+        case Int.compare (Source.absoluteStartOffset s1, Source.absoluteStartOffset s2) of
+          EQUAL => Int.compare (Source.absoluteEndOffset s1, Source.absoluteEndOffset s2)
+        | other => other
+      end
+  end
+
+  structure TokenDict = Dict(TokenKey)
+  structure TokenSet = Set(TokenKey)
+
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+
+(*
+  fun flowAts debug (doc: anndoc) =
+    let
+      fun dbgprintln s =
+        if not debug then ()
+        else print (s ^ "\n")
+
+      datatype tab_constraint = Active | Inactive
+      type context = tab_constraint TabDict.t
+
+      fun markInactive ctx anntab =
+        TabDict.insert ctx (removeTabAnnotation anntab, Inactive)
+
+      fun markActive ctx anntab =
+        case anntab of
+          AnnRoot => ctx
+        | AnnTab {parent, tab} =>
+            markActive (TabDict.insert ctx (tab, Active)) parent
+
+      fun loop ctx (flowval, doc) =
+        case doc of
+          AnnEmpty => (doc, flowval)
+        | AnnNewline => (doc, flowval)
+        | AnnSpace => (doc, flowval)
+        | AnnNoSpace => (doc, flowval)
+        | AnnToken {tok, ...} => (AnnToken {tok=tok, at=flowval}, NONE)
+        | AnnText {txt, ...} => (AnnText {txt=txt, at=flowval}, NONE)
+        | AnnBreak {tab, ...} => (doc, SOME tab)
+        | AnnConcat (d1, d2) =>
+        | AnnNewTab =>
+        | AnnCond =>
+    in
+    end
+*)
+
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+  (* ====================================================================== *)
 
 
   (* TODO: bug: inserting blank lines on 'at's is incorrect. You could
    * have multiple 'at's back-to-back that are essentially no-ops...
    *
    * An idea for a better solution? For each token, compute which tab it is
-   * 'at', and insert the appropriate 'cond tab {active=newline, ...}'.
+   * 'at', and insert the appropriate 'cond tab {active=newline, ...}'. To
+   * compute which tokens are 'at' tabs, we can flow each 'at tab' downstream
+   * until it hits token, text, or another 'at'. If it hits a token or text
+   * element, then that element is 'at' the tab.
+   *
+   * NOTE: This idea also seems like it would work for inserting comments.
+   * If a token is 'at' a tab, then we can insert the comment above
+   * it at the same tab. If a token is not at a tab, then we can insert the
+   * comment in-line before the token.
    *)
   fun insertBlankLines debug (doc: anndoc) =
     let
@@ -496,7 +525,7 @@ struct
         | AnnTab {parent, tab} =>
             markActive (TabDict.insert ctx (tab, Active)) parent
 
-      datatype edge = EdgeText | EdgeTokens of unit TokenDict.t
+      datatype edge = EdgeText | EdgeTokens of TokenSet.t
 
       fun edge {left: bool} ctx doc =
         let
@@ -506,7 +535,7 @@ struct
             | AnnNewline => NONE
             | AnnSpace => NONE
             | AnnNoSpace => NONE
-            | AnnToken t => SOME (EdgeTokens (TokenDict.singleton (t, ())))
+            | AnnToken {tok=t, ...} => SOME (EdgeTokens (TokenSet.singleton t))
             | AnnText _ => SOME EdgeText
             | AnnBreak _ => NONE
             | AnnConcat (d1, d2) =>
@@ -542,7 +571,7 @@ struct
                           val result =
                             case (r1, r2) of
                               (SOME (EdgeTokens xs), SOME (EdgeTokens ys)) =>
-                                SOME (EdgeTokens (TokenDict.unionWith (fn _ => ()) (xs, ys)))
+                                SOME (EdgeTokens (TokenSet.union (xs, ys)))
                             | (SOME EdgeText, SOME EdgeText) => SOME EdgeText
                             | (SOME (EdgeTokens _), _) => r1
                             | (_, SOME (EdgeTokens _)) => r2
@@ -604,8 +633,8 @@ struct
             (case (prev, next) of
               (SOME (EdgeTokens ts1), SOME (EdgeTokens ts2)) =>
                 let
-                  val t1 = List.last (TokenDict.listKeys ts1)
-                  val t2 = List.hd (TokenDict.listKeys ts2)
+                  val t1 = List.last (TokenSet.listKeys ts1)
+                  val t2 = List.hd (TokenSet.listKeys ts2)
                   val diff = Token.lineDifference (t1, t2) - 1
                   val diff = Int.max (0, Int.min (2, diff))
 
@@ -720,8 +749,8 @@ struct
         | AnnNewline => D.newline
         | AnnSpace => D.space
         | AnnConcat (d1, d2) => D.concat (loop currentTab d1, loop currentTab d2)
-        | AnnText str => D.text (TerminalColorString.fromString str)
-        | AnnToken tok =>
+        | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
+        | AnnToken {tok, ...} =>
             let
               val (shouldBeRigid, doc) = tokenToStringDoc currentTab tabWidth tok
             in
