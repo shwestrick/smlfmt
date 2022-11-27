@@ -5,9 +5,7 @@
 
 structure PrettierTy:
 sig
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-  val showTy: tab -> Ast.Ty.t -> doc
+  val showTy: Ast.Ty.t PrettierUtil.shower
 end =
 struct
 
@@ -18,9 +16,7 @@ struct
   type doc = TabbedTokenDoc.t
   type tab = TabbedTokenDoc.tab
 
-  fun showTyNewChild tab ty = newTab tab (fn inner => at inner ++ showTy inner ty)
-
-  and showTy tab ty =
+  fun showTy tab ty =
     let
       open Ast.Ty
     in
@@ -36,7 +32,7 @@ struct
           ++ token (MaybeLongToken.getToken id)
 
       | Parens {left, ty, right} =>
-          token left ++ nospace ++ showTyNewChild tab ty ++ nospace ++ token right
+          token left ++ nospace ++ withNewChild showTy tab ty ++ nospace ++ token right
 
       | Tuple {elems, delims} =>
           let
@@ -61,11 +57,12 @@ struct
               at tab ++ token arr ++
               (case right of
                 Arrow {from, arrow, to} =>
-                  showTyNewChild tab from ++ loop (arrow, to)
+                  withNewChild showTy tab from
+                  ++ loop (arrow, to)
               | _ =>
-                  showTyNewChild tab right)
+                  withNewChild showTy tab right)
           in
-            showTyNewChild tab from ++ loop (arrow, to)
+            withNewChild showTy tab from ++ loop (arrow, to)
           end
     end
 

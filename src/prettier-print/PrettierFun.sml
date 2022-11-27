@@ -5,31 +5,16 @@
 
 structure PrettierFun:
 sig
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-  val showFunDec: tab -> Ast.Fun.fundec -> doc
+  val showFunDec: Ast.Fun.fundec PrettierUtil.shower
 end =
 struct
 
   open TabbedTokenDoc
   open PrettierUtil
+  open PrettierSig
+  open PrettierStr
   infix 2 ++
   fun x ++ y = concat (x, y)
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-
-  fun showSpec tab e = PrettierSig.showSpec tab e
-  fun showSigExp tab e = PrettierSig.showSigExp tab e
-  fun showStrExp tab e = PrettierStr.showStrExp tab e
-
-  fun showStrExpNewChild tab e =
-    newTab tab (fn inner => at inner ++ showStrExp inner e)
-
-  fun showSigExpNewChild tab e =
-    newTab tab (fn inner => at inner ++ showSigExp inner e)
-
-  fun showSpecNewChild tab e =
-    newTab tab (fn inner => at inner ++ showSpec inner e)
 
   (* ======================================================================= *)
 
@@ -70,9 +55,9 @@ struct
 
   fun showFunArg tab fa =
     case fa of
-      Ast.Fun.ArgSpec spec => showSpecNewChild tab spec
+      Ast.Fun.ArgSpec spec => withNewChild showSpec tab spec
     | Ast.Fun.ArgIdent {strid, colon, sigexp} =>
-        token strid ++ token colon ++ showSigExpNewChild tab sigexp
+        token strid ++ token colon ++ withNewChild showSigExp tab sigexp
 
   fun showFunDec tab (Ast.Fun.DecFunctor {functorr, elems, delims}) =
     let
@@ -97,13 +82,13 @@ struct
                 ++ (if sigExpWantsSameTabAsDec sigexp then
                       at tab ++ showSigExp tab sigexp
                     else
-                      showSigExpNewChild tab sigexp))
+                      withNewChild showSigExp tab sigexp))
               constraint
           ++ token eq
           ++ (if strExpWantsSameTabAsDec strexp then
                 at tab ++ showStrExp tab strexp
               else
-                showStrExpNewChild tab strexp)
+                withNewChild showStrExp tab strexp)
     in
       Seq.iterate op++
         (showFunctor true (functorr, Seq.nth elems 0))

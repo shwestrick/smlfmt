@@ -5,9 +5,7 @@
 
 structure PrettierPat:
 sig
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-  val showPat: tab -> Ast.Pat.t -> doc
+  val showPat: Ast.Pat.t PrettierUtil.shower
 end =
 struct
 
@@ -19,9 +17,6 @@ struct
   type tab = TabbedTokenDoc.tab
 
   fun showTy tab ty = PrettierTy.showTy tab ty
-
-  fun showTyNewChild tab ty =
-    newTab tab (fn inner => at inner ++ showTy inner ty)
 
   (* ====================================================================== *)
 
@@ -63,7 +58,7 @@ struct
                   token lab ++ token eq ++ showPatNewChild tab pat
               | LabAsPat {id, ty, aspat} =>
                   token id ++
-                  showOption (fn {colon, ty} => token colon ++ showTyNewChild tab ty) ty ++
+                  showOption (fn {colon, ty} => token colon ++ withNewChild showTy tab ty) ty ++
                   showOption (fn {ass, pat} => token ass ++ showPatNewChild tab pat) aspat
           in
             sequenceAt tab left delims right (Seq.map showPatRow elems)
@@ -75,12 +70,12 @@ struct
           ++ showPatNewChild tab atpat
 
       | Typed {pat, colon, ty} =>
-          showPat tab pat ++ token colon ++ showTyNewChild tab ty
+          showPat tab pat ++ token colon ++ withNewChild showTy tab ty
 
       | Layered {opp, id, ty, ass, pat} =>
           showOption token opp ++
           token id ++
-          showOption (fn {colon, ty} => token colon ++ showTyNewChild tab ty) ty ++
+          showOption (fn {colon, ty} => token colon ++ withNewChild showTy tab ty) ty ++
           token ass ++
           showPatNewChild tab pat
 
