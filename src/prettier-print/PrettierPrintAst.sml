@@ -14,6 +14,7 @@ struct
   open TabbedTokenDoc
   open PrettierUtil
   infix 2 ++
+  fun x ++ y = concat (x, y)
 
   fun showTy ty = PrettierTy.showTy ty
   fun showPat tab pat = PrettierPat.showPat tab pat

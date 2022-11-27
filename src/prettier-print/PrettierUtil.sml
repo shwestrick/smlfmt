@@ -3,7 +3,30 @@
   * See the file LICENSE for details.
   *)
 
-structure PrettierUtil =
+structure PrettierUtil:
+sig
+  type tab = TabbedTokenDoc.tab
+  type doc = TabbedTokenDoc.doc
+  type style = TabbedTokenDoc.style
+
+  val spaces: int -> doc
+  val sequenceAt: tab -> Token.t -> Token.t Seq.t -> Token.t -> doc Seq.t -> doc
+  val sequence: tab -> Token.t -> Token.t Seq.t -> Token.t -> doc Seq.t -> doc
+  val showSyntaxSeq: tab -> 'a Ast.SyntaxSeq.t -> ('a -> doc) -> doc
+  val showOption: ('a -> doc) -> 'a option -> doc
+  val showThingSimilarToLetInEnd: tab
+                               -> ( Token.t
+                                  * (bool * (unit -> doc))
+                                  * Token.t
+                                  * (unit -> doc)
+                                  * Token.t
+                                  )
+                               -> doc
+
+  type 'a shower = tab -> 'a -> doc
+  val withNewChild: 'a shower -> 'a shower
+  val withNewChildWithStyle: style -> 'a shower -> 'a shower
+end =
 struct
 
   open TabbedTokenDoc
@@ -58,5 +81,15 @@ struct
       ++ showB ()
       ++ at tab ++ token stop
     end
+
+
+  type 'a shower = tab -> 'a -> doc
+
+  fun withNewChild shower tab x =
+    newTab tab (fn inner => at inner ++ shower inner x)
+
+  fun withNewChildWithStyle style shower tab x =
+    newTabWithStyle tab (style, fn inner => at inner ++ shower inner x)
+
 
 end

@@ -16,6 +16,7 @@ struct
   open TabbedTokenDoc
   open PrettierUtil
   infix 2 ++
+  fun x ++ y = concat (x, y)
   type doc = TabbedTokenDoc.t
   type tab = TabbedTokenDoc.tab
 
