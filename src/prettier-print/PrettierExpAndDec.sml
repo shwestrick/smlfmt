@@ -403,18 +403,74 @@ struct
           showTypbind tab (typee, typbind)
 
       | DecDatatype {datatypee, datbind, withtypee} =>
-          let
-            val datbinds = showDatbind tab (datatypee, datbind)
-          in
-            case withtypee of
-              SOME {withtypee, typbind} =>
-                datbinds ++
-                at tab ++ showTypbind tab (withtypee, typbind)
+          showDatbind tab (datatypee, datbind)
+          ++ showOption (fn {withtypee, typbind} =>
+               at tab ++ showTypbind tab (withtypee, typbind))
+             withtypee
 
-            | _ => datbinds
+      | DecException {exceptionn, elems, delims} =>
+          let
+            fun showExbind exbind =
+              case exbind of
+                ExnNew {opp, id, arg} =>
+                  showOption token opp
+                  ++ token id
+                  ++ showOption (fn {off, ty} => token off ++ showTyNewChild tab ty) arg
+              | ExnReplicate {opp, left_id, eq, right_id} =>
+                  showOption token opp
+                  ++ token left_id
+                  ++ token eq
+                  ++ token (MaybeLongToken.getToken right_id)
+
+            fun showOne first (starter, elem) =
+              (if first then empty else at tab)
+              ++ token starter ++ showExbind elem
+          in
+            Seq.iterate op++
+              (showOne true (exceptionn, Seq.nth elems 0))
+              (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
           end
 
-      | _ => text "<dec>"
+      | DecReplicateDatatype
+          {left_datatypee, left_id, eq, right_datatypee, right_id} =>
+          Seq.iterate op++ empty
+            (Seq.map token (Seq.fromList
+              [ left_datatypee
+              , left_id
+              , eq
+              , right_datatypee
+              , MaybeLongToken.getToken right_id
+              ]))
+
+      | DecLocal {locall, left_dec, inn, right_dec, endd} =>
+          showThingSimilarToLetInEnd tab
+            ( locall
+            , (decIsEmpty left_dec, fn () => showDecNewChildWithStyle tab Indented left_dec)
+            , inn
+            , (fn () => showDecNewChildWithStyle tab Indented right_dec)
+            , endd
+            )
+
+      | DecAbstype {abstypee, datbind, withtypee, withh, dec, endd} =>
+          let
+            val datbinds =
+              showDatbind tab (abstypee, datbind)
+
+            val bottom =
+              at tab
+              ++ token withh
+              ++ showDecNewChildWithStyle tab Indented dec
+              ++ at tab
+              ++ token endd
+          in
+            showDatbind tab (abstypee, datbind)
+            ++ showOption (fn {withtypee, typbind} =>
+                 at tab ++ showTypbind tab (withtypee, typbind))
+               withtypee
+            ++ bottom
+          end
+
+      (* | _ => text "<dec>" *)
     end
 
 

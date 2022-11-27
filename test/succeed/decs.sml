@@ -27,11 +27,16 @@ and yep of string
 exception hello
 and goodbye;
 
-local
-  datatype Ya = Boi
-in
-val x: Ya = Boi
-end
+val _ =
+  let
+    local
+      datatype Ya = Boi
+    in
+    val x: Ya = Boi
+    end
+  in
+    ()
+  end
 
 open X Y Foo.Z
 
