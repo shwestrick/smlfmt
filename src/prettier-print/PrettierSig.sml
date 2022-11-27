@@ -5,11 +5,9 @@
 
 structure PrettierSig:
 sig
-  type doc = TabbedTokenDoc.t
-  type tab = TabbedTokenDoc.tab
-  val showSpec: tab -> Ast.Sig.spec -> doc
-  val showSigExp: tab -> Ast.Sig.sigexp -> doc
-  val showSigDec: tab -> Ast.Sig.sigdec -> doc
+  val showSpec: Ast.Sig.spec PrettierUtil.shower
+  val showSigExp: Ast.Sig.sigexp PrettierUtil.shower
+  val showSigDec: Ast.Sig.sigdec PrettierUtil.shower
 end =
 struct
 
