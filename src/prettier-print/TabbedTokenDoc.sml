@@ -34,7 +34,7 @@ struct
 
   (* Just need a unique name *)
   datatype tab =
-    Tab of {assignment: D.tab option ref, id: int, style: style, parent: tab}
+    Tab of {id: int, style: style, parent: tab}
   | Root
 
   val tabCounter = ref 0
@@ -44,7 +44,7 @@ struct
       val c = !tabCounter
     in
       tabCounter := c+1;
-      Tab {assignment = ref NONE, id = c, style = style, parent = parent}
+      Tab {id = c, style = style, parent = parent}
     end
 
 
@@ -67,18 +67,6 @@ struct
     case t of
       Tab {id=c, ...} => "[" ^ Int.toString c ^ "]"
     | Root => "[root]"
-
-
-  fun underlyingTab t =
-    case t of
-      Tab {assignment=tabref, ...} => Option.valOf (!tabref)
-    | Root => D.root
-
-
-  fun setUnderlyingTab t dt =
-    case t of
-      Tab {assignment=tabref, ...} => tabref := SOME dt
-    | Root => raise Fail "TabbedTokenDoc.setUnderlyingTab: Root"
 
 
   structure TabKey =
@@ -721,13 +709,14 @@ struct
       (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc after insertBlankLines: " ^ annToString doc) *)
       (* val doc = removeAnnotations doc *)
 
-      fun loop currentTab doc =
+      fun loop currentTab tabmap doc =
         case doc of
           AnnEmpty => D.empty
         | AnnNoSpace => D.empty
         | AnnNewline => D.newline
         | AnnSpace => D.space
-        | AnnConcat (d1, d2) => D.concat (loop currentTab d1, loop currentTab d2)
+        | AnnConcat (d1, d2) =>
+            D.concat (loop currentTab tabmap d1, loop currentTab tabmap d2)
         | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
         | AnnToken {tok, ...} =>
             let
@@ -737,25 +726,23 @@ struct
               doc
             end
         | AnnBreak {tab, ...} =>
-            D.at (underlyingTab tab)
+            D.at (TabDict.lookup tabmap tab)
         | AnnCond {tab, inactive, active} =>
-            D.cond (underlyingTab tab)
-              { inactive = loop currentTab inactive
-              , active = loop currentTab active
+            D.cond (TabDict.lookup tabmap tab)
+              { inactive = loop currentTab tabmap inactive
+              , active = loop currentTab tabmap active
               }
         | AnnNewTab {tab, doc} =>
             let
               val s = case style tab of Inplace => D.Inplace | Indented => D.Indented
             in
               D.newTab
-                (underlyingTab (valOf (parent tab)))
+                (TabDict.lookup tabmap (valOf (parent tab)))
                 (s, fn tab' =>
-                  ( setUnderlyingTab tab tab'
-                  ; loop tab' doc
-                  ))
+                  loop tab' (TabDict.insert tabmap (tab, tab')) doc)
             end
     in
-      loop D.root doc
+      loop D.root (TabDict.singleton (Root, D.root)) doc
     end
 
 end
