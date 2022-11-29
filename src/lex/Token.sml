@@ -95,6 +95,8 @@ sig
 
   val nextToken: token -> token option
   val prevToken: token -> token option
+  val nextTokenNotCommentOrWhitespace: token -> token option
+  val prevTokenNotCommentOrWhitespace: token -> token option
   val commentsBefore: token -> token Seq.t
   val commentsAfter: token -> token Seq.t
   val commentsOrWhitespaceBefore: token -> token Seq.t
@@ -723,6 +725,24 @@ struct
       SOME {idx = i-1, context = context}
     else
       NONE
+
+  fun prevTokenNotCommentOrWhitespace tok =
+    case prevToken tok of
+      NONE => NONE
+    | SOME t' =>
+        if isCommentOrWhitespace t' then
+          prevTokenNotCommentOrWhitespace t'
+        else
+          SOME t'
+
+  fun nextTokenNotCommentOrWhitespace tok =
+    case nextToken tok of
+      NONE => NONE
+    | SOME t' =>
+        if isCommentOrWhitespace t' then
+          nextTokenNotCommentOrWhitespace t'
+        else
+          SOME t'
 
   fun commentsOrWhitespaceBefore tok =
     let

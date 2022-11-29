@@ -518,6 +518,12 @@ struct
         if not debug then ()
         else print (s ^ "\n")
 
+      fun isLast tok =
+        not (Option.isSome (Token.nextTokenNotCommentOrWhitespace tok))
+
+      fun commentsToDocs atflow cs =
+        Seq.map (fn c => AnnToken {at = atflow, tok=c}) cs
+
       fun loop doc =
         case doc of
           AnnEmpty => doc
@@ -526,14 +532,26 @@ struct
         | AnnSpace => doc
         | AnnText _ => doc
         | AnnBreak {mightBeFirst, tab} => doc
+        | AnnConcat (d1, d2) =>
+            AnnConcat (loop d1, loop d2)
+        | AnnNewTab {tab, doc} =>
+            AnnNewTab {tab = tab, doc = loop doc}
+        | AnnCond {tab, inactive, active} =>
+            AnnCond {tab = tab, inactive = loop inactive, active = loop active}
+
         | AnnToken {at = NONE, tok} =>
             let
-              val comments =
-                Seq.map (fn c => AnnToken {at=NONE, tok=c})
-                  (Token.commentsBefore tok)
+              val commentsBefore =
+                commentsToDocs NONE (Token.commentsBefore tok)
+              val commentsAfter =
+                if not (isLast tok) then Seq.empty () else
+                commentsToDocs NONE (Token.commentsAfter tok)
+              val all =
+                Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
             in
-              AnnConcat (Seq.iterate AnnConcat AnnEmpty comments, doc)
+              Seq.iterate AnnConcat AnnEmpty all
             end
+
         | AnnToken {at = flow as SOME tabs, tok} =>
             let
               val tab =
@@ -544,33 +562,31 @@ struct
                  *)
                 List.hd (TabSet.listKeys tabs)
 
-              val maybeBreak =
-                AnnCond
-                  { tab = tab
-                  , inactive = AnnEmpty
-                  , active = AnnBreak {mightBeFirst=true, tab=tab}
-                  }
+              val atflow = SOME (TabSet.singleton tab)
 
-              fun oneComment c =
-                AnnConcat
-                  ( maybeBreak
-                  , AnnToken {at=flow, tok=c}
-                  )
+              val commentsBefore =
+                commentsToDocs atflow (Token.commentsBefore tok)
 
-              val comments =
-                Seq.map oneComment (Token.commentsBefore tok)
+              val commentsAfter =
+                if not (isLast tok) then Seq.empty () else
+                commentsToDocs atflow (Token.commentsAfter tok)
+
+              fun fixflow d =
+                case d of
+                  AnnToken {tok, ...} => AnnToken {at=flow, tok=tok}
+                | _ => raise Fail "TabbedTokenDoc.insertComments.loop.AnnToken: bug"
+
+              fun withBreak d =
+                AnnConcat (AnnBreak {mightBeFirst=false, tab=tab}, d)
+
+              val all =
+                Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
             in
-              AnnConcat
-                ( Seq.iterate AnnConcat AnnEmpty comments
-                , AnnConcat (maybeBreak, doc)
-                )
+              Seq.iterate AnnConcat
+                (fixflow (Seq.nth all 0))
+                (Seq.map withBreak (Seq.drop all 1))
             end
-        | AnnConcat (d1, d2) =>
-            AnnConcat (loop d1, loop d2)
-        | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab = tab, doc = loop doc}
-        | AnnCond {tab, inactive, active} =>
-            AnnCond {tab = tab, inactive = loop inactive, active = loop active}
+
     in
       loop doc
     end
@@ -732,9 +748,15 @@ struct
         | AnnConcat (d1, d2) =>
             D.concat (loop currentTab tabmap d1, loop currentTab tabmap d2)
         | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
-        | AnnToken {tok, ...} =>
+        | AnnToken {at, tok} =>
             let
-              val (shouldBeRigid, doc) = tokenToStringDoc currentTab tabWidth tok
+              val tab =
+                case at of
+                  NONE => currentTab
+                | SOME tabs =>
+                    TabDict.lookup tabmap (List.hd (TabSet.listKeys tabs))
+
+              val (shouldBeRigid, doc) = tokenToStringDoc tab tabWidth tok
             in
               (* TODO: rigidity (don't allow flattening) *)
               doc
