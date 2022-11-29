@@ -510,20 +510,75 @@ struct
   (* ====================================================================== *)
 
 
-  (* TODO: bug: inserting blank lines on 'at's is incorrect. You could
-   * have multiple 'at's back-to-back that are essentially no-ops...
-   *
-   * An idea for a better solution? For each token, compute which tab it is
-   * 'at', and insert the appropriate 'cond tab {active=newline, ...}'. To
-   * compute which tokens are 'at' tabs, we can flow each 'at tab' downstream
-   * until it hits token, text, or another 'at'. If it hits a token or text
-   * element, then that element is 'at' the tab.
-   *
-   * NOTE: This idea also seems like it would work for inserting comments.
-   * If a token is 'at' a tab, then we can insert the comment above
-   * it at the same tab. If a token is not at a tab, then we can insert the
-   * comment in-line before the token.
-   *)
+  (* TODO: insert comments after the final token, too. *)
+
+  fun insertComments debug (doc: anndoc) =
+    let
+      fun dbgprintln s =
+        if not debug then ()
+        else print (s ^ "\n")
+
+      fun loop doc =
+        case doc of
+          AnnEmpty => doc
+        | AnnNewline => doc
+        | AnnNoSpace => doc
+        | AnnSpace => doc
+        | AnnText _ => doc
+        | AnnBreak {mightBeFirst, tab} => doc
+        | AnnToken {at = NONE, tok} =>
+            let
+              val comments =
+                Seq.map (fn c => AnnToken {at=NONE, tok=c})
+                  (Token.commentsBefore tok)
+            in
+              AnnConcat (Seq.iterate AnnConcat AnnEmpty comments, doc)
+            end
+        | AnnToken {at = flow as SOME tabs, tok} =>
+            let
+              val tab =
+                (* TODO: what to do when there are multiple possible tabs
+                 * this token could be at? Here we just pick the first
+                 * of these in the set, and usually it seems each token
+                 * is only ever 'at' one possible tab...
+                 *)
+                List.hd (TabSet.listKeys tabs)
+
+              val maybeBreak =
+                AnnCond
+                  { tab = tab
+                  , inactive = AnnEmpty
+                  , active = AnnBreak {mightBeFirst=true, tab=tab}
+                  }
+
+              fun oneComment c =
+                AnnConcat
+                  ( maybeBreak
+                  , AnnToken {at=flow, tok=c}
+                  )
+
+              val comments =
+                Seq.map oneComment (Token.commentsBefore tok)
+            in
+              AnnConcat
+                ( Seq.iterate AnnConcat AnnEmpty comments
+                , AnnConcat (maybeBreak, doc)
+                )
+            end
+        | AnnConcat (d1, d2) =>
+            AnnConcat (loop d1, loop d2)
+        | AnnNewTab {tab, doc} =>
+            AnnNewTab {tab = tab, doc = loop doc}
+        | AnnCond {tab, inactive, active} =>
+            AnnCond {tab = tab, inactive = loop inactive, active = loop active}
+    in
+      loop doc
+    end
+
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+  (* ====================================================================== *)
+
   fun insertBlankLines debug (doc: anndoc) =
     let
       fun dbgprintln s =
@@ -660,6 +715,7 @@ struct
 
       val doc = annotate doc
       val doc = flowAts debug doc
+      val doc = insertComments debug doc
       (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before ensureSpaces: " ^ annToString doc) *)
       val doc = ensureSpaces debug doc
       (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before insertBlankLines: " ^ annToString doc) *)
