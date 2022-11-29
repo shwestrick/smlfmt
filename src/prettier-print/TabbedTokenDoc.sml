@@ -509,9 +509,6 @@ struct
   (* ====================================================================== *)
   (* ====================================================================== *)
 
-
-  (* TODO: insert comments after the final token, too. *)
-
   fun insertComments debug (doc: anndoc) =
     let
       fun dbgprintln s =
@@ -595,6 +592,28 @@ struct
   (* ====================================================================== *)
   (* ====================================================================== *)
 
+  (* TODO: bug: this doesn't insert a blank line where it should in this case:
+   *
+   *   <token1>
+   *   ++
+   *   newTab root (fn inner =>
+   *     at(root) ++
+   *     at(inner) ++ <token2>
+   *   )
+   *
+   * The flow analysis will observe that <token2> is at 'inner'. But it's
+   * possible that 'inner' is inactive and 'root' is active. Visually, this
+   * will look like <token2> is below <token1>, and therefore blank lines
+   * should be inserted between if necessary.
+   *
+   * However, our technique for inserting blank lines (currently) is to
+   * insert a conditional newline which is active only if the flowval tab
+   * is active.
+   *
+   * In this particular example, the fix would be to conditionally newline
+   * if either 'root' is active OR 'inner' is active. But how to compute
+   * that?
+   *)
   fun insertBlankLines debug (doc: anndoc) =
     let
       fun dbgprintln s =
@@ -754,6 +773,8 @@ struct
                 case at of
                   NONE => currentTab
                 | SOME tabs =>
+                    (* TODO: what to do when there are multiple possible
+                     * tabs here? *)
                     TabDict.lookup tabmap (List.hd (TabSet.listKeys tabs))
 
               val (shouldBeRigid, doc) = tokenToStringDoc tab tabWidth tok
