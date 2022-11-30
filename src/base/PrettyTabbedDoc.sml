@@ -36,7 +36,7 @@ sig
   val text: CustomString.t -> doc
   val concat: doc * doc -> doc
 
-  datatype style = Inplace | Indented
+  datatype style = Inplace | Indented | RigidInplace | RigidIndented
 
   type tab
   val root: tab
@@ -64,7 +64,7 @@ struct
   (* ====================================================================== *)
 
 
-  datatype style = Inplace | Indented
+  datatype style = Inplace | Indented | RigidInplace | RigidIndented
 
 
   structure Tab =
@@ -105,8 +105,20 @@ struct
 
     fun style t =
       case t of
-        Root => Indented
+        Root => Inplace
       | Tab {style=s, ...} => s
+
+    fun isRigid t =
+      case style t of
+        RigidInplace => true
+      | RigidIndented => true
+      | _ => false
+
+    fun isInplace t =
+      case style t of
+        RigidInplace => true
+      | Inplace => true
+      | _ => false
 
     fun getState t =
       case t of
@@ -934,28 +946,33 @@ struct
             in
               case Tab.getState tab of
                 Tab.Usable Tab.Flattened =>
-                  LS (dbgState, tab, lnStart, col, acc)
-              | Tab.Usable (Tab.Activated NONE) =>
-                  (case Tab.style tab of
-                    Indented =>
-                      let
-                        val i = indentWidth + parentTabCol tab
-                      in
-                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)))
-                        ; goto i
-                        )
-                      end
-                  | Inplace =>
-                      if col < parentTabCol tab then
-                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
-                        ; goto (parentTabCol tab)
-                        )
-                      else
-                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                        ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
-                        ))
+                  if Tab.isRigid tab then
+                    raise DoPromote (valOf (oldestPromotableParent tab))
+                  else
+                    LS (dbgState, tab, lnStart, col, acc)
+
               | Tab.Usable (Tab.Activated (SOME i)) =>
                   goto i
+
+              | Tab.Usable (Tab.Activated NONE) =>
+                  if Tab.isInplace tab then
+                    if col < parentTabCol tab then
+                      ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
+                      ; goto (parentTabCol tab)
+                      )
+                    else
+                      ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
+                      ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
+                      )
+                  else
+                    let
+                      val i = indentWidth + parentTabCol tab
+                    in
+                      ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)))
+                      ; goto i
+                      )
+                    end
+
               | _ =>
                   raise Fail "PrettyTabbedDoc.pretty.At: bad tab"
             end

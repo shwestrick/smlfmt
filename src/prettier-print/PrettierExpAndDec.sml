@@ -71,6 +71,7 @@ struct
 
 
   fun showDatbind tab (front, datbind: Ast.Exp.datbind as {elems, delims}) =
+    newTab tab (fn tab =>
     let
       fun showCon (starter, {opp, id, arg}) =
         at tab ++ starter ++
@@ -81,7 +82,8 @@ struct
       fun showOne first (starter, {tyvars, tycon, eq, elems, delims}) =
         let
           val initial =
-            (if first then empty else at tab) ++
+            (* (if first then empty else at tab) ++ *)
+            at tab ++
             token starter ++
             showSyntaxSeq token tab tyvars ++
             token tycon ++
@@ -99,7 +101,7 @@ struct
       Seq.iterate op++
         (showOne true (front, Seq.nth elems 0))
         (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
-    end
+    end)
 
   (* ====================================================================== *)
 
@@ -199,19 +201,23 @@ struct
           end)
 
       | Case {casee, exp=expTop, off, elems, delims} =>
-          newTab tab (fn inner =>
+          newTab tab (fn inner1 =>
             let
               fun showBranch {pat, arrow, exp} =
-                withNewChild showPat inner pat ++ token arrow ++ withNewChild showExp inner exp
+                withNewChild showPat inner1 pat ++ token arrow ++ withNewChild showExp inner1 exp
               fun mk (delim, branch) =
-                at inner
+                at inner1
                 ++ (case delim of
                      SOME d => token d
-                   | _ => cond inner {active = space ++ space, inactive = empty})
+                   | _ => cond inner1 {active = space ++ space, inactive = empty})
                 ++ showBranch branch
             in
-              at inner
-              ++ token casee ++ withNewChild showExp inner expTop ++ token off
+              at inner1
+              ++ token casee ++
+              newTab inner1 (fn inner2 =>
+                at inner2 ++ showExp inner2 expTop
+                ++ cond inner2 {inactive = empty, active = at inner1})
+              ++ token off
               ++ Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                    (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
             end)
@@ -318,16 +324,15 @@ struct
           ++ (if i = numExps - 1 then empty else nospace ++ token (d i)))
         exps
     in
-      showThingSimilarToLetInEnd outerTab
-        { lett = lett
-        , isEmpty1 = decIsEmpty dec
-        , doc1 = withNewChildWithStyle Indented showDec outerTab dec
-        , inn = inn
-        , doc2 =
-            newTabWithStyle outerTab (Indented, fn innerTab =>
-              Seq.iterate op++ empty (withDelims innerTab))
-        , endd = endd
-        }
+      newTabWithStyle outerTab (Indented, fn inner =>
+        showThingSimilarToLetInEnd outerTab
+          { lett = lett
+          , isEmpty1 = decIsEmpty dec
+          , doc1 = at inner ++ showDec inner dec
+          , inn = inn
+          , doc2 = Seq.iterate op++ empty (withDelims inner)
+          , endd = endd
+          })
     end
 
 

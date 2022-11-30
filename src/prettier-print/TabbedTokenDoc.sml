@@ -15,7 +15,7 @@ sig
   val text: string -> doc
   val concat: doc * doc -> doc
 
-  datatype style = Inplace | Indented
+  datatype style = Inplace | Indented | RigidInplace | RigidIndented
 
   type tab
   val root: tab
@@ -30,7 +30,7 @@ struct
 
   structure D = TabbedStringDoc
 
-  datatype style = Inplace | Indented
+  datatype style = Inplace | Indented | RigidInplace | RigidIndented
 
   (* Just need a unique name *)
   datatype tab =
@@ -518,8 +518,8 @@ struct
       fun isLast tok =
         not (Option.isSome (Token.nextTokenNotCommentOrWhitespace tok))
 
-      fun commentsToDocs atflow cs =
-        Seq.map (fn c => AnnToken {at = atflow, tok=c}) cs
+      fun commentsToDocs cs =
+        Seq.map (fn c => AnnToken {at=NONE, tok=c}) cs
 
       fun loop doc =
         case doc of
@@ -539,10 +539,10 @@ struct
         | AnnToken {at = NONE, tok} =>
             let
               val commentsBefore =
-                commentsToDocs NONE (Token.commentsBefore tok)
+                commentsToDocs (Token.commentsBefore tok)
               val commentsAfter =
                 if not (isLast tok) then Seq.empty () else
-                commentsToDocs NONE (Token.commentsAfter tok)
+                commentsToDocs (Token.commentsAfter tok)
               val all =
                 Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
             in
@@ -559,19 +559,12 @@ struct
                  *)
                 List.hd (TabSet.listKeys tabs)
 
-              val atflow = SOME (TabSet.singleton tab)
-
               val commentsBefore =
-                commentsToDocs atflow (Token.commentsBefore tok)
+                commentsToDocs (Token.commentsBefore tok)
 
               val commentsAfter =
                 if not (isLast tok) then Seq.empty () else
-                commentsToDocs atflow (Token.commentsAfter tok)
-
-              fun fixflow d =
-                case d of
-                  AnnToken {tok, ...} => AnnToken {at=flow, tok=tok}
-                | _ => raise Fail "TabbedTokenDoc.insertComments.loop.AnnToken: bug"
+                commentsToDocs (Token.commentsAfter tok)
 
               fun withBreak d =
                 AnnConcat (AnnBreak {mightBeFirst=false, tab=tab}, d)
@@ -580,12 +573,12 @@ struct
                 Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
             in
               Seq.iterate AnnConcat
-                (fixflow (Seq.nth all 0))
+                (Seq.nth all 0)
                 (Seq.map withBreak (Seq.drop all 1))
             end
 
     in
-      loop doc
+      flowAts debug (loop doc)
     end
 
   (* ====================================================================== *)
@@ -730,7 +723,7 @@ struct
         (false, D.text t)
       else
         ( true
-        , D.newTab currentTab (D.Inplace, fn tab =>
+        , D.newTab currentTab (D.RigidInplace, fn tab =>
             Seq.iterate
               D.concat
               D.empty
@@ -791,7 +784,12 @@ struct
               }
         | AnnNewTab {tab, doc} =>
             let
-              val s = case style tab of Inplace => D.Inplace | Indented => D.Indented
+              val s =
+                case style tab of
+                  Inplace => D.Inplace
+                | Indented => D.Indented
+                | RigidInplace => D.RigidInplace
+                | RigidIndented => D.RigidIndented
             in
               D.newTab
                 (TabDict.lookup tabmap (valOf (parent tab)))
