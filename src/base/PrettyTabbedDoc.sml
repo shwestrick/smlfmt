@@ -673,8 +673,8 @@ struct
           [] => acc
         | Item.Spaces _ :: items' =>
             loopStrip acc items'
-        | x :: items' =>
-            loopKeep (x :: acc) items'
+        | _ =>
+            loopKeep acc items
 
       and loopKeep acc items =
         case items of
