@@ -168,7 +168,11 @@ struct
               case constraint of
                 NONE => empty
               | SOME {colon, sigexp} =>
-                  token colon
+                  (if Token.getClass colon = Token.Reserved Token.ColonArrow then
+                     space
+                   else
+                     nospace)
+                  ++ token colon
                   ++ (if sigExpWantsSameTabAsDec sigexp then
                         at tab ++ showSigExp tab sigexp
                       else

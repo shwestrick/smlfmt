@@ -121,6 +121,7 @@ sig
   val isValueIdentifier: token -> bool
   val isValueIdentifierNoEqual: token -> bool
   val isLongIdentifier: token -> bool
+  val isSymbolicIdentifier: token -> bool
   val isMaybeLongIdentifier: token -> bool
   val isStrIdentifier: token -> bool
   val isMaybeLongStrIdentifier: token -> bool
@@ -495,6 +496,19 @@ struct
     | Reserved Equal => true (** annoying edge case *)
     | MLtonReserved => true (** another special case... *)
     | _ => false
+
+  fun isSymbolicIdentifier tok =
+    let
+      val src = getSource tok
+      val isSymb =
+        LexUtils.isSymbolic (Source.nth src (Source.length src - 1))
+    in
+      case getClass tok of
+        Identifier => isSymb
+      | LongIdentifier => isSymb
+      | Reserved Equal => true (* annoying edge case *)
+      | _ => false
+    end
 
   (** alphanumeric, not starting with prime *)
   fun isStrIdentifier tok =

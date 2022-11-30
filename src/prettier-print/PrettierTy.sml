@@ -44,7 +44,9 @@ struct
       | Record {left, elems, delims, right} =>
           let
             fun showElem {lab, colon, ty} =
-              token lab ++ token colon ++ showTy tab ty
+              token lab ++
+              (if Token.isSymbolicIdentifier lab then empty else nospace)
+              ++ token colon ++ showTy tab ty
           in
             showSequence tab
               { openn = left

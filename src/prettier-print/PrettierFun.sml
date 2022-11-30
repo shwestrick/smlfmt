@@ -66,7 +66,10 @@ struct
     case fa of
       Ast.Fun.ArgSpec spec => withNewChild showSpec tab spec
     | Ast.Fun.ArgIdent {strid, colon, sigexp} =>
-        token strid ++ token colon ++ withNewChild showSigExp tab sigexp
+        (* NOTE: nospace before the colon should be safe here, because
+         * structure identifiers cannot be symbolic *)
+        token strid ++ nospace ++ token colon
+        ++ withNewChild showSigExp tab sigexp
 
   fun showFunDec tab (Ast.Fun.DecFunctor {functorr, elems, delims}) =
     let
@@ -87,7 +90,11 @@ struct
               ++ token rparen)
           ++ showOption
               (fn {colon, sigexp} =>
-                token colon
+                (if Token.getClass colon = Token.Reserved Token.ColonArrow then
+                   space
+                 else
+                   nospace)
+                ++ token colon
                 ++ (if sigExpWantsSameTabAsDec sigexp then
                       at tab ++ showSigExp tab sigexp
                     else

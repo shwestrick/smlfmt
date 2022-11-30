@@ -17,6 +17,25 @@ struct
 
   (* ====================================================================== *)
 
+  fun patBeforeColonNeedsSpace pat =
+    let
+      open Ast.Pat
+    in
+      case pat of
+        Wild _ => false
+      | Const _ => false
+      | Unit _ => false
+      | Ident {id, ...} =>
+          Token.isSymbolicIdentifier (MaybeLongToken.getToken id)
+      | Parens _ => false
+      | Tuple _ => false
+      | List _ => false
+      | Record _ => false
+      | _ => true
+    end
+
+  (* ====================================================================== *)
+
   fun showPat tab pat =
     let
       open Ast.Pat
@@ -62,8 +81,11 @@ struct
                   token lab ++ token eq ++ withNewChild showPat tab pat
               | LabAsPat {id, ty, aspat} =>
                   token id ++
-                  showOption (fn {colon, ty} => token colon ++ withNewChild showTy tab ty) ty ++
-                  showOption (fn {ass, pat} => token ass ++ withNewChild showPat tab pat) aspat
+                  showOption (fn {colon, ty} =>
+                    (if Token.isSymbolicIdentifier id then space else nospace)
+                    ++ token colon ++ withNewChild showTy tab ty) ty ++
+                  showOption (fn {ass, pat} =>
+                    token ass ++ withNewChild showPat tab pat) aspat
           in
             showSequence tab
               { openn = left
@@ -79,12 +101,16 @@ struct
           ++ withNewChild showPat tab atpat
 
       | Typed {pat, colon, ty} =>
-          showPat tab pat ++ token colon ++ withNewChild showTy tab ty
+          showPat tab pat ++
+          (if patBeforeColonNeedsSpace pat then space else nospace)
+          ++ token colon ++ withNewChild showTy tab ty
 
       | Layered {opp, id, ty, ass, pat} =>
           showOption token opp ++
           token id ++
-          showOption (fn {colon, ty} => token colon ++ withNewChild showTy tab ty) ty ++
+          showOption (fn {colon, ty} =>
+            (if Token.isSymbolicIdentifier id then space else nospace)
+            ++ token colon ++ withNewChild showTy tab ty) ty ++
           token ass ++
           withNewChild showPat tab pat
 
