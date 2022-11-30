@@ -79,10 +79,9 @@ struct
         token id ++
         showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
 
-      fun showOne first (starter, {tyvars, tycon, eq, elems, delims}) =
+      fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
         let
           val initial =
-            (* (if first then empty else at tab) ++ *)
             at tab ++
             token starter ++
             showSyntaxSeq token tab tyvars ++
@@ -99,8 +98,8 @@ struct
         end
     in
       Seq.iterate op++
-        (showOne true (front, Seq.nth elems 0))
-        (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+        (showOne (front, Seq.nth elems 0))
+        (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end)
 
   (* ====================================================================== *)
