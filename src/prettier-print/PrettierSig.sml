@@ -46,14 +46,14 @@ struct
     newTab tab (fn tab =>
     let
       fun showCon (starter, {vid, arg}) =
-        at tab ++ starter ++
+        goto tab ++ starter ++
         token vid ++
         showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
 
       fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
         let
           val initial =
-            at tab ++
+            goto tab ++
             token starter ++
             showSyntaxSeq token tab tyvars ++
             token tycon ++
@@ -86,7 +86,7 @@ struct
       | Val {vall, elems, delims} =>
           let
             fun showOne first (starter, {vid, colon, ty}) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ token starter ++ token vid ++
               (if Token.isSymbolicIdentifier vid then space else nospace)
               ++ token colon ++ withNewChild showTy tab ty
@@ -99,7 +99,7 @@ struct
       | Type {typee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon}) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ token starter
               ++ showSyntaxSeq token tab tyvars
               ++ token tycon
@@ -112,7 +112,7 @@ struct
       | TypeAbbreviation {typee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon, eq, ty}) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ token starter
               ++ showSyntaxSeq token tab tyvars
               ++ token tycon
@@ -127,7 +127,7 @@ struct
       | Eqtype {eqtypee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon}) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ token starter
               ++ showSyntaxSeq token tab tyvars
               ++ token tycon
@@ -140,7 +140,7 @@ struct
       | Multiple {elems, delims} =>
           let
             fun showOne first (elem: spec, delim: Token.t option) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ showSpec tab elem
               ++ showOption (fn d => nospace ++ token d) delim
 
@@ -154,7 +154,7 @@ struct
       | Exception {exceptionn, elems, delims} =>
           let
             fun showOne first (starter, {vid, arg}) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ token starter
               ++ token vid
               ++ showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
@@ -167,14 +167,14 @@ struct
       | Structure {structuree, elems, delims} =>
           let
             fun showOne first (starter, {id, colon, sigexp}) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ token starter
               ++ token id
               (* NOTE: nospace should be safe here, because structure
                * identifiers cannot be symbolic *)
               ++ nospace ++ token colon
               ++ (if sigExpWantsSameTabAsDec sigexp then
-                    at tab ++ showSigExp tab sigexp
+                    goto tab ++ showSigExp tab sigexp
                   else
                     withNewChild showSigExp tab sigexp)
           in
@@ -195,12 +195,12 @@ struct
           newTab tab (fn inner =>
             let
               fun showOne (delim, elem) =
-                at inner
+                goto inner
                 ++ token delim (** this is an '=' *)
                 ++ token (MaybeLongToken.getToken elem)
 
               val first =
-                at inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
+                goto inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
 
               val stuff =
                 Seq.iterate op++
@@ -208,7 +208,7 @@ struct
                   (Seq.zipWith showOne (delims, Seq.drop elems 1))
             in
               showSpec tab spec
-              ++ at tab
+              ++ goto tab
               ++ token sharingg
               ++ stuff
             end)
@@ -217,12 +217,12 @@ struct
           newTab tab (fn inner =>
             let
               fun showOne (delim, elem) =
-                at inner
+                goto inner
                 ++ token delim (** this is an '=' *)
                 ++ token (MaybeLongToken.getToken elem)
 
               val first =
-                at inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
+                goto inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
 
               val stuff =
                 Seq.iterate op++
@@ -230,7 +230,7 @@ struct
                   (Seq.zipWith showOne (delims, Seq.drop elems 1))
             in
               showSpec tab spec
-              ++ at tab
+              ++ goto tab
               ++ token sharingg
               ++ token typee
               ++ stuff
@@ -242,7 +242,7 @@ struct
           ++ token left_id
           ++ token eq
           ++ newTab tab (fn inner =>
-              at inner
+              goto inner
               ++ token right_datatypee
               ++ token (MaybeLongToken.getToken right_id))
 
@@ -262,15 +262,15 @@ struct
       | Spec {sigg, spec, endd} =>
           newTabWithStyle tab (Indented, fn inner =>
             token sigg
-            ++ at inner
+            ++ goto inner
             ++ showSpec inner spec
-            ++ cond inner {inactive = empty, active = at tab}
+            ++ cond inner {inactive = empty, active = goto tab}
             ++ token endd)
 
       | WhereType {sigexp, elems} =>
           let
             fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
-              at tab
+              goto tab
               ++ token wheree (** this could be 'and' *)
               ++ token typee
               ++ showSyntaxSeq token tab tyvars
@@ -288,12 +288,12 @@ struct
   and showSigDec tab (Ast.Sig.Signature {signaturee, elems, delims}) =
     let
       fun showOne first (starter, {ident, eq, sigexp}) =
-        (if first then empty else at tab)
+        (if first then empty else goto tab)
         ++ token starter
         ++ token ident
         ++ token eq
         ++ (if sigExpWantsSameTabAsDec sigexp then
-              at tab ++ showSigExp tab sigexp
+              goto tab ++ showSigExp tab sigexp
             else
               withNewChild showSigExp tab sigexp)
     in

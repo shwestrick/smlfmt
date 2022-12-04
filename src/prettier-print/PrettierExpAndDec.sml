@@ -57,7 +57,7 @@ struct
   fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
     let
       fun showOne first (starter, {tyvars, tycon, ty, eq}) =
-        (if first then empty else at tab) ++
+        (if first then empty else goto tab) ++
         token starter ++
         showSyntaxSeq token tab tyvars ++
         token tycon ++
@@ -74,7 +74,7 @@ struct
     newTab tab (fn tab =>
     let
       fun showCon (starter, {opp, id, arg}) =
-        at tab ++ starter ++
+        goto tab ++ starter ++
         showOption token opp ++
         token id ++
         showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
@@ -82,7 +82,7 @@ struct
       fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
         let
           val initial =
-            at tab ++
+            goto tab ++
             token starter ++
             showSyntaxSeq token tab tyvars ++
             token tycon ++
@@ -188,13 +188,13 @@ struct
           newTab tab (fn inner => (* do we need the newTab here? *)
           let
             fun mk (delim, {pat, arrow, exp}) =
-              at inner
+              goto inner
               ++ cond inner {inactive=empty, active=space} ++ token delim
               ++ withNewChild showPat inner pat ++ token arrow
               ++ withNewChild showExp inner exp
 
             val {pat, arrow, exp} = Seq.nth elems 0
-            val initial = at inner ++ token fnn ++ withNewChild showPat inner pat ++ token arrow ++ withNewChild showExp inner exp
+            val initial = goto inner ++ token fnn ++ withNewChild showPat inner pat ++ token arrow ++ withNewChild showExp inner exp
           in
             Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
           end)
@@ -205,17 +205,17 @@ struct
               fun showBranch {pat, arrow, exp} =
                 withNewChild showPat inner1 pat ++ token arrow ++ withNewChild showExp inner1 exp
               fun mk (delim, branch) =
-                at inner1
+                goto inner1
                 ++ (case delim of
                      SOME d => token d
                    | _ => cond inner1 {active = space ++ space, inactive = empty})
                 ++ showBranch branch
             in
-              at inner1
+              goto inner1
               ++ token casee ++
               newTab inner1 (fn inner2 =>
-                at inner2 ++ showExp inner2 expTop
-                ++ cond inner2 {inactive = empty, active = at inner1})
+                goto inner2 ++ showExp inner2 expTop
+                ++ cond inner2 {inactive = empty, active = goto inner1})
               ++ token off
               ++ Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                    (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
@@ -234,10 +234,10 @@ struct
           newTab tab (fn inner1 =>
           newTab tab (fn inner2 =>
             token whilee ++
-            at inner1 ++ showExp inner1 exp1 ++
-            cond inner1 {inactive = empty, active = at tab} ++
+            goto inner1 ++ showExp inner1 exp1 ++
+            cond inner1 {inactive = empty, active = goto tab} ++
             token doo ++
-            at inner2 ++ showExp inner2 exp2))
+            goto inner2 ++ showExp inner2 exp2))
 
       | Raise {raisee, exp} =>
           token raisee ++ withNewChild showExp tab exp
@@ -248,14 +248,14 @@ struct
               fun showBranch {pat, arrow, exp} =
                 withNewChild showPat inner pat ++ token arrow ++ withNewChild showExp inner exp
               fun mk (delim, branch) =
-                at inner
+                goto inner
                 ++ (case delim of
                      SOME d => token d
                    | _ => cond inner {active = space ++ space, inactive = empty})
                 ++ showBranch branch
             in
               showExp tab expLeft ++
-              at inner ++
+              goto inner ++
               token handlee ++
               Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                 (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
@@ -283,8 +283,8 @@ struct
                 NONE
               else
                 SOME
-                  (at tab ++ showInfixedExpAt inner (ll, lt, lr)
-                  ++ at inner ++ token t ++ withNewChild showExp inner r)
+                  (goto tab ++ showInfixedExpAt inner (ll, lt, lr)
+                  ++ goto inner ++ token t ++ withNewChild showExp inner r)
 
         fun tryRight () =
           case tryViewAsInfix r of
@@ -294,11 +294,11 @@ struct
                 NONE
               else
                 SOME
-                  (showExp tab l ++ at inner ++ token t
+                  (showExp tab l ++ goto inner ++ token t
                   ++ showInfixedExpAt inner (rl, rt, rr))
 
         fun normal () =
-          at tab ++ showExp inner l ++ at inner ++ token t ++ withNewChild showExp inner r
+          goto tab ++ showExp inner l ++ goto inner ++ token t ++ withNewChild showExp inner r
       in
         case tryLeft () of
           SOME x => x
@@ -318,7 +318,7 @@ struct
       fun d i = Seq.nth delims i
       fun withDelims innerTab =
         Seq.mapIdx (fn (i, e) =>
-          at innerTab
+          goto innerTab
           ++ showExp innerTab e
           ++ (if i = numExps - 1 then empty else nospace ++ token (d i)))
         exps
@@ -327,7 +327,7 @@ struct
         showThingSimilarToLetInEnd outerTab
           { lett = lett
           , isEmpty1 = decIsEmpty dec
-          , doc1 = at inner ++ showDec inner dec
+          , doc1 = goto inner ++ showDec inner dec
           , inn = inn
           , doc2 = Seq.iterate op++ empty (withDelims inner)
           , endd = endd
@@ -342,7 +342,7 @@ struct
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
 
-      fun breakShowAt tab e = at tab ++ showExp tab e
+      fun breakShowAt tab e = goto tab ++ showExp tab e
 
       fun f i =
         let
@@ -350,10 +350,10 @@ struct
         in
           token iff ++
           breakShowAt inner1 exp1 ++
-          cond inner1 {inactive = empty, active = at outer} ++
+          cond inner1 {inactive = empty, active = goto outer} ++
           token thenn ++
           breakShowAt inner2 exp2 ++
-          at outer ++ token elsee
+          goto outer ++ token elsee
         end
     in
       Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
@@ -372,7 +372,7 @@ struct
       | DecVal {vall, tyvars, elems, delims} =>
           let
             fun mk (delim, {recc, pat, eq, exp}) =
-              at tab ++ token delim
+              goto tab ++ token delim
               ++ showOption token recc
               ++ withNewChild showPat tab pat
               ++ token eq
@@ -410,7 +410,7 @@ struct
       | DecMultiple {elems, delims} =>
           let
             fun mk first (elem, delim) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ showDec tab elem
               ++ showOption (fn d => nospace ++ token d) delim
 
@@ -432,7 +432,7 @@ struct
       | DecDatatype {datatypee, datbind, withtypee} =>
           showDatbind tab (datatypee, datbind)
           ++ showOption (fn {withtypee, typbind} =>
-               at tab ++ showTypbind tab (withtypee, typbind))
+               goto tab ++ showTypbind tab (withtypee, typbind))
              withtypee
 
       | DecException {exceptionn, elems, delims} =>
@@ -450,7 +450,7 @@ struct
                   ++ token (MaybeLongToken.getToken right_id)
 
             fun showOne first (starter, elem) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ token starter ++ showExbind elem
           in
             Seq.iterate op++
@@ -485,15 +485,15 @@ struct
               showDatbind tab (abstypee, datbind)
 
             val bottom =
-              at tab
+              goto tab
               ++ token withh
               ++ withNewChildWithStyle Indented showDec tab dec
-              ++ at tab
+              ++ goto tab
               ++ token endd
           in
             showDatbind tab (abstypee, datbind)
             ++ showOption (fn {withtypee, typbind} =>
-                 at tab ++ showTypbind tab (withtypee, typbind))
+                 goto tab ++ showTypbind tab (withtypee, typbind))
                withtypee
             ++ bottom
           end
@@ -525,7 +525,7 @@ struct
         token colon ++ withNewChild showTy tab ty
 
       fun showClause isVeryTop isFirst (front, {fname_args, ty, eq, exp}) =
-        (if isVeryTop then empty else at tab)
+        (if isVeryTop then empty else goto tab)
         ++ (if isFirst then empty else cond tab {active=space++space, inactive=empty})
         ++ front
         ++ showFNameArgs fname_args

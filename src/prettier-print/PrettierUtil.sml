@@ -48,10 +48,10 @@ struct
   type 'a shower = tab -> 'a -> doc
 
   fun withNewChild shower tab x =
-    newTab tab (fn inner => at inner ++ shower inner x)
+    newTab tab (fn inner => goto inner ++ shower inner x)
 
   fun withNewChildWithStyle style shower tab x =
-    newTabWithStyle tab (style, fn inner => at inner ++ shower inner x)
+    newTabWithStyle tab (style, fn inner => goto inner ++ shower inner x)
 
 
   fun spaces n =
@@ -64,11 +64,11 @@ struct
     else
       let
         val top = token openn ++ (cond tab {inactive = nospace, active = space}) ++ Seq.nth elems 0
-        fun f (delim, x) = nospace ++ at tab ++ token delim ++ x
+        fun f (delim, x) = nospace ++ goto tab ++ token delim ++ x
       in
         Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
         ++
-        nospace ++ at tab ++ token close
+        nospace ++ goto tab ++ token close
       end
 
 
@@ -97,10 +97,10 @@ struct
       (if isEmpty1 then
           empty
         else
-          doc1 ++ at tab)
+          doc1 ++ goto tab)
       ++ token inn
       ++ doc2
-      ++ at tab ++ token endd
+      ++ goto tab ++ token endd
     end
 
 

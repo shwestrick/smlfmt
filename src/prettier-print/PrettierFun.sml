@@ -77,14 +77,14 @@ struct
             first
             (starter, {funid, lparen, funarg, rparen, constraint, eq, strexp})
         =
-          (if first then empty else at tab)
+          (if first then empty else goto tab)
           ++ token starter ++ token funid
           ++ (if funArgWantsSpaceBefore funarg then
                 space
               else
                 nospace)
           ++ newTab tab (fn inner =>
-              at inner
+              goto inner
               ++ token lparen ++ nospace
               ++ showFunArg inner funarg ++ nospace
               ++ token rparen)
@@ -96,13 +96,13 @@ struct
                    nospace)
                 ++ token colon
                 ++ (if sigExpWantsSameTabAsDec sigexp then
-                      at tab ++ showSigExp tab sigexp
+                      goto tab ++ showSigExp tab sigexp
                     else
                       withNewChild showSigExp tab sigexp))
               constraint
           ++ token eq
           ++ (if strExpWantsSameTabAsDec strexp then
-                at tab ++ showStrExp tab strexp
+                goto tab ++ showStrExp tab strexp
               else
                 withNewChild showStrExp tab strexp)
     in

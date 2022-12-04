@@ -21,7 +21,7 @@ sig
   val root: tab
   val newTabWithStyle: tab -> style * (tab -> doc) -> doc
   val newTab: tab -> (tab -> doc) -> doc
-  val at: tab -> doc
+  val goto: tab -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
   val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
@@ -90,7 +90,7 @@ struct
   | Concat of doc * doc
   | Token of Token.t
   | Text of string
-  | Break of tab
+  | Goto of tab
   | NewTab of {tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
 
@@ -101,7 +101,7 @@ struct
   val space = Space
   val token = Token
   val text = Text
-  val at = Break
+  val goto = Goto
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -119,7 +119,7 @@ struct
     | Concat (d1, d2) => toString d1 ^ " ++ " ^ toString d2
     | Token t => "Token('" ^ Token.toString t ^ "')"
     | Text t => "Text('" ^ t ^ "')"
-    | Break t => "Break(" ^ tabToString t ^ ")"
+    | Goto t => "Goto(" ^ tabToString t ^ ")"
     | NewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ toString d ^ ")"
     | Cond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
@@ -147,7 +147,7 @@ struct
   | AnnToken of {at: TabSet.t option, tok: Token.t}
   | AnnText of {at: TabSet.t option, txt: string}
   | AnnConcat of anndoc * anndoc
-  | AnnBreak of {mightBeFirst: bool, tab: tab}
+  | AnnGoto of {mightBeFirst: bool, tab: tab}
   | AnnNewTab of {tab: tab, doc: anndoc}
   | AnnCond of {tab: tab, inactive: anndoc, active: anndoc}
 
@@ -161,7 +161,7 @@ struct
     | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
     | AnnToken {tok=t, ...} => "Token('" ^ Token.toString t ^ "')"
     | AnnText {txt=t, ...} => "Text('" ^ t ^ "')"
-    | AnnBreak {mightBeFirst, tab} =>
+    | AnnGoto {mightBeFirst, tab} =>
         "Break" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ tabToString tab ^ ")"
     | AnnNewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ annToString d ^ ")"
     | AnnCond {tab=t, inactive=df, active=dnf} =>
@@ -178,7 +178,7 @@ struct
         | NoSpace => (AnnNoSpace, broken)
         | Token t => (AnnToken {at=NONE, tok=t}, broken)
         | Text t => (AnnText {at=NONE, txt=t}, broken)
-        | Break tab =>
+        | Goto tab =>
             let
               val (mightBeFirst, broken) =
                 if TabSet.contains broken tab then
@@ -186,7 +186,7 @@ struct
                 else
                   (true, TabSet.insert broken tab)
             in
-              ( AnnBreak
+              ( AnnGoto
                   { mightBeFirst = mightBeFirst
                   , tab = tab
                   }
@@ -262,7 +262,7 @@ struct
             | AnnNoSpace => SOME Spacey (* pretends to be a space, but then actually is elided *)
             | AnnToken _ => SOME MaybeNotSpacey
             | AnnText _ => SOME MaybeNotSpacey
-            | AnnBreak {mightBeFirst, tab} =>
+            | AnnGoto {mightBeFirst, tab} =>
                 (case TabDict.find ctx tab of
                   SOME Active =>
                     if mightBeFirst then
@@ -356,7 +356,7 @@ struct
               AnnSpace
             else
               AnnEmpty
-        | AnnBreak {mightBeFirst, tab} =>
+        | AnnGoto {mightBeFirst, tab} =>
             if not (needSpaceBefore orelse needSpaceAfter) then
               doc
             else
@@ -469,7 +469,7 @@ struct
             in
               (NONE, AnnText {txt=txt, at=flowval})
             end
-        | AnnBreak {tab, ...} => (SOME (TabSet.singleton tab), doc)
+        | AnnGoto {tab, ...} => (SOME (TabSet.singleton tab), doc)
         | AnnConcat (d1, d2) =>
             let
               val (flowval, d1) = loop ctx (flowval, d1)
@@ -528,7 +528,7 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnBreak {mightBeFirst, tab} => doc
+        | AnnGoto {mightBeFirst, tab} => doc
         | AnnConcat (d1, d2) =>
             AnnConcat (loop d1, loop d2)
         | AnnNewTab {tab, doc} =>
@@ -567,7 +567,7 @@ struct
                 commentsToDocs (Token.commentsAfter tok)
 
               fun withBreak d =
-                AnnConcat (AnnBreak {mightBeFirst=false, tab=tab}, d)
+                AnnConcat (AnnGoto {mightBeFirst=false, tab=tab}, d)
 
               val all =
                 Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
@@ -641,7 +641,7 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnBreak {mightBeFirst, tab} => doc
+        | AnnGoto {mightBeFirst, tab} => doc
         | AnnToken {at = NONE, tok} => doc
         | AnnToken {at = SOME tabs, tok} =>
             (case prevTokenNotWhitespace tok of
@@ -727,7 +727,7 @@ struct
             Seq.iterate
               D.concat
               D.empty
-              (Seq.map (fn x => D.concat (D.at tab, x)) pieces))
+              (Seq.map (fn x => D.concat (D.goto tab, x)) pieces))
         )
     end
 
@@ -775,8 +775,8 @@ struct
               (* TODO: rigidity (don't allow flattening) *)
               doc
             end
-        | AnnBreak {tab, ...} =>
-            D.at (TabDict.lookup tabmap tab)
+        | AnnGoto {tab, ...} =>
+            D.goto (TabDict.lookup tabmap tab)
         | AnnCond {tab, inactive, active} =>
             D.cond (TabDict.lookup tabmap tab)
               { inactive = loop currentTab tabmap inactive

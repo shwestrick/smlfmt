@@ -91,17 +91,17 @@ struct
       case e of
         Ident id =>
           token (MaybeLongToken.getToken id)
-          (* newTab tab (fn tab => at tab ++ ) *)
+          (* newTab tab (fn tab => goto tab ++ ) *)
 
       | Struct {structt, strdec, endd} =>
           if decIsEmpty strdec then
-            token structt ++ at tab ++ token endd
+            token structt ++ goto tab ++ token endd
           else
             newTabWithStyle tab (Indented, fn inner =>
               token structt
-              ++ at inner
+              ++ goto inner
               ++ showStrDec inner strdec
-              ++ cond inner {inactive = empty, active = at tab}
+              ++ cond inner {inactive = empty, active = goto tab}
               ++ token endd)
 
       | Constraint {strexp, colon, sigexp} =>
@@ -122,7 +122,7 @@ struct
                space
              else
                nospace) ++
-            at inner ++ token lparen ++ nospace ++
+            goto inner ++ token lparen ++ nospace ++
             withNewChild showStrExp inner strexp
             ++ nospace ++ token rparen)
 
@@ -134,7 +134,7 @@ struct
                space
              else
                nospace) ++
-            at inner ++ token lparen ++ nospace ++
+            goto inner ++ token lparen ++ nospace ++
             withNewChild showStrDec inner strdec
             ++ nospace ++ token rparen)
 
@@ -174,7 +174,7 @@ struct
                      nospace)
                   ++ token colon
                   ++ (if sigExpWantsSameTabAsDec sigexp then
-                        at tab ++ showSigExp tab sigexp
+                        goto tab ++ showSigExp tab sigexp
                       else
                         withNewChild showSigExp tab sigexp)
 
@@ -184,14 +184,14 @@ struct
               ++ showConstraint constraint
               ++ token eq
               ++ (if strExpWantsSameTabAsDec strexp then
-                    at tab ++ showStrExp tab strexp
+                    goto tab ++ showStrExp tab strexp
                   else
                     withNewChild showStrExp tab strexp)
           in
-            at tab ++
+            goto tab ++
             Seq.iterate op++
               (showOne (structuree, Seq.nth elems 0))
-              (Seq.map (fn x => at tab ++ showOne x)
+              (Seq.map (fn x => goto tab ++ showOne x)
                 (Seq.zip (delims, (Seq.drop elems 1))))
           end)
 
@@ -199,7 +199,7 @@ struct
       | DecMultiple {elems, delims} =>
           let
             fun mk first (elem, delim) =
-              (if first then empty else at tab)
+              (if first then empty else goto tab)
               ++ showStrDec tab elem
               ++ showOption (fn d => nospace ++ token d) delim
 
@@ -227,18 +227,18 @@ struct
           newTab tab (fn inner =>
             let
               val front =
-                at inner
+                goto inner
                 ++ token underscore ++ nospace ++ token overload
                 ++ token prec
                 ++ token name
                 ++ token colon
                 ++ withNewChild showTy inner ty
-                ++ at inner
+                ++ goto inner
                 ++ token ass
                 ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
 
               fun showOne (d, e) =
-                at inner ++ token d ++ token (MaybeLongToken.getToken e)
+                goto inner ++ token d ++ token (MaybeLongToken.getToken e)
             in
               Seq.iterate op++
                 front

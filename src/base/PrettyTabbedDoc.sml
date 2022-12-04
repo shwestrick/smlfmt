@@ -41,7 +41,7 @@ sig
   type tab
   val root: tab
   val newTab: tab -> style * (tab -> doc) -> doc
-  val at: tab -> doc
+  val goto: tab -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int, debug: bool}
@@ -209,7 +209,7 @@ struct
   | Newline
   | Concat of doc * doc
   | Text of CustomString.t
-  | At of tab
+  | Goto of tab
   | NewTab of {parent: tab, tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
 
@@ -219,11 +219,11 @@ struct
   val newline = Newline
   val space = Space
   val text = Text
-  val at = At
+  val goto = Goto
 
   fun hasNoBreaks doc =
     case doc of
-      At _ => false
+      Goto _ => false
     | Concat (d1, d2) => hasNoBreaks d1 andalso hasNoBreaks d2
     | NewTab {doc=d, ...} => hasNoBreaks d
     | Cond {inactive, active, ...} =>
@@ -263,7 +263,7 @@ struct
             loop innerTabs d1
             andalso loop innerTabs d2
         | Text _ => true
-        | At tab' => isInList innerTabs tab' orelse Tab.isActivated tab'
+        | Goto tab' => isInList innerTabs tab' orelse Tab.isActivated tab'
         | NewTab {tab=tab', doc=d, ...} => loop (tab' :: innerTabs) d
         | Cond {active, ...} => loop innerTabs active
     in
@@ -917,7 +917,7 @@ struct
         | Concat (doc1, doc2) =>
             layout (layout state doc1) doc2
 
-        | At tab =>
+        | Goto tab =>
             let
               val LS (dbgState, ct, lnStart, col, acc) = state
 
@@ -974,7 +974,7 @@ struct
                     end
 
               | _ =>
-                  raise Fail "PrettyTabbedDoc.pretty.At: bad tab"
+                  raise Fail "PrettyTabbedDoc.pretty.Goto: bad tab"
             end
 
         | Cond {tab, inactive, active} =>
