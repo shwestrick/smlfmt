@@ -59,13 +59,13 @@ struct
       | Arrow {from, arrow, to} =>
           let
             fun loop (arr, right) =
-              goto tab ++ token arr ++
-              (case right of
-                Arrow {from, arrow, to} =>
-                  withNewChild showTy tab from
-                  ++ loop (arrow, to)
-              | _ =>
-                  withNewChild showTy tab right)
+              at tab (token arr ++
+                (case right of
+                  Arrow {from, arrow, to} =>
+                    withNewChild showTy tab from
+                    ++ loop (arrow, to)
+                | _ =>
+                    withNewChild showTy tab right))
           in
             withNewChild showTy tab from ++ loop (arrow, to)
           end
