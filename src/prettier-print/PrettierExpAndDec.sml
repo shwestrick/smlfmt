@@ -149,7 +149,8 @@ struct
       | Record {left, elems, delims, right} =>
           let
             fun showRow {lab, eq, exp} =
-              token lab ++ token eq ++ (withNewChild showExp tab) exp
+              newTab tab (fn inner =>
+                at inner (token lab ++ token eq ++ (withNewChild showExp inner) exp))
           in
             showSequence tab
               { openn = left

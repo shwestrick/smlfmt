@@ -78,7 +78,9 @@ struct
               case patrow of
                 DotDotDot ddd => token ddd
               | LabEqPat {lab, eq, pat} =>
-                  token lab ++ token eq ++ withNewChild showPat tab pat
+                  newTab tab (fn inner =>
+                    at inner
+                      (token lab ++ token eq ++ withNewChild showPat inner pat))
               | LabAsPat {id, ty, aspat} =>
                   token id ++
                   showOption (fn {colon, ty} =>

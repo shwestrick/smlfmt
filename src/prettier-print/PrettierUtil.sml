@@ -68,6 +68,10 @@ struct
   fun showSequence tab {openn, elems, delims, close} =
     if Seq.length elems = 0 then
       token openn ++ nospace ++ token close
+    else if Seq.length elems = 1 then
+      token openn ++ nospace
+      ++ Seq.nth elems 0
+      ++ nospace ++ token close
     else
       let
         val top = token openn ++ (cond tab {inactive = nospace, active = space}) ++ Seq.nth elems 0
