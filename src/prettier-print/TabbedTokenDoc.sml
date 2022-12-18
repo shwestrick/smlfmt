@@ -21,8 +21,8 @@ sig
   val root: tab
   val newTabWithStyle: tab -> style * (tab -> doc) -> doc
   val newTab: tab -> (tab -> doc) -> doc
-  val goto: tab -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
+  val at: tab -> doc -> doc
 
   val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
 end =
@@ -90,7 +90,7 @@ struct
   | Concat of doc * doc
   | Token of Token.t
   | Text of string
-  | Goto of tab
+  | At of tab * doc
   | NewTab of {tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
 
@@ -101,7 +101,7 @@ struct
   val space = Space
   val token = Token
   val text = Text
-  val goto = Goto
+  fun at t d = At (t, d)
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -119,7 +119,7 @@ struct
     | Concat (d1, d2) => toString d1 ^ " ++ " ^ toString d2
     | Token t => "Token('" ^ Token.toString t ^ "')"
     | Text t => "Text('" ^ t ^ "')"
-    | Goto t => "Goto(" ^ tabToString t ^ ")"
+    | At (t, d) => "At(" ^ tabToString t ^ "," ^ toString d ^ ")"
     | NewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ toString d ^ ")"
     | Cond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
@@ -147,7 +147,7 @@ struct
   | AnnToken of {at: TabSet.t option, tok: Token.t}
   | AnnText of {at: TabSet.t option, txt: string}
   | AnnConcat of anndoc * anndoc
-  | AnnGoto of {mightBeFirst: bool, tab: tab}
+  | AnnAt of {mightBeFirst: bool, tab: tab, doc: anndoc}
   | AnnNewTab of {tab: tab, doc: anndoc}
   | AnnCond of {tab: tab, inactive: anndoc, active: anndoc}
 
@@ -161,8 +161,8 @@ struct
     | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
     | AnnToken {tok=t, ...} => "Token('" ^ Token.toString t ^ "')"
     | AnnText {txt=t, ...} => "Text('" ^ t ^ "')"
-    | AnnGoto {mightBeFirst, tab} =>
-        "Break" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ tabToString tab ^ ")"
+    | AnnAt {mightBeFirst, tab, doc} =>
+        "At" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ tabToString tab ^ ", " ^ annToString doc ^ ")"
     | AnnNewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ annToString d ^ ")"
     | AnnCond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
@@ -178,17 +178,20 @@ struct
         | NoSpace => (AnnNoSpace, broken)
         | Token t => (AnnToken {at=NONE, tok=t}, broken)
         | Text t => (AnnText {at=NONE, txt=t}, broken)
-        | Goto tab =>
+        | At (tab, doc) =>
             let
               val (mightBeFirst, broken) =
                 if TabSet.contains broken tab then
                   (false, broken)
                 else
                   (true, TabSet.insert broken tab)
+
+              val (doc, broken) = loop currtab (doc, broken)
             in
-              ( AnnGoto
+              ( AnnAt
                   { mightBeFirst = mightBeFirst
                   , tab = tab
+                  , doc = doc
                   }
               , broken
               )
@@ -262,14 +265,25 @@ struct
             | AnnNoSpace => SOME Spacey (* pretends to be a space, but then actually is elided *)
             | AnnToken _ => SOME MaybeNotSpacey
             | AnnText _ => SOME MaybeNotSpacey
-            | AnnGoto {mightBeFirst, tab} =>
-                (case TabDict.find ctx tab of
-                  SOME Active =>
-                    if mightBeFirst then
-                      NONE
-                    else
-                      SOME Spacey
-                | _ => NONE)
+            | AnnAt {mightBeFirst, tab, doc} =>
+                let
+                  val leftEdge =
+                    case TabDict.find ctx tab of
+                      SOME Active =>
+                        if mightBeFirst then
+                          NONE
+                        else
+                          SOME Spacey
+                    | _ => NONE
+                in
+                  if left then
+                    leftEdge
+                  else
+                    case loop ctx doc of
+                      SOME ee => SOME ee
+                    | _ => leftEdge
+                end
+
             | AnnConcat (d1, d2) =>
                 if left then
                   (case loop ctx d1 of
@@ -356,19 +370,29 @@ struct
               AnnSpace
             else
               AnnEmpty
-        | AnnGoto {mightBeFirst, tab} =>
-            if not (needSpaceBefore orelse needSpaceAfter) then
-              doc
-            else
-              (case TabDict.find ctx tab of
-                SOME Inactive =>
-                  ( dbgprintln ("need space at INACTIVE " ^ annToString doc)
-                  ; AnnSpace
-                  )
-              | _ =>
-                  ( dbgprintln ("need space at UNKNOWN " ^ annToString doc)
-                  ; AnnConcat (AnnSpace, doc)
-                  ))
+        | AnnAt {mightBeFirst, tab, doc} =>
+            let
+              val needSpaceBefore' =
+                case TabDict.find ctx tab of
+                  SOME Active =>
+                    if mightBeFirst then
+                      needSpaceBefore
+                    else
+                      false
+                | _ => needSpaceBefore
+
+              val result =
+                AnnAt
+                  { mightBeFirst = mightBeFirst
+                  , tab = tab
+                  , doc = loop ctx (false, needSpaceAfter) doc
+                  }
+            in
+              if needSpaceBefore' then
+                AnnConcat (AnnSpace, result)
+              else
+                result
+            end
         | AnnNewTab {tab, doc} =>
             AnnNewTab {tab = tab, doc = loop ctx needSpace doc}
         | AnnCond {tab, inactive, active} =>
@@ -469,7 +493,13 @@ struct
             in
               (NONE, AnnText {txt=txt, at=flowval})
             end
-        | AnnGoto {tab, ...} => (SOME (TabSet.singleton tab), doc)
+        | AnnAt {mightBeFirst, tab, doc} =>
+            let
+              (* TODO: could accumulate here... TabSet.union (flowval, {tab}) *)
+              val (_, doc) = loop ctx (SOME (TabSet.singleton tab), doc)
+            in
+              (NONE, AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc=doc})
+            end
         | AnnConcat (d1, d2) =>
             let
               val (flowval, d1) = loop ctx (flowval, d1)
@@ -493,6 +523,7 @@ struct
                   val (flow2, active) = loop (markActive ctx tab) (flowval, active)
                   val flowval =
                     case (flow1, flow2) of
+                      (* this case seems impossible now...? *)
                       (SOME ts1, SOME ts2) => SOME (TabSet.union (ts1, ts2))
                     | (NONE, _) => flow2
                     | (_, NONE) => flow1
@@ -528,7 +559,8 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnGoto {mightBeFirst, tab} => doc
+        | AnnAt {mightBeFirst, tab, doc} =>
+            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = loop doc}
         | AnnConcat (d1, d2) =>
             AnnConcat (loop d1, loop d2)
         | AnnNewTab {tab, doc} =>
@@ -567,7 +599,7 @@ struct
                 commentsToDocs (Token.commentsAfter tok)
 
               fun withBreak d =
-                AnnConcat (AnnGoto {mightBeFirst=false, tab=tab}, d)
+                AnnAt {mightBeFirst=false, tab=tab, doc=d}
 
               val all =
                 Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
@@ -641,7 +673,8 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnGoto {mightBeFirst, tab} => doc
+        | AnnAt {mightBeFirst, tab, doc} =>
+            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = loop doc}
         | AnnToken {at = NONE, tok} => doc
         | AnnToken {at = SOME tabs, tok} =>
             (case prevTokenNotWhitespace tok of
@@ -775,8 +808,11 @@ struct
               (* TODO: rigidity (don't allow flattening) *)
               doc
             end
-        | AnnGoto {tab, ...} =>
-            D.goto (TabDict.lookup tabmap tab)
+        | AnnAt {tab, doc, ...} =>
+            D.concat
+              ( D.goto (TabDict.lookup tabmap tab)
+              , loop currentTab tabmap doc
+              )
         | AnnCond {tab, inactive, active} =>
             D.cond (TabDict.lookup tabmap tab)
               { inactive = loop currentTab tabmap inactive

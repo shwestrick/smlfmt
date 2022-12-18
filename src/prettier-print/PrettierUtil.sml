@@ -9,7 +9,6 @@ sig
   type doc = TabbedTokenDoc.doc
   type style = TabbedTokenDoc.style
 
-  val at: tab -> doc -> doc
   val maybeAt: tab -> bool -> doc -> doc
 
   type 'a shower = tab -> 'a -> doc
@@ -46,8 +45,6 @@ struct
   open TabbedTokenDoc
   infix 2 ++
   fun x ++ y = concat (x, y)
-
-  fun at tab doc = goto tab ++ doc
 
   fun maybeAt tab b doc =
     if b then at tab doc else doc
