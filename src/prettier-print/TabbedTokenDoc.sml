@@ -465,6 +465,12 @@ struct
         | Tab {parent, ...} =>
             markActive (TabDict.insert ctx (tab, Active)) parent
 
+      fun flowunion (flow1, flow2) =
+        case (flow1, flow2) of
+          (SOME ts1, SOME ts2) => SOME (TabSet.union (ts1, ts2))
+        | (NONE, _) => flow2
+        | (_, NONE) => flow1
+
       fun loop ctx (flowval, doc) =
         case doc of
           AnnEmpty => (flowval, doc)
@@ -495,8 +501,9 @@ struct
             end
         | AnnAt {mightBeFirst, tab, doc} =>
             let
-              (* TODO: could accumulate here... TabSet.union (flowval, {tab}) *)
-              val (_, doc) = loop ctx (SOME (TabSet.singleton tab), doc)
+              (* val flowval = SOME (TabSet.singleton tab) *)
+              val flowval = flowunion (flowval, SOME (TabSet.singleton tab))
+              val (_, doc) = loop ctx (flowval, doc)
             in
               (NONE, AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc=doc})
             end
@@ -522,11 +529,8 @@ struct
                   val (flow1, inactive) = loop (markInactive ctx tab) (flowval, inactive)
                   val (flow2, active) = loop (markActive ctx tab) (flowval, active)
                   val flowval =
-                    case (flow1, flow2) of
-                      (* this case seems impossible now...? *)
-                      (SOME ts1, SOME ts2) => SOME (TabSet.union (ts1, ts2))
-                    | (NONE, _) => flow2
-                    | (_, NONE) => flow1
+                    (* TODO: is union necessary here? *)
+                    flowunion (flow1, flow2)
                 in
                   (flowval, AnnCond {tab=tab, active=active, inactive=inactive})
                 end
