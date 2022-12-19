@@ -52,6 +52,50 @@ struct
       Ast.Exp.DecEmpty => true
     | _ => false
 
+
+  fun tryViewExpAsSimpleIdentifier e =
+    case e of
+      Ast.Exp.Ident {opp=NONE, id} =>
+        if MaybeLongToken.isLong id then
+          NONE
+        else
+          SOME (MaybeLongToken.getToken id)
+
+    | _ => NONE
+
+
+  fun appWantsToTouch left right =
+    let
+      open Ast.Exp
+
+      val rightNice =
+        case right of
+          Ident {opp=NONE, id} =>
+            not (MaybeLongToken.isLong id)
+            andalso
+            not (Token.isSymbolicIdentifier (MaybeLongToken.getToken id))
+        | Tuple _ => true
+        | List _ => true
+        | Sequence _ => true
+        | Parens _ => true
+        | Record _ => true
+        | Unit _ => true
+        | _ => false
+    in
+      rightNice
+      andalso
+      case tryViewExpAsSimpleIdentifier left of
+        SOME id =>
+          Token.isSymbolicIdentifier id
+          andalso not (Token.hasCommentsAfter id)
+      | NONE => false
+    end
+
+
+  fun appWantsSpace left right =
+    not (appWantsToTouch left right)
+
+
   (* ====================================================================== *)
 
   fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
@@ -171,7 +215,9 @@ struct
           ++ token label
 
       | App {left, right} =>
-          showExp tab left ++ withNewChild showExp tab right
+          showExp tab left ++
+          (if appWantsSpace left right then empty else nospace)
+          ++ withNewChild showExp tab right
           (*let
             val (funcExp, args) = appChain [] exp
             fun withBreak tab (a, b) = a ++ breakspace tab ++ b
