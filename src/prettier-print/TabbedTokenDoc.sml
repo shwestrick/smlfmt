@@ -760,7 +760,7 @@ struct
             Seq.iterate
               D.concat
               D.empty
-              (Seq.map (fn x => D.concat (D.goto tab, x)) pieces))
+              (Seq.map (fn x => D.at tab x) pieces))
         )
     end
 
@@ -805,14 +805,10 @@ struct
 
               val (shouldBeRigid, doc) = tokenToStringDoc tab tabWidth tok
             in
-              (* TODO: rigidity (don't allow flattening) *)
               doc
             end
         | AnnAt {tab, doc, ...} =>
-            D.concat
-              ( D.goto (TabDict.lookup tabmap tab)
-              , loop currentTab tabmap doc
-              )
+            D.at (TabDict.lookup tabmap tab) (loop currentTab tabmap doc)
         | AnnCond {tab, inactive, active} =>
             D.cond (TabDict.lookup tabmap tab)
               { inactive = loop currentTab tabmap inactive
