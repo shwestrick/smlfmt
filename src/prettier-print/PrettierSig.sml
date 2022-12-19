@@ -56,7 +56,7 @@ struct
           val initial =
             at tab
               (token starter ++
-              showSyntaxSeq token tab tyvars ++
+              showTokenSyntaxSeq tab tyvars ++
               token tycon ++
               token eq)
 
@@ -102,7 +102,7 @@ struct
             fun showOne first (starter, {tyvars, tycon}) =
               maybeAt tab (not first)
                 (token starter
-                ++ showSyntaxSeq token tab tyvars
+                ++ showTokenSyntaxSeq tab tyvars
                 ++ token tycon)
           in
             Seq.iterate op++
@@ -115,7 +115,7 @@ struct
             fun showOne first (starter, {tyvars, tycon, eq, ty}) =
               maybeAt tab (not first)
                 (token starter
-                ++ showSyntaxSeq token tab tyvars
+                ++ showTokenSyntaxSeq tab tyvars
                 ++ token tycon
                 ++ token eq
                 ++ withNewChild showTy tab ty)
@@ -130,7 +130,7 @@ struct
             fun showOne first (starter, {tyvars, tycon}) =
               maybeAt tab (not first)
                 (token starter
-                ++ showSyntaxSeq token tab tyvars
+                ++ showTokenSyntaxSeq tab tyvars
                 ++ token tycon)
           in
             Seq.iterate op++
@@ -271,7 +271,7 @@ struct
               at tab
                 (token wheree (** this could be 'and' *)
                 ++ token typee
-                ++ showSyntaxSeq token tab tyvars
+                ++ showTokenSyntaxSeq tab tyvars
                 ++ token (MaybeLongToken.getToken tycon)
                 ++ token eq
                 ++ withNewChild showTy tab ty)

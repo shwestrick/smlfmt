@@ -57,24 +57,24 @@ struct
           token left ++ nospace ++ withNewChild showPat tab pat ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
-          showSequence tab
+          showSequence (withNewChild showPat) tab
             { openn = left
-            , elems = Seq.map (withNewChild showPat tab) elems
+            , elems = elems
             , delims = delims
             , close = right
             }
 
       | List {left, elems, delims, right} =>
-          showSequence tab
+          showSequence (withNewChild showPat) tab
             { openn = left
-            , elems = Seq.map (withNewChild showPat tab) elems
+            , elems = elems
             , delims = delims
             , close = right
             }
 
       | Record {left, elems, delims, right} =>
           let
-            fun showPatRow patrow =
+            fun showPatRow tab patrow =
               case patrow of
                 DotDotDot ddd => token ddd
               | LabEqPat {lab, eq, pat} =>
@@ -89,9 +89,9 @@ struct
                   showOption (fn {ass, pat} =>
                     token ass ++ withNewChild showPat tab pat) aspat
           in
-            showSequence tab
+            showSequence (withNewChild showPatRow) tab
               { openn = left
-              , elems = Seq.map showPatRow elems
+              , elems = elems
               , delims = delims
               , close = right
               }

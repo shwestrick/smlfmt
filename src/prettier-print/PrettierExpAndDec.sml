@@ -59,7 +59,7 @@ struct
       fun showOne first (starter, {tyvars, tycon, ty, eq}) =
         maybeAt tab (not first)
           (token starter ++
-          showSyntaxSeq token tab tyvars ++
+          showTokenSyntaxSeq tab tyvars ++
           token tycon ++
           token eq ++
           withNewChild showTy tab ty)
@@ -85,7 +85,7 @@ struct
           val initial =
             at tab
               (token starter ++
-              showSyntaxSeq token tab tyvars ++
+              showTokenSyntaxSeq tab tyvars ++
               token tycon ++
               token eq)
 
@@ -123,38 +123,37 @@ struct
           token left ++ nospace ++ withNewChild showExp tab exp ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
-          showSequence tab
+          showSequence (withNewChild showExp) tab
             { openn = left
-            , elems = Seq.map (withNewChild showExp tab) elems
+            , elems = elems
             , delims = delims
             , close = right
             }
 
       | Sequence {left, elems, delims, right} =>
-          showSequence tab
+          showSequence (withNewChild showExp) tab
             { openn = left
-            , elems = Seq.map (withNewChild showExp tab) elems
+            , elems = elems
             , delims = delims
             , close = right
             }
 
       | List {left, elems, delims, right} =>
-          showSequence tab
+          showSequence (withNewChild showExp) tab
             { openn = left
-            , elems = Seq.map (withNewChild showExp tab) elems
+            , elems = elems
             , delims = delims
             , close = right
             }
 
       | Record {left, elems, delims, right} =>
           let
-            fun showRow {lab, eq, exp} =
-              newTab tab (fn inner =>
-                at inner (token lab ++ token eq ++ (withNewChild showExp inner) exp))
+            fun showRow tab {lab, eq, exp} =
+              token lab ++ token eq ++ (withNewChild showExp tab) exp
           in
-            showSequence tab
+            showSequence (withNewChild showRow) tab
               { openn = left
-              , elems = Seq.map showRow elems
+              , elems = elems
               , delims = delims
               , close = right
               }
@@ -390,7 +389,7 @@ struct
               let
                 val {recc, pat, eq, exp} = Seq.nth elems 0
               in
-                token vall ++ showSyntaxSeq token tab tyvars
+                token vall ++ showTokenSyntaxSeq tab tyvars
                 ++ showOption token recc
                 ++ withNewChild showPat tab pat
                 ++ token eq
@@ -550,7 +549,7 @@ struct
         end
 
       val front =
-        token funn ++ showSyntaxSeq token tab tyvars
+        token funn ++ showTokenSyntaxSeq tab tyvars
     in
       Seq.iterate op++
         (mkFunction true (front, Seq.nth elems 0))

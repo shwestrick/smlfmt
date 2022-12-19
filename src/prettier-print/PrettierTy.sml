@@ -14,7 +14,7 @@ struct
   infix 2 ++
   fun x ++ y = concat (x, y)
 
-  fun showTy tab ty =
+  fun showTy tab ty : doc =
     let
       open Ast.Ty
     in
@@ -26,7 +26,7 @@ struct
           token (MaybeLongToken.getToken id)
 
       | Con {args, id} =>
-          showSyntaxSeq (showTy tab) tab args
+          showSyntaxSeq (withNewChild showTy) tab args
           ++ token (MaybeLongToken.getToken id)
 
       | Parens {left, ty, right} =>
@@ -43,14 +43,14 @@ struct
 
       | Record {left, elems, delims, right} =>
           let
-            fun showElem {lab, colon, ty} =
+            fun showElem tab {lab, colon, ty} =
               token lab ++
               (if Token.isSymbolicIdentifier lab then empty else nospace)
               ++ token colon ++ showTy tab ty
           in
-            showSequence tab
+            showSequence (withNewChild showElem) tab
               { openn = left
-              , elems = Seq.map showElem elems
+              , elems = elems
               , delims = delims
               , close = right
               }

@@ -18,14 +18,17 @@ sig
   val spaces: int -> doc
 
   val showSequence:
+    'a shower
+    ->
     { openn: Token.t
-    , elems: doc Seq.t
+    , elems: 'a Seq.t
     , delims: Token.t Seq.t
     , close: Token.t
     }
     shower
 
-  val showSyntaxSeq: ('a -> doc) -> 'a Ast.SyntaxSeq.t shower
+  val showSyntaxSeq: 'a shower -> 'a Ast.SyntaxSeq.t shower
+  val showTokenSyntaxSeq: Token.t Ast.SyntaxSeq.t shower
 
   val showOption: ('a -> doc) -> 'a option -> doc
 
@@ -62,35 +65,47 @@ struct
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
-  fun showSequence tab {openn, elems, delims, close} =
+  fun showSequence (elemShower: 'a shower) tab {openn, elems: 'a Seq.t, delims, close} =
     if Seq.length elems = 0 then
       token openn ++ nospace ++ token close
     else if Seq.length elems = 1 then
       token openn ++ nospace
-      ++ Seq.nth elems 0
+      ++ elemShower tab (Seq.nth elems 0)
       ++ nospace ++ token close
     else
-      let
-        val top = token openn ++ (cond tab {inactive = nospace, active = space}) ++ Seq.nth elems 0
-        fun f (delim, x) = nospace ++ at tab (token delim ++ x)
-      in
-        Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
-        ++
-        nospace ++ at tab (token close)
-      end
+      newTab tab (fn inner =>
+        let
+          val top =
+            token openn ++
+            (cond inner {inactive = nospace, active = space}) ++
+            elemShower inner (Seq.nth elems 0)
+
+          fun f (delim, x) =
+            nospace ++ at inner (token delim ++ elemShower inner x)
+        in
+          at inner
+            (Seq.iterate op++ top
+              (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
+            ++
+            nospace ++ at inner (token close))
+        end)
 
 
-  fun showSyntaxSeq f tab s =
+  fun showSyntaxSeq elemShower tab s =
     case s of
       Ast.SyntaxSeq.Empty => empty
-    | Ast.SyntaxSeq.One x => f x
+    | Ast.SyntaxSeq.One x => elemShower tab x
     | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
-        withNewChild showSequence tab
+        showSequence elemShower tab
           { openn = left
-          , elems = Seq.map f elems
+          , elems = elems
           , delims = delims
           , close = right
           }
+
+
+  fun showTokenSyntaxSeq tab s =
+    showSyntaxSeq (fn _ => fn tok => token tok) tab s
 
 
   fun showOption f x =
