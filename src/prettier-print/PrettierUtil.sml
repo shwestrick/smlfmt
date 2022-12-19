@@ -9,6 +9,8 @@ sig
   type doc = TabbedTokenDoc.doc
   type style = TabbedTokenDoc.style
 
+  val maybeAt: tab -> bool -> doc -> doc
+
   type 'a shower = tab -> 'a -> doc
   val withNewChild: 'a shower -> 'a shower
   val withNewChildWithStyle: style -> 'a shower -> 'a shower
@@ -44,14 +46,16 @@ struct
   infix 2 ++
   fun x ++ y = concat (x, y)
 
+  fun maybeAt tab b doc =
+    if b then at tab doc else doc
 
   type 'a shower = tab -> 'a -> doc
 
   fun withNewChild shower tab x =
-    newTab tab (fn inner => at inner ++ shower inner x)
+    newTab tab (fn inner => at inner (shower inner x))
 
   fun withNewChildWithStyle style shower tab x =
-    newTabWithStyle tab (style, fn inner => at inner ++ shower inner x)
+    newTabWithStyle tab (style, fn inner => at inner (shower inner x))
 
 
   fun spaces n =
@@ -61,14 +65,18 @@ struct
   fun showSequence tab {openn, elems, delims, close} =
     if Seq.length elems = 0 then
       token openn ++ nospace ++ token close
+    else if Seq.length elems = 1 then
+      token openn ++ nospace
+      ++ Seq.nth elems 0
+      ++ nospace ++ token close
     else
       let
         val top = token openn ++ (cond tab {inactive = nospace, active = space}) ++ Seq.nth elems 0
-        fun f (delim, x) = nospace ++ at tab ++ token delim ++ x
+        fun f (delim, x) = nospace ++ at tab (token delim ++ x)
       in
         Seq.iterate op++ top (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
         ++
-        nospace ++ at tab ++ token close
+        nospace ++ at tab (token close)
       end
 
 
@@ -95,12 +103,11 @@ struct
     let in
       token lett ++
       (if isEmpty1 then
-          empty
-        else
-          doc1 ++ at tab)
-      ++ token inn
+        token inn
+      else
+        doc1 ++ at tab (token inn))
       ++ doc2
-      ++ at tab ++ token endd
+      ++ at tab (token endd)
     end
 
 

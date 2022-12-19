@@ -91,18 +91,18 @@ struct
       case e of
         Ident id =>
           token (MaybeLongToken.getToken id)
-          (* newTab tab (fn tab => at tab ++ ) *)
 
       | Struct {structt, strdec, endd} =>
           if decIsEmpty strdec then
-            token structt ++ at tab ++ token endd
+            token structt ++ at tab (token endd)
           else
             newTabWithStyle tab (Indented, fn inner =>
               token structt
-              ++ at inner
-              ++ showStrDec inner strdec
-              ++ cond inner {inactive = empty, active = at tab}
-              ++ token endd)
+              ++ at inner (showStrDec inner strdec)
+              ++ cond inner
+                { inactive = token endd
+                , active = at tab (token endd)
+                })
 
       | Constraint {strexp, colon, sigexp} =>
           showStrExp tab strexp
@@ -122,9 +122,10 @@ struct
                space
              else
                nospace) ++
-            at inner ++ token lparen ++ nospace ++
-            withNewChild showStrExp inner strexp
-            ++ nospace ++ token rparen)
+            at inner
+              (token lparen ++ nospace
+              ++ withNewChild showStrExp inner strexp
+              ++ nospace ++ token rparen))
 
       | FunAppDec {funid, lparen, strdec, rparen} =>
           (* See note above, about the maybe-space after `funid` *)
@@ -134,9 +135,10 @@ struct
                space
              else
                nospace) ++
-            at inner ++ token lparen ++ nospace ++
-            withNewChild showStrDec inner strdec
-            ++ nospace ++ token rparen)
+            at inner
+              (token lparen ++ nospace
+              ++ withNewChild showStrDec inner strdec
+              ++ nospace ++ token rparen))
 
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
           showThingSimilarToLetInEnd tab
@@ -174,7 +176,7 @@ struct
                      nospace)
                   ++ token colon
                   ++ (if sigExpWantsSameTabAsDec sigexp then
-                        at tab ++ showSigExp tab sigexp
+                        at tab (showSigExp tab sigexp)
                       else
                         withNewChild showSigExp tab sigexp)
 
@@ -184,24 +186,23 @@ struct
               ++ showConstraint constraint
               ++ token eq
               ++ (if strExpWantsSameTabAsDec strexp then
-                    at tab ++ showStrExp tab strexp
+                    at tab (showStrExp tab strexp)
                   else
                     withNewChild showStrExp tab strexp)
           in
-            at tab ++
-            Seq.iterate op++
+            at tab (Seq.iterate op++
               (showOne (structuree, Seq.nth elems 0))
-              (Seq.map (fn x => at tab ++ showOne x)
-                (Seq.zip (delims, (Seq.drop elems 1))))
+              (Seq.map (fn x => at tab (showOne x))
+                (Seq.zip (delims, (Seq.drop elems 1)))))
           end)
 
 
       | DecMultiple {elems, delims} =>
           let
             fun mk first (elem, delim) =
-              (if first then empty else at tab)
-              ++ showStrDec tab elem
-              ++ showOption (fn d => nospace ++ token d) delim
+              maybeAt tab (not first)
+                (showStrDec tab elem
+                ++ showOption (fn d => nospace ++ token d) delim)
 
             val things = Seq.zip (elems, delims)
           in
@@ -228,17 +229,18 @@ struct
             let
               val front =
                 at inner
-                ++ token underscore ++ nospace ++ token overload
-                ++ token prec
-                ++ token name
-                ++ token colon
+                  (token underscore ++ nospace ++ token overload
+                  ++ token prec
+                  ++ token name
+                  ++ token colon)
                 ++ withNewChild showTy inner ty
-                ++ at inner
-                ++ token ass
-                ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
+                ++
+                at inner
+                  (token ass
+                  ++ token (MaybeLongToken.getToken (Seq.nth elems 0)))
 
               fun showOne (d, e) =
-                at inner ++ token d ++ token (MaybeLongToken.getToken e)
+                at inner (token d ++ token (MaybeLongToken.getToken e))
             in
               Seq.iterate op++
                 front

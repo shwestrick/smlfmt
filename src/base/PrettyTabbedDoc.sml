@@ -41,7 +41,7 @@ sig
   type tab
   val root: tab
   val newTab: tab -> style * (tab -> doc) -> doc
-  val at: tab -> doc
+  val at: tab -> doc -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int, debug: bool}
@@ -209,7 +209,7 @@ struct
   | Newline
   | Concat of doc * doc
   | Text of CustomString.t
-  | At of tab
+  | At of tab * doc
   | NewTab of {parent: tab, tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
 
@@ -219,16 +219,7 @@ struct
   val newline = Newline
   val space = Space
   val text = Text
-  val at = At
-
-  fun hasNoBreaks doc =
-    case doc of
-      At _ => false
-    | Concat (d1, d2) => hasNoBreaks d1 andalso hasNoBreaks d2
-    | NewTab {doc=d, ...} => hasNoBreaks d
-    | Cond {inactive, active, ...} =>
-        hasNoBreaks inactive andalso hasNoBreaks active
-    | _ => true
+  fun at t d = At (t, d)
 
   fun cond tab {inactive, active} =
     Cond {tab=tab, inactive=inactive, active=active}
@@ -249,29 +240,6 @@ struct
 
   (* ====================================================================== *)
 
-  fun allOuterBreaksActivated tab doc =
-    let
-      fun isInList xs x =
-        List.exists (fn y => Tab.eq (x, y)) xs
-
-      fun loop innerTabs doc =
-        case doc of
-          Empty => true
-        | Space => true
-        | Newline => true
-        | Concat (d1, d2) =>
-            loop innerTabs d1
-            andalso loop innerTabs d2
-        | Text _ => true
-        | At tab' => isInList innerTabs tab' orelse Tab.isActivated tab'
-        | NewTab {tab=tab', doc=d, ...} => loop (tab' :: innerTabs) d
-        | Cond {active, ...} => loop innerTabs active
-    in
-      loop [tab] doc
-    end
-
-  (* ====================================================================== *)
-
   fun allTabsInDoc d =
     let
       fun loop acc d =
@@ -279,6 +247,7 @@ struct
           NewTab {tab, doc, ...} => loop (tab :: acc) doc
         | Concat (d1, d2) => loop (loop acc d1) d2
         | Cond {inactive, active, ...} => loop (loop acc inactive) active
+        | At (_, doc) => loop acc doc
         | _ => acc
     in
       loop [] d
@@ -917,7 +886,7 @@ struct
         | Concat (doc1, doc2) =>
             layout (layout state doc1) doc2
 
-        | At tab =>
+        | At (tab, doc) =>
             let
               val LS (dbgState, ct, lnStart, col, acc) = state
 
@@ -943,38 +912,41 @@ struct
                   (* Fall back on advancing the current line to meet the tab,
                     * which is a little strange, but better than nothing. *)
                   dbgBreak tab (check (LS (dbgState, tab, lnStart, i, Item.Spaces (i-col) :: acc)))
-            in
-              case Tab.getState tab of
-                Tab.Usable Tab.Flattened =>
-                  if Tab.isRigid tab then
-                    raise DoPromote (valOf (oldestPromotableParent tab))
-                  else
-                    LS (dbgState, tab, lnStart, col, acc)
 
-              | Tab.Usable (Tab.Activated (SOME i)) =>
-                  goto i
-
-              | Tab.Usable (Tab.Activated NONE) =>
-                  if Tab.isInplace tab then
-                    if col < parentTabCol tab then
-                      ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
-                      ; goto (parentTabCol tab)
-                      )
+              val state' =
+                case Tab.getState tab of
+                  Tab.Usable Tab.Flattened =>
+                    if Tab.isRigid tab then
+                      raise DoPromote (valOf (oldestPromotableParent tab))
                     else
-                      ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                      ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
-                      )
-                  else
-                    let
-                      val i = indentWidth + parentTabCol tab
-                    in
-                      ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)))
-                      ; goto i
-                      )
-                    end
+                      LS (dbgState, tab, lnStart, col, acc)
 
-              | _ =>
-                  raise Fail "PrettyTabbedDoc.pretty.At: bad tab"
+                | Tab.Usable (Tab.Activated (SOME i)) =>
+                    goto i
+
+                | Tab.Usable (Tab.Activated NONE) =>
+                    if Tab.isInplace tab then
+                      if col < parentTabCol tab then
+                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
+                        ; goto (parentTabCol tab)
+                        )
+                      else
+                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
+                        ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
+                        )
+                    else
+                      let
+                        val i = indentWidth + parentTabCol tab
+                      in
+                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)))
+                        ; goto i
+                        )
+                      end
+
+                | _ =>
+                    raise Fail "PrettyTabbedDoc.pretty.Goto: bad tab"
+            in
+              layout state' doc
             end
 
         | Cond {tab, inactive, active} =>

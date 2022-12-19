@@ -46,18 +46,19 @@ struct
     newTab tab (fn tab =>
     let
       fun showCon (starter, {vid, arg}) =
-        at tab ++ starter ++
-        token vid ++
-        showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
+        at tab
+          (starter ++
+          token vid ++
+          showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg)
 
       fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
         let
           val initial =
-            at tab ++
-            token starter ++
-            showSyntaxSeq token tab tyvars ++
-            token tycon ++
-            token eq
+            at tab
+              (token starter ++
+              showSyntaxSeq token tab tyvars ++
+              token tycon ++
+              token eq)
 
           val skipper = cond tab {inactive=empty, active=space++space}
           fun dd delim = token delim ++ space
@@ -86,10 +87,10 @@ struct
       | Val {vall, elems, delims} =>
           let
             fun showOne first (starter, {vid, colon, ty}) =
-              (if first then empty else at tab)
-              ++ token starter ++ token vid ++
-              (if Token.isSymbolicIdentifier vid then space else nospace)
-              ++ token colon ++ withNewChild showTy tab ty
+              maybeAt tab (not first)
+                (token starter ++ token vid ++
+                (if Token.isSymbolicIdentifier vid then space else nospace)
+                ++ token colon ++ withNewChild showTy tab ty)
           in
             Seq.iterate op++
               (showOne true (vall, Seq.nth elems 0))
@@ -99,10 +100,10 @@ struct
       | Type {typee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon}) =
-              (if first then empty else at tab)
-              ++ token starter
-              ++ showSyntaxSeq token tab tyvars
-              ++ token tycon
+              maybeAt tab (not first)
+                (token starter
+                ++ showSyntaxSeq token tab tyvars
+                ++ token tycon)
           in
             Seq.iterate op++
               (showOne true (typee, Seq.nth elems 0))
@@ -112,12 +113,12 @@ struct
       | TypeAbbreviation {typee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon, eq, ty}) =
-              (if first then empty else at tab)
-              ++ token starter
-              ++ showSyntaxSeq token tab tyvars
-              ++ token tycon
-              ++ token eq
-              ++ withNewChild showTy tab ty
+              maybeAt tab (not first)
+                (token starter
+                ++ showSyntaxSeq token tab tyvars
+                ++ token tycon
+                ++ token eq
+                ++ withNewChild showTy tab ty)
           in
             Seq.iterate op++
               (showOne true (typee, Seq.nth elems 0))
@@ -127,10 +128,10 @@ struct
       | Eqtype {eqtypee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon}) =
-              (if first then empty else at tab)
-              ++ token starter
-              ++ showSyntaxSeq token tab tyvars
-              ++ token tycon
+              maybeAt tab (not first)
+                (token starter
+                ++ showSyntaxSeq token tab tyvars
+                ++ token tycon)
           in
             Seq.iterate op++
               (showOne true (eqtypee, Seq.nth elems 0))
@@ -140,9 +141,9 @@ struct
       | Multiple {elems, delims} =>
           let
             fun showOne first (elem: spec, delim: Token.t option) =
-              (if first then empty else at tab)
-              ++ showSpec tab elem
-              ++ showOption (fn d => nospace ++ token d) delim
+              maybeAt tab (not first)
+                (showSpec tab elem
+                ++ showOption (fn d => nospace ++ token d) delim)
 
             val things = Seq.zip (elems, delims)
           in
@@ -154,10 +155,10 @@ struct
       | Exception {exceptionn, elems, delims} =>
           let
             fun showOne first (starter, {vid, arg}) =
-              (if first then empty else at tab)
-              ++ token starter
-              ++ token vid
-              ++ showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
+              maybeAt tab (not first)
+                (token starter
+                ++ token vid
+                ++ showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg)
           in
             Seq.iterate op++
               (showOne true (exceptionn, Seq.nth elems 0))
@@ -167,16 +168,17 @@ struct
       | Structure {structuree, elems, delims} =>
           let
             fun showOne first (starter, {id, colon, sigexp}) =
-              (if first then empty else at tab)
-              ++ token starter
-              ++ token id
-              (* NOTE: nospace should be safe here, because structure
-               * identifiers cannot be symbolic *)
-              ++ nospace ++ token colon
-              ++ (if sigExpWantsSameTabAsDec sigexp then
-                    at tab ++ showSigExp tab sigexp
-                  else
-                    withNewChild showSigExp tab sigexp)
+              maybeAt tab (not first)
+                (token starter
+                ++ token id
+                (* NOTE: nospace should be safe here, because structure
+                * identifiers cannot be symbolic *)
+                ++ nospace ++ token colon)
+              ++
+              (if sigExpWantsSameTabAsDec sigexp then
+                at tab (showSigExp tab sigexp)
+              else
+                withNewChild showSigExp tab sigexp)
           in
             Seq.iterate op++
               (showOne true (structuree, Seq.nth elems 0))
@@ -196,21 +198,19 @@ struct
             let
               fun showOne (delim, elem) =
                 at inner
-                ++ token delim (** this is an '=' *)
-                ++ token (MaybeLongToken.getToken elem)
+                  (token delim (** this is an '=' *)
+                  ++ token (MaybeLongToken.getToken elem))
 
               val first =
-                at inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
+                at inner (token (MaybeLongToken.getToken (Seq.nth elems 0)))
 
               val stuff =
                 Seq.iterate op++
                   first
                   (Seq.zipWith showOne (delims, Seq.drop elems 1))
             in
-              showSpec tab spec
-              ++ at tab
-              ++ token sharingg
-              ++ stuff
+              showSpec tab spec ++
+              at tab (token sharingg ++ stuff)
             end)
 
       | SharingType {spec, sharingg, typee, elems, delims} =>
@@ -218,22 +218,19 @@ struct
             let
               fun showOne (delim, elem) =
                 at inner
-                ++ token delim (** this is an '=' *)
-                ++ token (MaybeLongToken.getToken elem)
+                  (token delim (** this is an '=' *)
+                  ++ token (MaybeLongToken.getToken elem))
 
               val first =
-                at inner ++ token (MaybeLongToken.getToken (Seq.nth elems 0))
+                at inner (token (MaybeLongToken.getToken (Seq.nth elems 0)))
 
               val stuff =
                 Seq.iterate op++
                   first
                   (Seq.zipWith showOne (delims, Seq.drop elems 1))
             in
-              showSpec tab spec
-              ++ at tab
-              ++ token sharingg
-              ++ token typee
-              ++ stuff
+              showSpec tab spec ++
+              at tab (token sharingg ++ token typee ++ stuff)
             end)
 
       | ReplicateDatatype
@@ -243,8 +240,8 @@ struct
           ++ token eq
           ++ newTab tab (fn inner =>
               at inner
-              ++ token right_datatypee
-              ++ token (MaybeLongToken.getToken right_id))
+              (token right_datatypee
+              ++ token (MaybeLongToken.getToken right_id)))
 
       | Datatype xxx =>
           showDatspec tab xxx
@@ -261,22 +258,23 @@ struct
 
       | Spec {sigg, spec, endd} =>
           newTabWithStyle tab (Indented, fn inner =>
-            token sigg
-            ++ at inner
-            ++ showSpec inner spec
-            ++ cond inner {inactive = empty, active = at tab}
-            ++ token endd)
+            token sigg ++
+            at inner
+              (showSpec inner spec
+              ++ cond inner {inactive = token endd, active = empty})
+            ++
+            cond inner {inactive = empty, active = at tab (token endd)})
 
       | WhereType {sigexp, elems} =>
           let
             fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
               at tab
-              ++ token wheree (** this could be 'and' *)
-              ++ token typee
-              ++ showSyntaxSeq token tab tyvars
-              ++ token (MaybeLongToken.getToken tycon)
-              ++ token eq
-              ++ withNewChild showTy tab ty
+                (token wheree (** this could be 'and' *)
+                ++ token typee
+                ++ showSyntaxSeq token tab tyvars
+                ++ token (MaybeLongToken.getToken tycon)
+                ++ token eq
+                ++ withNewChild showTy tab ty)
           in
             Seq.iterate op++
               (showSigExp tab sigexp)
@@ -288,14 +286,15 @@ struct
   and showSigDec tab (Ast.Sig.Signature {signaturee, elems, delims}) =
     let
       fun showOne first (starter, {ident, eq, sigexp}) =
-        (if first then empty else at tab)
-        ++ token starter
-        ++ token ident
-        ++ token eq
-        ++ (if sigExpWantsSameTabAsDec sigexp then
-              at tab ++ showSigExp tab sigexp
-            else
-              withNewChild showSigExp tab sigexp)
+        maybeAt tab (not first)
+          (token starter
+          ++ token ident
+          ++ token eq)
+        ++
+        (if sigExpWantsSameTabAsDec sigexp then
+          at tab (showSigExp tab sigexp)
+        else
+          withNewChild showSigExp tab sigexp)
     in
       Seq.iterate op++
         (showOne true (signaturee, Seq.nth elems 0))
