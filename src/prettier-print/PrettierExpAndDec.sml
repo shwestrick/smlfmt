@@ -160,7 +160,15 @@ struct
           end
 
       | Select {hash, label} =>
-          token hash ++ nospace ++ token label
+          token hash ++
+          (if
+            Token.isSymbolicIdentifier label
+            orelse Token.hasCommentsAfter hash
+          then
+            empty
+          else
+            nospace)
+          ++ token label
 
       | App {left, right} =>
           showExp tab left ++ withNewChild showExp tab right

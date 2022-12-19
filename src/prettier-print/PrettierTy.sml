@@ -45,7 +45,13 @@ struct
           let
             fun showElem tab {lab, colon, ty} =
               token lab ++
-              (if Token.isSymbolicIdentifier lab then empty else nospace)
+              (if
+                Token.isSymbolicIdentifier lab
+                orelse Token.hasCommentsAfter lab
+              then
+                empty
+              else
+                nospace)
               ++ token colon ++ showTy tab ty
           in
             showSequence (withNewChild showElem) tab

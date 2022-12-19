@@ -89,7 +89,13 @@ struct
             fun showOne first (starter, {vid, colon, ty}) =
               maybeAt tab (not first)
                 (token starter ++ token vid ++
-                (if Token.isSymbolicIdentifier vid then space else nospace)
+                (if
+                  Token.isSymbolicIdentifier vid
+                  orelse Token.hasCommentsAfter vid
+                then
+                  empty
+                else
+                  nospace)
                 ++ token colon ++ withNewChild showTy tab ty)
           in
             Seq.iterate op++
@@ -173,7 +179,8 @@ struct
                 ++ token id
                 (* NOTE: nospace should be safe here, because structure
                 * identifiers cannot be symbolic *)
-                ++ nospace ++ token colon)
+                ++ (if Token.hasCommentsAfter id then empty else nospace)
+                ++ token colon)
               ++
               (if sigExpWantsSameTabAsDec sigexp then
                 at tab (showSigExp tab sigexp)

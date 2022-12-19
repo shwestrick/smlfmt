@@ -68,7 +68,9 @@ struct
     | Ast.Fun.ArgIdent {strid, colon, sigexp} =>
         (* NOTE: nospace before the colon should be safe here, because
          * structure identifiers cannot be symbolic *)
-        token strid ++ nospace ++ token colon
+        token strid ++
+        (if Token.hasCommentsAfter strid then empty else nospace)
+        ++ token colon
         ++ withNewChild showSigExp tab sigexp
 
   fun showFunDec tab (Ast.Fun.DecFunctor {functorr, elems, delims}) =
@@ -90,8 +92,11 @@ struct
                   ++ token rparen))
             ++ showOption
                 (fn {colon, sigexp} =>
-                  (if Token.getClass colon = Token.Reserved Token.ColonArrow then
-                    space
+                  (if
+                    Token.getClass colon = Token.Reserved Token.ColonArrow
+                    orelse Token.hasCommentsBefore colon
+                  then
+                    empty
                   else
                     nospace)
                   ++ token colon

@@ -84,7 +84,13 @@ struct
               | LabAsPat {id, ty, aspat} =>
                   token id ++
                   showOption (fn {colon, ty} =>
-                    (if Token.isSymbolicIdentifier id then space else nospace)
+                    (if
+                      Token.isSymbolicIdentifier id
+                      orelse Token.hasCommentsBefore colon
+                    then
+                      empty
+                    else
+                      nospace)
                     ++ token colon ++ withNewChild showTy tab ty) ty ++
                   showOption (fn {ass, pat} =>
                     token ass ++ withNewChild showPat tab pat) aspat
@@ -104,14 +110,26 @@ struct
 
       | Typed {pat, colon, ty} =>
           showPat tab pat ++
-          (if patBeforeColonNeedsSpace pat then space else nospace)
+          (if
+            patBeforeColonNeedsSpace pat
+            orelse Token.hasCommentsBefore colon
+          then
+            empty
+          else
+            nospace)
           ++ token colon ++ withNewChild showTy tab ty
 
       | Layered {opp, id, ty, ass, pat} =>
           showOption token opp ++
           token id ++
           showOption (fn {colon, ty} =>
-            (if Token.isSymbolicIdentifier id then space else nospace)
+            (if
+              Token.isSymbolicIdentifier id
+              orelse Token.hasCommentsBefore colon
+            then
+              empty
+            else
+              nospace)
             ++ token colon ++ withNewChild showTy tab ty) ty ++
           token ass ++
           withNewChild showPat tab pat
