@@ -274,49 +274,51 @@ struct
     end
 
 
-  (* TODO: This is still not quite right... *)
   and showInfixedExpAt tab (l, t, r) =
-    newTab tab (fn inner =>
-      let
-        open Ast.Exp
+    newTab tab (fn tab =>
+    let
+      open Ast.Exp
 
-        fun tryLeft () =
-          case tryViewAsInfix l of
-            NONE => NONE
-          | SOME (ll, lt, lr) =>
-              if not (Token.same (t, lt)) then
-                NONE
-              else
-                SOME
-                  (at tab (showInfixedExpAt inner (ll, lt, lr))
-                  ++ at inner (token t ++ withNewChild showExp inner r))
+      fun infixChainLeft acc exp =
+        case tryViewAsInfix exp of
+          NONE => (exp, Seq.fromRevList acc)
+        | SOME (left, id, right) =>
+            if Token.same (t, id) then
+              infixChainLeft ({id=id, right=right} :: acc) left
+            else
+              (exp, Seq.fromRevList acc)
 
-        fun tryRight () =
-          case tryViewAsInfix r of
-            NONE => NONE
-          | SOME (rl, rt, rr) =>
-              if not (Token.same (t, rt)) then
-                NONE
-              else
-                SOME
-                  (showExp tab l
-                  ++ at inner
-                    (token t
-                    ++ showInfixedExpAt inner (rl, rt, rr)))
+      fun infixChainRight acc exp =
+        case tryViewAsInfix exp of
+          NONE => (Seq.fromRevList acc, exp)
+        | SOME (left, id, right) =>
+            if Token.same (t, id) then
+              infixChainRight ({left=left, id=id} :: acc) right
+            else
+              (Seq.fromRevList acc, exp)
 
-        fun normal () =
-          at tab (showExp inner l) ++ at inner (token t ++ withNewChild showExp inner r)
-      in
-        case tryLeft () of
-          SOME x => x
-        | NONE =>
+      val (leftmostExp, rightElems) = infixChainLeft [] l
+      val (leftElems, rightmostExp) = infixChainRight [] r
 
-        case tryRight () of
-          SOME x => x
-        | NONE =>
+      fun showRightElem {id, right} =
+        at tab (token id) ++ withNewChild showExp tab right
 
-        normal ()
-      end)
+      fun showLeftElem {left, id} =
+        withNewChild showExp tab left ++ at tab (token id)
+    in
+      if Seq.length rightElems >= Seq.length leftElems then
+        at tab (withNewChild showExp tab leftmostExp)
+        ++
+        Seq.iterate op++ empty (Seq.map showRightElem rightElems)
+        ++
+        showRightElem {id=t, right=r}
+      else
+        at tab (showLeftElem {left=l, id=t})
+        ++
+        Seq.iterate op++ empty (Seq.map showLeftElem leftElems)
+        ++
+        withNewChild showExp tab rightmostExp
+    end)
 
 
   and showLetInEndAt outerTab {lett, dec, inn, exps, delims, endd} =
