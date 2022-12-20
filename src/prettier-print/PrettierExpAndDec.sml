@@ -333,45 +333,56 @@ struct
     let
       open Ast.Exp
 
-      fun infixChainLeft acc exp =
-        case tryViewAsInfix exp of
-          NONE => (exp, Seq.fromRevList acc)
-        | SOME (left, id, right) =>
-            if Token.same (t, id) then
-              infixChainLeft ({id=id, right=right} :: acc) left
-            else
-              (exp, Seq.fromRevList acc)
+      fun infixChainLeft () =
+        let
+          fun loop acc exp =
+            case tryViewAsInfix exp of
+              NONE => (exp, acc)
+            | SOME (left, id, right) =>
+                if Token.same (t, id) then
+                  loop ({id=id, right=right} :: acc) left
+                else
+                  (exp, acc)
+          val (exp, elems) = loop [{id=t, right=r}] l
+        in
+          (exp, Seq.fromList elems)
+        end
 
-      fun infixChainRight acc exp =
-        case tryViewAsInfix exp of
-          NONE => (Seq.fromRevList acc, exp)
-        | SOME (left, id, right) =>
-            if Token.same (t, id) then
-              infixChainRight ({left=left, id=id} :: acc) right
-            else
-              (Seq.fromRevList acc, exp)
+      fun infixChainRight () =
+        let
+          fun loop exp =
+            case tryViewAsInfix exp of
+              NONE => (exp, [])
+            | SOME (left, id, right) =>
+                if not (Token.same (t, id)) then
+                  (exp, [])
+                else
+                  let
+                    val (rightLeft, rightElems) = loop right
+                  in
+                    (left, {id=id, right=rightLeft} :: rightElems)
+                  end
 
-      val (leftmostExp, rightElems) = infixChainLeft [] l
-      val (leftElems, rightmostExp) = infixChainRight [] r
+          val (exp, elems) = loop r
+        in
+          (l, Seq.fromList ({id=t, right=exp} :: elems))
+        end
+
+      val (leftmostExp1, rightElems1) = infixChainLeft ()
+      val (leftmostExp2, rightElems2) = infixChainRight ()
 
       fun showRightElem {id, right} =
         at tab (token id) ++ withNewChild showExp tab right
 
-      fun showLeftElem {left, id} =
-        withNewChild showExp tab left ++ at tab (token id)
+      val (leftmostExp, rightElems) =
+        if Seq.length rightElems1 >= Seq.length rightElems2 then
+          (leftmostExp1, rightElems1)
+        else
+          (leftmostExp2, rightElems2)
     in
-      if Seq.length rightElems >= Seq.length leftElems then
-        at tab (withNewChild showExp tab leftmostExp)
-        ++
-        Seq.iterate op++ empty (Seq.map showRightElem rightElems)
-        ++
-        showRightElem {id=t, right=r}
-      else
-        at tab (showLeftElem {left=l, id=t})
-        ++
-        Seq.iterate op++ empty (Seq.map showLeftElem leftElems)
-        ++
-        withNewChild showExp tab rightmostExp
+      at tab (withNewChild showExp tab leftmostExp)
+      ++
+      Seq.iterate op++ empty (Seq.map showRightElem rightElems)
     end)
 
 
