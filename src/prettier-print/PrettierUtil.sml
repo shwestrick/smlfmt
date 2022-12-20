@@ -9,6 +9,9 @@ sig
   type doc = TabbedTokenDoc.doc
   type style = TabbedTokenDoc.style
 
+  val indented: style
+  val indentedAtLeast4: style
+
   val maybeAt: tab -> bool -> doc -> doc
 
   type 'a shower = tab -> 'a -> doc
@@ -48,6 +51,9 @@ struct
   open TabbedTokenDoc
   infix 2 ++
   fun x ++ y = concat (x, y)
+
+  val indented = Indented NONE
+  val indentedAtLeast4 = Indented (SOME {minIndent=4})
 
   fun maybeAt tab b doc =
     if b then at tab doc else doc

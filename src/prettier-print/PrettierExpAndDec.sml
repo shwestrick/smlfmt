@@ -122,7 +122,10 @@ struct
           (starter ++
           showOption token opp ++
           token id ++
-          showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg)
+          showOption
+            (fn {off, ty} =>
+              token off ++ withNewChildWithStyle indentedAtLeast4 showTy tab ty)
+            arg)
 
       fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
         let
@@ -266,7 +269,7 @@ struct
               fun showBranch {pat, arrow, exp} =
                 withNewChild showPat inner1 pat
                 ++ token arrow
-                ++ withNewChildWithStyle (Indented (SOME {minIndent=4})) showExp inner1 exp
+                ++ withNewChildWithStyle indentedAtLeast4 showExp inner1 exp
               fun mk (delim, branch) =
                 at inner1
                   ((case delim of
@@ -305,11 +308,12 @@ struct
           token raisee ++ withNewChild showExp tab exp
 
       | Handle {exp=expLeft, handlee, elems, delims} =>
-          newTab tab (fn tab =>
           newTab tab (fn inner =>
             let
               fun showBranch {pat, arrow, exp} =
-                withNewChild showPat inner pat ++ token arrow ++ withNewChild showExp inner exp
+                withNewChild showPat inner pat
+                ++ token arrow
+                ++ withNewChildWithStyle indentedAtLeast4 showExp inner exp
               fun mk (delim, branch) =
                 at inner
                   ((case delim of
@@ -323,7 +327,7 @@ struct
               ++
               Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                 (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
-            end))
+            end)
 
       | MLtonSpecific {underscore, directive, contents, semicolon} =>
           token underscore ++ nospace ++ token directive
@@ -398,7 +402,7 @@ struct
             ++ (if i = numExps - 1 then empty else nospace ++ token (d i))))
         exps
     in
-      newTabWithStyle outerTab (Indented NONE, fn inner =>
+      newTabWithStyle outerTab (indented, fn inner =>
         showThingSimilarToLetInEnd outerTab
           { lett = lett
           , isEmpty1 = decIsEmpty dec
@@ -411,8 +415,8 @@ struct
 
 
   and showIfThenElseAt outer exp =
-    newTabWithStyle outer (Indented NONE, fn inner2 =>
-    newTabWithStyle outer (Indented NONE, fn inner1 =>
+    newTabWithStyle outer (indented, fn inner2 =>
+    newTabWithStyle outer (indented, fn inner1 =>
     let
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
@@ -548,9 +552,9 @@ struct
           showThingSimilarToLetInEnd tab
             { lett = locall
             , isEmpty1 = decIsEmpty left_dec
-            , doc1 = withNewChildWithStyle (Indented NONE) showDec tab left_dec
+            , doc1 = withNewChildWithStyle (indented) showDec tab left_dec
             , inn = inn
-            , doc2 = withNewChildWithStyle (Indented NONE) showDec tab right_dec
+            , doc2 = withNewChildWithStyle (indented) showDec tab right_dec
             , endd = endd
             }
 
@@ -562,7 +566,7 @@ struct
             val bottom =
               at tab
                 (token withh
-                ++ withNewChildWithStyle (Indented NONE) showDec tab dec)
+                ++ withNewChildWithStyle (indented) showDec tab dec)
               ++
               at tab (token endd)
           in

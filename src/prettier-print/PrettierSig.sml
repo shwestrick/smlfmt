@@ -49,7 +49,11 @@ struct
         at tab
           (starter ++
           token vid ++
-          showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg)
+          showOption
+            (fn {off, ty} =>
+              token off
+              ++ withNewChildWithStyle indentedAtLeast4 showTy tab ty)
+            arg)
 
       fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
         let
@@ -264,7 +268,7 @@ struct
           token id
 
       | Spec {sigg, spec, endd} =>
-          newTabWithStyle tab (Indented NONE, fn inner =>
+          newTabWithStyle tab (indented, fn inner =>
             token sigg ++
             at inner
               (showSpec inner spec
