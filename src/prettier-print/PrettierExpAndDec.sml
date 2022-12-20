@@ -303,6 +303,7 @@ struct
           token raisee ++ withNewChild showExp tab exp
 
       | Handle {exp=expLeft, handlee, elems, delims} =>
+          newTab tab (fn tab =>
           newTab tab (fn inner =>
             let
               fun showBranch {pat, arrow, exp} =
@@ -314,11 +315,13 @@ struct
                     | _ => cond inner {active = space ++ space, inactive = empty})
                   ++ showBranch branch)
             in
-              showExp tab expLeft ++
-              at inner (token handlee) ++
+              at tab (showExp tab expLeft)
+              ++
+              at tab (at inner (token handlee))
+              ++
               Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
                 (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
-            end)
+            end))
 
       | MLtonSpecific {underscore, directive, contents, semicolon} =>
           token underscore ++ nospace ++ token directive
