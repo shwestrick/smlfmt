@@ -264,7 +264,9 @@ struct
           newTab inner1 (fn inner2 =>
             let
               fun showBranch {pat, arrow, exp} =
-                withNewChild showPat inner1 pat ++ token arrow ++ withNewChild showExp inner1 exp
+                withNewChild showPat inner1 pat
+                ++ token arrow
+                ++ withNewChildWithStyle (Indented (SOME {minIndent=4})) showExp inner1 exp
               fun mk (delim, branch) =
                 at inner1
                   ((case delim of
@@ -396,7 +398,7 @@ struct
             ++ (if i = numExps - 1 then empty else nospace ++ token (d i))))
         exps
     in
-      newTabWithStyle outerTab (Indented, fn inner =>
+      newTabWithStyle outerTab (Indented NONE, fn inner =>
         showThingSimilarToLetInEnd outerTab
           { lett = lett
           , isEmpty1 = decIsEmpty dec
@@ -409,8 +411,8 @@ struct
 
 
   and showIfThenElseAt outer exp =
-    newTabWithStyle outer (Indented, fn inner2 =>
-    newTabWithStyle outer (Indented, fn inner1 =>
+    newTabWithStyle outer (Indented NONE, fn inner2 =>
+    newTabWithStyle outer (Indented NONE, fn inner1 =>
     let
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
@@ -546,9 +548,9 @@ struct
           showThingSimilarToLetInEnd tab
             { lett = locall
             , isEmpty1 = decIsEmpty left_dec
-            , doc1 = withNewChildWithStyle Indented showDec tab left_dec
+            , doc1 = withNewChildWithStyle (Indented NONE) showDec tab left_dec
             , inn = inn
-            , doc2 = withNewChildWithStyle Indented showDec tab right_dec
+            , doc2 = withNewChildWithStyle (Indented NONE) showDec tab right_dec
             , endd = endd
             }
 
@@ -560,7 +562,7 @@ struct
             val bottom =
               at tab
                 (token withh
-                ++ withNewChildWithStyle Indented showDec tab dec)
+                ++ withNewChildWithStyle (Indented NONE) showDec tab dec)
               ++
               at tab (token endd)
           in

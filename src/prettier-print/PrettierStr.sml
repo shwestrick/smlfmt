@@ -96,7 +96,7 @@ struct
           if decIsEmpty strdec then
             token structt ++ at tab (token endd)
           else
-            newTabWithStyle tab (Indented, fn inner =>
+            newTabWithStyle tab (Indented NONE, fn inner =>
               token structt
               ++ at inner (showStrDec inner strdec)
               ++ cond inner
@@ -144,9 +144,9 @@ struct
           showThingSimilarToLetInEnd tab
             { lett = lett
             , isEmpty1 = decIsEmpty strdec
-            , doc1 = withNewChildWithStyle Indented showStrDec tab strdec
+            , doc1 = withNewChildWithStyle (Indented NONE) showStrDec tab strdec
             , inn = inn
-            , doc2 = withNewChildWithStyle Indented showStrExp tab strexp
+            , doc2 = withNewChildWithStyle (Indented NONE) showStrExp tab strexp
             , endd = endd
             }
     end
@@ -218,9 +218,9 @@ struct
           showThingSimilarToLetInEnd tab
             { lett = locall
             , isEmpty1 = decIsEmpty strdec1
-            , doc1 = withNewChildWithStyle Indented showStrDec tab strdec1
+            , doc1 = withNewChildWithStyle (Indented NONE) showStrDec tab strdec1
             , inn = inn
-            , doc2 = withNewChildWithStyle Indented showStrDec tab strdec2
+            , doc2 = withNewChildWithStyle (Indented NONE) showStrDec tab strdec2
             , endd = endd
             }
 

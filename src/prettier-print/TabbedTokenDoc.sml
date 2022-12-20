@@ -15,7 +15,11 @@ sig
   val text: string -> doc
   val concat: doc * doc -> doc
 
-  datatype style = Inplace | Indented | RigidInplace | RigidIndented
+  datatype style =
+    Inplace
+  | Indented of {minIndent: int} option
+  | RigidInplace
+  | RigidIndented of {minIndent: int} option
 
   type tab
   val root: tab
@@ -30,7 +34,11 @@ struct
 
   structure D = TabbedStringDoc
 
-  datatype style = Inplace | Indented | RigidInplace | RigidIndented
+  datatype style =
+    Inplace
+  | Indented of {minIndent: int} option
+  | RigidInplace
+  | RigidIndented of {minIndent: int} option
 
   (* Just need a unique name *)
   datatype tab =
@@ -823,9 +831,9 @@ struct
               val s =
                 case style tab of
                   Inplace => D.Inplace
-                | Indented => D.Indented
+                | Indented xx => D.Indented xx
                 | RigidInplace => D.RigidInplace
-                | RigidIndented => D.RigidIndented
+                | RigidIndented xx => D.RigidIndented xx
             in
               D.newTab
                 (TabDict.lookup tabmap (valOf (parent tab)))

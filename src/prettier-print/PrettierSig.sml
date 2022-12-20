@@ -264,7 +264,7 @@ struct
           token id
 
       | Spec {sigg, spec, endd} =>
-          newTabWithStyle tab (Indented, fn inner =>
+          newTabWithStyle tab (Indented NONE, fn inner =>
             token sigg ++
             at inner
               (showSpec inner spec

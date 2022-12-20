@@ -36,7 +36,11 @@ sig
   val text: CustomString.t -> doc
   val concat: doc * doc -> doc
 
-  datatype style = Inplace | Indented | RigidInplace | RigidIndented
+  datatype style =
+    Inplace
+  | Indented of {minIndent: int} option
+  | RigidInplace
+  | RigidIndented of {minIndent: int} option
 
   type tab
   val root: tab
@@ -64,7 +68,11 @@ struct
   (* ====================================================================== *)
 
 
-  datatype style = Inplace | Indented | RigidInplace | RigidIndented
+  datatype style =
+    Inplace
+  | Indented of {minIndent: int} option
+  | RigidInplace
+  | RigidIndented of {minIndent: int} option
 
 
   structure Tab =
@@ -111,7 +119,7 @@ struct
     fun isRigid t =
       case style t of
         RigidInplace => true
-      | RigidIndented => true
+      | RigidIndented _ => true
       | _ => false
 
     fun isInplace t =
@@ -119,6 +127,12 @@ struct
         RigidInplace => true
       | Inplace => true
       | _ => false
+
+    fun minIndent t =
+      case style t of
+        Indented (SOME {minIndent=i}) => i
+      | RigidIndented (SOME {minIndent=i}) => i
+      | _ => 0
 
     fun getState t =
       case t of
@@ -720,7 +734,7 @@ struct
             | SOME p =>
                 case Tab.getState p of
                   Tab.Usable (Tab.Activated (SOME pi)) =>
-                    ti > pi + indentWidth
+                    ti > pi + Int.max (indentWidth, Tab.minIndent t)
                 | _ => raise Fail "PrettyTabbedDoc.pretty.isPromotable: bad parent tab")
         | _ => raise Fail "PrettyTabbedDoc.pretty.isPromotable: bad tab"
 
@@ -936,7 +950,9 @@ struct
                         )
                     else
                       let
-                        val i = indentWidth + parentTabCol tab
+                        val i =
+                          parentTabCol tab
+                          + Int.max (indentWidth, Tab.minIndent tab)
                       in
                         ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)))
                         ; goto i
@@ -967,13 +983,20 @@ struct
                 case Tab.getState tab of
                   Tab.Usable (Tab.Activated NONE) =>
                     let
-                      val desired = parentTabCol tab + indentWidth
+                      val desired =
+                        parentTabCol tab
+                        + Int.max (indentWidth, Tab.minIndent tab)
                     in
                       Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)))
                     end
                 | Tab.Usable (Tab.Activated (SOME i)) =>
                     let
-                      val desired = Int.min (i, parentTabCol tab + indentWidth)
+                      val desired =
+                        Int.min
+                          ( i
+                          , parentTabCol tab
+                            + Int.max (indentWidth, Tab.minIndent tab)
+                          )
                     in
                       Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)))
                     end
