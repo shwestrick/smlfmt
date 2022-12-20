@@ -82,6 +82,9 @@ much as possible. Default = 1.0
 
 `-max-width <int>` (default 80) controls pretty-printing.
 This is the desired maximum number of columns in each line.
+Note that it is not always possible to ensure that the output is within
+the max width. (For example, deeply nested `let...in...end` expressions
+will always indent further, and long comments/strings are not broken up.)
 
 `-indent-width <int>` (default 2) is the desired number of spaces used in
 the formatted output.
@@ -91,3 +94,10 @@ tab-width for the input source. Typically this doesn't matter, but there are
 some cases where a particular tab-width can influence the vertical alignment
 of multiline comments and strings. (See discussion in issue #28 for more
 details.)
+
+`-engine [pretty|prettier]` (default `prettier`) selects which pretty printing
+engine to use. The `prettier` engine is the newest version. The `pretty`
+engine is the old version.
+
+`--debug-engine` enables debugging output, for developers. This flag requires
+that the `--preview-only` flag is also enabled.
