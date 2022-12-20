@@ -350,22 +350,18 @@ struct
 
       fun infixChainRight () =
         let
-          fun loop exp =
+          fun loop acc (prevId, exp) =
             case tryViewAsInfix exp of
-              NONE => (exp, [])
+              NONE => {id=prevId, right=exp} :: acc
             | SOME (left, id, right) =>
                 if not (Token.same (t, id)) then
-                  (exp, [])
+                  {id=prevId, right=exp} :: acc
                 else
-                  let
-                    val (rightLeft, rightElems) = loop right
-                  in
-                    (left, {id=id, right=rightLeft} :: rightElems)
-                  end
+                  loop ({id=prevId, right=left} :: acc) (id, right)
 
-          val (exp, elems) = loop r
+          val elems = loop [] (t, r)
         in
-          (l, Seq.fromList ({id=t, right=exp} :: elems))
+          (l, Seq.fromRevList elems)
         end
 
       val (leftmostExp1, rightElems1) = infixChainLeft ()
