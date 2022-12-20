@@ -23,5 +23,7 @@ in
   functor Dict
 end
 
+Set.sml
 
 PrettySimpleDoc.sml
+PrettyTabbedDoc.sml

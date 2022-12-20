@@ -95,6 +95,10 @@ sig
 
   val nextToken: token -> token option
   val prevToken: token -> token option
+  val nextTokenNotCommentOrWhitespace: token -> token option
+  val prevTokenNotCommentOrWhitespace: token -> token option
+  val hasCommentsAfter: token -> bool
+  val hasCommentsBefore: token -> bool
   val commentsBefore: token -> token Seq.t
   val commentsAfter: token -> token Seq.t
   val commentsOrWhitespaceBefore: token -> token Seq.t
@@ -119,6 +123,7 @@ sig
   val isValueIdentifier: token -> bool
   val isValueIdentifierNoEqual: token -> bool
   val isLongIdentifier: token -> bool
+  val isSymbolicIdentifier: token -> bool
   val isMaybeLongIdentifier: token -> bool
   val isStrIdentifier: token -> bool
   val isMaybeLongStrIdentifier: token -> bool
@@ -494,6 +499,19 @@ struct
     | MLtonReserved => true (** another special case... *)
     | _ => false
 
+  fun isSymbolicIdentifier tok =
+    let
+      val src = getSource tok
+      val isSymb =
+        LexUtils.isSymbolic (Source.nth src (Source.length src - 1))
+    in
+      case getClass tok of
+        Identifier => isSymb
+      | LongIdentifier => isSymb
+      | Reserved Equal => true (* annoying edge case *)
+      | _ => false
+    end
+
   (** alphanumeric, not starting with prime *)
   fun isStrIdentifier tok =
     let
@@ -724,6 +742,24 @@ struct
     else
       NONE
 
+  fun prevTokenNotCommentOrWhitespace tok =
+    case prevToken tok of
+      NONE => NONE
+    | SOME t' =>
+        if isCommentOrWhitespace t' then
+          prevTokenNotCommentOrWhitespace t'
+        else
+          SOME t'
+
+  fun nextTokenNotCommentOrWhitespace tok =
+    case nextToken tok of
+      NONE => NONE
+    | SOME t' =>
+        if isCommentOrWhitespace t' then
+          nextTokenNotCommentOrWhitespace t'
+        else
+          SOME t'
+
   fun commentsOrWhitespaceBefore tok =
     let
       fun loop acc t =
@@ -753,6 +789,20 @@ struct
     in
       Seq.fromRevList (loop [] tok)
     end
+
+
+  fun hasCommentsBefore t =
+    case prevToken t of
+      SOME t' =>
+        isComment t' orelse (isWhitespace t' andalso hasCommentsBefore t')
+    | NONE => false
+
+
+  fun hasCommentsAfter t =
+    case nextToken t of
+      SOME t' =>
+        isComment t' orelse (isWhitespace t' andalso hasCommentsAfter t')
+    | NONE => false
 
 
   fun commentsBefore tok =

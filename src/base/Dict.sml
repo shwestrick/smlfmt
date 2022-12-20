@@ -25,8 +25,10 @@ sig
   val contains: 'a dict -> Key.t -> bool
   val remove: 'a dict -> Key.t -> 'a dict
   val fromList: (Key.t * 'a) list -> 'a dict
+  val listKeys: 'a dict -> Key.t list
 
   val unionWith: ('a * 'a -> 'a) -> ('a dict * 'a dict) -> 'a dict
+  val intersectWith: ('a * 'b -> 'c) -> ('a dict * 'b dict) -> 'c dict
 
 (** below are other ORD_MAP functions that we could easily add if needed. *)
 (*
@@ -106,6 +108,7 @@ struct
   val size = M.numItems
   val singleton = M.singleton
   val unionWith = M.unionWith
+  val intersectWith = M.intersectWith
 
   fun insert d (k, v) = M.insert (d, k, v)
   fun lookup d k = M.lookup (d, k)
@@ -118,5 +121,7 @@ struct
 
   fun fromList kvs =
     List.foldl (fn ((k, v), d) => insert d (k, v)) empty kvs
+
+  val listKeys = M.listKeys
 
 end

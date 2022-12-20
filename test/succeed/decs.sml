@@ -5,6 +5,8 @@ fun foo (x, y) = "hello"
   | foo _ = "goodbye";
 
 type int = string
+and huh = string
+and yah = string -> string
 
 datatype X =
   XX of int (* AAA *) t
@@ -12,6 +14,8 @@ datatype X =
 | ZZZ of sheesh
 and sheesh = Sheeeesh of X
 withtype 'a t = 'a list
+
+datatype Y = Why of Y
 
 datatype Z = datatype X
 
@@ -23,11 +27,16 @@ and yep of string
 exception hello
 and goodbye;
 
-local
-  datatype Ya = Boi
-in
-val x: Ya = Boi
-end
+val _ =
+  let
+    local
+      datatype Ya = Boi
+    in
+    val x: Ya = Boi
+    end
+  in
+    ()
+  end
 
 open X Y Foo.Z
 
