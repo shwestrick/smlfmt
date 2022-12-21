@@ -208,6 +208,7 @@ struct
   end
 
   structure TabDict = Dict(Tab)
+  structure TabSet = Set(Tab)
 
   (* ====================================================================== *)
 
@@ -694,33 +695,34 @@ struct
       (* tab -> hit first break? *)
       type debug_state = bool TabDict.t
 
-      (* debug state, current tab, line start, current col, accumulator *)
+      (* debug state, current tab, current 'at's, line start, current col, accumulator *)
       datatype layout_state =
         LS of
           debug_state *
           tab *
+          TabSet.t *
           int *
           int *
           (item list)
 
-      fun dbgInsert tab (LS (dbgState, ct, s, c, a): layout_state) : layout_state =
+      fun dbgInsert tab (LS (dbgState, ct, cats, s, c, a): layout_state) : layout_state =
         if not debug then
-          LS (dbgState, ct, s, c, a)
+          LS (dbgState, ct, cats, s, c, a)
         else
           LS
             ( TabDict.insert dbgState (tab, false)
-            , ct, s, c, a
+            , ct, cats, s, c, a
             )
 
-      fun dbgBreak tab (LS (dbgState, ct, s, c, a): layout_state) : layout_state =
+      fun dbgBreak tab (LS (dbgState, ct, cats, s, c, a): layout_state) : layout_state =
         if not debug then
-          LS (dbgState, ct, s, c, a)
+          LS (dbgState, ct, cats, s, c, a)
         else if TabDict.lookup dbgState tab then
-          LS (dbgState, ct, s, c, a)
+          LS (dbgState, ct, cats, s, c, a)
         else
           LS
             ( TabDict.insert dbgState (tab, true)
-            , ct, s, c
+            , ct, cats, s, c
             , Item.StartDebug (StartTabHighlight {tab = tab, col = c}) :: a
             )
 
@@ -811,7 +813,7 @@ struct
        *
        * UPDATE: tab styles (newly added) allow for some control over this.
        *)
-      fun check (state as LS (dbgState, ct, lnStart, col, acc)) =
+      fun check (state as LS (dbgState, ct, cats, lnStart, col, acc)) =
         let
           val widthOkay = col <= maxWidth
           val ribbonOkay = (col - lnStart) <= ribbonWidth
@@ -857,9 +859,17 @@ struct
 
       fun putItemSameLine state item =
         let
-          val LS (dbgState, ct, lnStart, col, acc) = state
+          val LS (dbgState, ct, _, lnStart, col, acc) = state
         in
-          check (LS (dbgState, ct, lnStart, col + Item.width item, item :: acc))
+          check (LS
+            ( dbgState
+            , ct
+            (* an item has been placed, so now we are no longer at a tab *)
+            , TabSet.empty
+            , lnStart
+            , col + Item.width item
+            , item :: acc
+            ))
         end
 
       fun parentTabCol tab =
@@ -869,6 +879,99 @@ struct
         case Tab.getState p of
           Tab.Usable (Tab.Activated (SOME i)) => i
         | _ => raise Fail "PrettyTabbedDoc.pretty.parentTabCol: bad tab"
+
+
+      fun ensureAt tab state =
+        let
+          val LS (dbgState, ct, cats, lnStart, col, acc) = state
+          val alreadyAtTab = TabSet.contains cats tab
+
+          fun goto i =
+            if alreadyAtTab then
+              dbgBreak tab (LS (dbgState, tab, cats, lnStart, i, acc))
+            else if i = col andalso Tab.isInplace tab then
+              dbgBreak tab (LS (dbgState, tab, TabSet.insert cats tab, lnStart, i, acc))
+            else if i < col then
+              dbgBreak tab (check (LS
+                ( dbgState
+                , tab
+                , TabSet.singleton tab
+                , i
+                , i
+                , Item.Spaces i :: Item.Newline :: acc)
+                ))
+            else if isPromotable tab then
+              (* force this tab to promote if possible, which should move
+                * it onto a new line and indent. *)
+              raise DoPromote tab
+            else if lnStart < i then
+
+              (* SAM_NOTE: TODO: This case might be unnecessary... we can use
+               * tab styles (inplace vs indented) to resolve this issue. Inplace
+               * can be allowed to advance, and indented require a fresh line.
+               * This would simplify the logic above, too; the case where
+               *   i = col andalso Tab.isInplace tab
+               * would just be a special case of advancing on the current line.
+               *)
+
+              (* This avoids advancing the current line to meet the tab,
+               * if possible, which IMO results in strange layouts. *)
+              dbgBreak tab (check (LS
+                ( dbgState
+                , tab
+                , if i = col then TabSet.insert cats tab else TabSet.singleton tab
+                , i
+                , i
+                , Item.Spaces i :: Item.Newline :: acc)
+                ))
+            else
+              (* Fall back on advancing the current line to meet the tab,
+               * which is a little strange, but better than nothing. *)
+              dbgBreak tab (check (LS
+                ( dbgState
+                , tab
+                , if i = col then TabSet.insert cats tab else TabSet.singleton tab
+                , lnStart
+                , i
+                , Item.Spaces (i-col) :: acc)
+                ))
+
+          val state' =
+            case Tab.getState tab of
+              Tab.Usable Tab.Flattened =>
+                if Tab.isRigid tab then
+                  raise DoPromote (valOf (oldestPromotableParent tab))
+                else
+                  LS (dbgState, tab, cats, lnStart, col, acc)
+
+            | Tab.Usable (Tab.Activated (SOME i)) =>
+                goto i
+
+            | Tab.Usable (Tab.Activated NONE) =>
+                if Tab.isInplace tab then
+                  if col < parentTabCol tab then
+                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
+                    ; goto (parentTabCol tab)
+                    )
+                  else
+                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
+                    ; goto col
+                    )
+                else
+                  let
+                    val i =
+                      parentTabCol tab
+                      + Int.max (indentWidth, Tab.minIndent tab)
+                  in
+                    Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)));
+                    goto i
+                  end
+
+            | _ =>
+                raise Fail "PrettyTabbedDoc.pretty.Goto: bad tab"
+        in
+          state'
+        end
 
 
       (* This is a little tricky, but the idea is: try to lay out the doc,
@@ -892,9 +995,9 @@ struct
 
         | Newline =>
             let
-              val LS (dbgState, ct, lnStart, col, acc) = state
+              val LS (dbgState, ct, cats, lnStart, col, acc) = state
             in
-              check (LS (dbgState, ct, col, col, Item.Spaces col :: Item.Newline :: acc))
+              check (LS (dbgState, ct, cats, col, col, Item.Spaces col :: Item.Newline :: acc))
             end
 
         | Concat (doc1, doc2) =>
@@ -902,67 +1005,11 @@ struct
 
         | At (tab, doc) =>
             let
-              val LS (dbgState, ct, lnStart, col, acc) = state
-
-              fun goto i =
-                if i < col then
-                  dbgBreak tab (check (LS (dbgState, tab, i, i, Item.Spaces i :: Item.Newline :: acc)))
-                else if lnStart = i andalso i = col then
-                  (* TODO: double check this case.
-                   * The constraint `lnStart = i` seemed necessary, but I
-                   * haven't convinced myself yet that this interacts
-                   * correctly with promotion. No problems yet, but still...
-                   *)
-                  dbgBreak tab (LS (dbgState, tab, i, i, acc))
-                else if isPromotable tab then
-                  (* force this tab to promote if possible, which should move
-                    * it onto a new line and indent. *)
-                  raise DoPromote tab
-                else if lnStart < i then
-                  (* This avoids advancing the current line to meet the tab,
-                    * if possible, which IMO results in strange layouts. *)
-                  dbgBreak tab (check (LS (dbgState, tab, i, i, Item.Spaces i :: Item.Newline :: acc)))
-                else
-                  (* Fall back on advancing the current line to meet the tab,
-                    * which is a little strange, but better than nothing. *)
-                  dbgBreak tab (check (LS (dbgState, tab, lnStart, i, Item.Spaces (i-col) :: acc)))
-
-              val state' =
-                case Tab.getState tab of
-                  Tab.Usable Tab.Flattened =>
-                    if Tab.isRigid tab then
-                      raise DoPromote (valOf (oldestPromotableParent tab))
-                    else
-                      LS (dbgState, tab, lnStart, col, acc)
-
-                | Tab.Usable (Tab.Activated (SOME i)) =>
-                    goto i
-
-                | Tab.Usable (Tab.Activated NONE) =>
-                    if Tab.isInplace tab then
-                      if col < parentTabCol tab then
-                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
-                        ; goto (parentTabCol tab)
-                        )
-                      else
-                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
-                        ; dbgBreak tab (LS (dbgState, tab, lnStart, col, acc))
-                        )
-                    else
-                      let
-                        val i =
-                          parentTabCol tab
-                          + Int.max (indentWidth, Tab.minIndent tab)
-                      in
-                        ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)))
-                        ; goto i
-                        )
-                      end
-
-                | _ =>
-                    raise Fail "PrettyTabbedDoc.pretty.Goto: bad tab"
+              val LS (_, origCurrentTab, _, _, _, _) = state
+              val state' = ensureAt tab state
+              val LS (dbgState, _, cats, lnStart, col, acc) = layout state' doc
             in
-              layout state' doc
+              LS (dbgState, origCurrentTab, cats, lnStart, col, acc)
             end
 
         | Cond {tab, inactive, active} =>
@@ -1022,7 +1069,7 @@ struct
 
               val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
 
-              val LS (dbgState, _, lnStart, col, acc) : layout_state =
+              val LS (dbgState, _, cats, lnStart, col, acc) : layout_state =
                 doit ()
 
               val acc =
@@ -1041,13 +1088,13 @@ struct
 
               Tab.setState tab Tab.Completed;
 
-              LS (dbgState, parent, lnStart, col, acc)
+              LS (dbgState, parent, TabSet.remove cats tab, lnStart, col, acc)
             end
 
 
-      val init = LS (TabDict.empty, root, 0, 0, [])
+      val init = LS (TabDict.empty, root, TabSet.singleton root, 0, 0, [])
       val init = dbgBreak Tab.Root (dbgInsert Tab.Root init)
-      val LS (_, _, _, _, items) = layout init doc
+      val LS (_, _, _, _, _, items) = layout init doc
       val items =
         if not debug then items
         else Item.EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
