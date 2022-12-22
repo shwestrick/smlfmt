@@ -166,10 +166,12 @@ struct
           showMaybeOpToken opp (MaybeLongToken.getToken id)
 
       | Parens {left, exp, right} =>
-          token left ++ nospace ++ withNewChild showExp tab exp ++ nospace ++ token right
+          token left ++
+          (if expStartsWithStar exp then empty else nospace)
+          ++ withNewChild showExp tab exp ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
-          showSequence (withNewChild showExp) tab
+          showSequence expStartsWithStar (withNewChild showExp) tab
             { openn = left
             , elems = elems
             , delims = delims
@@ -177,7 +179,7 @@ struct
             }
 
       | Sequence {left, elems, delims, right} =>
-          showSequence (withNewChild showExp) tab
+          showSequence expStartsWithStar (withNewChild showExp) tab
             { openn = left
             , elems = elems
             , delims = delims
@@ -185,7 +187,7 @@ struct
             }
 
       | List {left, elems, delims, right} =>
-          showSequence (withNewChild showExp) tab
+          showSequence expStartsWithStar (withNewChild showExp) tab
             { openn = left
             , elems = elems
             , delims = delims
@@ -197,7 +199,7 @@ struct
             fun showRow tab {lab, eq, exp} =
               token lab ++ token eq ++ (withNewChild showExp tab) exp
           in
-            showSequence (withNewChild showRow) tab
+            showSequence (fn _ => false) (withNewChild showRow) tab
               { openn = left
               , elems = elems
               , delims = delims
@@ -594,7 +596,8 @@ struct
         | InfixedFun {larg, id, rarg} =>
             showInfixed larg id rarg
         | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
-            token lparen ++ nospace
+            token lparen ++
+            (if patStartsWithStar larg then empty else nospace)
             ++ showInfixed larg id rarg ++ nospace ++ token rparen
             ++ showArgs args
 

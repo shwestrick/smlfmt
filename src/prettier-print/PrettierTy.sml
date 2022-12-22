@@ -54,7 +54,7 @@ struct
                 nospace)
               ++ token colon ++ showTy tab ty
           in
-            showSequence (withNewChild showElem) tab
+            showSequence (fn _ => false) (withNewChild showElem) tab
               { openn = left
               , elems = elems
               , delims = delims

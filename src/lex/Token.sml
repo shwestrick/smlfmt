@@ -118,6 +118,7 @@ sig
   val isAndalso: token -> bool
   val isOrelse: token -> bool
   val isStar: token -> bool
+  val isOpenParen: token -> bool
   val isSemicolon: token -> bool
   val isIdentifier: token -> bool
   val isValueIdentifier: token -> bool
@@ -464,6 +465,11 @@ struct
     in
       Source.length src = 1 andalso Source.nth src 0 = #"*"
     end
+
+  fun isOpenParen tok =
+    case getClass tok of
+      Reserved OpenParen => true
+    | _ => false
 
   fun isSemicolon tok =
     case getClass tok of

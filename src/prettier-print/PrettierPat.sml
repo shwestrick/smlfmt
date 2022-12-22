@@ -54,10 +54,12 @@ struct
           showMaybeOpToken opp (MaybeLongToken.getToken id)
 
       | Parens {left, pat, right} =>
-          token left ++ nospace ++ withNewChild showPat tab pat ++ nospace ++ token right
+          token left ++
+          (if patStartsWithStar pat then empty else nospace)
+          ++ withNewChild showPat tab pat ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
-          showSequence (withNewChild showPat) tab
+          showSequence patStartsWithStar (withNewChild showPat) tab
             { openn = left
             , elems = elems
             , delims = delims
@@ -65,7 +67,7 @@ struct
             }
 
       | List {left, elems, delims, right} =>
-          showSequence (withNewChild showPat) tab
+          showSequence patStartsWithStar (withNewChild showPat) tab
             { openn = left
             , elems = elems
             , delims = delims
@@ -95,7 +97,7 @@ struct
                   showOption (fn {ass, pat} =>
                     token ass ++ withNewChild showPat tab pat) aspat
           in
-            showSequence (withNewChild showPatRow) tab
+            showSequence (fn _ => false) (withNewChild showPatRow) tab
               { openn = left
               , elems = elems
               , delims = delims

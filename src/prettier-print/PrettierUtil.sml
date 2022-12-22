@@ -21,14 +21,14 @@ sig
   val spaces: int -> doc
 
   val showSequence:
-    'a shower
-    ->
-    { openn: Token.t
-    , elems: 'a Seq.t
-    , delims: Token.t Seq.t
-    , close: Token.t
-    }
-    shower
+    ('a -> bool)  (* elem starts with star? *)
+    -> 'a shower
+    -> { openn: Token.t
+       , elems: 'a Seq.t
+       , delims: Token.t Seq.t
+       , close: Token.t
+       }
+       shower
 
   val showSyntaxSeq: 'a shower -> 'a Ast.SyntaxSeq.t shower
   val showTokenSyntaxSeq: Token.t Ast.SyntaxSeq.t shower
@@ -46,6 +46,9 @@ sig
     , endd: Token.t
     }
     shower
+
+  val expStartsWithStar: Ast.Exp.exp -> bool
+  val patStartsWithStar: Ast.Pat.t -> bool
 
 end =
 struct
@@ -73,7 +76,7 @@ struct
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
-  fun showSequence (elemShower: 'a shower) tab {openn, elems: 'a Seq.t, delims, close} =
+  fun showSequence elemStartsWithStar (elemShower: 'a shower) tab {openn, elems: 'a Seq.t, delims, close} =
     if Seq.length elems = 0 then
       token openn ++ nospace ++ token close
     else if Seq.length elems = 1 then
@@ -83,9 +86,18 @@ struct
     else
       newTab tab (fn inner =>
         let
+          val topspacer =
+            if
+              Token.isOpenParen openn
+              andalso
+              elemStartsWithStar (Seq.nth elems 0)
+            then
+              empty
+            else
+              cond inner {inactive = nospace, active = space}
+
           val top =
-            token openn ++
-            (cond inner {inactive = nospace, active = space}) ++
+            token openn ++ topspacer ++
             elemShower inner (Seq.nth elems 0)
 
           fun f (delim, x) =
@@ -104,7 +116,7 @@ struct
       Ast.SyntaxSeq.Empty => empty
     | Ast.SyntaxSeq.One x => elemShower tab x
     | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
-        showSequence elemShower tab
+        showSequence (fn _ => false) elemShower tab
           { openn = left
           , elems = elems
           , delims = delims
@@ -149,6 +161,48 @@ struct
           else
             token opp ++ token tok
         end
+
+
+  fun expStartsWithStar exp =
+    let
+      open Ast.Exp
+    in
+      case exp of
+        Ident {opp=NONE, id} =>
+          Token.isStar (MaybeLongToken.getToken id)
+      | App {left, ...} =>
+          expStartsWithStar left
+      | Infix {left, ...} =>
+          expStartsWithStar left
+      | Typed {exp, ...} =>
+          expStartsWithStar exp
+      | Andalso {left, ...} =>
+          expStartsWithStar left
+      | Orelse {left, ...} =>
+          expStartsWithStar left
+      | Handle {exp, ...} =>
+          expStartsWithStar exp
+      | _ => false
+    end
+
+
+  fun patStartsWithStar pat =
+    let
+      open Ast.Pat
+    in
+      case pat of
+        Ident {opp=NONE, id} =>
+          Token.isStar (MaybeLongToken.getToken id)
+      | Infix {left, ...} =>
+          patStartsWithStar left
+      | Typed {pat, ...} =>
+          patStartsWithStar pat
+      | Con {opp=NONE, id, ...} =>
+          Token.isStar (MaybeLongToken.getToken id)
+      | Layered {opp=NONE, id, ...} =>
+          Token.isStar id
+      | _ => false
+    end
 
 
 end
