@@ -96,6 +96,23 @@ struct
     not (appWantsToTouch left right)
 
 
+  fun tryViewAsSimpleApp exp =
+    let
+      open Ast.Exp
+    in
+      case exp of
+        App {left, right} =>
+          if appWantsToTouch left right then
+            NONE
+          else
+            (case left of
+              Ident {opp=NONE, id} => SOME (MaybeLongToken.getToken id, right)
+            | _ => NONE)
+
+      | _  => NONE
+    end
+
+
   (* ====================================================================== *)
 
   fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
@@ -306,7 +323,12 @@ struct
             at inner2 (showExp inner2 exp2)))
 
       | Raise {raisee, exp} =>
-          token raisee ++ withNewChild showExp tab exp
+          (case tryViewAsSimpleApp exp of
+            NONE => token raisee ++ withNewChild showExp tab exp
+          | SOME (id, exp') =>
+              token raisee
+              ++ newTab tab (fn inner => at inner (token id))
+              ++ withNewChild showExp tab exp')
 
       | Handle {exp=expLeft, handlee, elems, delims} =>
           newTab tab (fn inner =>
