@@ -51,7 +51,7 @@ struct
           token left ++ nospace ++ token right
 
       | Ident {opp, id} =>
-          showOption token opp ++ token (MaybeLongToken.getToken id)
+          showMaybeOpToken opp (MaybeLongToken.getToken id)
 
       | Parens {left, pat, right} =>
           token left ++ nospace ++ withNewChild showPat tab pat ++ nospace ++ token right
@@ -104,8 +104,7 @@ struct
           end
 
       | Con {opp, id, atpat} =>
-          showOption token opp
-          ++ token (MaybeLongToken.getToken id)
+          showMaybeOpToken opp (MaybeLongToken.getToken id)
           ++ withNewChild showPat tab atpat
 
       | Typed {pat, colon, ty} =>
@@ -120,8 +119,7 @@ struct
           ++ token colon ++ withNewChild showTy tab ty
 
       | Layered {opp, id, ty, ass, pat} =>
-          showOption token opp ++
-          token id ++
+          showMaybeOpToken opp id ++
           showOption (fn {colon, ty} =>
             (if
               Token.isSymbolicIdentifier id

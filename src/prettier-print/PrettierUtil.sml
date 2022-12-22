@@ -35,6 +35,8 @@ sig
 
   val showOption: ('a -> doc) -> 'a option -> doc
 
+  val showMaybeOpToken: Token.t option -> Token.t -> doc
+
   val showThingSimilarToLetInEnd:
     { lett: Token.t
     , isEmpty1: bool
@@ -130,6 +132,23 @@ struct
       ++ doc2
       ++ at tab (token endd)
     end
+
+
+  fun showMaybeOpToken oppo tok =
+    case oppo of
+      NONE => token tok
+    | SOME opp =>
+        let
+          val wantsToTouch =
+            Token.isSymbolicIdentifier tok
+            andalso
+            not (Token.isLongIdentifier tok)
+        in
+          if wantsToTouch then
+            token opp ++ nospace ++ token tok
+          else
+            token opp ++ token tok
+        end
 
 
 end

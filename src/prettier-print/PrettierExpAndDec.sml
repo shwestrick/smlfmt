@@ -120,8 +120,7 @@ struct
       fun showCon (starter, {opp, id, arg}) =
         at tab
           (starter ++
-          showOption token opp ++
-          token id ++
+          showMaybeOpToken opp id ++
           showOption
             (fn {off, ty} =>
               token off ++ withNewChildWithStyle indentedAtLeast4 showTy tab ty)
@@ -164,7 +163,7 @@ struct
           token left ++ nospace ++ token right
 
       | Ident {opp, id} =>
-          showOption token opp ++ token (MaybeLongToken.getToken id)
+          showMaybeOpToken opp (MaybeLongToken.getToken id)
 
       | Parens {left, exp, right} =>
           token left ++ nospace ++ withNewChild showExp tab exp ++ nospace ++ token right
@@ -519,8 +518,7 @@ struct
             fun showExbind exbind =
               case exbind of
                 ExnNew {opp, id, arg} =>
-                  showOption token opp
-                  ++ token id
+                  showMaybeOpToken opp id
                   ++ showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
               | ExnReplicate {opp, left_id, eq, right_id} =>
                   showOption token opp
@@ -592,7 +590,7 @@ struct
       fun showFNameArgs xx =
         case xx of
           PrefixedFun {opp, id, args} =>
-            showOption token opp ++ token id ++ showArgs args
+            showMaybeOpToken opp id ++ showArgs args
         | InfixedFun {larg, id, rarg} =>
             showInfixed larg id rarg
         | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
