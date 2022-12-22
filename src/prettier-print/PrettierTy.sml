@@ -33,13 +33,14 @@ struct
           token left ++ nospace ++ withNewChild showTy tab ty ++ nospace ++ token right
 
       | Tuple {elems, delims} =>
-          let
-            fun f (delim, x) = token delim ++ showTy tab x
-          in
-            Seq.iterate op++
-              (showTy tab (Seq.nth elems 0))
-              (Seq.zipWith f (delims, Seq.drop elems 1))
-          end
+          newTab tab (fn tab =>
+            let
+              fun f (delim, x) = at tab (token delim ++ withNewChild showTy tab x)
+            in
+              Seq.iterate op++
+                (at tab (withNewChild showTy tab (Seq.nth elems 0)))
+                (Seq.zipWith f (delims, Seq.drop elems 1))
+            end)
 
       | Record {left, elems, delims, right} =>
           let
