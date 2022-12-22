@@ -71,8 +71,9 @@ fun doSML () =
         TerminalColorString.print (SyntaxHighlighter.highlight source)
       else
         TerminalColorString.print
-          (PrettyPrintAst.pretty
-            { ribbonFrac=ribbonFrac
+          (PrettierPrintAst.pretty
+            { debug=false
+            , ribbonFrac=ribbonFrac
             , maxWidth=maxWidth
             , tabWidth=tabWidth
             , indent=indentWidth}
