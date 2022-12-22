@@ -330,27 +330,22 @@ struct
               ++ newTab tab (fn inner => at inner (token id))
               ++ withNewChild showExp tab exp')
 
-      | Handle {exp=expLeft, handlee, elems, delims} =>
-          newTab tab (fn inner =>
-            let
-              fun showBranch {pat, arrow, exp} =
-                withNewChild showPat inner pat
-                ++ token arrow
-                ++ withNewChildWithStyle indentedAtLeast4 showExp inner exp
-              fun mk (delim, branch) =
-                at inner
-                  ((case delim of
-                      SOME d => token d
-                    | _ => cond inner {active = space ++ space, inactive = empty})
-                  ++ showBranch branch)
-            in
-              at tab (showExp tab expLeft)
-              ++
-              at tab (at inner (token handlee))
-              ++
-              Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
-                (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
-            end)
+      | Handle (args as {exp=expLeft, handlee, elems, delims}) =>
+          if Seq.length elems > 1 then
+            showHandle tab args
+          else
+            newTab tab (fn inner =>
+              let
+                val {pat, arrow, exp} = Seq.nth elems 0
+              in
+                at tab (showExp tab expLeft)
+                ++
+                at tab (at inner
+                  (token handlee
+                  ++ withNewChild showPat inner pat
+                  ++ token arrow
+                  ++ withNewChild showExp inner exp))
+              end)
 
       | MLtonSpecific {underscore, directive, contents, semicolon} =>
           token underscore ++ nospace ++ token directive
@@ -358,6 +353,29 @@ struct
           ++ nospace ++ token semicolon
 
     end
+
+
+  and showHandle tab {exp=expLeft, handlee, elems, delims} =
+    newTab tab (fn inner =>
+      let
+        fun showBranch {pat, arrow, exp} =
+          withNewChild showPat inner pat
+          ++ token arrow
+          ++ withNewChildWithStyle indentedAtLeast4 showExp inner exp
+        fun mk (delim, branch) =
+          at inner
+            ((case delim of
+                SOME d => token d
+              | _ => cond inner {active = space ++ space, inactive = empty})
+            ++ showBranch branch)
+      in
+        at tab (showExp tab expLeft)
+        ++
+        at tab (at inner (token handlee))
+        ++
+        Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
+          (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
+      end)
 
 
   and showInfixedExpAt tab (l, t, r) =
