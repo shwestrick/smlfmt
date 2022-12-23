@@ -365,9 +365,9 @@ struct
        * cannot fit, we move down to the alignedArgsTab and then continue.
        *)
       fun makeArg alignedArgsTab arg =
-        newTab tab (fn thisTab =>
-          cond thisTab
-            { inactive = at thisTab (showExp thisTab arg)
+        newTab tab (fn ghost =>
+          cond ghost
+            { inactive = at ghost (showExp ghost arg)
             , active = at alignedArgsTab (showExp alignedArgsTab arg)
             })
     in
@@ -444,7 +444,18 @@ struct
       val (leftmostExp2, rightElems2) = infixChainRight ()
 
       fun showRightElem {id, right} =
-        at tab (token id) ++ withNewChild showExp tab right
+        newTab tab (fn ghost =>
+          cond ghost
+            { inactive = at ghost (token id ++ showExp ghost right)
+            , active =
+                at tab (token id ++
+                  newTab tab (fn ghostChild =>
+                    cond ghostChild
+                      { inactive = at ghostChild (showExp ghostChild right)
+                      , active = at tab (showExp tab right)
+                      }))
+            })
+        (* at tab (token id) ++ withNewChild showExp tab right *)
 
       val (leftmostExp, rightElems) =
         if Seq.length rightElems1 >= Seq.length rightElems2 then
