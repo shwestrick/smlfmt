@@ -1076,6 +1076,7 @@ struct
                 if not debug then acc else
                 case Tab.getState tab of
                   Tab.Usable Tab.Flattened => acc
+                | Tab.Usable (Tab.Activated NONE) => acc
                 | Tab.Usable (Tab.Activated (SOME i)) =>
                     if TabDict.lookup dbgState tab then
                       Item.EndDebug (EndTabHighlight {tab = tab, col = i}) :: acc
