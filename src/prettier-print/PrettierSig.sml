@@ -91,7 +91,7 @@ struct
       | Val {vall, elems, delims} =>
           let
             fun showOne first (starter, {vid, colon, ty}) =
-              maybeAt tab (not first)
+              at tab
                 (token starter ++ token vid ++
                 (if
                   Token.isSymbolicIdentifier vid
@@ -110,7 +110,7 @@ struct
       | Type {typee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon}) =
-              maybeAt tab (not first)
+              at tab
                 (token starter
                 ++ showTokenSyntaxSeq tab tyvars
                 ++ token tycon)
@@ -123,7 +123,7 @@ struct
       | TypeAbbreviation {typee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon, eq, ty}) =
-              maybeAt tab (not first)
+              at tab
                 (token starter
                 ++ showTokenSyntaxSeq tab tyvars
                 ++ token tycon
@@ -138,7 +138,7 @@ struct
       | Eqtype {eqtypee, elems, delims} =>
           let
             fun showOne first (starter, {tyvars, tycon}) =
-              maybeAt tab (not first)
+              at tab
                 (token starter
                 ++ showTokenSyntaxSeq tab tyvars
                 ++ token tycon)
@@ -151,7 +151,7 @@ struct
       | Multiple {elems, delims} =>
           let
             fun showOne first (elem: spec, delim: Token.t option) =
-              maybeAt tab (not first)
+              at tab
                 (showSpec tab elem
                 ++ showOption (fn d => nospace ++ token d) delim)
 
@@ -165,7 +165,7 @@ struct
       | Exception {exceptionn, elems, delims} =>
           let
             fun showOne first (starter, {vid, arg}) =
-              maybeAt tab (not first)
+              at tab
                 (token starter
                 ++ token vid
                 ++ showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg)
@@ -178,7 +178,7 @@ struct
       | Structure {structuree, elems, delims} =>
           let
             fun showOne first (starter, {id, colon, sigexp}) =
-              maybeAt tab (not first)
+              at tab
                 (token starter
                 ++ token id
                 (* NOTE: nospace should be safe here, because structure
@@ -297,7 +297,7 @@ struct
   and showSigDec tab (Ast.Sig.Signature {signaturee, elems, delims}) =
     let
       fun showOne first (starter, {ident, eq, sigexp}) =
-        maybeAt tab (not first)
+        at tab
           (token starter
           ++ token ident
           ++ token eq)

@@ -12,8 +12,6 @@ sig
   val indented: style
   val indentedAtLeastBy: int -> style
 
-  val maybeAt: tab -> bool -> doc -> doc
-
   type 'a shower = tab -> 'a -> doc
   val withNewChild: 'a shower -> 'a shower
   val withNewChildWithStyle: style -> 'a shower -> 'a shower
@@ -60,9 +58,6 @@ struct
   val indented = Indented NONE
 
   fun indentedAtLeastBy x = Indented (SOME {minIndent=x})
-
-  fun maybeAt tab b doc =
-    if b then at tab doc else doc
 
   type 'a shower = tab -> 'a -> doc
 

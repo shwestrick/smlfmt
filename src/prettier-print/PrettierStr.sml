@@ -203,7 +203,7 @@ struct
       | DecMultiple {elems, delims} =>
           let
             fun mk first (elem, delim) =
-              maybeAt tab (not first)
+              at tab
                 (showStrDec tab elem
                 ++ showOption (fn d => nospace ++ token d) delim)
 

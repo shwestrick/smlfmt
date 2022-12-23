@@ -118,7 +118,7 @@ struct
   fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
     let
       fun showOne first (starter, {tyvars, tycon, ty, eq}) =
-        maybeAt tab (not first)
+        at tab
           (token starter ++
           showTokenSyntaxSeq tab tyvars ++
           token tycon ++
@@ -534,7 +534,7 @@ struct
       | DecMultiple {elems, delims} =>
           let
             fun mk first (elem, delim) =
-              maybeAt tab (not first)
+              at tab
                 (showDec tab elem
                 ++ showOption (fn d => nospace ++ token d) delim)
 
@@ -573,7 +573,7 @@ struct
                   ++ token (MaybeLongToken.getToken right_id)
 
             fun showOne first (starter, elem) =
-              maybeAt tab (not first)
+              at tab
                 (token starter ++ showExbind elem)
           in
             Seq.iterate op++

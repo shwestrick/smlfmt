@@ -79,7 +79,7 @@ struct
             first
             (starter, {funid, lparen, funarg, rparen, constraint, eq, strexp})
         =
-          maybeAt tab (not first)
+          at tab
             (token starter ++ token funid
             ++ (if funArgWantsSpaceBefore funarg then
                   space
