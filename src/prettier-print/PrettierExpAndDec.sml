@@ -140,7 +140,7 @@ struct
           showMaybeOpToken opp id ++
           showOption
             (fn {off, ty} =>
-              token off ++ withNewChildWithStyle indentedAtLeast4 showTy tab ty)
+              token off ++ withNewChildWithStyle (indentedAtLeastBy 4) showTy tab ty)
             arg)
 
       fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
@@ -281,29 +281,33 @@ struct
           end)
 
       | Case {casee, exp=expTop, off, elems, delims} =>
-          newTab tab (fn inner1 =>
-          newTab inner1 (fn inner2 =>
-            let
-              fun showBranch {pat, arrow, exp} =
-                withNewChild showPat inner1 pat
-                ++ token arrow
-                ++ withNewChildWithStyle indentedAtLeast4 showExp inner1 exp
-              fun mk (delim, branch) =
-                at inner1
-                  ((case delim of
-                      SOME d => token d
-                    | _ => cond inner1 {active = space ++ space, inactive = empty})
-                  ++ showBranch branch)
-            in
+          let
+            fun showBranch inner1 {pat, arrow, exp} =
+              withNewChild showPat inner1 pat
+              ++ token arrow
+              ++ withNewChildWithStyle (indentedAtLeastBy 4) showExp inner1 exp
+            fun mk inner1 (delim, branch) =
+              at inner1
+                ((case delim of
+                    SOME d => token d
+                  | _ => cond inner1 {active = space ++ space, inactive = empty})
+                ++ showBranch inner1 branch)
+
+            val style =
+              if Seq.length elems <= 1 then Inplace else RigidInplace
+          in
+            newTabWithStyle tab (style, fn inner1 =>
+            newTab inner1 (fn inner2 =>
               at inner1 (token casee)
               ++
               at inner2 (showExp inner2 expTop)
               ++
               cond inner2 {inactive = token off, active = at inner1 (token off)}
               ++
-              Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
-                (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
-            end))
+              Seq.iterate op++ (mk inner1 (NONE, Seq.nth elems 0))
+                (Seq.zipWith (mk inner1) (Seq.map SOME delims, Seq.drop elems 1))
+            ))
+          end
 
       | Infix {left, id, right} =>
           showInfixedExpAt tab (left, id, right)
@@ -361,7 +365,7 @@ struct
         fun showBranch {pat, arrow, exp} =
           withNewChild showPat inner pat
           ++ token arrow
-          ++ withNewChildWithStyle indentedAtLeast4 showExp inner exp
+          ++ withNewChildWithStyle (indentedAtLeastBy 4) showExp inner exp
         fun mk (delim, branch) =
           at inner
             ((case delim of
@@ -623,50 +627,63 @@ struct
     let
       open Ast.Exp
 
-      fun showArgs args =
-        Seq.iterate op++ empty (Seq.map (withNewChild showPat tab) args)
+      fun showArgs tab clauseChildStyle args =
+        Seq.iterate op++ empty
+          (Seq.map (withNewChildWithStyle clauseChildStyle showPat tab) args)
 
-      fun showInfixed larg id rarg =
-        withNewChild showPat tab larg ++ token id ++ withNewChild showPat tab rarg
+      fun showInfixed tab clauseChildStyle (larg, id, rarg) =
+        withNewChildWithStyle clauseChildStyle showPat tab larg
+        ++ token id
+        ++ withNewChildWithStyle clauseChildStyle showPat tab rarg
 
-      fun showFNameArgs xx =
+      fun showFNameArgs tab clauseChildStyle xx =
         case xx of
           PrefixedFun {opp, id, args} =>
-            showMaybeOpToken opp id ++ showArgs args
+            showMaybeOpToken opp id ++ showArgs tab clauseChildStyle args
         | InfixedFun {larg, id, rarg} =>
-            showInfixed larg id rarg
+            showInfixed tab clauseChildStyle (larg, id, rarg)
         | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
             token lparen ++
             (if patStartsWithStar larg then empty else nospace)
-            ++ showInfixed larg id rarg ++ nospace ++ token rparen
-            ++ showArgs args
+            ++ showInfixed tab clauseChildStyle (larg, id, rarg)
+            ++ nospace ++ token rparen
+            ++ showArgs tab clauseChildStyle args
 
-      fun showColonTy {ty: Ast.Ty.t, colon: Token.t} =
+      fun showColonTy tab {ty: Ast.Ty.t, colon: Token.t} =
         token colon ++ withNewChild showTy tab ty
 
-      fun showClause isVeryTop isFirst (front, {fname_args, ty, eq, exp}) =
-        maybeAt tab (not isVeryTop)
+      fun showClause tab isFirst clauseChildStyle (front, {fname_args, ty, eq, exp}) =
+        at tab
           ( (if isFirst then empty else cond tab {active=space++space, inactive=empty})
           ++ front
-          ++ showFNameArgs fname_args
-          ++ showOption showColonTy ty
+          ++ showFNameArgs tab clauseChildStyle fname_args
+          ++ showOption (showColonTy tab) ty
           ++ token eq
-          ++ withNewChild showExp tab exp)
+          ++ withNewChildWithStyle clauseChildStyle showExp tab exp)
 
-      fun mkFunction isVeryTop (starter, {elems=innerElems, delims}) =
-        let in
-          Seq.iterate op++
-            (showClause isVeryTop true (starter, Seq.nth innerElems 0))
-            (Seq.zipWith (showClause isVeryTop false)
-              (Seq.map token delims, Seq.drop innerElems 1))
+      fun mkFunction (starter, {elems=innerElems, delims}) =
+        let
+          val clauseChildStyle =
+            if Seq.length innerElems <= 1 then
+              Inplace
+            else
+              indentedAtLeastBy 6
+        in
+          at tab (
+            newTabWithStyle tab (RigidInplace, fn tab =>
+              Seq.iterate op++
+                (showClause tab true clauseChildStyle (starter, Seq.nth innerElems 0))
+                (Seq.zipWith (showClause tab false clauseChildStyle)
+                  (Seq.map token delims, Seq.drop innerElems 1))
+          ))
         end
 
       val front =
         token funn ++ showTokenSyntaxSeq tab tyvars
     in
       Seq.iterate op++
-        (mkFunction true (front, Seq.nth elems 0))
-        (Seq.zipWith (mkFunction false) (Seq.map token delims, Seq.drop elems 1))
+        (mkFunction (front, Seq.nth elems 0))
+        (Seq.zipWith mkFunction (Seq.map token delims, Seq.drop elems 1))
     end
 
 end

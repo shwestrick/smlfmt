@@ -52,7 +52,7 @@ struct
           showOption
             (fn {off, ty} =>
               token off
-              ++ withNewChildWithStyle indentedAtLeast4 showTy tab ty)
+              ++ withNewChildWithStyle (indentedAtLeastBy 4) showTy tab ty)
             arg)
 
       fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =

@@ -10,7 +10,7 @@ sig
   type style = TabbedTokenDoc.style
 
   val indented: style
-  val indentedAtLeast4: style
+  val indentedAtLeastBy: int -> style
 
   val maybeAt: tab -> bool -> doc -> doc
 
@@ -58,7 +58,8 @@ struct
   fun x ++ y = concat (x, y)
 
   val indented = Indented NONE
-  val indentedAtLeast4 = Indented (SOME {minIndent=4})
+
+  fun indentedAtLeastBy x = Indented (SOME {minIndent=x})
 
   fun maybeAt tab b doc =
     if b then at tab doc else doc
