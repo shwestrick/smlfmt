@@ -27,10 +27,15 @@ struct
 
 
   (* returns (function, curried args) *)
-  fun appChain acc exp =
-    case exp of
-      Ast.Exp.App {left, right} => appChain (right :: acc) left
-    | _ => (exp, Seq.fromList acc)
+  fun appChain exp =
+    let
+      fun loop acc exp =
+        case exp of
+          Ast.Exp.App {left, right} => loop (right :: acc) left
+        | _ => (exp, Seq.fromList acc)
+    in
+      loop [] exp
+    end
 
 
   (* returns SOME (left, token, right) if `<left> <token> <right>` can be
@@ -235,21 +240,8 @@ struct
             nospace)
           ++ token label
 
-      | App {left, right} =>
-          showExp tab left ++
-          (if appWantsSpace left right then empty else nospace)
-          ++ withNewChild showExp tab right
-          (*let
-            val (funcExp, args) = appChain [] exp
-            fun withBreak tab (a, b) = a ++ breakspace tab ++ b
-          in
-            showExp tab funcExp ++ space
-            ++ newTab (fn inner =>
-              Seq.iterate
-                (withBreak inner)
-                (showExp inner (Seq.nth args 0))
-                (Seq.drop (Seq.map (showExp inner) args) 1))
-          end*)
+      | App _ =>
+          showApp tab exp
 
       | Typed {exp, colon, ty} =>
           withNewChild showExp tab exp ++ token colon ++ withNewChild showTy tab ty
@@ -356,6 +348,36 @@ struct
           ++ Seq.iterate op++ empty (Seq.map token contents)
           ++ nospace ++ token semicolon
 
+    end
+
+
+  and showApp tab exp =
+    let
+      val (fExp, args) = appChain exp
+
+      (* This is a cool trick: we create a new "ghost" tab which contains the
+       * content of this arg, and use it to determine whether or not the arg
+       * should be moved to align with other arguments. This is a "ghost" tab
+       * in the sense that the ghost is never visible: if the ghost is
+       * activated, then it's not used.
+       *
+       * The result is that args are laid out left-to-right, but whenever an arg
+       * cannot fit, we move down to the alignedArgsTab and then continue.
+       *)
+      fun makeArg alignedArgsTab arg =
+        newTab tab (fn thisTab =>
+          cond thisTab
+            { inactive = at thisTab (showExp thisTab arg)
+            , active = at alignedArgsTab (showExp alignedArgsTab arg)
+            })
+    in
+      newTab tab (fn alignedArgsTab =>
+        at tab (showExp tab fExp)
+        ++
+        (if appWantsSpace fExp (Seq.nth args 0) then empty else nospace)
+        ++
+        Seq.iterate op++ empty (Seq.map (makeArg alignedArgsTab) args)
+      )
     end
 
 
