@@ -118,6 +118,20 @@ struct
     end
 
 
+  (* This function should be "in sync" with `splitShowExpLeft` and
+   * `splitShowExpRight`, below.
+   *)
+  fun isSplittableExp exp =
+    let
+      open Ast.Exp
+    in
+      case exp of
+        Parens {exp, ...} => isSplittableExp exp
+      | Fn {elems, ...} => Seq.length elems = 1
+      | _ => false
+    end
+
+
   (* ====================================================================== *)
 
   fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
@@ -351,9 +365,68 @@ struct
     end
 
 
+  (* This function has to be "in sync" with splitShowExpRight.
+   * For any exp, it should be that
+   *   `splitShowExpLeft tab1 exp ++ splitShowExpRight tab2 exp`
+   * shows every token within `exp` exactly once.
+   *)
+  and splitShowExpLeft tab exp =
+    let
+      open Ast.Exp
+    in
+      if not (isSplittableExp exp) then
+        empty
+      else
+
+      case exp of
+        Parens {left, exp, right} =>
+          token left
+          ++
+          (if expStartsWithStar exp then empty else nospace)
+          ++
+          withNewChild splitShowExpLeft tab exp
+
+      | Fn {fnn, elems, delims} =>
+          let
+            val {pat, arrow, exp} = Seq.nth elems 0
+          in
+            token fnn ++ withNewChild showPat tab pat ++ token arrow
+          end
+
+      | _ => empty
+    end
+
+
+  (* This function needs to be "in sync" with splitShowExpLeft; see above. *)
+  and splitShowExpRight tab exp =
+    let
+      open Ast.Exp
+    in
+      if not (isSplittableExp exp) then
+        showExp tab exp
+      else
+
+      case exp of
+        Parens {left, exp, right} =>
+          splitShowExpRight tab exp ++ nospace ++ token right
+
+      | Fn {fnn, elems, delims} =>
+          let
+            val {pat, arrow, exp} = Seq.nth elems 0
+          in
+            showExp tab exp
+          end
+
+      | _ => showExp tab exp
+    end
+
+
   and showApp tab exp =
     let
       val (fExp, args) = appChain exp
+      val nArgs = Seq.length args
+      val (allButLastArg, lastArg) =
+        (Seq.take args (nArgs-1), Seq.nth args (nArgs-1))
 
       (* This is a cool trick: we create a new "ghost" tab which contains the
        * content of this arg, and use it to determine whether or not the arg
@@ -364,20 +437,59 @@ struct
        * The result is that args are laid out left-to-right, but whenever an arg
        * cannot fit, we move down to the alignedArgsTab and then continue.
        *)
-      fun makeArg alignedArgsTab arg =
-        newTab tab (fn ghost =>
-          cond ghost
-            { inactive = at ghost (showExp ghost arg)
-            , active = at alignedArgsTab (showExp alignedArgsTab arg)
-            })
+      fun makeArg alignedArgsTab allArgsGhost arg =
+        newTab allArgsGhost (fn ghost =>
+          let
+            val contents =
+              cond ghost
+                { inactive = at ghost (showExp ghost arg)
+                , active = at alignedArgsTab (showExp alignedArgsTab arg)
+                }
+          in
+            cond allArgsGhost
+              { inactive = at allArgsGhost contents
+              , active = contents
+              }
+          end)
+
+      fun makeLastArg alignedArgsTab allArgsGhost arg =
+        newTab tab (fn ghost1 =>
+        newTab tab (fn ghost2 =>
+          let
+            val contents =
+              cond ghost1
+                { inactive =
+                    cond ghost2
+                      { inactive = at ghost2 (showExp ghost2 arg)
+                      , active =
+                          at ghost1 (splitShowExpLeft ghost1 arg)
+                          ++
+                          at alignedArgsTab (splitShowExpRight alignedArgsTab arg)
+                      }
+
+                , active = at alignedArgsTab (showExp alignedArgsTab arg)
+                }
+          in
+            cond allArgsGhost
+              { inactive = contents
+              , active =
+                  cond ghost1
+                    { inactive = at ghost1 (showExp ghost1 arg)
+                    , active = at alignedArgsTab (showExp alignedArgsTab arg)
+                    }
+              }
+          end))
     in
       newTab tab (fn alignedArgsTab =>
+      newTab tab (fn allArgsGhost =>
         at tab (showExp tab fExp)
         ++
         (if appWantsSpace fExp (Seq.nth args 0) then empty else nospace)
         ++
-        Seq.iterate op++ empty (Seq.map (makeArg alignedArgsTab) args)
-      )
+        Seq.iterate op++ empty (Seq.map (makeArg alignedArgsTab allArgsGhost) allButLastArg)
+        ++
+        makeLastArg alignedArgsTab allArgsGhost lastArg
+      ))
     end
 
 
