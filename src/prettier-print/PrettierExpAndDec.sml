@@ -128,6 +128,7 @@ struct
       case exp of
         Parens {exp, ...} => isSplittableExp exp
       | Fn {elems, ...} => Seq.length elems = 1
+      | App _ => true
       | _ => false
     end
 
@@ -393,6 +394,11 @@ struct
             token fnn ++ withNewChild showPat tab pat ++ token arrow
           end
 
+      | App {left, right} =>
+          showExp tab left
+          ++
+          splitShowExpLeft tab right
+
       | _ => empty
     end
 
@@ -416,6 +422,9 @@ struct
           in
             showExp tab exp
           end
+
+      | App {left, right} =>
+          splitShowExpRight tab right
 
       | _ => showExp tab exp
     end
