@@ -129,6 +129,7 @@ struct
         Parens {exp, ...} => isSplittableExp exp
       | Fn {elems, ...} => Seq.length elems = 1
       | App _ => true
+      | Tuple {elems, ...} => Seq.length elems >= 2 (* I think this is always true? *)
       | _ => false
     end
 
@@ -399,6 +400,21 @@ struct
           ++
           splitShowExpLeft tab right
 
+      | Tuple {left, elems, delims, right} =>
+          let
+            fun make (e, d) =
+              withNewChild showExp tab e ++ nospace ++ token d
+          in
+            token left
+            ++
+            (if expStartsWithStar (Seq.nth elems 0) then empty else nospace)
+            ++
+            Seq.iterate op++ empty
+              (Seq.map make (Seq.zip (elems, delims)))
+            ++
+            splitShowExpLeft tab (Seq.nth elems (Seq.length elems - 1))
+          end
+
       | _ => empty
     end
 
@@ -425,6 +441,10 @@ struct
 
       | App {left, right} =>
           splitShowExpRight tab right
+
+      | Tuple {left, elems, delims, right} =>
+          splitShowExpRight tab (Seq.nth elems (Seq.length elems - 1))
+          ++ nospace ++ token right
 
       | _ => showExp tab exp
     end
