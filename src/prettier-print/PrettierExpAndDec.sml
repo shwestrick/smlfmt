@@ -118,6 +118,21 @@ struct
     end
 
 
+  fun isBiggishExp exp =
+    let
+      open Ast.Exp
+    in
+      case exp of
+        Parens {exp, ...} => isBiggishExp exp
+      | Ident _ => false
+      | Fn {elems, ...} =>
+          Seq.length elems > 1
+          orelse
+          isBiggishExp (#exp (Seq.nth elems 0))
+      | _ => true
+    end
+
+
   (* This function should be "in sync" with `splitShowExpLeft` and
    * `splitShowExpRight`, below.
    *)
@@ -128,8 +143,9 @@ struct
       case exp of
         Parens {exp, ...} => isSplittableExp exp
       | Fn {elems, ...} => Seq.length elems = 1
-      | App _ => true
-      | Tuple {elems, ...} => Seq.length elems >= 2 (* I think this is always true? *)
+      | App {left, right} => isBiggishExp right
+      | Tuple {elems, ...} =>
+          isSplittableExp (Seq.nth elems (Seq.length elems - 1))
       | _ => false
     end
 
