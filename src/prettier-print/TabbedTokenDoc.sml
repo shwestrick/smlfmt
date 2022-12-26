@@ -282,8 +282,14 @@ struct
         else print (s ^ "\n")
 
       datatype edge = Spacey | MaybeNotSpacey
-      datatype tab_constraint = Active | Inactive
-      type context = tab_constraint TabDict.t
+
+      fun edgeOptUnion (e1, e2) =
+        case (e1, e2) of
+          (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
+        | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
+        | (SOME Spacey, SOME Spacey) => SOME Spacey
+        | (NONE, _) => NONE
+        | (_, NONE) => NONE
 
       fun edgeOptToString e =
         case e of
@@ -291,238 +297,73 @@ struct
         | SOME Spacey => "Spacey"
         | SOME MaybeNotSpacey => "MaybeNotSpacey"
 
-      fun markInactive ctx tab =
-        TabDict.insert ctx (tab, Inactive)
-
-      fun markActive ctx tab =
-        case tab of
-          Root => ctx
-        | Tab {parent, ...} =>
-            markActive (TabDict.insert ctx (tab, Active)) parent
-
-      fun edge {left: bool} ctx doc =
-        let
-          fun loop ctx vars doc =
-            case doc of
-              AnnEmpty => NONE
-            | AnnNewline => SOME Spacey
-            | AnnSpace => SOME Spacey
-            | AnnNoSpace => SOME Spacey (* pretends to be a space, but then actually is elided *)
-            | AnnToken _ => SOME MaybeNotSpacey
-            | AnnText _ => SOME MaybeNotSpacey
-            | AnnVar v => VarDict.lookup vars v
-            | AnnLetDoc {var, doc, inn} =>
-                let
-                  val e = loop ctx vars doc
-                  val vars = VarDict.insert vars (var, e)
-                in
-                  loop ctx vars inn
-                end
-            | AnnAt {mightBeFirst, tab, doc} =>
-                let
-                  val leftEdge =
-                    case TabDict.find ctx tab of
-                      SOME Active =>
-                        if mightBeFirst then
-                          NONE
-                        else
-                          SOME Spacey
-                    | _ => NONE
-                in
-                  if left then
-                    leftEdge
-                  else
-                    case loop ctx vars doc of
-                      SOME ee => SOME ee
-                    | _ => leftEdge
-                end
-
-            | AnnConcat (d1, d2) =>
-                if left then
-                  (case loop ctx vars d1 of
-                    SOME xs => SOME xs
-                  | NONE => loop ctx vars d2)
-                else
-                  (case loop ctx vars d2 of
-                    SOME xs => SOME xs
-                  | NONE => loop ctx vars d1)
-            | AnnNewTab {doc=d, ...} => loop ctx vars d
-            | AnnCond {tab, inactive, active} =>
-                let
-                  val result =
-                    case TabDict.find ctx tab of
-                      SOME Active =>
-                        let
-                          val result = loop ctx vars active
-                        in
-                          dbgprintln (annToString doc ^ ": ACTIVE: " ^ edgeOptToString result);
-                          result
-                        end
-                    | SOME Inactive =>
-                        let
-                          val result = loop ctx vars inactive
-                        in
-                          dbgprintln (annToString doc ^ ": INACTIVE: " ^ edgeOptToString result);
-                          result
-                        end
-                    | NONE =>
-                        let
-                          val r1 = loop (markInactive ctx tab) vars inactive
-                          val r2 = loop (markActive ctx tab) vars active
-                          val result =
-                            case (r1, r2) of
-                              (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
-                            | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
-                            | (SOME Spacey, SOME Spacey) => SOME Spacey
-                            | (NONE, _) => NONE
-                            | (_, NONE) => NONE
-                        in
-                          dbgprintln (annToString doc ^ ": UNSURE: ACTIVE? " ^ edgeOptToString r2 ^ "; INACTIVE? " ^ edgeOptToString r1 ^ "; OVERALL: " ^ edgeOptToString result);
-                          result
-                        end
-                in
-                  result
-                end
-        in
-          loop ctx VarDict.empty doc
-        end
-
-      fun leftEdge ctx doc = edge {left=true} ctx doc
-      fun rightEdge ctx doc = edge {left=false} ctx doc
-
-      fun checkInsertSpace (needSpaceBefore, needSpaceAfter) doc =
-        let
-          val origDoc = doc
-
-          val doc =
-            if not needSpaceBefore then doc
-            else
-              ( dbgprintln ("need space before " ^ annToString origDoc)
-              ; AnnConcat (AnnSpace, doc)
-              )
-
-          val doc =
-            if not needSpaceAfter then doc
-            else
-              ( dbgprintln ("need space after " ^ annToString origDoc)
-              ; AnnConcat (doc, AnnSpace)
-              )
-        in
-          doc
-        end
-
-      fun loop ctx (needSpace as (needSpaceBefore, needSpaceAfter)) (doc, vars) : anndoc * (bool * bool) VarDict.t =
+      fun loop vars doc =
         case doc of
-          AnnSpace => (doc, vars)
-        | AnnNoSpace => (doc, vars)
-        | AnnNewline => (doc, vars)
-        | AnnToken t => (checkInsertSpace needSpace doc, vars)
-        | AnnText t => (checkInsertSpace needSpace doc, vars)
-        | AnnEmpty =>
-            if needSpaceBefore orelse needSpaceAfter then
-              (AnnSpace, vars)
-            else
-              (AnnEmpty, vars)
-        | AnnAt {mightBeFirst, tab, doc} =>
+          AnnEmpty => (NONE, doc, NONE)
+        | AnnNewline => (SOME Spacey, doc, SOME Spacey)
+        | AnnNoSpace => (SOME Spacey, doc, SOME Spacey)
+        | AnnSpace => (SOME Spacey, doc, SOME Spacey)
+        | AnnToken t => (SOME MaybeNotSpacey, doc, SOME MaybeNotSpacey)
+        | AnnText t => (SOME MaybeNotSpacey, doc, SOME MaybeNotSpacey)
+        | AnnConcat (d1, d2) =>
             let
-              val needSpaceBefore' =
-                case TabDict.find ctx tab of
-                  SOME Active =>
-                    if mightBeFirst then
-                      needSpaceBefore
-                    else
-                      false
-                | _ => needSpaceBefore
-
-              val (doc, vars) = loop ctx (false, needSpaceAfter) (doc, vars)
-
-              val result =
-                AnnAt
-                  { mightBeFirst = mightBeFirst
-                  , tab = tab
-                  , doc = doc
-                  }
+              val (left, d1, leftright) = loop vars d1
+              val (rightleft, d2, right) = loop vars d2
+              val doc =
+                case (leftright, rightleft) of
+                  (SOME MaybeNotSpacey, SOME MaybeNotSpacey) =>
+                    AnnConcat (AnnConcat (d1, AnnSpace), d2)
+                | _ => AnnConcat (d1, d2)
+              val left =
+                if Option.isSome left then left else rightleft
+              val right =
+                if Option.isSome right then right else leftright
             in
-              ( if needSpaceBefore' then
-                  AnnConcat (AnnSpace, result)
-                else
-                  result
-              , vars
-              )
+              (left, doc, right)
+            end
+        | AnnAt {tab, doc, mightBeFirst} =>
+            let
+              val (left, doc, right) = loop vars doc
+            in
+              (left, AnnAt {tab=tab, doc=doc, mightBeFirst=mightBeFirst}, right)
             end
         | AnnNewTab {tab, doc} =>
             let
-              val (doc, vars) = loop ctx needSpace (doc, vars)
+              val (left, doc, right) = loop vars doc
             in
-              ( AnnNewTab {tab = tab, doc = doc}
-              , vars
-              )
+              (left, AnnNewTab {tab=tab, doc=doc}, right)
             end
-        | AnnCond {tab, inactive, active} =>
+        | AnnCond {tab, active, inactive} =>
             let
-              val (inactive, vars) = loop (markInactive ctx tab) needSpace (inactive, vars)
-              val (active, vars) = loop (markActive ctx tab) needSpace (active, vars)
+              val (left1, active, right1) = loop vars active
+              val (left2, inactive, right2) = loop vars inactive
             in
-              ( AnnCond {tab = tab, inactive = inactive, active = active}
-              , vars
+              ( edgeOptUnion (left1, left2)
+              , AnnCond {tab=tab, active=active, inactive=inactive}
+              , edgeOptUnion (right1, right2)
               )
-            end
-        | AnnConcat (d1, d2) =>
-            let
-              val (d1, vars) = loop ctx (needSpaceBefore, false) (d1, vars)
-
-              val needSpaceBefore2 =
-                case rightEdge ctx d1 of
-                  SOME MaybeNotSpacey => true
-                | _ => false
-
-              val (d2, vars) = loop ctx (needSpaceBefore2, needSpaceAfter) (d2, vars)
-            in
-              (AnnConcat (d1, d2), vars)
             end
         | AnnLetDoc {var, doc, inn} =>
             let
-              val vars = VarDict.insert vars (var, (false, false))
-              val (inn, vars) = loop ctx needSpace (inn, vars)
+              val (left, doc, right) = loop vars doc
+              val vars = VarDict.insert vars (var, (left, right))
+              val (left, inn, right) = loop vars inn
             in
-              (AnnLetDoc {var=var, doc=doc, inn=inn}, vars)
+              ( left
+              , AnnLetDoc {var=var, doc=doc, inn=inn}
+              , right
+              )
             end
         | AnnVar v =>
             let
-              val (needSpaceBefore', needSpaceAfter') = VarDict.lookup vars v
-              val newVal =
-                ( needSpaceBefore orelse needSpaceBefore'
-                , needSpaceAfter orelse needSpaceAfter'
-                )
-              val vars = VarDict.insert vars (v, newVal)
+              val (left, right) = VarDict.lookup vars v
             in
-              (AnnVar v, vars)
+              (left, doc, right)
             end
 
-      val (result, varinfo) = loop TabDict.empty (false, false) (doc, VarDict.empty)
-
-      fun updateVars doc =
-        case doc of
-          AnnLetDoc {var, doc=d, inn} =>
-            let
-              val needSpace = VarDict.lookup varinfo var
-              val (d, _) = loop TabDict.empty needSpace (d, varinfo)
-            in
-              AnnLetDoc {var=var, doc=d, inn = updateVars inn}
-            end
-        | AnnConcat (d1, d2) =>
-            AnnConcat (updateVars d1, updateVars d2)
-        | AnnAt {mightBeFirst, tab, doc} =>
-            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = updateVars doc}
-        | AnnCond {tab, inactive, active} =>
-            AnnCond {tab=tab, inactive = updateVars inactive, active = updateVars active}
-        | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab=tab, doc = updateVars doc}
-        | _ => doc
-
-      (* val _ = dbgprintln ("ensureSpaces OUTPUT: " ^ toString result) *)
+      val (_, doc, _) = loop VarDict.empty doc
     in
-      updateVars result
+      doc
     end
 
   (* ====================================================================== *)
@@ -924,15 +765,15 @@ struct
         else print (s ^ "\n")
 
       val (doc, tm) = Util.getTime (fn _ => annotate doc)
-      val _ = print ("annotate: " ^ Time.fmt 3 tm ^ "s\n")
+      val _ = dbgprintln ("annotate: " ^ Time.fmt 3 tm ^ "s")
       val (doc, tm) = Util.getTime (fn _ => flowAts debug doc)
-      val _ = print ("flowAts: " ^ Time.fmt 3 tm ^ "s\n")
+      val _ = dbgprintln ("flowAts: " ^ Time.fmt 3 tm ^ "s")
       val (doc, tm) = Util.getTime (fn _ => insertComments debug doc)
-      val _ = print ("insertComments: " ^ Time.fmt 3 tm ^ "s\n")
+      val _ = dbgprintln ("insertComments: " ^ Time.fmt 3 tm ^ "s")
       val (doc, tm) = Util.getTime (fn _ => ensureSpaces debug doc)
-      val _ = print ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s\n")
+      val _ = dbgprintln ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s")
       val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
-      val _ = print ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s\n")
+      val _ = dbgprintln ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s")
 
       fun loop currentTab tabmap vars doc =
         case doc of
@@ -991,7 +832,7 @@ struct
       val (result, tm) = Util.getTime (fn _ =>
         loop D.root (TabDict.singleton (Root, D.root)) VarDict.empty doc)
 
-      val _ = print ("convert: " ^ Time.fmt 3 tm ^ "s\n")
+      val _ = dbgprintln ("convert: " ^ Time.fmt 3 tm ^ "s\n")
     in
       result
     end
