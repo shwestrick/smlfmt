@@ -750,6 +750,11 @@ struct
                 (Seq.map withBreak (Seq.drop all 1))
             end
 
+        | AnnLetDoc {var, doc, inn} =>
+            AnnLetDoc {var = var, doc = loop doc, inn = loop inn}
+
+        | AnnVar v => AnnVar v
+
     in
       flowAts debug (loop doc)
     end
@@ -842,6 +847,9 @@ struct
             AnnNewTab {tab = tab, doc = loop doc}
         | AnnCond {tab, inactive, active} =>
             AnnCond {tab = tab, inactive = loop inactive, active = loop active}
+        | AnnLetDoc {var, doc, inn} =>
+            AnnLetDoc {var = var, doc = loop doc, inn = loop inn}
+        | AnnVar v => AnnVar v
     in
       loop doc
     end
@@ -915,24 +923,25 @@ struct
         if not debug then ()
         else print (s ^ "\n")
 
-      val doc = annotate doc
-      val doc = flowAts debug doc
-      val doc = insertComments debug doc
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before ensureSpaces: " ^ annToString doc) *)
-      val doc = ensureSpaces debug doc
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before insertBlankLines: " ^ annToString doc) *)
-      val doc = insertBlankLines debug doc
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc after insertBlankLines: " ^ annToString doc) *)
-      (* val doc = removeAnnotations doc *)
+      val (doc, tm) = Util.getTime (fn _ => annotate doc)
+      val _ = print ("annotate: " ^ Time.fmt 3 tm ^ "s\n")
+      val (doc, tm) = Util.getTime (fn _ => flowAts debug doc)
+      val _ = print ("flowAts: " ^ Time.fmt 3 tm ^ "s\n")
+      val (doc, tm) = Util.getTime (fn _ => insertComments debug doc)
+      val _ = print ("insertComments: " ^ Time.fmt 3 tm ^ "s\n")
+      val (doc, tm) = Util.getTime (fn _ => ensureSpaces debug doc)
+      val _ = print ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s\n")
+      val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
+      val _ = print ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s\n")
 
-      fun loop currentTab tabmap doc =
+      fun loop currentTab tabmap vars doc =
         case doc of
           AnnEmpty => D.empty
         | AnnNoSpace => D.empty
         | AnnNewline => D.newline
         | AnnSpace => D.space
         | AnnConcat (d1, d2) =>
-            D.concat (loop currentTab tabmap d1, loop currentTab tabmap d2)
+            D.concat (loop currentTab tabmap vars d1, loop currentTab tabmap vars d2)
         | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
         | AnnToken {at, tok} =>
             let
@@ -949,11 +958,11 @@ struct
               doc
             end
         | AnnAt {tab, doc, ...} =>
-            D.at (TabDict.lookup tabmap tab) (loop currentTab tabmap doc)
+            D.at (TabDict.lookup tabmap tab) (loop currentTab tabmap vars doc)
         | AnnCond {tab, inactive, active} =>
             D.cond (TabDict.lookup tabmap tab)
-              { inactive = loop currentTab tabmap inactive
-              , active = loop currentTab tabmap active
+              { inactive = loop currentTab tabmap vars inactive
+              , active = loop currentTab tabmap vars active
               }
         | AnnNewTab {tab, doc} =>
             let
@@ -967,10 +976,24 @@ struct
               D.newTab
                 (TabDict.lookup tabmap (valOf (parent tab)))
                 (s, fn tab' =>
-                  loop tab' (TabDict.insert tabmap (tab, tab')) doc)
+                  loop tab' (TabDict.insert tabmap (tab, tab')) vars doc)
             end
+        | AnnLetDoc {var, doc, inn} =>
+            let
+              val doc' = loop currentTab tabmap vars doc
+              val vars = VarDict.insert vars (var, doc')
+            in
+              loop currentTab tabmap vars inn
+            end
+        | AnnVar v =>
+            VarDict.lookup vars v
+
+      val (result, tm) = Util.getTime (fn _ =>
+        loop D.root (TabDict.singleton (Root, D.root)) VarDict.empty doc)
+
+      val _ = print ("convert: " ^ Time.fmt 3 tm ^ "s\n")
     in
-      loop D.root (TabDict.singleton (Root, D.root)) doc
+      result
     end
 
 end

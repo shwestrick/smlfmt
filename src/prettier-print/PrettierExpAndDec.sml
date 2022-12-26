@@ -491,38 +491,47 @@ struct
                 , active = at alignedArgsTab (showExp alignedArgsTab arg)
                 }
           in
-            cond allArgsGhost
-              { inactive = at allArgsGhost contents
-              , active = contents
-              }
+            letdoc contents (fn c =>
+              cond allArgsGhost
+                { inactive = at allArgsGhost (var c)
+                , active = var c
+                })
           end)
 
       fun makeLastArg alignedArgsTab allArgsGhost arg =
         newTab tab (fn ghost1 =>
         newTab tab (fn ghost2 =>
           let
-            val contents =
+            val aligned =
+              at alignedArgsTab (showExp alignedArgsTab arg)
+
+            val flat =
+              at ghost2 (showExp ghost2 arg)
+
+            fun contents f a =
               cond ghost1
                 { inactive =
                     cond ghost2
-                      { inactive = at ghost2 (showExp ghost2 arg)
+                      { inactive = var f
                       , active =
                           at ghost1 (splitShowExpLeft ghost1 arg)
                           ++
                           at alignedArgsTab (splitShowExpRight alignedArgsTab arg)
                       }
 
-                , active = at alignedArgsTab (showExp alignedArgsTab arg)
+                , active = var a
                 }
           in
-            cond allArgsGhost
-              { inactive = contents
-              , active =
-                  cond ghost1
-                    { inactive = at ghost1 (showExp ghost1 arg)
-                    , active = at alignedArgsTab (showExp alignedArgsTab arg)
-                    }
-              }
+            letdoc aligned (fn a =>
+            letdoc flat (fn f =>
+              cond allArgsGhost
+                { inactive = contents f a
+                , active =
+                    cond ghost2
+                      { inactive = var f
+                      , active = var a
+                      }
+                }))
           end))
     in
       newTab tab (fn alignedArgsTab =>
