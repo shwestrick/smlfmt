@@ -25,5 +25,7 @@ end
 
 Set.sml
 
+DocVar.sml
+
 PrettySimpleDoc.sml
 PrettyTabbedDoc.sml
