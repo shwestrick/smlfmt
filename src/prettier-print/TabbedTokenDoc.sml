@@ -172,7 +172,7 @@ struct
   | AnnToken of {at: TabSet.t option, tok: Token.t}
   | AnnText of {at: TabSet.t option, txt: string}
   | AnnConcat of anndoc * anndoc
-  | AnnAt of {mightBeFirst: bool, tab: tab, doc: anndoc}
+  | AnnAt of {tab: tab, doc: anndoc}
   | AnnNewTab of {tab: tab, doc: anndoc}
   | AnnCond of {tab: tab, inactive: anndoc, active: anndoc}
   | AnnLetDoc of {var: DocVar.t, doc: anndoc, inn: anndoc}
@@ -188,8 +188,8 @@ struct
     | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
     | AnnToken {tok=t, ...} => "Token('" ^ Token.toString t ^ "')"
     | AnnText {txt=t, ...} => "Text('" ^ t ^ "')"
-    | AnnAt {mightBeFirst, tab, doc} =>
-        "At" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ tabToString tab ^ ", " ^ annToString doc ^ ")"
+    | AnnAt {tab, doc} =>
+        "At(" ^ tabToString tab ^ ", " ^ annToString doc ^ ")"
     | AnnNewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ annToString d ^ ")"
     | AnnCond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
@@ -202,73 +202,28 @@ struct
   fun annotate doc =
     let
       (* if tab in broken, then tab has definitely had at least one break *)
-      fun loop vars (doc, broken) =
+      fun loop doc =
         case doc of
-          Empty => (AnnEmpty, broken)
-        | Space => (AnnSpace, broken)
-        | NoSpace => (AnnNoSpace, broken)
-        | Token t => (AnnToken {at=NONE, tok=t}, broken)
-        | Text t => (AnnText {at=NONE, txt=t}, broken)
-        | Var v =>
-            let
-              val (_, vbroken) = VarDict.lookup vars v
-            in
-              (AnnVar v, TabSet.union (vbroken, broken))
-            end
+          Empty => AnnEmpty
+        | Space => AnnSpace
+        | NoSpace => AnnNoSpace
+        | Token t => AnnToken {at=NONE, tok=t}
+        | Text t => AnnText {at=NONE, txt=t}
+        | Var v => AnnVar v
         | LetDoc {var, doc, inn} =>
-            let
-              val (doc, vbroken) = loop vars (doc, TabSet.empty)
-              val vars = VarDict.insert vars (var, (doc, vbroken))
-              val (inn, broken) = loop vars (inn, broken)
-            in
-              (AnnLetDoc {var=var, doc=doc, inn=inn}, broken)
-            end
+            AnnLetDoc {var=var, doc = loop doc, inn = loop inn}
         | At (tab, doc) =>
-            let
-              val (mightBeFirst, broken) =
-                if TabSet.contains broken tab then
-                  (false, broken)
-                else
-                  (true, TabSet.insert broken tab)
-
-              val (doc, broken) = loop vars (doc, broken)
-            in
-              ( AnnAt
-                  { mightBeFirst = mightBeFirst
-                  , tab = tab
-                  , doc = doc
-                  }
-              , broken
-              )
-            end
+            AnnAt {tab = tab, doc = loop doc}
         | Concat (d1, d2) =>
-            let
-              val (d1, broken) = loop vars (d1, broken)
-              val (d2, broken) = loop vars (d2, broken)
-            in
-              (AnnConcat (d1, d2), broken)
-            end
+            AnnConcat (loop d1, loop d2)
         | NewTab {tab, doc} =>
-            let
-              val (doc, broken) = loop vars (doc, broken)
-            in
-              ( AnnNewTab {tab = tab, doc = doc}
-              , broken
-              )
-            end
+            AnnNewTab {tab = tab, doc = loop doc}
         | Cond {tab, inactive, active} =>
-            let
-              val (inactive, broken1) = loop vars (inactive, broken)
-              val (active, broken2) = loop vars (active, broken)
-            in
-              ( AnnCond {tab=tab, inactive=inactive, active=active}
-              , TabSet.intersect (broken1, broken2)
-              )
-            end
+            AnnCond {tab = tab, inactive = loop inactive, active = loop active}
 
-      val (anndoc, _) = loop VarDict.empty (doc, TabSet.empty)
+      val doc = loop doc
     in
-      anndoc
+      doc
     end
 
   (* ====================================================================== *)
@@ -321,11 +276,11 @@ struct
             in
               (left, doc, right)
             end
-        | AnnAt {tab, doc, mightBeFirst} =>
+        | AnnAt {tab, doc} =>
             let
               val (left, doc, right) = loop vars doc
             in
-              (left, AnnAt {tab=tab, doc=doc, mightBeFirst=mightBeFirst}, right)
+              (left, AnnAt {tab=tab, doc=doc}, right)
             end
         | AnnNewTab {tab, doc} =>
             let
@@ -443,13 +398,13 @@ struct
             in
               (NONE, vars, AnnText {txt=txt, at=flowval})
             end
-        | AnnAt {mightBeFirst, tab, doc} =>
+        | AnnAt {tab, doc} =>
             let
               (* val flowval = SOME (TabSet.singleton tab) *)
               val flowval = flowunion (flowval, SOME (TabSet.singleton tab))
               val (_, vars, doc) = loop ctx (flowval, vars, doc)
             in
-              (NONE, vars, AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc=doc})
+              (NONE, vars, AnnAt {tab=tab, doc=doc})
             end
         | AnnConcat (d1, d2) =>
             let
@@ -507,8 +462,8 @@ struct
             end
         | AnnConcat (d1, d2) =>
             AnnConcat (updateVars d1, updateVars d2)
-        | AnnAt {mightBeFirst, tab, doc} =>
-            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = updateVars doc}
+        | AnnAt {tab, doc} =>
+            AnnAt {tab=tab, doc = updateVars doc}
         | AnnCond {tab, inactive, active} =>
             AnnCond {tab=tab, inactive = updateVars inactive, active = updateVars active}
         | AnnNewTab {tab, doc} =>
@@ -541,8 +496,8 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnAt {mightBeFirst, tab, doc} =>
-            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = loop doc}
+        | AnnAt {tab, doc} =>
+            AnnAt {tab=tab, doc = loop doc}
         | AnnConcat (d1, d2) =>
             AnnConcat (loop d1, loop d2)
         | AnnNewTab {tab, doc} =>
@@ -581,7 +536,7 @@ struct
                 commentsToDocs (Token.commentsAfter tok)
 
               fun withBreak d =
-                AnnAt {mightBeFirst=false, tab=tab, doc=d}
+                AnnAt {tab=tab, doc=d}
 
               val all =
                 Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
@@ -660,8 +615,8 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnAt {mightBeFirst, tab, doc} =>
-            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = loop doc}
+        | AnnAt {tab, doc} =>
+            AnnAt {tab=tab, doc = loop doc}
         | AnnToken {at = NONE, tok} => doc
         | AnnToken {at = SOME tabs, tok} =>
             (case prevTokenNotWhitespace tok of
