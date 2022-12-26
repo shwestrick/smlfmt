@@ -14,6 +14,8 @@ sig
   val token: Token.t -> doc
   val text: string -> doc
   val concat: doc * doc -> doc
+  val letdoc: doc -> (DocVar.t -> doc) -> doc
+  val var: DocVar.t -> doc
 
   datatype style =
     Inplace
@@ -90,6 +92,7 @@ struct
 
   structure TabDict = Dict(TabKey)
   structure TabSet = Set(TabKey)
+  structure VarDict = Dict(DocVar)
 
   datatype doc =
     Empty
@@ -101,6 +104,8 @@ struct
   | At of tab * doc
   | NewTab of {tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
+  | LetDoc of {var: DocVar.t, doc: doc, inn: doc}
+  | Var of DocVar.t
 
   type t = doc
 
@@ -109,6 +114,7 @@ struct
   val space = Space
   val token = Token
   val text = Text
+  val var = Var
   fun at t d = At (t, d)
 
   fun concat (d1, d2) =
@@ -131,7 +137,18 @@ struct
     | NewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ toString d ^ ")"
     | Cond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
+    | LetDoc {var, doc=d, inn} =>
+        "LetDoc(" ^ DocVar.toString var ^ ", " ^ toString d ^ ", " ^ toString inn ^ ")"
+    | Var v =>
+        "Var(" ^ DocVar.toString v ^ ")"
 
+  fun letdoc d f =
+    let
+      val v = DocVar.new ()
+      val k = f v
+    in
+      LetDoc {var = v, doc = d, inn = k}
+    end
 
   fun newTabWithStyle parent (style, genDocUsingTab: tab -> doc) =
     let
@@ -155,9 +172,11 @@ struct
   | AnnToken of {at: TabSet.t option, tok: Token.t}
   | AnnText of {at: TabSet.t option, txt: string}
   | AnnConcat of anndoc * anndoc
-  | AnnAt of {mightBeFirst: bool, tab: tab, doc: anndoc}
+  | AnnAt of {tab: tab, doc: anndoc}
   | AnnNewTab of {tab: tab, doc: anndoc}
   | AnnCond of {tab: tab, inactive: anndoc, active: anndoc}
+  | AnnLetDoc of {var: DocVar.t, doc: anndoc, inn: anndoc}
+  | AnnVar of DocVar.t
 
 
   fun annToString doc =
@@ -169,69 +188,42 @@ struct
     | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
     | AnnToken {tok=t, ...} => "Token('" ^ Token.toString t ^ "')"
     | AnnText {txt=t, ...} => "Text('" ^ t ^ "')"
-    | AnnAt {mightBeFirst, tab, doc} =>
-        "At" ^ (if mightBeFirst then "!!" else "") ^ "(" ^ tabToString tab ^ ", " ^ annToString doc ^ ")"
+    | AnnAt {tab, doc} =>
+        "At(" ^ tabToString tab ^ ", " ^ annToString doc ^ ")"
     | AnnNewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ annToString d ^ ")"
     | AnnCond {tab=t, inactive=df, active=dnf} =>
         "Cond(" ^ tabToString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
+    | AnnLetDoc {var, doc=d, inn} =>
+        "LetDoc(" ^ DocVar.toString var ^ ", " ^ annToString d ^ ", " ^ annToString inn ^ ")"
+    | AnnVar v =>
+        "Var(" ^ DocVar.toString v ^ ")"
 
 
   fun annotate doc =
     let
       (* if tab in broken, then tab has definitely had at least one break *)
-      fun loop currtab (doc, broken) =
+      fun loop doc =
         case doc of
-          Empty => (AnnEmpty, broken)
-        | Space => (AnnSpace, broken)
-        | NoSpace => (AnnNoSpace, broken)
-        | Token t => (AnnToken {at=NONE, tok=t}, broken)
-        | Text t => (AnnText {at=NONE, txt=t}, broken)
+          Empty => AnnEmpty
+        | Space => AnnSpace
+        | NoSpace => AnnNoSpace
+        | Token t => AnnToken {at=NONE, tok=t}
+        | Text t => AnnText {at=NONE, txt=t}
+        | Var v => AnnVar v
+        | LetDoc {var, doc, inn} =>
+            AnnLetDoc {var=var, doc = loop doc, inn = loop inn}
         | At (tab, doc) =>
-            let
-              val (mightBeFirst, broken) =
-                if TabSet.contains broken tab then
-                  (false, broken)
-                else
-                  (true, TabSet.insert broken tab)
-
-              val (doc, broken) = loop currtab (doc, broken)
-            in
-              ( AnnAt
-                  { mightBeFirst = mightBeFirst
-                  , tab = tab
-                  , doc = doc
-                  }
-              , broken
-              )
-            end
+            AnnAt {tab = tab, doc = loop doc}
         | Concat (d1, d2) =>
-            let
-              val (d1, broken) = loop currtab (d1, broken)
-              val (d2, broken) = loop currtab (d2, broken)
-            in
-              (AnnConcat (d1, d2), broken)
-            end
+            AnnConcat (loop d1, loop d2)
         | NewTab {tab, doc} =>
-            let
-              val (doc, broken) = loop tab (doc, broken)
-            in
-              ( AnnNewTab {tab = tab, doc = doc}
-              , broken
-              )
-            end
+            AnnNewTab {tab = tab, doc = loop doc}
         | Cond {tab, inactive, active} =>
-            let
-              val (inactive, broken1) = loop currtab (inactive, broken)
-              val (active, broken2) = loop currtab (active, broken)
-            in
-              ( AnnCond {tab=tab, inactive=inactive, active=active}
-              , TabSet.intersect (broken1, broken2)
-              )
-            end
+            AnnCond {tab = tab, inactive = loop inactive, active = loop active}
 
-      val (anndoc, _) = loop Root (doc, TabSet.empty)
+      val doc = loop doc
     in
-      anndoc
+      doc
     end
 
   (* ====================================================================== *)
@@ -245,8 +237,14 @@ struct
         else print (s ^ "\n")
 
       datatype edge = Spacey | MaybeNotSpacey
-      datatype tab_constraint = Active | Inactive
-      type context = tab_constraint TabDict.t
+
+      fun edgeOptUnion (e1, e2) =
+        case (e1, e2) of
+          (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
+        | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
+        | (SOME Spacey, SOME Spacey) => SOME Spacey
+        | (NONE, _) => NONE
+        | (_, NONE) => NONE
 
       fun edgeOptToString e =
         case e of
@@ -254,180 +252,73 @@ struct
         | SOME Spacey => "Spacey"
         | SOME MaybeNotSpacey => "MaybeNotSpacey"
 
-      fun markInactive ctx tab =
-        TabDict.insert ctx (tab, Inactive)
-
-      fun markActive ctx tab =
-        case tab of
-          Root => ctx
-        | Tab {parent, ...} =>
-            markActive (TabDict.insert ctx (tab, Active)) parent
-
-      fun edge {left: bool} ctx doc =
-        let
-          fun loop ctx doc =
-            case doc of
-              AnnEmpty => NONE
-            | AnnNewline => SOME Spacey
-            | AnnSpace => SOME Spacey
-            | AnnNoSpace => SOME Spacey (* pretends to be a space, but then actually is elided *)
-            | AnnToken _ => SOME MaybeNotSpacey
-            | AnnText _ => SOME MaybeNotSpacey
-            | AnnAt {mightBeFirst, tab, doc} =>
-                let
-                  val leftEdge =
-                    case TabDict.find ctx tab of
-                      SOME Active =>
-                        if mightBeFirst then
-                          NONE
-                        else
-                          SOME Spacey
-                    | _ => NONE
-                in
-                  if left then
-                    leftEdge
-                  else
-                    case loop ctx doc of
-                      SOME ee => SOME ee
-                    | _ => leftEdge
-                end
-
-            | AnnConcat (d1, d2) =>
-                if left then
-                  (case loop ctx d1 of
-                    SOME xs => SOME xs
-                  | NONE => loop ctx d2)
-                else
-                  (case loop ctx d2 of
-                    SOME xs => SOME xs
-                  | NONE => loop ctx d1)
-            | AnnNewTab {doc=d, ...} => loop ctx d
-            | AnnCond {tab, inactive, active} =>
-                let
-                  val result =
-                    case TabDict.find ctx tab of
-                      SOME Active =>
-                        let
-                          val result = loop ctx active
-                        in
-                          dbgprintln (annToString doc ^ ": ACTIVE: " ^ edgeOptToString result);
-                          result
-                        end
-                    | SOME Inactive =>
-                        let
-                          val result = loop ctx inactive
-                        in
-                          dbgprintln (annToString doc ^ ": INACTIVE: " ^ edgeOptToString result);
-                          result
-                        end
-                    | NONE =>
-                        let
-                          val r1 = loop (markInactive ctx tab) inactive
-                          val r2 = loop (markActive ctx tab) active
-                          val result =
-                            case (r1, r2) of
-                              (SOME MaybeNotSpacey, _) => SOME MaybeNotSpacey
-                            | (_, SOME MaybeNotSpacey) => SOME MaybeNotSpacey
-                            | (SOME Spacey, SOME Spacey) => SOME Spacey
-                            | (NONE, _) => NONE
-                            | (_, NONE) => NONE
-                        in
-                          dbgprintln (annToString doc ^ ": UNSURE: ACTIVE? " ^ edgeOptToString r2 ^ "; INACTIVE? " ^ edgeOptToString r1 ^ "; OVERALL: " ^ edgeOptToString result);
-                          result
-                        end
-                in
-                  result
-                end
-        in
-          loop ctx doc
-        end
-
-      fun leftEdge ctx doc = edge {left=true} ctx doc
-      fun rightEdge ctx doc = edge {left=false} ctx doc
-
-      fun checkInsertSpace (needSpaceBefore, needSpaceAfter) doc =
-        let
-          val origDoc = doc
-
-          val doc =
-            if not needSpaceBefore then doc
-            else
-              ( dbgprintln ("need space before " ^ annToString origDoc)
-              ; AnnConcat (AnnSpace, doc)
-              )
-
-          val doc =
-            if not needSpaceAfter then doc
-            else
-              ( dbgprintln ("need space after " ^ annToString origDoc)
-              ; AnnConcat (doc, AnnSpace)
-              )
-        in
-          doc
-        end
-
-      fun loop ctx (needSpace as (needSpaceBefore, needSpaceAfter)) doc : anndoc =
+      fun loop vars doc =
         case doc of
-          AnnSpace => doc
-        | AnnNoSpace => doc
-        | AnnNewline => doc
-        | AnnToken t => checkInsertSpace needSpace doc
-        | AnnText t => checkInsertSpace needSpace doc
-        | AnnEmpty =>
-            if needSpaceBefore orelse needSpaceAfter then
-              AnnSpace
-            else
-              AnnEmpty
-        | AnnAt {mightBeFirst, tab, doc} =>
-            let
-              val needSpaceBefore' =
-                case TabDict.find ctx tab of
-                  SOME Active =>
-                    if mightBeFirst then
-                      needSpaceBefore
-                    else
-                      false
-                | _ => needSpaceBefore
-
-              val result =
-                AnnAt
-                  { mightBeFirst = mightBeFirst
-                  , tab = tab
-                  , doc = loop ctx (false, needSpaceAfter) doc
-                  }
-            in
-              if needSpaceBefore' then
-                AnnConcat (AnnSpace, result)
-              else
-                result
-            end
-        | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab = tab, doc = loop ctx needSpace doc}
-        | AnnCond {tab, inactive, active} =>
-            let
-              val inactive = loop (markInactive ctx tab) needSpace inactive
-              val active = loop (markActive ctx tab) needSpace active
-            in
-              AnnCond {tab = tab, inactive = inactive, active = active}
-            end
+          AnnEmpty => (NONE, doc, NONE)
+        | AnnNewline => (SOME Spacey, doc, SOME Spacey)
+        | AnnNoSpace => (SOME Spacey, doc, SOME Spacey)
+        | AnnSpace => (SOME Spacey, doc, SOME Spacey)
+        | AnnToken t => (SOME MaybeNotSpacey, doc, SOME MaybeNotSpacey)
+        | AnnText t => (SOME MaybeNotSpacey, doc, SOME MaybeNotSpacey)
         | AnnConcat (d1, d2) =>
             let
-              val d1 = loop ctx (needSpaceBefore, false) d1
-
-              val needSpaceBefore2 =
-                case rightEdge ctx d1 of
-                  SOME MaybeNotSpacey => true
-                | _ => false
-
-              val d2 = loop ctx (needSpaceBefore2, needSpaceAfter) d2
+              val (left, d1, leftright) = loop vars d1
+              val (rightleft, d2, right) = loop vars d2
+              val doc =
+                case (leftright, rightleft) of
+                  (SOME MaybeNotSpacey, SOME MaybeNotSpacey) =>
+                    AnnConcat (AnnConcat (d1, AnnSpace), d2)
+                | _ => AnnConcat (d1, d2)
+              val left =
+                if Option.isSome left then left else rightleft
+              val right =
+                if Option.isSome right then right else leftright
             in
-              AnnConcat (d1, d2)
+              (left, doc, right)
+            end
+        | AnnAt {tab, doc} =>
+            let
+              val (left, doc, right) = loop vars doc
+            in
+              (left, AnnAt {tab=tab, doc=doc}, right)
+            end
+        | AnnNewTab {tab, doc} =>
+            let
+              val (left, doc, right) = loop vars doc
+            in
+              (left, AnnNewTab {tab=tab, doc=doc}, right)
+            end
+        | AnnCond {tab, active, inactive} =>
+            let
+              val (left1, active, right1) = loop vars active
+              val (left2, inactive, right2) = loop vars inactive
+            in
+              ( edgeOptUnion (left1, left2)
+              , AnnCond {tab=tab, active=active, inactive=inactive}
+              , edgeOptUnion (right1, right2)
+              )
+            end
+        | AnnLetDoc {var, doc, inn} =>
+            let
+              val (left, doc, right) = loop vars doc
+              val vars = VarDict.insert vars (var, (left, right))
+              val (left, inn, right) = loop vars inn
+            in
+              ( left
+              , AnnLetDoc {var=var, doc=doc, inn=inn}
+              , right
+              )
+            end
+        | AnnVar v =>
+            let
+              val (left, right) = VarDict.lookup vars v
+            in
+              (left, doc, right)
             end
 
-      val result = loop TabDict.empty (false, false) doc
-      (* val _ = dbgprintln ("ensureSpaces OUTPUT: " ^ toString result) *)
+      val (_, doc, _) = loop VarDict.empty doc
     in
-      result
+      doc
     end
 
   (* ====================================================================== *)
@@ -479,12 +370,12 @@ struct
         | (NONE, _) => flow2
         | (_, NONE) => flow1
 
-      fun loop ctx (flowval, doc) =
+      fun loop ctx (flowval, vars, doc) =
         case doc of
-          AnnEmpty => (flowval, doc)
-        | AnnNewline => (flowval, doc)
-        | AnnSpace => (flowval, doc)
-        | AnnNoSpace => (flowval, doc)
+          AnnEmpty => (flowval, vars, doc)
+        | AnnNewline => (flowval, vars, doc)
+        | AnnSpace => (flowval, vars, doc)
+        | AnnNoSpace => (flowval, vars, doc)
         | AnnToken {tok, ...} =>
             let
               val _ =
@@ -494,7 +385,7 @@ struct
                      String.concatWith " " (List.map tabToString (TabSet.listKeys ts))))
                 flowval
             in
-              (NONE, AnnToken {tok=tok, at=flowval})
+              (NONE, vars, AnnToken {tok=tok, at=flowval})
             end
         | AnnText {txt, ...} =>
             let
@@ -505,47 +396,81 @@ struct
                      String.concatWith " " (List.map tabToString (TabSet.listKeys ts))))
                 flowval
             in
-              (NONE, AnnText {txt=txt, at=flowval})
+              (NONE, vars, AnnText {txt=txt, at=flowval})
             end
-        | AnnAt {mightBeFirst, tab, doc} =>
+        | AnnAt {tab, doc} =>
             let
               (* val flowval = SOME (TabSet.singleton tab) *)
               val flowval = flowunion (flowval, SOME (TabSet.singleton tab))
-              val (_, doc) = loop ctx (flowval, doc)
+              val (_, vars, doc) = loop ctx (flowval, vars, doc)
             in
-              (NONE, AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc=doc})
+              (NONE, vars, AnnAt {tab=tab, doc=doc})
             end
         | AnnConcat (d1, d2) =>
             let
-              val (flowval, d1) = loop ctx (flowval, d1)
-              val (flowval, d2) = loop ctx (flowval, d2)
+              val (flowval, vars, d1) = loop ctx (flowval, vars, d1)
+              val (flowval, vars, d2) = loop ctx (flowval, vars, d2)
             in
-              (flowval, AnnConcat (d1, d2))
+              (flowval, vars, AnnConcat (d1, d2))
             end
         | AnnNewTab {tab, doc} =>
             let
-              val (flowval, doc) = loop ctx (flowval, doc)
+              val (flowval, vars, doc) = loop ctx (flowval, vars, doc)
             in
-              (flowval, AnnNewTab {tab=tab, doc=doc})
+              (flowval, vars, AnnNewTab {tab=tab, doc=doc})
             end
         | AnnCond {tab, active, inactive} =>
-            case TabDict.find ctx tab of
-              SOME Active => loop ctx (flowval, active)
-            | SOME Inactive => loop ctx (flowval, inactive)
+            (case TabDict.find ctx tab of
+              SOME Active => loop ctx (flowval, vars, active)
+            | SOME Inactive => loop ctx (flowval, vars, inactive)
             | _ =>
                 let
-                  val (flow1, inactive) = loop (markInactive ctx tab) (flowval, inactive)
-                  val (flow2, active) = loop (markActive ctx tab) (flowval, active)
+                  val (flow1, vars, inactive) = loop (markInactive ctx tab) (flowval, vars, inactive)
+                  val (flow2, vars, active) = loop (markActive ctx tab) (flowval, vars, active)
                   val flowval =
                     (* TODO: is union necessary here? *)
                     flowunion (flow1, flow2)
                 in
-                  (flowval, AnnCond {tab=tab, active=active, inactive=inactive})
-                end
+                  (flowval, vars, AnnCond {tab=tab, active=active, inactive=inactive})
+                end)
+        | AnnLetDoc {var, doc, inn} =>
+            let
+              val vars = VarDict.insert vars (var, NONE)
+              val (flowval, vars, inn) = loop ctx (flowval, vars, inn)
+            in
+              (flowval, vars, AnnLetDoc {var=var, doc=doc, inn=inn})
+            end
+        | AnnVar v =>
+            let
+              val vars =
+                VarDict.insert vars (v, flowunion (VarDict.lookup vars v, flowval))
+            in
+              (NONE, vars, AnnVar v)
+            end
 
-      val (_, doc) = loop TabDict.empty (SOME (TabSet.singleton Root), doc)
+      val (_, varinfo, doc) =
+        loop TabDict.empty (SOME (TabSet.singleton Root), VarDict.empty, doc)
+
+      fun updateVars doc =
+        case doc of
+          AnnLetDoc {var, doc=d, inn} =>
+            let
+              val flowval = VarDict.lookup varinfo var
+              val (_, _, d) = loop TabDict.empty (flowval, varinfo, d)
+            in
+              AnnLetDoc {var=var, doc=d, inn = updateVars inn}
+            end
+        | AnnConcat (d1, d2) =>
+            AnnConcat (updateVars d1, updateVars d2)
+        | AnnAt {tab, doc} =>
+            AnnAt {tab=tab, doc = updateVars doc}
+        | AnnCond {tab, inactive, active} =>
+            AnnCond {tab=tab, inactive = updateVars inactive, active = updateVars active}
+        | AnnNewTab {tab, doc} =>
+            AnnNewTab {tab=tab, doc = updateVars doc}
+        | _ => doc
     in
-      doc
+      updateVars doc
     end
 
   (* ====================================================================== *)
@@ -571,8 +496,8 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnAt {mightBeFirst, tab, doc} =>
-            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = loop doc}
+        | AnnAt {tab, doc} =>
+            AnnAt {tab=tab, doc = loop doc}
         | AnnConcat (d1, d2) =>
             AnnConcat (loop d1, loop d2)
         | AnnNewTab {tab, doc} =>
@@ -611,7 +536,7 @@ struct
                 commentsToDocs (Token.commentsAfter tok)
 
               fun withBreak d =
-                AnnAt {mightBeFirst=false, tab=tab, doc=d}
+                AnnAt {tab=tab, doc=d}
 
               val all =
                 Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
@@ -620,6 +545,11 @@ struct
                 (Seq.nth all 0)
                 (Seq.map withBreak (Seq.drop all 1))
             end
+
+        | AnnLetDoc {var, doc, inn} =>
+            AnnLetDoc {var = var, doc = loop doc, inn = loop inn}
+
+        | AnnVar v => AnnVar v
 
     in
       flowAts debug (loop doc)
@@ -685,8 +615,8 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnAt {mightBeFirst, tab, doc} =>
-            AnnAt {mightBeFirst=mightBeFirst, tab=tab, doc = loop doc}
+        | AnnAt {tab, doc} =>
+            AnnAt {tab=tab, doc = loop doc}
         | AnnToken {at = NONE, tok} => doc
         | AnnToken {at = SOME tabs, tok} =>
             (case prevTokenNotWhitespace tok of
@@ -713,6 +643,9 @@ struct
             AnnNewTab {tab = tab, doc = loop doc}
         | AnnCond {tab, inactive, active} =>
             AnnCond {tab = tab, inactive = loop inactive, active = loop active}
+        | AnnLetDoc {var, doc, inn} =>
+            AnnLetDoc {var = var, doc = loop doc, inn = loop inn}
+        | AnnVar v => AnnVar v
     in
       loop doc
     end
@@ -786,24 +719,25 @@ struct
         if not debug then ()
         else print (s ^ "\n")
 
-      val doc = annotate doc
-      val doc = flowAts debug doc
-      val doc = insertComments debug doc
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before ensureSpaces: " ^ annToString doc) *)
-      val doc = ensureSpaces debug doc
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc before insertBlankLines: " ^ annToString doc) *)
-      val doc = insertBlankLines debug doc
-      (* val _ = dbgprintln ("TabbedTokenDoc.toStringDoc after insertBlankLines: " ^ annToString doc) *)
-      (* val doc = removeAnnotations doc *)
+      val (doc, tm) = Util.getTime (fn _ => annotate doc)
+      val _ = dbgprintln ("annotate: " ^ Time.fmt 3 tm ^ "s")
+      val (doc, tm) = Util.getTime (fn _ => flowAts debug doc)
+      val _ = dbgprintln ("flowAts: " ^ Time.fmt 3 tm ^ "s")
+      val (doc, tm) = Util.getTime (fn _ => insertComments debug doc)
+      val _ = dbgprintln ("insertComments: " ^ Time.fmt 3 tm ^ "s")
+      val (doc, tm) = Util.getTime (fn _ => ensureSpaces debug doc)
+      val _ = dbgprintln ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s")
+      val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
+      val _ = dbgprintln ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s")
 
-      fun loop currentTab tabmap doc =
+      fun loop currentTab tabmap vars doc =
         case doc of
           AnnEmpty => D.empty
         | AnnNoSpace => D.empty
         | AnnNewline => D.newline
         | AnnSpace => D.space
         | AnnConcat (d1, d2) =>
-            D.concat (loop currentTab tabmap d1, loop currentTab tabmap d2)
+            D.concat (loop currentTab tabmap vars d1, loop currentTab tabmap vars d2)
         | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
         | AnnToken {at, tok} =>
             let
@@ -820,11 +754,11 @@ struct
               doc
             end
         | AnnAt {tab, doc, ...} =>
-            D.at (TabDict.lookup tabmap tab) (loop currentTab tabmap doc)
+            D.at (TabDict.lookup tabmap tab) (loop currentTab tabmap vars doc)
         | AnnCond {tab, inactive, active} =>
             D.cond (TabDict.lookup tabmap tab)
-              { inactive = loop currentTab tabmap inactive
-              , active = loop currentTab tabmap active
+              { inactive = loop currentTab tabmap vars inactive
+              , active = loop currentTab tabmap vars active
               }
         | AnnNewTab {tab, doc} =>
             let
@@ -838,10 +772,24 @@ struct
               D.newTab
                 (TabDict.lookup tabmap (valOf (parent tab)))
                 (s, fn tab' =>
-                  loop tab' (TabDict.insert tabmap (tab, tab')) doc)
+                  loop tab' (TabDict.insert tabmap (tab, tab')) vars doc)
             end
+        | AnnLetDoc {var, doc, inn} =>
+            let
+              val doc' = loop currentTab tabmap vars doc
+              val vars = VarDict.insert vars (var, doc')
+            in
+              loop currentTab tabmap vars inn
+            end
+        | AnnVar v =>
+            VarDict.lookup vars v
+
+      val (result, tm) = Util.getTime (fn _ =>
+        loop D.root (TabDict.singleton (Root, D.root)) VarDict.empty doc)
+
+      val _ = dbgprintln ("convert: " ^ Time.fmt 3 tm ^ "s\n")
     in
-      loop D.root (TabDict.singleton (Root, D.root)) doc
+      result
     end
 
 end

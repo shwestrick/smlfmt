@@ -677,6 +677,10 @@ struct
 
   fun pretty {ribbonFrac, maxWidth, indentWidth, debug} doc =
     let
+      fun dbgprintln s =
+        if not debug then ()
+        else print (s ^ "\n")
+
       val ribbonWidth =
         Int.max (0, Int.min (maxWidth,
           Real.round (ribbonFrac * Real.fromInt maxWidth)))
@@ -1095,10 +1099,13 @@ struct
 
       val init = LS (TabDict.empty, root, TabSet.singleton root, 0, 0, [])
       val init = dbgBreak Tab.Root (dbgInsert Tab.Root init)
-      val LS (_, _, _, _, _, items) = layout init doc
+      val (LS (_, _, _, _, _, items), tm) =
+        Util.getTime (fn _ => layout init doc)
       val items =
         if not debug then items
         else Item.EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
+
+      val _ = dbgprintln ("layout: " ^ Time.fmt 3 tm ^ "s\n")
 
       val items = if not debug then items else implementDebugs maxWidth items
 
