@@ -36,9 +36,8 @@ sig
   val text: CustomString.t -> doc
   val concat: doc * doc -> doc
 
-  type tab
-  val root: tab
-  val newTab: tab -> Tab.Style.t * (tab -> doc) -> doc
+  type tab = Tab.t
+  val newTab: tab * doc -> doc
   val at: tab -> doc -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
@@ -77,7 +76,7 @@ struct
   | Concat of doc * doc
   | Text of CustomString.t
   | At of tab * doc
-  | NewTab of {parent: tab, tab: tab, doc: doc}
+  | NewTab of {tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
 
   type t = doc
@@ -97,13 +96,8 @@ struct
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
 
-  fun newTab parent (style, genDocUsingTab) =
-    let
-      val t = Tab.new {parent=parent, style=style}
-      val d = genDocUsingTab t
-    in
-      NewTab {parent = parent, tab = t, doc = d}
-    end
+  fun newTab (tab, doc) =
+    NewTab {tab = tab, doc = doc}
 
   (* ====================================================================== *)
 
@@ -111,7 +105,7 @@ struct
     let
       fun loop acc d =
         case d of
-          NewTab {tab, doc, ...} => loop (tab :: acc) doc
+          NewTab {tab, doc} => loop (tab :: acc) doc
         | Concat (d1, d2) => loop (loop acc d1) d2
         | Cond {inactive, active, ...} => loop (loop acc inactive) active
         | At (_, doc) => loop acc doc
@@ -894,7 +888,7 @@ struct
               | _ => raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
             end
 
-        | NewTab {parent, tab, doc} =>
+        | NewTab {tab, doc} =>
             let
               fun tryPromote () =
                 (* try to activate first *)
@@ -963,7 +957,7 @@ struct
 
               setTabState tab Completed;
 
-              LS (dbgState, parent, TabSet.remove cats tab, lnStart, col, acc)
+              LS (dbgState, valOf (Tab.parent tab), TabSet.remove cats tab, lnStart, col, acc)
             end
 
 

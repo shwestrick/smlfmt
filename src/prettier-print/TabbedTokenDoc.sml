@@ -647,13 +647,17 @@ struct
       if Seq.length pieces = 1 then
         (false, D.text t)
       else
-        ( true
-        , D.newTab currentTab (Tab.Style.RigidInplace, fn tab =>
-            Seq.iterate
-              D.concat
-              D.empty
-              (Seq.map (fn x => D.at tab x) pieces))
-        )
+        let
+          val tab =
+            Tab.new {parent = currentTab, style = Tab.Style.RigidInplace}
+          val doc =
+            Seq.iterate D.concat D.empty
+              (Seq.map (fn x => D.at tab x) pieces)
+          val doc =
+            D.newTab (tab, doc)
+        in
+          (true, doc)
+        end
     end
 
 
@@ -677,14 +681,14 @@ struct
       val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
       val _ = dbgprintln ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s")
 
-      fun loop currentTab tabmap vars doc =
+      fun loop currentTab vars doc =
         case doc of
           AnnEmpty => D.empty
         | AnnNoSpace => D.empty
         | AnnNewline => D.newline
         | AnnSpace => D.space
         | AnnConcat (d1, d2) =>
-            D.concat (loop currentTab tabmap vars d1, loop currentTab tabmap vars d2)
+            D.concat (loop currentTab vars d1, loop currentTab vars d2)
         | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
         | AnnToken {at, tok} =>
             let
@@ -694,36 +698,33 @@ struct
                 | SOME tabs =>
                     (* TODO: what to do when there are multiple possible
                      * tabs here? *)
-                    TabDict.lookup tabmap (List.hd (TabSet.listKeys tabs))
+                    List.hd (TabSet.listKeys tabs)
 
               val (shouldBeRigid, doc) = tokenToStringDoc tab tabWidth tok
             in
               doc
             end
         | AnnAt {tab, doc, ...} =>
-            D.at (TabDict.lookup tabmap tab) (loop currentTab tabmap vars doc)
+            D.at tab (loop currentTab vars doc)
         | AnnCond {tab, inactive, active} =>
-            D.cond (TabDict.lookup tabmap tab)
-              { inactive = loop currentTab tabmap vars inactive
-              , active = loop currentTab tabmap vars active
+            D.cond tab
+              { inactive = loop currentTab vars inactive
+              , active = loop currentTab vars active
               }
         | AnnNewTab {tab, doc} =>
-            D.newTab
-              (TabDict.lookup tabmap (valOf (Tab.parent tab)))
-              (Tab.style tab, fn tab' =>
-                loop tab' (TabDict.insert tabmap (tab, tab')) vars doc)
+            D.newTab (tab, loop tab vars doc)
         | AnnLetDoc {var, doc, inn} =>
             let
-              val doc' = loop currentTab tabmap vars doc
+              val doc' = loop currentTab vars doc
               val vars = VarDict.insert vars (var, doc')
             in
-              loop currentTab tabmap vars inn
+              loop currentTab vars inn
             end
         | AnnVar v =>
             VarDict.lookup vars v
 
       val (result, tm) = Util.getTime (fn _ =>
-        loop D.root (TabDict.singleton (root, D.root)) VarDict.empty doc)
+        loop Tab.root VarDict.empty doc)
 
       val _ = dbgprintln ("convert: " ^ Time.fmt 3 tm ^ "s\n")
     in
