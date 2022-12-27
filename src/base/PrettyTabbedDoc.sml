@@ -36,15 +36,9 @@ sig
   val text: CustomString.t -> doc
   val concat: doc * doc -> doc
 
-  datatype style =
-    Inplace
-  | Indented of {minIndent: int} option
-  | RigidInplace
-  | RigidIndented of {minIndent: int} option
-
   type tab
   val root: tab
-  val newTab: tab -> style * (tab -> doc) -> doc
+  val newTab: tab -> Tab.Style.t * (tab -> doc) -> doc
   val at: tab -> doc -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
@@ -67,19 +61,11 @@ struct
 
   (* ====================================================================== *)
 
-
-  datatype style =
-    Inplace
-  | Indented of {minIndent: int} option
-  | RigidInplace
-  | RigidIndented of {minIndent: int} option
-
-
   structure Tab =
   struct
 
     datatype tab =
-      Tab of {id: int, style: style, parent: tab}
+      Tab of {id: int, style: Tab.Style.t, parent: tab}
     | Root
 
     type t = tab
@@ -106,25 +92,25 @@ struct
 
     fun style t =
       case t of
-        Root => Inplace
+        Root => Tab.Style.Inplace
       | Tab {style=s, ...} => s
 
     fun isRigid t =
       case style t of
-        RigidInplace => true
-      | RigidIndented _ => true
+        Tab.Style.RigidInplace => true
+      | Tab.Style.RigidIndented _ => true
       | _ => false
 
     fun isInplace t =
       case style t of
-        RigidInplace => true
-      | Inplace => true
+        Tab.Style.RigidInplace => true
+      | Tab.Style.Inplace => true
       | _ => false
 
     fun minIndent t =
       case style t of
-        Indented (SOME {minIndent=i}) => i
-      | RigidIndented (SOME {minIndent=i}) => i
+        Tab.Style.Indented (SOME {minIndent=i}) => i
+      | Tab.Style.RigidIndented (SOME {minIndent=i}) => i
       | _ => 0
 
     fun parent t =

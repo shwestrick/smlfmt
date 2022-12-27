@@ -648,7 +648,7 @@ struct
         (false, D.text t)
       else
         ( true
-        , D.newTab currentTab (D.RigidInplace, fn tab =>
+        , D.newTab currentTab (Tab.Style.RigidInplace, fn tab =>
             Seq.iterate
               D.concat
               D.empty
@@ -708,19 +708,10 @@ struct
               , active = loop currentTab tabmap vars active
               }
         | AnnNewTab {tab, doc} =>
-            let
-              val s =
-                case Tab.style tab of
-                  Tab.Style.Inplace => D.Inplace
-                | Tab.Style.Indented xx => D.Indented xx
-                | Tab.Style.RigidInplace => D.RigidInplace
-                | Tab.Style.RigidIndented xx => D.RigidIndented xx
-            in
-              D.newTab
-                (TabDict.lookup tabmap (valOf (Tab.parent tab)))
-                (s, fn tab' =>
-                  loop tab' (TabDict.insert tabmap (tab, tab')) vars doc)
-            end
+            D.newTab
+              (TabDict.lookup tabmap (valOf (Tab.parent tab)))
+              (Tab.style tab, fn tab' =>
+                loop tab' (TabDict.insert tabmap (tab, tab')) vars doc)
         | AnnLetDoc {var, doc, inn} =>
             let
               val doc' = loop currentTab tabmap vars doc
