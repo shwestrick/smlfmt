@@ -7,7 +7,7 @@ structure PrettierUtil:
 sig
   type tab = TabbedTokenDoc.tab
   type doc = TabbedTokenDoc.doc
-  type style = TabbedTokenDoc.style
+  type style = Tab.Style.t
 
   val indented: style
   val indentedAtLeastBy: int -> style
@@ -55,9 +55,9 @@ struct
   infix 2 ++
   fun x ++ y = concat (x, y)
 
-  val indented = Indented NONE
+  val indented = Tab.Style.Indented NONE
 
-  fun indentedAtLeastBy x = Indented (SOME {minIndent=x})
+  fun indentedAtLeastBy x = Tab.Style.Indented (SOME {minIndent=x})
 
   type 'a shower = tab -> 'a -> doc
 

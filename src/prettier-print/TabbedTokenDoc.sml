@@ -17,11 +17,7 @@ sig
   val letdoc: doc -> (DocVar.t -> doc) -> doc
   val var: DocVar.t -> doc
 
-  datatype style =
-    Inplace
-  | Indented of {minIndent: int} option
-  | RigidInplace
-  | RigidIndented of {minIndent: int} option
+  type style = Tab.Style.t
 
   type tab
   val root: tab
@@ -36,62 +32,13 @@ struct
 
   structure D = TabbedStringDoc
 
-  datatype style =
-    Inplace
-  | Indented of {minIndent: int} option
-  | RigidInplace
-  | RigidIndented of {minIndent: int} option
+  type tab = Tab.t
+  type style = Tab.Style.t
 
-  (* Just need a unique name *)
-  datatype tab =
-    Tab of {id: int, style: style, parent: tab}
-  | Root
+  val root = Tab.root
 
-  val tabCounter = ref 0
-
-  fun mkTab parent style =
-    let
-      val c = !tabCounter
-    in
-      tabCounter := c+1;
-      Tab {id = c, style = style, parent = parent}
-    end
-
-
-  val root = Root
-
-
-  fun parent t =
-    case t of
-      Root => NONE
-    | Tab {parent, ...} => SOME parent
-
-
-  fun style t =
-    case t of
-      Root => Inplace
-    | Tab {style=s, ...} => s
-
-
-  fun tabToString t =
-    case t of
-      Tab {id=c, ...} => "[" ^ Int.toString c ^ "]"
-    | Root => "[root]"
-
-
-  structure TabKey =
-  struct
-    type t = tab
-    fun compare (t1: tab, t2: tab) : order =
-      case (t1, t2) of
-        (Root, Root) => EQUAL
-      | (Tab t1, Tab t2) => Int.compare (#id t1, #id t2)
-      | (Tab _, Root) => GREATER
-      | (Root, Tab _) => LESS
-  end
-
-  structure TabDict = Dict(TabKey)
-  structure TabSet = Set(TabKey)
+  structure TabDict = Dict(Tab)
+  structure TabSet = Set(Tab)
   structure VarDict = Dict(DocVar)
 
   datatype doc =
@@ -133,10 +80,10 @@ struct
     | Concat (d1, d2) => toString d1 ^ " ++ " ^ toString d2
     | Token t => "Token('" ^ Token.toString t ^ "')"
     | Text t => "Text('" ^ t ^ "')"
-    | At (t, d) => "At(" ^ tabToString t ^ "," ^ toString d ^ ")"
-    | NewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ toString d ^ ")"
+    | At (t, d) => "At(" ^ Tab.toString t ^ "," ^ toString d ^ ")"
+    | NewTab {tab=t, doc=d, ...} => "NewTab(" ^ Tab.toString t ^ ", " ^ toString d ^ ")"
     | Cond {tab=t, inactive=df, active=dnf} =>
-        "Cond(" ^ tabToString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
+        "Cond(" ^ Tab.toString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
     | LetDoc {var, doc=d, inn} =>
         "LetDoc(" ^ DocVar.toString var ^ ", " ^ toString d ^ ", " ^ toString inn ^ ")"
     | Var v =>
@@ -152,13 +99,13 @@ struct
 
   fun newTabWithStyle parent (style, genDocUsingTab: tab -> doc) =
     let
-      val t = mkTab parent style
+      val t = Tab.new {parent=parent, style=style}
       val d = genDocUsingTab t
     in
       NewTab {tab=t, doc=d}
     end
 
-  fun newTab parent f = newTabWithStyle parent (Inplace, f)
+  fun newTab parent f = newTabWithStyle parent (Tab.Style.Inplace, f)
 
   (* ====================================================================== *)
   (* ====================================================================== *)
@@ -189,10 +136,10 @@ struct
     | AnnToken {tok=t, ...} => "Token('" ^ Token.toString t ^ "')"
     | AnnText {txt=t, ...} => "Text('" ^ t ^ "')"
     | AnnAt {tab, doc} =>
-        "At(" ^ tabToString tab ^ ", " ^ annToString doc ^ ")"
-    | AnnNewTab {tab=t, doc=d, ...} => "NewTab(" ^ tabToString t ^ ", " ^ annToString d ^ ")"
+        "At(" ^ Tab.toString tab ^ ", " ^ annToString doc ^ ")"
+    | AnnNewTab {tab=t, doc=d, ...} => "NewTab(" ^ Tab.toString t ^ ", " ^ annToString d ^ ")"
     | AnnCond {tab=t, inactive=df, active=dnf} =>
-        "Cond(" ^ tabToString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
+        "Cond(" ^ Tab.toString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
     | AnnLetDoc {var, doc=d, inn} =>
         "LetDoc(" ^ DocVar.toString var ^ ", " ^ annToString d ^ ", " ^ annToString inn ^ ")"
     | AnnVar v =>
@@ -359,10 +306,10 @@ struct
         TabDict.insert ctx (tab, Inactive)
 
       fun markActive ctx tab =
-        case tab of
-          Root => ctx
-        | Tab {parent, ...} =>
-            markActive (TabDict.insert ctx (tab, Active)) parent
+        case Tab.parent tab of
+          NONE => ctx
+        | SOME p =>
+            markActive (TabDict.insert ctx (tab, Active)) p
 
       fun flowunion (flow1, flow2) =
         case (flow1, flow2) of
@@ -382,7 +329,7 @@ struct
                 Option.app (fn ts =>
                   dbgprintln
                     ("token '" ^ Token.toString tok ^ "' at: " ^
-                     String.concatWith " " (List.map tabToString (TabSet.listKeys ts))))
+                     String.concatWith " " (List.map Tab.toString (TabSet.listKeys ts))))
                 flowval
             in
               (NONE, vars, AnnToken {tok=tok, at=flowval})
@@ -393,7 +340,7 @@ struct
                 Option.app (fn ts =>
                   dbgprintln
                     ("text '" ^ txt ^ "' at: " ^
-                     String.concatWith " " (List.map tabToString (TabSet.listKeys ts))))
+                     String.concatWith " " (List.map Tab.toString (TabSet.listKeys ts))))
                 flowval
             in
               (NONE, vars, AnnText {txt=txt, at=flowval})
@@ -449,7 +396,7 @@ struct
             end
 
       val (_, varinfo, doc) =
-        loop TabDict.empty (SOME (TabSet.singleton Root), VarDict.empty, doc)
+        loop TabDict.empty (SOME (TabSet.singleton root), VarDict.empty, doc)
 
       fun updateVars doc =
         case doc of
@@ -700,13 +647,17 @@ struct
       if Seq.length pieces = 1 then
         (false, D.text t)
       else
-        ( true
-        , D.newTab currentTab (D.RigidInplace, fn tab =>
-            Seq.iterate
-              D.concat
-              D.empty
-              (Seq.map (fn x => D.at tab x) pieces))
-        )
+        let
+          val tab =
+            Tab.new {parent = currentTab, style = Tab.Style.RigidInplace}
+          val doc =
+            Seq.iterate D.concat D.empty
+              (Seq.map (fn x => D.at tab x) pieces)
+          val doc =
+            D.newTab (tab, doc)
+        in
+          (true, doc)
+        end
     end
 
 
@@ -730,14 +681,14 @@ struct
       val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
       val _ = dbgprintln ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s")
 
-      fun loop currentTab tabmap vars doc =
+      fun loop currentTab vars doc =
         case doc of
           AnnEmpty => D.empty
         | AnnNoSpace => D.empty
         | AnnNewline => D.newline
         | AnnSpace => D.space
         | AnnConcat (d1, d2) =>
-            D.concat (loop currentTab tabmap vars d1, loop currentTab tabmap vars d2)
+            D.concat (loop currentTab vars d1, loop currentTab vars d2)
         | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
         | AnnToken {at, tok} =>
             let
@@ -747,45 +698,33 @@ struct
                 | SOME tabs =>
                     (* TODO: what to do when there are multiple possible
                      * tabs here? *)
-                    TabDict.lookup tabmap (List.hd (TabSet.listKeys tabs))
+                    List.hd (TabSet.listKeys tabs)
 
               val (shouldBeRigid, doc) = tokenToStringDoc tab tabWidth tok
             in
               doc
             end
         | AnnAt {tab, doc, ...} =>
-            D.at (TabDict.lookup tabmap tab) (loop currentTab tabmap vars doc)
+            D.at tab (loop currentTab vars doc)
         | AnnCond {tab, inactive, active} =>
-            D.cond (TabDict.lookup tabmap tab)
-              { inactive = loop currentTab tabmap vars inactive
-              , active = loop currentTab tabmap vars active
+            D.cond tab
+              { inactive = loop currentTab vars inactive
+              , active = loop currentTab vars active
               }
         | AnnNewTab {tab, doc} =>
-            let
-              val s =
-                case style tab of
-                  Inplace => D.Inplace
-                | Indented xx => D.Indented xx
-                | RigidInplace => D.RigidInplace
-                | RigidIndented xx => D.RigidIndented xx
-            in
-              D.newTab
-                (TabDict.lookup tabmap (valOf (parent tab)))
-                (s, fn tab' =>
-                  loop tab' (TabDict.insert tabmap (tab, tab')) vars doc)
-            end
+            D.newTab (tab, loop tab vars doc)
         | AnnLetDoc {var, doc, inn} =>
             let
-              val doc' = loop currentTab tabmap vars doc
+              val doc' = loop currentTab vars doc
               val vars = VarDict.insert vars (var, doc')
             in
-              loop currentTab tabmap vars inn
+              loop currentTab vars inn
             end
         | AnnVar v =>
             VarDict.lookup vars v
 
       val (result, tm) = Util.getTime (fn _ =>
-        loop D.root (TabDict.singleton (Root, D.root)) VarDict.empty doc)
+        loop Tab.root VarDict.empty doc)
 
       val _ = dbgprintln ("convert: " ^ Time.fmt 3 tm ^ "s\n")
     in

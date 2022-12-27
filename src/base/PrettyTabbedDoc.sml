@@ -36,15 +36,8 @@ sig
   val text: CustomString.t -> doc
   val concat: doc * doc -> doc
 
-  datatype style =
-    Inplace
-  | Indented of {minIndent: int} option
-  | RigidInplace
-  | RigidIndented of {minIndent: int} option
-
-  type tab
-  val root: tab
-  val newTab: tab -> style * (tab -> doc) -> doc
+  type tab = Tab.t
+  val newTab: tab * doc -> doc
   val at: tab -> doc -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
@@ -65,148 +58,6 @@ struct
    *)
 
 
-  (* ====================================================================== *)
-
-
-  datatype style =
-    Inplace
-  | Indented of {minIndent: int} option
-  | RigidInplace
-  | RigidIndented of {minIndent: int} option
-
-
-  structure Tab =
-  struct
-    datatype activation_state = Flattened | Activated of int option
-    (* datatype location_state = LocUnknown | LocInPlace | LocIndented  *)
-    datatype state =
-      Fresh
-    | Usable of activation_state
-    | Completed
-
-    datatype tab =
-      Tab of {state: state ref, id: int, style: style, parent: tab}
-    | Root
-
-    type t = tab
-
-    val tabCounter = ref 0
-
-    fun make parent style =
-      let
-        val c = !tabCounter
-      in
-        tabCounter := c+1;
-        Tab
-          { state = ref Fresh
-          , id = c
-          , style = style
-          , parent = parent
-          }
-      end
-
-    fun eq (t1, t2) =
-      case (t1, t2) of
-        (Tab {id=c1, ...}, Tab {id=c2, ...}) => c1 = c2
-      | (Root, Root) => true
-      | _ => false
-
-    fun style t =
-      case t of
-        Root => Inplace
-      | Tab {style=s, ...} => s
-
-    fun isRigid t =
-      case style t of
-        RigidInplace => true
-      | RigidIndented _ => true
-      | _ => false
-
-    fun isInplace t =
-      case style t of
-        RigidInplace => true
-      | Inplace => true
-      | _ => false
-
-    fun minIndent t =
-      case style t of
-        Indented (SOME {minIndent=i}) => i
-      | RigidIndented (SOME {minIndent=i}) => i
-      | _ => 0
-
-    fun getState t =
-      case t of
-        Tab {state=r, ...} => !r
-      | Root => Usable (Activated (SOME 0))
-
-    fun setState t x =
-      case t of
-        Tab {state=r, ...} => r := x
-      | Root => ()
-
-    fun isActivated t =
-      case t of
-        Root => true
-      | Tab {state=r, ...} =>
-          case !r of
-            Usable (Activated _) => true
-          | Usable (Flattened) => false
-          | _ => raise Fail "PrettyTabbedDoc.Tab.isActivated: bad tab"
-
-    fun parent t =
-      case t of
-        Root => NONE
-      | Tab {parent=p, ...} => SOME p
-
-    fun oldestInactiveParent t =
-      if isActivated t then NONE else
-      case parent t of
-        SOME p =>
-          if isActivated p then
-            SOME t
-          else
-            oldestInactiveParent p
-      | NONE => SOME t
-
-    fun infoString t =
-      case t of
-        Root => "[root]"
-      | Tab {state=r, id=c, parent=p, ...} =>
-          let
-            val pinfo =
-              case p of
-                Root => ""
-              | Tab {id=pid, ...} => Int.toString pid ^ "<-"
-            val info =
-              case !r of
-                Usable Flattened => "f"
-              | Usable (Activated NONE) => "a?"
-              | Usable (Activated (SOME _)) => "a"
-              | _ => "x"
-          in
-            "[" ^ pinfo ^ Int.toString c ^ info ^ "]"
-          end
-
-    fun name t =
-      case t of
-        Root => "root"
-      | Tab {id=c, ...} => Int.toString c
-
-
-    fun compare (t1, t2) =
-      case (t1, t2) of
-        (Tab {id=c1, ...}, Tab {id=c2, ...}) => Int.compare (c1, c2)
-      | (Root, Root) => EQUAL
-      | (Root, _) => LESS
-      | (_, Root) => GREATER
-
-    fun depth t =
-      case t of
-        Root => 0
-      | Tab {parent=p, ...} => 1 + depth p
-
-  end
-
   structure TabDict = Dict(Tab)
   structure TabSet = Set(Tab)
 
@@ -216,7 +67,7 @@ struct
 
   type tab = Tab.t
 
-  val root = Tab.Root
+  val root = Tab.root
 
   datatype doc =
     Empty
@@ -225,7 +76,7 @@ struct
   | Concat of doc * doc
   | Text of CustomString.t
   | At of tab * doc
-  | NewTab of {parent: tab, tab: tab, doc: doc}
+  | NewTab of {tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
 
   type t = doc
@@ -245,13 +96,8 @@ struct
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
 
-  fun newTab parent (style, genDocUsingTab) =
-    let
-      val t = Tab.make parent style
-      val d = genDocUsingTab t
-    in
-      NewTab {parent = parent, tab = t, doc = d}
-    end
+  fun newTab (tab, doc) =
+    NewTab {tab = tab, doc = doc}
 
   (* ====================================================================== *)
 
@@ -259,7 +105,7 @@ struct
     let
       fun loop acc d =
         case d of
-          NewTab {tab, doc, ...} => loop (tab :: acc) doc
+          NewTab {tab, doc} => loop (tab :: acc) doc
         | Concat (d1, d2) => loop (loop acc d1) d2
         | Cond {inactive, active, ...} => loop (loop acc inactive) active
         | At (_, doc) => loop acc doc
@@ -688,13 +534,31 @@ struct
       val newline = CustomString.fromString "\n"
       val sp = CustomString.fromString " "
 
+      datatype activation_state = Flattened | Activated of int option
+      datatype state =
+        Fresh
+      | Usable of activation_state
+      | Completed
+
       val allTabs = allTabsInDoc doc
-      val _ =
-        if List.all (fn t => Tab.getState t = Tab.Fresh) allTabs then ()
-        else raise Fail "PrettyTabbedDoc.pretty: bug: non-fresh input tab"
+      val tabstate =
+        TabDict.fromList (List.map (fn t => (t, ref Fresh)) allTabs)
+      val tabstate = TabDict.insert tabstate (Tab.root, ref (Usable (Activated (SOME 0))))
+
+      fun getTabState t =
+        !(TabDict.lookup tabstate t)
+
+      fun setTabState t x =
+        (TabDict.lookup tabstate t) := x
+
+      fun isActivated t =
+        case getTabState t of
+          Usable (Activated _) => true
+        | Usable (Flattened) => false
+        | _ => raise Fail "PrettyTabbedDoc.pretty.isActivated: bad tab"
 
       (* initially, all tabs inactive, and their placement is unknown *)
-      val _ = List.app (fn t => Tab.setState t (Tab.Usable Tab.Flattened)) allTabs
+      val _ = List.app (fn t => setTabState t (Usable Flattened)) allTabs
 
       (* tab -> hit first break? *)
       type debug_state = bool TabDict.t
@@ -731,15 +595,15 @@ struct
             )
 
       fun isPromotable' t =
-        case Tab.getState t of
-          Tab.Usable Tab.Flattened => true
-        | Tab.Usable (Tab.Activated NONE) => true
-        | Tab.Usable (Tab.Activated (SOME ti)) =>
+        case getTabState t of
+          Usable Flattened => true
+        | Usable (Activated NONE) => true
+        | Usable (Activated (SOME ti)) =>
             (case Tab.parent t of
               NONE => false
             | SOME p =>
-                case Tab.getState p of
-                  Tab.Usable (Tab.Activated (SOME pi)) =>
+                case getTabState p of
+                  Usable (Activated (SOME pi)) =>
                     ti > pi + Int.max (indentWidth, Tab.minIndent t)
                 | _ => raise Fail "PrettyTabbedDoc.pretty.isPromotable: bad parent tab")
         | _ => raise Fail "PrettyTabbedDoc.pretty.isPromotable: bad tab"
@@ -749,8 +613,8 @@ struct
         let
           val result = isPromotable' t
         in
-          if not debug then () else
-          print ("PrettyTabbedDoc.debug: isPromotable " ^ Tab.infoString t ^ " = " ^ (if result then "true" else "false") ^ "\n");
+          (* if not debug then () else
+          print ("PrettyTabbedDoc.debug: isPromotable " ^ Tab.infoString t ^ " = " ^ (if result then "true" else "false") ^ "\n"); *)
           result
         end
 
@@ -767,10 +631,10 @@ struct
 
 
       fun oldestInactiveParent t =
-        if Tab.isActivated t then NONE else
+        if isActivated t then NONE else
         case Tab.parent t of
           SOME p =>
-            if Tab.isActivated p then
+            if isActivated p then
               SOME t
             else
               oldestInactiveParent p
@@ -823,14 +687,14 @@ struct
           val ribbonOkay = (col - lnStart) <= ribbonWidth
           val okay = widthOkay andalso ribbonOkay
 
-          val _ =
+          (* val _ =
             if not debug orelse okay then ()
             else if not widthOkay then
               print ("PrettyTabbedDoc.debug: width violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
             else if not ribbonOkay then
               print ("PrettyTabbedDoc.debug: ribbon violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
             else
-              print ("PrettyTabbedDoc.debug: unknown violation?? ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
+              print ("PrettyTabbedDoc.debug: unknown violation?? ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n") *)
         in
           if okay then
             state
@@ -880,8 +744,8 @@ struct
         case Tab.parent tab of
           NONE => raise Fail "PrettyTabbedDoc.pretty.parentTabCol: no parent"
         | SOME p =>
-        case Tab.getState p of
-          Tab.Usable (Tab.Activated (SOME i)) => i
+        case getTabState p of
+          Usable (Activated (SOME i)) => i
         | _ => raise Fail "PrettyTabbedDoc.pretty.parentTabCol: bad tab"
 
 
@@ -941,24 +805,24 @@ struct
                 ))
 
           val state' =
-            case Tab.getState tab of
-              Tab.Usable Tab.Flattened =>
+            case getTabState tab of
+              Usable Flattened =>
                 if Tab.isRigid tab then
                   raise DoPromote (valOf (oldestPromotableParent tab))
                 else
                   LS (dbgState, tab, cats, lnStart, col, acc)
 
-            | Tab.Usable (Tab.Activated (SOME i)) =>
+            | Usable (Activated (SOME i)) =>
                 goto i
 
-            | Tab.Usable (Tab.Activated NONE) =>
+            | Usable (Activated NONE) =>
                 if Tab.isInplace tab then
                   if col < parentTabCol tab then
-                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME (parentTabCol tab))))
+                    ( setTabState tab (Usable (Activated (SOME (parentTabCol tab))))
                     ; goto (parentTabCol tab)
                     )
                   else
-                    ( Tab.setState tab (Tab.Usable (Tab.Activated (SOME col)))
+                    ( setTabState tab (Usable (Activated (SOME col)))
                     ; goto col
                     )
                 else
@@ -967,7 +831,7 @@ struct
                       parentTabCol tab
                       + Int.max (indentWidth, Tab.minIndent tab)
                   in
-                    Tab.setState tab (Tab.Usable (Tab.Activated (SOME i)));
+                    setTabState tab (Usable (Activated (SOME i)));
                     goto i
                   end
 
@@ -1018,29 +882,29 @@ struct
 
         | Cond {tab, inactive, active} =>
             let in
-              case Tab.getState tab of
-                Tab.Usable (Tab.Activated _) => layout state active
-              | Tab.Usable Tab.Flattened => layout state inactive
+              case getTabState tab of
+                Usable (Activated _) => layout state active
+              | Usable Flattened => layout state inactive
               | _ => raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
             end
 
-        | NewTab {parent, tab, doc} =>
+        | NewTab {tab, doc} =>
             let
               fun tryPromote () =
                 (* try to activate first *)
-                if not (Tab.isActivated tab) then
-                  Tab.setState tab (Tab.Usable (Tab.Activated NONE))
+                if not (isActivated tab) then
+                  setTabState tab (Usable (Activated NONE))
                 else (* if activated, try to relocate *)
-                case Tab.getState tab of
-                  Tab.Usable (Tab.Activated NONE) =>
+                case getTabState tab of
+                  Usable (Activated NONE) =>
                     let
                       val desired =
                         parentTabCol tab
                         + Int.max (indentWidth, Tab.minIndent tab)
                     in
-                      Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)))
+                      setTabState tab (Usable (Activated (SOME desired)))
                     end
-                | Tab.Usable (Tab.Activated (SOME i)) =>
+                | Usable (Activated (SOME i)) =>
                     let
                       val desired =
                         Int.min
@@ -1049,7 +913,7 @@ struct
                             + Int.max (indentWidth, Tab.minIndent tab)
                           )
                     in
-                      Tab.setState tab (Tab.Usable (Tab.Activated (SOME desired)))
+                      setTabState tab (Usable (Activated (SOME desired)))
                     end
                 | _ =>
                     raise Fail "PrettyTabbedDoc.pretty.layout.NewTab.tryPromote: bad tab"
@@ -1061,9 +925,9 @@ struct
                       handle DoPromote p =>
                       if not (Tab.eq (p, tab)) then raise DoPromote p else
                       let
-                        val _ =
+                        (* val _ =
                           if not debug then () else
-                          print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n")
+                          print ("PrettyTabbedDoc.debug: promoting " ^ Tab.infoString tab ^ "\n") *)
                       in
                         tryPromote ();
                         doit ()
@@ -1071,46 +935,43 @@ struct
                   )
                 end
 
-              val _ = Tab.setState tab (Tab.Usable Tab.Flattened)
+              val _ = setTabState tab (Usable Flattened)
 
               val LS (dbgState, _, cats, lnStart, col, acc) : layout_state =
                 doit ()
 
               val acc =
                 if not debug then acc else
-                case Tab.getState tab of
-                  Tab.Usable Tab.Flattened => acc
-                | Tab.Usable (Tab.Activated NONE) => acc
-                | Tab.Usable (Tab.Activated (SOME i)) =>
+                case getTabState tab of
+                  Usable Flattened => acc
+                | Usable (Activated NONE) => acc
+                | Usable (Activated (SOME i)) =>
                     if TabDict.lookup dbgState tab then
                       Item.EndDebug (EndTabHighlight {tab = tab, col = i}) :: acc
                     else
                       acc
                 | _ => raise Fail "PrettyTabbedDoc.debug: error..."
             in
-              if not debug then () else
-              print ("PrettyTabbedDoc.debug: finishing " ^ Tab.infoString tab ^ "\n");
+              (* if not debug then () else
+              print ("PrettyTabbedDoc.debug: finishing " ^ Tab.infoString tab ^ "\n"); *)
 
-              Tab.setState tab Tab.Completed;
+              setTabState tab Completed;
 
-              LS (dbgState, parent, TabSet.remove cats tab, lnStart, col, acc)
+              LS (dbgState, valOf (Tab.parent tab), TabSet.remove cats tab, lnStart, col, acc)
             end
 
 
       val init = LS (TabDict.empty, root, TabSet.singleton root, 0, 0, [])
-      val init = dbgBreak Tab.Root (dbgInsert Tab.Root init)
+      val init = dbgBreak Tab.root (dbgInsert Tab.root init)
       val (LS (_, _, _, _, _, items), tm) =
         Util.getTime (fn _ => layout init doc)
       val items =
         if not debug then items
-        else Item.EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
+        else Item.EndDebug (EndTabHighlight {tab = Tab.root, col = 0}) :: items
 
       val _ = dbgprintln ("layout: " ^ Time.fmt 3 tm ^ "s\n")
 
       val items = if not debug then items else implementDebugs maxWidth items
-
-      (* reset tabs (so that if we call `pretty` again, it will work...) *)
-      val _ = List.app (fn tab => Tab.setState tab Tab.Fresh) allTabs
 
       val items = revAndStripTrailingWhitespace items
 
