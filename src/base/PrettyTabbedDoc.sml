@@ -59,85 +59,6 @@ struct
    *)
 
 
-  (* ====================================================================== *)
-
-  structure Tab =
-  struct
-
-    datatype tab =
-      Tab of {id: int, style: Tab.Style.t, parent: tab}
-    | Root
-
-    type t = tab
-
-    val tabCounter = ref 0
-
-    fun make parent style =
-      let
-        val c = !tabCounter
-      in
-        tabCounter := c+1;
-        Tab
-          { id = c
-          , style = style
-          , parent = parent
-          }
-      end
-
-    fun eq (t1, t2) =
-      case (t1, t2) of
-        (Tab {id=c1, ...}, Tab {id=c2, ...}) => c1 = c2
-      | (Root, Root) => true
-      | _ => false
-
-    fun style t =
-      case t of
-        Root => Tab.Style.Inplace
-      | Tab {style=s, ...} => s
-
-    fun isRigid t =
-      case style t of
-        Tab.Style.RigidInplace => true
-      | Tab.Style.RigidIndented _ => true
-      | _ => false
-
-    fun isInplace t =
-      case style t of
-        Tab.Style.RigidInplace => true
-      | Tab.Style.Inplace => true
-      | _ => false
-
-    fun minIndent t =
-      case style t of
-        Tab.Style.Indented (SOME {minIndent=i}) => i
-      | Tab.Style.RigidIndented (SOME {minIndent=i}) => i
-      | _ => 0
-
-    fun parent t =
-      case t of
-        Root => NONE
-      | Tab {parent=p, ...} => SOME p
-
-    fun name t =
-      case t of
-        Root => "root"
-      | Tab {id=c, ...} => Int.toString c
-
-
-    fun compare (t1, t2) =
-      case (t1, t2) of
-        (Tab {id=c1, ...}, Tab {id=c2, ...}) => Int.compare (c1, c2)
-      | (Root, Root) => EQUAL
-      | (Root, _) => LESS
-      | (_, Root) => GREATER
-
-    fun depth t =
-      case t of
-        Root => 0
-      | Tab {parent=p, ...} => 1 + depth p
-
-  end
-
   structure TabDict = Dict(Tab)
   structure TabSet = Set(Tab)
 
@@ -147,7 +68,7 @@ struct
 
   type tab = Tab.t
 
-  val root = Tab.Root
+  val root = Tab.root
 
   datatype doc =
     Empty
@@ -178,7 +99,7 @@ struct
 
   fun newTab parent (style, genDocUsingTab) =
     let
-      val t = Tab.make parent style
+      val t = Tab.new {parent=parent, style=style}
       val d = genDocUsingTab t
     in
       NewTab {parent = parent, tab = t, doc = d}
@@ -628,7 +549,7 @@ struct
       val allTabs = allTabsInDoc doc
       val tabstate =
         TabDict.fromList (List.map (fn t => (t, ref Fresh)) allTabs)
-      val tabstate = TabDict.insert tabstate (Tab.Root, ref (Usable (Activated (SOME 0))))
+      val tabstate = TabDict.insert tabstate (Tab.root, ref (Usable (Activated (SOME 0))))
 
       fun getTabState t =
         !(TabDict.lookup tabstate t)
@@ -1047,12 +968,12 @@ struct
 
 
       val init = LS (TabDict.empty, root, TabSet.singleton root, 0, 0, [])
-      val init = dbgBreak Tab.Root (dbgInsert Tab.Root init)
+      val init = dbgBreak Tab.root (dbgInsert Tab.root init)
       val (LS (_, _, _, _, _, items), tm) =
         Util.getTime (fn _ => layout init doc)
       val items =
         if not debug then items
-        else Item.EndDebug (EndTabHighlight {tab = Tab.Root, col = 0}) :: items
+        else Item.EndDebug (EndTabHighlight {tab = Tab.root, col = 0}) :: items
 
       val _ = dbgprintln ("layout: " ^ Time.fmt 3 tm ^ "s\n")
 

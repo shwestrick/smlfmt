@@ -25,8 +25,16 @@ sig
 
   val parent: tab -> tab option
   val style: tab -> Style.t
+  val depth: tab -> int
+
+  val eq: tab * tab -> bool
   val compare: tab * tab -> order
 
+  val minIndent: tab -> int
+  val isInplace: tab -> bool
+  val isRigid: tab -> bool
+
+  val name: tab -> string
   val toString: tab -> string
 
 end =
@@ -76,10 +84,13 @@ struct
       Root => Style.Inplace
     | Tab {style=s, ...} => s
 
-  fun toString t =
+  fun name t =
     case t of
-      Tab {id=c, ...} => "[" ^ Int.toString c ^ "]"
-    | Root => "[root]"
+      Root => "root"
+    | Tab {id=c, ...} => Int.toString c
+
+  fun toString t =
+    "[" ^ name t ^ "]"
 
   fun compare (t1: tab, t2: tab) : order =
     case (t1, t2) of
@@ -87,5 +98,31 @@ struct
     | (Tab t1, Tab t2) => Int.compare (#id t1, #id t2)
     | (Tab _, Root) => GREATER
     | (Root, Tab _) => LESS
+
+  fun eq (t1, t2) =
+    compare (t1, t2) = EQUAL
+
+  fun depth t =
+    case t of
+      Root => 0
+    | Tab {parent=p, ...} => 1 + depth p
+
+  fun isRigid t =
+    case style t of
+      Style.RigidInplace => true
+    | Style.RigidIndented _ => true
+    | _ => false
+
+  fun isInplace t =
+    case style t of
+      Style.RigidInplace => true
+    | Style.Inplace => true
+    | _ => false
+
+  fun minIndent t =
+    case style t of
+      Style.Indented (SOME {minIndent=i}) => i
+    | Style.RigidIndented (SOME {minIndent=i}) => i
+    | _ => 0
 
 end
