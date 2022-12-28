@@ -604,6 +604,9 @@ struct
   structure TCS = TerminalColorString
 
   fun tokenToStringDoc currentTab tabWidth tok =
+    if not (Token.isComment tok orelse Token.isStringConstant tok) then
+      (false, D.text (SyntaxHighlighter.highlightToken tok))
+    else
     let
       val src = Token.getSource tok
 
@@ -726,7 +729,7 @@ struct
       val (result, tm) = Util.getTime (fn _ =>
         loop Tab.root VarDict.empty doc)
 
-      val _ = dbgprintln ("convert: " ^ Time.fmt 3 tm ^ "s\n")
+      val _ = dbgprintln ("convert: " ^ Time.fmt 3 tm ^ "s")
     in
       result
     end

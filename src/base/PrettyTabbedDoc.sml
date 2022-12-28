@@ -523,6 +523,7 @@ struct
 
   fun pretty {ribbonFrac, maxWidth, indentWidth, debug} doc =
     let
+      val t0 = Time.now ()
       fun dbgprintln s =
         if not debug then ()
         else print (s ^ "\n")
@@ -536,29 +537,24 @@ struct
 
       datatype activation_state = Flattened | Activated of int option
       datatype state =
-        Fresh
-      | Usable of activation_state
+        Usable of activation_state
       | Completed
 
-      val allTabs = allTabsInDoc doc
-      val tabstate =
-        TabDict.fromList (List.map (fn t => (t, ref Fresh)) allTabs)
-      val tabstate = TabDict.insert tabstate (Tab.root, ref (Usable (Activated (SOME 0))))
+      val tabstate = ref TabDict.empty
 
       fun getTabState t =
-        !(TabDict.lookup tabstate t)
+        TabDict.lookup (!tabstate) t
 
       fun setTabState t x =
-        (TabDict.lookup tabstate t) := x
+        tabstate := TabDict.insert (!tabstate) (t, x)
+
+      val _ = setTabState Tab.root (Usable (Activated (SOME 0)))
 
       fun isActivated t =
         case getTabState t of
           Usable (Activated _) => true
         | Usable (Flattened) => false
         | _ => raise Fail "PrettyTabbedDoc.pretty.isActivated: bad tab"
-
-      (* initially, all tabs inactive, and their placement is unknown *)
-      val _ = List.app (fn t => setTabState t (Usable Flattened)) allTabs
 
       (* tab -> hit first break? *)
       type debug_state = bool TabDict.t
@@ -960,16 +956,18 @@ struct
               LS (dbgState, valOf (Tab.parent tab), TabSet.remove cats tab, lnStart, col, acc)
             end
 
+      val t1 = Time.now ()
+      val _ = dbgprintln ("pre-layout: " ^ Time.fmt 3 (Time.- (t1, t0)) ^ "s")
 
       val init = LS (TabDict.empty, root, TabSet.singleton root, 0, 0, [])
       val init = dbgBreak Tab.root (dbgInsert Tab.root init)
-      val (LS (_, _, _, _, _, items), tm) =
-        Util.getTime (fn _ => layout init doc)
+      val LS (_, _, _, _, _, items) = layout init doc
       val items =
         if not debug then items
         else Item.EndDebug (EndTabHighlight {tab = Tab.root, col = 0}) :: items
 
-      val _ = dbgprintln ("layout: " ^ Time.fmt 3 tm ^ "s\n")
+      val t2 = Time.now ()
+      val _ = dbgprintln ("layout: " ^ Time.fmt 3 (Time.- (t2, t1)) ^ "s")
 
       val items = if not debug then items else implementDebugs maxWidth items
 
@@ -981,8 +979,13 @@ struct
         | Item.Spaces n => spaces n
         | Item.Stuff s => s
         | _ => raise Fail "impossible"
+
+      val result = CustomString.concat (List.map itemToString items)
+
+      val t3 = Time.now ()
+      val _ = dbgprintln ("post-layout: " ^ Time.fmt 3 (Time.- (t3, t2)) ^ "s")
     in
-      CustomString.concat (List.map itemToString items)
+      result
     end
 
 
