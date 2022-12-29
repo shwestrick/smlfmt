@@ -44,6 +44,11 @@ struct
                 Ast.StrDec d => showStrDec d
               | Ast.SigDec d => showSigDec d
               | Ast.FunDec d => showFunDec d
+              | Ast.TopExp _ =>
+                  raise Fail "unsupported: top-level expressions. Note: you are \
+                             \using `-engine pretty`, which is headed towards \
+                             \deprecation. Please use `-engine prettier` instead, \
+                             \which supports top-level expressions."
             val sc =
               case semicolon of
                 NONE => empty

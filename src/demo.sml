@@ -44,7 +44,7 @@ fun doMLB () =
 
     val ast =
       ParseAllSMLFromMLB.parse
-        {skipBasis = skipBasis, pathmap = pathmap}
+        {skipBasis = skipBasis, pathmap = pathmap, allowTopExp = true}
         (FilePath.fromUnixPath infile)
   in
     print "\nParsing succeeded.\n"
@@ -65,7 +65,7 @@ fun dumpToks toks =
 fun doSML () =
   let
     val source = Source.loadFromFile (FilePath.fromUnixPath infile)
-    val ast = Parser.parse source
+    val ast = Parser.parse {allowTopExp = true} source
     val _ =
       if not doPrettySML then
         TerminalColorString.print (SyntaxHighlighter.highlight source)

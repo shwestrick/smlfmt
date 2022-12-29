@@ -42,6 +42,7 @@ val indentWidth = CommandLineArgs.parseInt "indent-width" 2
 val engine = CommandLineArgs.parseString "engine" "prettier"
 val inputfiles = CommandLineArgs.positional ()
 
+val allowTopExp = CommandLineArgs.parseBool "allow-top-level-exps" true
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
@@ -182,7 +183,7 @@ fun doSML filepath =
     val fp = FilePath.fromUnixPath filepath
     val source = Source.loadFromFile fp
     val ast =
-      Parser.parse source
+      Parser.parse {allowTopExp = allowTopExp} source
       handle exn => handleLexOrParseError exn
   in
     doSMLAst (fp, ast)
@@ -193,7 +194,7 @@ fun doMLB filepath =
   let
     val fp = FilePath.fromUnixPath filepath
     val asts =
-      ParseAllSMLFromMLB.parse {skipBasis = true, pathmap = pathmap} fp
+      ParseAllSMLFromMLB.parse {skipBasis = true, pathmap = pathmap, allowTopExp = allowTopExp} fp
       handle exn => handleLexOrParseError exn
   in
     Util.for (0, Seq.length asts) (fn i =>

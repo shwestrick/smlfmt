@@ -1,12 +1,12 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2022 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
 
 structure Parser:
 sig
-  val parse: Source.t -> Ast.t
-  val parseWithInfdict: InfixDict.t -> Source.t -> (InfixDict.t * Ast.t)
+  val parse: {allowTopExp: bool} -> Source.t -> Ast.t
+  val parseWithInfdict: {allowTopExp: bool} -> InfixDict.t -> Source.t -> (InfixDict.t * Ast.t)
 end =
 struct
 
@@ -20,7 +20,7 @@ struct
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
 
-  fun parseWithInfdict infdict src =
+  fun parseWithInfdict {allowTopExp} infdict src =
     let
       (** This might raise Lexer.Error *)
       val allTokens = Lexer.tokens src
@@ -586,11 +586,28 @@ struct
           in
             ((i, infdict), Ast.StrDec strdec)
           end
+        else if allowTopExp then
+          let
+            val (i, exp) =
+              ParseExpAndDec.exp toks infdict ExpPatRestriction.None i
+            val (i, semicolon) =
+              ParseSimple.reserved toks Token.Semicolon i
+          in
+            ( (i, infdict)
+            , Ast.TopExp
+                { exp = exp
+                , semicolon = semicolon
+                }
+            )
+          end
         else
           ParserUtils.tokError toks
             { pos = i
             , what = "Unexpected token."
-            , explain = SOME "Invalid start of top-level declaration."
+            , explain =
+                SOME "Invalid start of top-level declaration. If you want to \
+                     \allow top-level expressions, use the command-line \
+                     \argument `-allow-top-level-exps true`."
             }
 
       fun parse_topDecMaybeSemicolon (i, infdict) =
@@ -615,16 +632,16 @@ struct
           ParserUtils.error
             { pos = Token.getSource (tok i)
             , what = "Unexpected token."
-            , explain = SOME "Invalid start of top-level declaration!"
+            , explain = SOME "Invalid start of top-level declaration."
             }
     in
       (infdict, Ast.Ast topdecs)
     end
 
 
-  fun parse src =
+  fun parse {allowTopExp} src =
     let
-      val (_, ast) = parseWithInfdict InfixDict.initialTopLevel src
+      val (_, ast) = parseWithInfdict {allowTopExp=allowTopExp} InfixDict.initialTopLevel src
     in
       ast
     end
