@@ -7,6 +7,7 @@ structure PrettierSig:
 sig
   val showSpec: Ast.Sig.spec PrettierUtil.shower
   val showSigExp: Ast.Sig.sigexp PrettierUtil.shower
+  val showSigExpInDec: Ast.Sig.sigexp PrettierUtil.shower
   val showSigDec: Ast.Sig.sigdec PrettierUtil.shower
 end =
 struct
@@ -167,10 +168,7 @@ struct
                 ++ (if Token.hasCommentsAfter id then empty else nospace)
                 ++ token colon)
               ++
-              (if sigExpWantsSameTabAsDec sigexp then
-                at tab (showSigExp tab sigexp)
-              else
-                withNewChild showSigExp tab sigexp)
+              showSigExpInDec tab sigexp
           in
             Seq.iterate op++
               (showOne true (structuree, Seq.nth elems 0))
@@ -277,6 +275,29 @@ struct
     end
 
 
+  and showSigExpInDec tab sigexp =
+    if not (sigExpWantsSameTabAsDec sigexp) then
+      withNewChild showSigExp tab sigexp
+    else
+    let
+      open Ast.Sig
+    in
+      case sigexp of
+        Spec {sigg, spec, endd} =>
+          newTabWithStyle tab (Tab.Style.RigidIndented NONE, fn inner =>
+            at tab (token sigg)
+            ++
+            at inner (showSpec inner spec)
+            ++
+            cond inner
+              { inactive = token endd
+              , active = at tab (token endd)
+              })
+
+      | _ => at tab (showSigExp tab sigexp)
+    end
+
+
   and showSigDec tab (Ast.Sig.Signature {signaturee, elems, delims}) =
     let
       fun showOne first (starter, {ident, eq, sigexp}) =
@@ -285,10 +306,7 @@ struct
           ++ token ident
           ++ token eq)
         ++
-        (if sigExpWantsSameTabAsDec sigexp then
-          at tab (showSigExp tab sigexp)
-        else
-          withNewChild showSigExp tab sigexp)
+        showSigExpInDec tab sigexp
     in
       Seq.iterate op++
         (showOne true (signaturee, Seq.nth elems 0))

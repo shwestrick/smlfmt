@@ -53,21 +53,7 @@ struct
                   (token lparen ++ nospace
                   ++ showFunArg inner funarg ++ nospace
                   ++ token rparen))
-            ++ showOption
-                (fn {colon, sigexp} =>
-                  (if
-                    Token.getClass colon = Token.Reserved Token.ColonArrow
-                    orelse Token.hasCommentsBefore colon
-                  then
-                    empty
-                  else
-                    nospace)
-                  ++ token colon
-                  ++ (if sigExpWantsSameTabAsDec sigexp then
-                        at tab (showSigExp tab sigexp)
-                      else
-                        withNewChild showSigExp tab sigexp))
-                constraint
+            ++ showOption (showConstraintInStrDec tab) constraint
             ++ token eq
             ++ (if strExpWantsSameTabAsDec strexp then
                   at tab (showStrExp tab strexp)

@@ -10,7 +10,6 @@ sig
   val strExpInsideFunAppWantsSpaceBefore: Ast.Str.strexp -> bool
   val strDecInsideFunAppWantsSpaceBefore: Ast.Str.strdec -> bool
   val strDecIsEmpty: Ast.Str.strdec -> bool
-  val showSigExpInStrDec: Ast.Sig.sigexp PrettierUtil.shower
   val showConstraintInStrDec: {colon: Token.t, sigexp: Ast.Sig.sigexp} PrettierUtil.shower
 end =
 struct
@@ -73,26 +72,6 @@ struct
     | _ => false
 
 
-  fun showSigExpInStrDec tab sigexp =
-    let
-      open Ast.Sig
-    in
-      case sigexp of
-        Spec {sigg, spec, endd} =>
-          newTabWithStyle tab (Tab.Style.RigidIndented NONE, fn inner =>
-            at tab (token sigg)
-            ++
-            at inner (showSpec inner spec)
-            ++
-            cond inner
-              { inactive = token endd
-              , active = at tab (token endd)
-              })
-
-      | _ => at tab (showSigExp tab sigexp)
-    end
-
-
   fun showConstraintInStrDec tab {colon, sigexp} =
     (if
       Token.getClass colon = Token.Reserved Token.ColonArrow
@@ -104,9 +83,6 @@ struct
     ++
     token colon
     ++
-    (if sigExpWantsSameTabAsDec sigexp then
-      showSigExpInStrDec tab sigexp
-    else
-      withNewChild showSigExp tab sigexp)
+    showSigExpInDec tab sigexp
 
 end
