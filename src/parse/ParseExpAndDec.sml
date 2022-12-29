@@ -11,6 +11,11 @@ sig
   val dec: {forceExactlyOne: bool}
         -> tokens
         -> (int * InfixDict.t, Ast.Exp.dec) parser
+
+  val exp: tokens
+        -> InfixDict.t
+        -> ExpPatRestriction.t
+        -> (int, Ast.Exp.exp) parser
 end =
 struct
 
@@ -194,6 +199,8 @@ struct
       fun parse_zeroOrMoreWhile c p s =
         PC.zeroOrMoreWhile c p s
 
+      fun consume_exp infdict restriction i =
+        exp toks infdict restriction i
 
       fun consume_opvid infdict i =
         let
@@ -770,8 +777,65 @@ struct
           )
         end
 
+    in
+      if forceExactlyOne then
+        consume_oneDec (start, infdict)
+      else
+        consume_dec (start, infdict)
+    end
 
-      and consume_exp infdict restriction i =
+
+  (* ======================================================================= *)
+  (* ======================================================================= *)
+  (* ======================================================================= *)
+
+
+  and exp toks infdict restriction start =
+    let
+      val numToks = Seq.length toks
+      fun tok i = Seq.nth toks i
+
+      (** This silliness lets you write almost-English like this:
+        *   if is Token.Identifier at i           then ...
+        *   if isReserved Token.Val at i          then ...
+        *   if check isTyVar at i                 then ...
+        *)
+      infix 5 at
+      fun f at i = f i
+      fun check f i = i < numToks andalso f (tok i)
+      fun is c = check (fn t => c = Token.getClass t)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
+
+
+      fun parse_reserved rc i =
+        PS.reserved toks rc i
+      fun parse_vid i =
+        PS.vid toks i
+      fun parse_longvid i =
+        PS.longvid toks i
+      fun parse_recordLabel i =
+        PS.recordLabel toks i
+      fun parse_ty i =
+        PT.ty toks i
+      fun parse_pat infdict restriction i =
+        PP.pat toks infdict restriction i
+
+
+      fun parse_zeroOrMoreDelimitedByReserved x i =
+        PC.zeroOrMoreDelimitedByReserved toks x i
+      fun parse_oneOrMoreDelimitedByReserved x i =
+        PC.oneOrMoreDelimitedByReserved toks x i
+      fun parse_two (p1, p2) state =
+        PC.two (p1, p2) state
+      fun parse_zeroOrMoreWhile c p s =
+        PC.zeroOrMoreWhile c p s
+
+
+      fun consume_dec xx =
+        dec {forceExactlyOne=false} toks xx
+
+
+      fun consume_exp infdict restriction i =
         let
           val (i, exp) =
             if check Token.isConstant at i then
@@ -1443,10 +1507,7 @@ struct
           end
 
     in
-      if forceExactlyOne then
-        consume_oneDec (start, infdict)
-      else
-        consume_dec (start, infdict)
+      consume_exp infdict restriction start
     end
 
 end
