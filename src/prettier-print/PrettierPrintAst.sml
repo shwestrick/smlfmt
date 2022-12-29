@@ -39,7 +39,7 @@ struct
             val sc =
               case semicolon of
                 NONE => empty
-              | SOME sc => token sc
+              | SOME sc => nospace ++ token sc
           in
             td ++ sc
           end
