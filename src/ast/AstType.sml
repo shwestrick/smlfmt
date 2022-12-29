@@ -912,6 +912,7 @@ struct
     SigDec of Sig.sigdec
   | StrDec of Str.strdec
   | FunDec of Fun.fundec
+  | TopExp of {exp: Exp.exp, semicolon: Token.t}
 
   datatype ast =
     (** optional semicolon after every topdec *)

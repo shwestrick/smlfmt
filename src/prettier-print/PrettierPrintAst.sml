@@ -33,6 +33,9 @@ struct
                 Ast.StrDec d => showStrDec tab d
               | Ast.SigDec d => showSigDec tab d
               | Ast.FunDec d => showFunDec tab d
+              | Ast.TopExp {exp, semicolon} =>
+                  PrettierExpAndDec.showExp tab exp
+                  ++ nospace ++ token semicolon
             val sc =
               case semicolon of
                 NONE => empty
