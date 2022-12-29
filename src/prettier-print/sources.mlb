@@ -9,7 +9,9 @@ PrettierUtil.sml
 PrettierTy.sml
 PrettierPat.sml
 PrettierExpAndDec.sml
+PrettierSigUtil.sml
 PrettierSig.sml
+PrettierStrUtil.sml
 PrettierStr.sml
 PrettierFun.sml
 PrettierPrintAst.sml

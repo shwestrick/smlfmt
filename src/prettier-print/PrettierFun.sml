@@ -11,49 +11,12 @@ struct
 
   open TabbedTokenDoc
   open PrettierUtil
+  open PrettierSigUtil
   open PrettierSig
+  open PrettierStrUtil
   open PrettierStr
   infix 2 ++
   fun x ++ y = concat (x, y)
-
-  (* ======================================================================= *)
-
-  fun leftMostStrExp strexp =
-    let
-      open Ast.Str
-    in
-      case strexp of
-        Constraint {strexp, ...} => leftMostStrExp strexp
-      | _ => strexp
-    end
-
-  fun leftMostSigExp e =
-    let
-      open Ast.Sig
-    in
-      case e of
-        WhereType {sigexp, ...} => leftMostSigExp sigexp
-      | _ => e
-    end
-
-  fun sigExpWantsSameTabAsDec e =
-    let
-      open Ast.Sig
-    in
-      case leftMostSigExp e of
-        Ident _ => false
-      | _ => true
-    end
-
-  fun strExpWantsSameTabAsDec e =
-    let
-      open Ast.Str
-    in
-      case leftMostStrExp e of
-        Struct _ => true
-      | LetInEnd _ => true
-      | _ => false
-    end
 
   (* ======================================================================= *)
 

@@ -14,28 +14,9 @@ struct
   open TabbedTokenDoc
   open PrettierUtil
   open PrettierTy
+  open PrettierSigUtil
   infix 2 ++
   fun x ++ y = concat (x, y)
-
-  (* ======================================================================= *)
-
-  fun leftMostSigExp e =
-    let
-      open Ast.Sig
-    in
-      case e of
-        WhereType {sigexp, ...} => leftMostSigExp sigexp
-      | _ => e
-    end
-
-  fun sigExpWantsSameTabAsDec e =
-    let
-      open Ast.Sig
-    in
-      case leftMostSigExp e of
-        Ident _ => false
-      | _ => true
-    end
 
   (* ======================================================================= *)
 
@@ -269,12 +250,14 @@ struct
 
       | Spec {sigg, spec, endd} =>
           newTabWithStyle tab (indented, fn inner =>
-            token sigg ++
-            at inner
-              (showSpec inner spec
-              ++ cond inner {inactive = token endd, active = empty})
+            at tab (token sigg)
             ++
-            cond inner {inactive = empty, active = at tab (token endd)})
+            at inner (showSpec inner spec)
+            ++
+            cond inner
+              { inactive = token endd
+              , active = at tab (token endd)
+              })
 
       | WhereType {sigexp, elems} =>
           let

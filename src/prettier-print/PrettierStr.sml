@@ -14,73 +14,11 @@ struct
   open PrettierUtil
   open PrettierTy
   open PrettierExpAndDec
+  open PrettierSigUtil
   open PrettierSig
+  open PrettierStrUtil
   infix 2 ++
   fun x ++ y = concat (x, y)
-
-  (* ====================================================================== *)
-
-  fun leftMostStrExp strexp =
-    let
-      open Ast.Str
-    in
-      case strexp of
-        Constraint {strexp, ...} => leftMostStrExp strexp
-      | _ => strexp
-    end
-
-  fun leftMostSigExp e =
-    let
-      open Ast.Sig
-    in
-      case e of
-        WhereType {sigexp, ...} => leftMostSigExp sigexp
-      | _ => e
-    end
-
-  fun sigExpWantsSameTabAsDec e =
-    let
-      open Ast.Sig
-    in
-      case leftMostSigExp e of
-        Ident _ => false
-      | _ => true
-    end
-
-  fun strExpWantsSameTabAsDec e =
-    let
-      open Ast.Str
-    in
-      case leftMostStrExp e of
-        Struct _ => true
-      | LetInEnd _ => true
-      | _ => false
-    end
-
-  fun strExpInsideFunAppWantsSpaceBefore e =
-    let
-      open Ast.Str
-    in
-      case leftMostStrExp e of
-        Struct _ => true
-      | LetInEnd _ => true
-      | _ => false
-    end
-
-  fun strDecInsideFunAppWantsSpaceBefore e =
-    let
-      open Ast.Str
-    in
-      case e of
-        DecEmpty => false
-      | DecCore _ => false
-      | _ => true
-    end
-
-  fun decIsEmpty e =
-    case e of
-      Ast.Str.DecEmpty => true
-    | _ => false
 
   (* ====================================================================== *)
 
@@ -93,7 +31,7 @@ struct
           token (MaybeLongToken.getToken id)
 
       | Struct {structt, strdec, endd} =>
-          if decIsEmpty strdec then
+          if strDecIsEmpty strdec then
             token structt ++ at tab (token endd)
           else
             newTabWithStyle tab (indented, fn inner =>
@@ -143,7 +81,7 @@ struct
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
           showThingSimilarToLetInEnd tab
             { lett = lett
-            , isEmpty1 = decIsEmpty strdec
+            , isEmpty1 = strDecIsEmpty strdec
             , doc1 = withNewChildWithStyle (indented) showStrDec tab strdec
             , inn = inn
             , doc2 = withNewChildWithStyle (indented) showStrExp tab strexp
@@ -170,18 +108,7 @@ struct
               case constraint of
                 NONE => empty
               | SOME {colon, sigexp} =>
-                  (if
-                    Token.getClass colon = Token.Reserved Token.ColonArrow
-                    orelse Token.hasCommentsBefore colon
-                  then
-                    empty
-                  else
-                    nospace)
-                  ++ token colon
-                  ++ (if sigExpWantsSameTabAsDec sigexp then
-                        at tab (showSigExp tab sigexp)
-                      else
-                        withNewChild showSigExp tab sigexp)
+                  showConstraintInStrDec tab {colon=colon, sigexp=sigexp}
 
             fun showOne (starter, {strid, constraint, eq, strexp}) =
               token starter
@@ -217,7 +144,7 @@ struct
       | DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
           showThingSimilarToLetInEnd tab
             { lett = locall
-            , isEmpty1 = decIsEmpty strdec1
+            , isEmpty1 = strDecIsEmpty strdec1
             , doc1 = withNewChildWithStyle (indented) showStrDec tab strdec1
             , inn = inn
             , doc2 = withNewChildWithStyle (indented) showStrDec tab strdec2
