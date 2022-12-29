@@ -1,6 +1,6 @@
-# parse-sml
+# `smlfmt`
 
-A custom parser and code formatter (`smlfmt`) for Standard ML, with
+A custom parser and code formatter for Standard ML, with
 helpful error messages.
 
 Supports SML source files
@@ -8,6 +8,8 @@ Supports SML source files
 [MLBasis](http://mlton.org/MLBasis) compilation files (`.mlb`) using
 [MLton](https://github.com/MLton/mlton) conventions,
 including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
+
+**Note (Dec 29, 2022)**: changed repository name to `smlfmt` (used to be `parse-sml`).
 
 ## Examples: Error Messages
 
