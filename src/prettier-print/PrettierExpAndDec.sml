@@ -169,7 +169,7 @@ struct
 
 
   fun showDatbind tab (front, datbind: Ast.Exp.datbind as {elems, delims}) =
-    newTab tab (fn tab =>
+    newTabWithStyle tab (Tab.Style.allowComments, fn tab =>
     let
       fun showCon (starter, {opp, id, arg}) =
         at tab
@@ -554,7 +554,7 @@ struct
 
 
   and showHandle tab {exp=expLeft, handlee, elems, delims} =
-    newTab tab (fn inner =>
+    newTabWithStyle tab (Tab.Style.allowComments, fn inner =>
       let
         fun showBranch {pat, arrow, exp} =
           withNewChild showPat inner pat
@@ -860,6 +860,8 @@ struct
         token colon ++ withNewChild showTy tab ty
 
       fun showClause tab isFirst clauseChildStyle (front, {fname_args, ty, eq, exp}) =
+        (* TODO: need tab style "indented exactly by 2" and align each clause
+         * at this inner tab... works better with inserting comments. *)
         at tab
           ( (if isFirst then empty else cond tab {active=space++space, inactive=empty})
           ++ front
@@ -875,9 +877,12 @@ struct
               Tab.Style.inplace
             else
               indentedAtLeastBy 6
+
+          val mainStyle =
+            Tab.Style.combine (rigidInplace, Tab.Style.allowComments)
         in
           at tab (
-            newTabWithStyle tab (rigidInplace, fn tab =>
+            newTabWithStyle tab (mainStyle, fn tab =>
               Seq.iterate op++
                 (showClause tab true clauseChildStyle (starter, Seq.nth innerElems 0))
                 (Seq.zipWith (showClause tab false clauseChildStyle)
