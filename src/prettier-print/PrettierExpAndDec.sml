@@ -322,6 +322,9 @@ struct
                 Tab.Style.inplace
               else
                 rigidInplace
+
+            val style =
+              Tab.Style.combine (style, Tab.Style.allowComments)
           in
             newTabWithStyle tab (style, fn inner1 =>
             newTab inner1 (fn inner2 =>
@@ -537,7 +540,7 @@ struct
                 }))
           end))
     in
-      newTab tab (fn alignedArgsTab =>
+      newTabWithStyle tab (indentedAllowComments, fn alignedArgsTab =>
       newTab tab (fn allArgsGhost =>
         at tab (showExp tab fExp)
         ++
@@ -649,7 +652,7 @@ struct
             ++ (if i = numExps - 1 then empty else nospace ++ token (d i))))
         exps
     in
-      newTabWithStyle outerTab (indented, fn inner =>
+      newTabWithStyle outerTab (indentedAllowComments, fn inner =>
         showThingSimilarToLetInEnd outerTab
           { lett = lett
           , isEmpty1 = decIsEmpty dec
@@ -662,8 +665,9 @@ struct
 
 
   and showIfThenElseAt outer exp =
-    newTabWithStyle outer (indented, fn inner2 =>
-    newTabWithStyle outer (indented, fn inner1 =>
+    newTabWithStyle outer (Tab.Style.allowComments, fn outer =>
+    newTabWithStyle outer (indentedAllowComments, fn inner2 =>
+    newTabWithStyle outer (indentedAllowComments, fn inner1 =>
     let
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
@@ -681,10 +685,11 @@ struct
           at outer (token elsee)
         end
     in
-      Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
-      ++
-      breakShowAt inner2 last
-    end))
+      at outer
+        (Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
+        ++
+        breakShowAt inner2 last)
+    end)))
 
 
   and showDec tab dec =

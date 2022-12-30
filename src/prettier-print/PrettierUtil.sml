@@ -9,6 +9,7 @@ sig
   type doc = TabbedTokenDoc.doc
   type style = Tab.Style.t
 
+  val indentedAllowComments: style
   val rigidInplace: style
   val indented: style
   val indentedAtLeastBy: int -> style
@@ -56,6 +57,8 @@ struct
   infix 2 ++
   fun x ++ y = concat (x, y)
 
+  val indentedAllowComments =
+    Tab.Style.combine (Tab.Style.indented, Tab.Style.allowComments)
   val rigidInplace =
     Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
   val indented = Tab.Style.indented
