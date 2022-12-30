@@ -105,7 +105,7 @@ struct
       NewTab {tab=t, doc=d}
     end
 
-  fun newTab parent f = newTabWithStyle parent (Tab.Style.Inplace, f)
+  fun newTab parent f = newTabWithStyle parent (Tab.Style.inplace, f)
 
   (* ====================================================================== *)
   (* ====================================================================== *)
@@ -651,8 +651,10 @@ struct
         (false, D.text t)
       else
         let
-          val tab =
-            Tab.new {parent = currentTab, style = Tab.Style.RigidInplace}
+          val tab = Tab.new
+            { parent = currentTab
+            , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+            }
           val doc =
             Seq.iterate D.concat D.empty
               (Seq.map (fn x => D.at tab x) pieces)

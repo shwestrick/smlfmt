@@ -281,10 +281,11 @@ struct
     else
     let
       open Ast.Sig
+      val style = Tab.Style.combine (Tab.Style.rigid, Tab.Style.indented)
     in
       case sigexp of
         Spec {sigg, spec, endd} =>
-          newTabWithStyle tab (Tab.Style.RigidIndented NONE, fn inner =>
+          newTabWithStyle tab (style, fn inner =>
             at tab (token sigg)
             ++
             at inner (showSpec inner spec)

@@ -9,6 +9,7 @@ sig
   type doc = TabbedTokenDoc.doc
   type style = Tab.Style.t
 
+  val rigidInplace: style
   val indented: style
   val indentedAtLeastBy: int -> style
 
@@ -55,9 +56,10 @@ struct
   infix 2 ++
   fun x ++ y = concat (x, y)
 
-  val indented = Tab.Style.Indented NONE
-
-  fun indentedAtLeastBy x = Tab.Style.Indented (SOME {minIndent=x})
+  val rigidInplace =
+    Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+  val indented = Tab.Style.indented
+  fun indentedAtLeastBy x = Tab.Style.indentedAtLeastBy x
 
   type 'a shower = tab -> 'a -> doc
 
