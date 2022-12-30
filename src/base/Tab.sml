@@ -15,12 +15,14 @@ sig
     val indented: style
     val indentedAtLeastBy: int -> style
     val rigid: style
+    val allowComments: style
 
     val combine: style * style -> style
 
     val isRigid: style -> bool
     val minIndent: style -> int
     val isInplace: style -> bool
+    val allowsComments: style -> bool
   end
 
   type tab
@@ -39,6 +41,7 @@ sig
   val minIndent: tab -> int
   val isInplace: tab -> bool
   val isRigid: tab -> bool
+  val allowsComments: tab -> bool
 
   val name: tab -> string
   val toString: tab -> string
@@ -69,22 +72,31 @@ struct
                 i2
 
     datatype style =
-      S of {indent: indent_style, rigid: bool}
+      S of {indent: indent_style, rigid: bool, allowsComments: bool}
+
     type t = style
 
-    fun combine (S {indent=i1, rigid=r1}, S {indent=i2, rigid=r2}) =
-      S { indent = combineIndentStyles (i1, i2)
-        , rigid = r1 orelse r2
-        }
+    fun combine (s1, s2) =
+      let
+        val S {indent=i1, rigid=r1, allowsComments=c1} = s1
+        val S {indent=i2, rigid=r2, allowsComments=c2} = s2
+      in
+        S { indent = combineIndentStyles (i1, i2)
+          , rigid = r1 orelse r2
+          , allowsComments = c1 orelse c2
+          }
+      end
 
     val inplace =
-      S {indent = Inplace, rigid = false}
+      S {indent = Inplace, rigid = false, allowsComments = false}
     val indented =
-      S {indent = Indented NONE, rigid = false}
+      S {indent = Indented NONE, rigid = false, allowsComments = false}
     fun indentedAtLeastBy i =
-      S {indent = Indented (SOME {minIndent=i}), rigid = false}
+      S {indent = Indented (SOME {minIndent=i}), rigid = false, allowsComments = false}
     val rigid =
-      S {indent = Inplace, rigid = true}
+      S {indent = Inplace, rigid = true, allowsComments = false}
+    val allowComments =
+      S {indent = Inplace, rigid = false, allowsComments = true}
 
     fun isRigid (S {rigid, ...}) = rigid
 
@@ -97,6 +109,8 @@ struct
       case indent of
         Indented (SOME {minIndent=mi}) => mi
       | _ => 0
+
+    fun allowsComments (S {allowsComments=c, ...}) = c
   end
 
   (* ===================================================================== *)
@@ -156,5 +170,6 @@ struct
   fun isRigid t = Style.isRigid (style t)
   fun isInplace t = Style.isInplace (style t)
   fun minIndent t = Style.minIndent (style t)
+  fun allowsComments t = Style.allowsComments (style t)
 
 end

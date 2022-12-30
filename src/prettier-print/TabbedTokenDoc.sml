@@ -146,6 +146,13 @@ struct
         "Var(" ^ DocVar.toString v ^ ")"
 
 
+  fun annConcat (d1, d2) =
+    case (d1, d2) of
+      (AnnEmpty, _) => d2
+    | (_, AnnEmpty) => d1
+    | _ => AnnConcat (d1, d2)
+
+
   fun annotate doc =
     let
       (* if tab in broken, then tab has definitely had at least one break *)
@@ -436,70 +443,170 @@ struct
       fun commentsToDocs cs =
         Seq.map (fn c => AnnToken {at=NONE, tok=c}) cs
 
-      fun loop doc =
-        case doc of
-          AnnEmpty => doc
-        | AnnNewline => doc
-        | AnnNoSpace => doc
-        | AnnSpace => doc
-        | AnnText _ => doc
-        | AnnAt {tab, doc} =>
-            AnnAt {tab=tab, doc = loop doc}
-        | AnnConcat (d1, d2) =>
-            AnnConcat (loop d1, loop d2)
-        | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab = tab, doc = loop doc}
-        | AnnCond {tab, inactive, active} =>
-            AnnCond {tab = tab, inactive = loop inactive, active = loop active}
+      val noComments = Seq.empty ()
 
-        | AnnToken {at = NONE, tok} =>
+      fun concatDocs ds =
+        Seq.iterate annConcat AnnEmpty ds
+
+
+      (* returns (hasTokens?, commentsBefore, doc', commentsAfter)
+       * ensures:
+       *   if not ctxAllowsComments
+       *   then (commentsBefore and commentsAfter are both empty)
+       *)
+      fun loop ctxAllowsComments vars doc : (bool * anndoc Seq.t * anndoc * anndoc Seq.t) =
+        case doc of
+          AnnEmpty => (false, noComments, doc, noComments)
+        | AnnNewline => (false, noComments, doc, noComments)
+        | AnnNoSpace => (false, noComments, doc, noComments)
+        | AnnSpace => (false, noComments, doc, noComments)
+        | AnnText _ => (false, noComments, doc, noComments)
+
+        | AnnAt {tab, doc} =>
             let
-              val commentsBefore =
-                commentsToDocs (Token.commentsBefore tok)
-              val commentsAfter =
-                if not (isLast tok) then Seq.empty () else
-                commentsToDocs (Token.commentsAfter tok)
-              val all =
-                Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
+              val (ht, cb, doc, ca) =
+                (* loop false vars doc *)
+                loop (ctxAllowsComments orelse Tab.allowsComments tab) vars doc
+              val numComments = Seq.length cb + Seq.length ca
+              val (ht, cb, doc, ca) =
+                if numComments = 0 orelse not (Tab.allowsComments tab) then
+                  (ht, cb, AnnAt {tab=tab, doc=doc}, ca)
+                else
+                  let
+                    val all =
+                      Seq.map (fn d => AnnAt {tab=tab, doc=d})
+                        (Seq.append3 (cb, Seq.singleton doc, ca))
+                  in
+                    (true, noComments, concatDocs all, noComments)
+                  end
             in
-              Seq.iterate AnnConcat AnnEmpty all
+              (ht, cb, doc, ca)
             end
 
-        | AnnToken {at = flow as SOME tabs, tok} =>
+        | AnnConcat (d1, d2) =>
+            if not ctxAllowsComments then
+              let
+                val (ht1, _, d1, _) = loop false vars d1
+                val (ht2, _, d2, _) = loop false vars d2
+              in
+                (ht1 orelse ht2, noComments, AnnConcat (d1, d2), noComments)
+              end
+            else
+              let
+                val (ht1, cb1, d1, ca1) = loop ctxAllowsComments vars d1
+                val (ht2, cb2, d2, ca2) = loop ctxAllowsComments vars d2
+              in
+                if ht1 andalso ht2 then
+                  ( true
+                  , cb1
+                  , annConcat (d1, annConcat (concatDocs (Seq.append (ca1, cb2)), d2))
+                  , ca2
+                  )
+                else if ht1 andalso not ht2 then
+                  ( true
+                  , cb1
+                  , AnnConcat (d1, d2)
+                  , Seq.append3 (ca1, cb2, ca2)
+                  )
+                else if (not ht1) andalso ht2 then
+                  ( true
+                  , Seq.append3 (cb1, ca1, cb2)
+                  , AnnConcat (d1, d2)
+                  , ca2
+                  )
+                else
+                  ( false
+                  , Seq.flatten (Seq.fromList [cb1, ca1, cb2, ca2])
+                  , AnnConcat (d1, d2)
+                  , noComments
+                  )
+              end
+
+        | AnnNewTab {tab, doc} =>
             let
-              val tab =
-                (* TODO: what to do when there are multiple possible tabs
-                 * this token could be at? Here we just pick the first
-                 * of these in the set, and usually it seems each token
-                 * is only ever 'at' one possible tab...
-                 *)
-                List.hd (TabSet.listKeys tabs)
-
-              val commentsBefore =
-                commentsToDocs (Token.commentsBefore tok)
-
-              val commentsAfter =
-                if not (isLast tok) then Seq.empty () else
-                commentsToDocs (Token.commentsAfter tok)
-
-              fun withBreak d =
-                AnnAt {tab=tab, doc=d}
-
-              val all =
-                Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
+              val (ht, cb, doc, ca) = loop ctxAllowsComments vars doc
             in
-              Seq.iterate AnnConcat
-                (Seq.nth all 0)
-                (Seq.map withBreak (Seq.drop all 1))
+              (ht, cb, AnnNewTab {tab = tab, doc = doc}, ca)
+            end
+
+        | AnnCond {tab, inactive, active} =>
+            let
+              val (ht1, _, inactive, _) = loop false vars inactive
+              val (ht2, _, active, _) = loop false vars active
+            in
+              ( ht1 orelse ht2
+              , noComments
+              , AnnCond {tab = tab, inactive = inactive, active = active}
+              , noComments
+              )
             end
 
         | AnnLetDoc {var, doc, inn} =>
-            AnnLetDoc {var = var, doc = loop doc, inn = loop inn}
+            let
+              val (ht, _, doc, _) = loop false vars doc
+              val vars = VarDict.insert vars (var, ht)
+              val (ht, cb, inn, ca) = loop ctxAllowsComments vars inn
+            in
+              (ht, cb, AnnLetDoc {var = var, doc = doc, inn = inn}, ca)
+            end
 
-        | AnnVar v => AnnVar v
+        | AnnVar v =>
+            (VarDict.lookup vars v, noComments, doc, noComments)
 
+        | AnnToken {at = flow, tok} =>
+            let
+              val commentsBefore =
+                commentsToDocs (Token.commentsBefore tok)
+              val commentsAfter =
+                if not (isLast tok) then Seq.empty () else
+                commentsToDocs (Token.commentsAfter tok)
+              val numComments =
+                Seq.length commentsBefore + Seq.length commentsAfter
+            in
+              if ctxAllowsComments then
+                (true, commentsBefore, doc, commentsAfter)
+              else if numComments = 0 then
+                (true, noComments, doc, noComments)
+              else
+
+              case flow of
+                NONE =>
+                  ( true
+                  , noComments
+                  , concatDocs (Seq.append3
+                      (commentsBefore, Seq.singleton doc, commentsAfter))
+                  , noComments
+                  )
+
+              | SOME tabs =>
+                  let
+                    val tab =
+                      (* TODO: what to do when there are multiple possible tabs
+                      * this token could be at? Here we just pick the first
+                      * of these in the set, and usually it seems each token
+                      * is only ever 'at' one possible tab...
+                      *)
+                      List.hd (TabSet.listKeys tabs)
+
+                    fun withBreak d =
+                      AnnAt {tab=tab, doc=d}
+
+                    val all =
+                      Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
+                  in
+                    ( true
+                    , noComments
+                    , Seq.iterate annConcat
+                        (Seq.nth all 0)
+                        (Seq.map withBreak (Seq.drop all 1))
+                    , noComments
+                    )
+                  end
+            end
+
+      val (_, _, doc, _) = loop false VarDict.empty doc
     in
-      flowAts debug (loop doc)
+      flowAts debug doc
     end
 
   (* ====================================================================== *)

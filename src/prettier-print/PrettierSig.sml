@@ -25,7 +25,7 @@ struct
    * only difference: there is no possible 'op' in the condesc, ugh.
    *)
   fun showDatspec tab {datatypee, elems, delims} =
-    newTab tab (fn tab =>
+    newTabWithStyle tab (Tab.Style.allowComments, fn tab =>
     let
       fun showCon (starter, {vid, arg}) =
         at tab

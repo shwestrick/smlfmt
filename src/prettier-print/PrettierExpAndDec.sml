@@ -169,7 +169,7 @@ struct
 
 
   fun showDatbind tab (front, datbind: Ast.Exp.datbind as {elems, delims}) =
-    newTab tab (fn tab =>
+    newTabWithStyle tab (Tab.Style.allowComments, fn tab =>
     let
       fun showCon (starter, {opp, id, arg}) =
         at tab
@@ -322,6 +322,9 @@ struct
                 Tab.Style.inplace
               else
                 rigidInplace
+
+            val style =
+              Tab.Style.combine (style, Tab.Style.allowComments)
           in
             newTabWithStyle tab (style, fn inner1 =>
             newTab inner1 (fn inner2 =>
@@ -537,7 +540,7 @@ struct
                 }))
           end))
     in
-      newTab tab (fn alignedArgsTab =>
+      newTabWithStyle tab (indentedAllowComments, fn alignedArgsTab =>
       newTab tab (fn allArgsGhost =>
         at tab (showExp tab fExp)
         ++
@@ -551,7 +554,7 @@ struct
 
 
   and showHandle tab {exp=expLeft, handlee, elems, delims} =
-    newTab tab (fn inner =>
+    newTabWithStyle tab (Tab.Style.allowComments, fn inner =>
       let
         fun showBranch {pat, arrow, exp} =
           withNewChild showPat inner pat
@@ -649,7 +652,7 @@ struct
             ++ (if i = numExps - 1 then empty else nospace ++ token (d i))))
         exps
     in
-      newTabWithStyle outerTab (indented, fn inner =>
+      newTabWithStyle outerTab (indentedAllowComments, fn inner =>
         showThingSimilarToLetInEnd outerTab
           { lett = lett
           , isEmpty1 = decIsEmpty dec
@@ -662,8 +665,9 @@ struct
 
 
   and showIfThenElseAt outer exp =
-    newTabWithStyle outer (indented, fn inner2 =>
-    newTabWithStyle outer (indented, fn inner1 =>
+    newTabWithStyle outer (Tab.Style.allowComments, fn outer =>
+    newTabWithStyle outer (indentedAllowComments, fn inner2 =>
+    newTabWithStyle outer (indentedAllowComments, fn inner1 =>
     let
       open Ast.Exp
       val (chain, last) = ifThenElseChain [] exp
@@ -681,10 +685,11 @@ struct
           at outer (token elsee)
         end
     in
-      Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
-      ++
-      breakShowAt inner2 last
-    end))
+      at outer
+        (Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
+        ++
+        breakShowAt inner2 last)
+    end)))
 
 
   and showDec tab dec =
@@ -855,6 +860,8 @@ struct
         token colon ++ withNewChild showTy tab ty
 
       fun showClause tab isFirst clauseChildStyle (front, {fname_args, ty, eq, exp}) =
+        (* TODO: need tab style "indented exactly by 2" and align each clause
+         * at this inner tab... works better with inserting comments. *)
         at tab
           ( (if isFirst then empty else cond tab {active=space++space, inactive=empty})
           ++ front
@@ -870,9 +877,12 @@ struct
               Tab.Style.inplace
             else
               indentedAtLeastBy 6
+
+          val mainStyle =
+            Tab.Style.combine (rigidInplace, Tab.Style.allowComments)
         in
           at tab (
-            newTabWithStyle tab (rigidInplace, fn tab =>
+            newTabWithStyle tab (mainStyle, fn tab =>
               Seq.iterate op++
                 (showClause tab true clauseChildStyle (starter, Seq.nth innerElems 0))
                 (Seq.zipWith (showClause tab false clauseChildStyle)
