@@ -8,13 +8,19 @@ sig
 
   structure Style:
   sig
-    datatype style =
-      Inplace
-    | Indented of {minIndent: int} option
-    | RigidInplace
-    | RigidIndented of {minIndent: int} option
-
+    type style
     type t = style
+
+    val inplace: style  (* default *)
+    val indented: style
+    val indentedAtLeastBy: int -> style
+    val rigid: style
+
+    val combine: style * style -> style
+
+    val isRigid: style -> bool
+    val minIndent: style -> int
+    val isInplace: style -> bool
   end
 
   type tab
@@ -44,13 +50,53 @@ struct
 
   structure Style =
   struct
-    datatype style =
-      Inplace
-    | Indented of {minIndent: int} option
-    | RigidInplace
-    | RigidIndented of {minIndent: int} option
 
+    datatype indent_style = Inplace | Indented of {minIndent: int} option
+
+    fun combineIndentStyles (i1, i2) =
+      case (i1, i2) of
+        (Inplace, Inplace) => Inplace
+      | (Inplace, Indented _) => i2
+      | (Indented _, Inplace) => i1
+      | (Indented mio1, Indented mio2) =>
+          case (mio1, mio2) of
+            (NONE, _) => i2
+          | (_, NONE) => i1
+          | (SOME {minIndent=mi1}, SOME {minIndent=mi2}) =>
+              if mi1 >= mi2 then
+                i1
+              else
+                i2
+
+    datatype style =
+      S of {indent: indent_style, rigid: bool}
     type t = style
+
+    fun combine (S {indent=i1, rigid=r1}, S {indent=i2, rigid=r2}) =
+      S { indent = combineIndentStyles (i1, i2)
+        , rigid = r1 orelse r2
+        }
+
+    val inplace =
+      S {indent = Inplace, rigid = false}
+    val indented =
+      S {indent = Indented NONE, rigid = false}
+    fun indentedAtLeastBy i =
+      S {indent = Indented (SOME {minIndent=i}), rigid = false}
+    val rigid =
+      S {indent = Inplace, rigid = true}
+
+    fun isRigid (S {rigid, ...}) = rigid
+
+    fun isInplace (S {indent, ...}) =
+      case indent of
+        Inplace => true
+      | _ => false
+
+    fun minIndent (S {indent, ...}) =
+      case indent of
+        Indented (SOME {minIndent=mi}) => mi
+      | _ => 0
   end
 
   (* ===================================================================== *)
@@ -81,7 +127,7 @@ struct
 
   fun style t =
     case t of
-      Root => Style.Inplace
+      Root => Style.inplace
     | Tab {style=s, ...} => s
 
   fun name t =
@@ -107,22 +153,8 @@ struct
       Root => 0
     | Tab {parent=p, ...} => 1 + depth p
 
-  fun isRigid t =
-    case style t of
-      Style.RigidInplace => true
-    | Style.RigidIndented _ => true
-    | _ => false
-
-  fun isInplace t =
-    case style t of
-      Style.RigidInplace => true
-    | Style.Inplace => true
-    | _ => false
-
-  fun minIndent t =
-    case style t of
-      Style.Indented (SOME {minIndent=i}) => i
-    | Style.RigidIndented (SOME {minIndent=i}) => i
-    | _ => 0
+  fun isRigid t = Style.isRigid (style t)
+  fun isInplace t = Style.isInplace (style t)
+  fun minIndent t = Style.minIndent (style t)
 
 end

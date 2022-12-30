@@ -318,7 +318,10 @@ struct
                 ++ showBranch inner1 branch)
 
             val style =
-              if Seq.length elems <= 1 then Tab.Style.Inplace else Tab.Style.RigidInplace
+              if Seq.length elems <= 1 then
+                Tab.Style.inplace
+              else
+                rigidInplace
           in
             newTabWithStyle tab (style, fn inner1 =>
             newTab inner1 (fn inner2 =>
@@ -864,12 +867,12 @@ struct
         let
           val clauseChildStyle =
             if Seq.length innerElems <= 1 then
-              Tab.Style.Inplace
+              Tab.Style.inplace
             else
               indentedAtLeastBy 6
         in
           at tab (
-            newTabWithStyle tab (Tab.Style.RigidInplace, fn tab =>
+            newTabWithStyle tab (rigidInplace, fn tab =>
               Seq.iterate op++
                 (showClause tab true clauseChildStyle (starter, Seq.nth innerElems 0))
                 (Seq.zipWith (showClause tab false clauseChildStyle)
