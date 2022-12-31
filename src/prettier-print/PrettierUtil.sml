@@ -137,9 +137,11 @@ struct
 
   fun showThingSimilarToLetInEnd tab {lett, isEmpty1, doc1, inn, doc2, endd} =
     let in
-      token lett ++
-      (if isEmpty1 then
+      at tab (token lett) ++
+      (if isEmpty1 andalso not (Token.hasCommentsAfter lett) then
         token inn
+      else if isEmpty1 then
+        at tab (token inn)
       else
         doc1 ++ at tab (token inn))
       ++ doc2

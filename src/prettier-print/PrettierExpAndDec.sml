@@ -150,6 +150,15 @@ struct
     end
 
 
+  fun decHasAtLeastTwoDecs dec =
+    let
+      open Ast.Exp
+    in
+      case dec of
+        DecMultiple {elems, ...} => Seq.length elems >= 2
+      | _ => false
+    end
+
   (* ====================================================================== *)
 
   fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
@@ -651,8 +660,14 @@ struct
             (showExp innerTab e
             ++ (if i = numExps - 1 then empty else nospace ++ token (d i))))
         exps
+
+      val innerStyle =
+        if decHasAtLeastTwoDecs dec then
+          Tab.Style.combine (indentedAllowComments, Tab.Style.rigid)
+        else
+          indentedAllowComments
     in
-      newTabWithStyle outerTab (indentedAllowComments, fn inner =>
+      newTabWithStyle outerTab (innerStyle, fn inner =>
         showThingSimilarToLetInEnd outerTab
           { lett = lett
           , isEmpty1 = decIsEmpty dec
