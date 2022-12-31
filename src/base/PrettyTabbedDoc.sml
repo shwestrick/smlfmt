@@ -766,7 +766,7 @@ struct
                 ))
             else if isPromotable tab then
               (* force this tab to promote if possible, which should move
-                * it onto a new line and indent. *)
+               * it onto a new line and indent. *)
               raise DoPromote tab
             else if lnStart < i then
 
@@ -825,7 +825,7 @@ struct
                   let
                     val i =
                       parentTabCol tab
-                      + Int.max (indentWidth, Tab.minIndent tab)
+                      + Int.min (Int.max (indentWidth, Tab.minIndent tab), Tab.maxIndent tab)
                   in
                     setTabState tab (Usable (Activated (SOME i)));
                     goto i
@@ -896,7 +896,7 @@ struct
                     let
                       val desired =
                         parentTabCol tab
-                        + Int.max (indentWidth, Tab.minIndent tab)
+                        + Int.min (Int.max (indentWidth, Tab.minIndent tab), Tab.maxIndent tab)
                     in
                       setTabState tab (Usable (Activated (SOME desired)))
                     end
@@ -906,7 +906,7 @@ struct
                         Int.min
                           ( i
                           , parentTabCol tab
-                            + Int.max (indentWidth, Tab.minIndent tab)
+                            + Int.min (Int.max (indentWidth, Tab.minIndent tab), Tab.maxIndent tab)
                           )
                     in
                       setTabState tab (Usable (Activated (SOME desired)))

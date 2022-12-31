@@ -14,6 +14,8 @@ sig
     val inplace: style  (* default *)
     val indented: style
     val indentedAtLeastBy: int -> style
+    val indentedAtMostBy: int -> style
+    val indentedExactlyBy: int -> style
     val rigid: style
     val allowComments: style
 
@@ -21,6 +23,7 @@ sig
 
     val isRigid: style -> bool
     val minIndent: style -> int
+    val maxIndent: style -> int
     val isInplace: style -> bool
     val allowsComments: style -> bool
   end
@@ -39,6 +42,7 @@ sig
   val compare: tab * tab -> order
 
   val minIndent: tab -> int
+  val maxIndent: tab -> int
   val isInplace: tab -> bool
   val isRigid: tab -> bool
   val allowsComments: tab -> bool
@@ -54,27 +58,33 @@ struct
   structure Style =
   struct
 
-    datatype indent_style = Inplace | Indented of {minIndent: int} option
+    datatype indent_style =
+      Inplace
+    | Indented of {minIndent: int option, maxIndent: int option}
+
+    datatype style =
+      S of {indent: indent_style, rigid: bool, allowsComments: bool}
+
+    type t = style
+
+    fun combineOpts g (o1, o2) =
+      case (o1, o2) of
+        (NONE, _) => o2
+      | (_, NONE) => o1
+      | (SOME x, SOME y) => SOME (g (x, y))
 
     fun combineIndentStyles (i1, i2) =
       case (i1, i2) of
         (Inplace, Inplace) => Inplace
       | (Inplace, Indented _) => i2
       | (Indented _, Inplace) => i1
-      | (Indented mio1, Indented mio2) =>
-          case (mio1, mio2) of
-            (NONE, _) => i2
-          | (_, NONE) => i1
-          | (SOME {minIndent=mi1}, SOME {minIndent=mi2}) =>
-              if mi1 >= mi2 then
-                i1
-              else
-                i2
-
-    datatype style =
-      S of {indent: indent_style, rigid: bool, allowsComments: bool}
-
-    type t = style
+      | ( Indented {minIndent=min1, maxIndent=max1}
+        , Indented {minIndent=min2, maxIndent=max2}
+        ) =>
+          Indented
+            { minIndent = combineOpts Int.max (min1, min2)
+            , maxIndent = combineOpts Int.min (max1, max2)
+            }
 
     fun combine (s1, s2) =
       let
@@ -90,9 +100,13 @@ struct
     val inplace =
       S {indent = Inplace, rigid = false, allowsComments = false}
     val indented =
-      S {indent = Indented NONE, rigid = false, allowsComments = false}
+      S {indent = Indented {minIndent=NONE, maxIndent=NONE}, rigid = false, allowsComments = false}
     fun indentedAtLeastBy i =
-      S {indent = Indented (SOME {minIndent=i}), rigid = false, allowsComments = false}
+      S {indent = Indented {minIndent = SOME i, maxIndent=NONE}, rigid = false, allowsComments = false}
+    fun indentedAtMostBy i =
+      S {indent = Indented {minIndent=NONE, maxIndent = SOME i}, rigid = false, allowsComments = false}
+    fun indentedExactlyBy i =
+      S {indent = Indented {minIndent = SOME i, maxIndent = SOME i}, rigid = false, allowsComments = false}
     val rigid =
       S {indent = Inplace, rigid = true, allowsComments = false}
     val allowComments =
@@ -107,8 +121,13 @@ struct
 
     fun minIndent (S {indent, ...}) =
       case indent of
-        Indented (SOME {minIndent=mi}) => mi
+        Indented {minIndent = SOME mi, ...} => mi
       | _ => 0
+
+    fun maxIndent (S {indent, ...}) =
+      case indent of
+        Indented {maxIndent = SOME mi, ...} => mi
+      | _ => valOf Int.maxInt
 
     fun allowsComments (S {allowsComments=c, ...}) = c
   end
@@ -170,6 +189,7 @@ struct
   fun isRigid t = Style.isRigid (style t)
   fun isInplace t = Style.isInplace (style t)
   fun minIndent t = Style.minIndent (style t)
+  fun maxIndent t = Style.maxIndent (style t)
   fun allowsComments t = Style.allowsComments (style t)
 
 end

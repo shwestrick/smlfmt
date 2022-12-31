@@ -859,35 +859,52 @@ struct
       fun showColonTy tab {ty: Ast.Ty.t, colon: Token.t} =
         token colon ++ withNewChild showTy tab ty
 
-      fun showClause tab isFirst clauseChildStyle (front, {fname_args, ty, eq, exp}) =
-        (* TODO: need tab style "indented exactly by 2" and align each clause
-         * at this inner tab... works better with inserting comments. *)
-        at tab
-          ( (if isFirst then empty else cond tab {active=space++space, inactive=empty})
-          ++ front
-          ++ showFNameArgs tab clauseChildStyle fname_args
-          ++ showOption (showColonTy tab) ty
-          ++ token eq
-          ++ withNewChildWithStyle clauseChildStyle showExp tab exp)
+      fun showClause
+            mainTab clauseTab clauseChildStyleFirst clauseChildStyleRest
+            isFirst (front, {fname_args, ty, eq, exp}) =
+        let
+          fun afterFront tab clauseChildStyle =
+            showFNameArgs tab clauseChildStyle fname_args
+            ++ showOption (showColonTy tab) ty
+            ++ token eq
+            ++ withNewChildWithStyle clauseChildStyle showExp tab exp
+        in
+          if isFirst then
+            at mainTab (front ++ afterFront mainTab clauseChildStyleFirst)
+          else
+            at clauseTab (front ++ afterFront clauseTab clauseChildStyleRest)
+        end
 
       fun mkFunction (starter, {elems=innerElems, delims}) =
         let
-          val clauseChildStyle =
+          val clauseChildStyleFirst =
             if Seq.length innerElems <= 1 then
               Tab.Style.inplace
             else
               indentedAtLeastBy 6
 
+          val clauseChildStyleRest = indentedAtLeastBy 4
+
           val mainStyle =
             Tab.Style.combine (rigidInplace, Tab.Style.allowComments)
+
+          val clauseStyle =
+            Tab.Style.combine (Tab.Style.allowComments,
+              Tab.Style.combine (Tab.Style.rigid, Tab.Style.indentedExactlyBy 2))
         in
           at tab (
-            newTabWithStyle tab (mainStyle, fn tab =>
-              Seq.iterate op++
-                (showClause tab true clauseChildStyle (starter, Seq.nth innerElems 0))
-                (Seq.zipWith (showClause tab false clauseChildStyle)
-                  (Seq.map token delims, Seq.drop innerElems 1))
-          ))
+            newTabWithStyle tab (mainStyle, fn mainTab =>
+            newTabWithStyle mainTab (clauseStyle, fn clauseTab =>
+              let
+                val showClause' =
+                  showClause mainTab clauseTab
+                    clauseChildStyleFirst clauseChildStyleRest
+              in
+                Seq.iterate op++
+                  (showClause' true (starter, Seq.nth innerElems 0))
+                  (Seq.zipWith (showClause' false)
+                    (Seq.map token delims, Seq.drop innerElems 1))
+              end)))
         end
 
       val front =
