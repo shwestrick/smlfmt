@@ -716,27 +716,19 @@ struct
 
       | DecVal {vall, tyvars, elems, delims} =>
           let
-            fun mk (delim, {recc, pat, eq, exp}) =
+            fun mk (starter, {recc, pat, eq, exp}) =
               at tab
-                (token delim
+                (starter
                 ++ showOption token recc
                 ++ withNewChild showPat tab pat
                 ++ token eq
                 ++ withNewChild showExp tab exp)
 
-            val first =
-              let
-                val {recc, pat, eq, exp} = Seq.nth elems 0
-              in
-                token vall ++ showTokenSyntaxSeq tab tyvars
-                ++ showOption token recc
-                ++ withNewChild showPat tab pat
-                ++ token eq
-                ++ withNewChild showExp tab exp
-              end
+            val front = token vall ++ showTokenSyntaxSeq tab tyvars
           in
-            Seq.iterate op++ first
-            (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
+            Seq.iterate op++
+              (mk (front, Seq.nth elems 0))
+              (Seq.zipWith mk (Seq.map token delims, Seq.drop elems 1))
           end
 
       | DecFun args =>
