@@ -121,15 +121,35 @@ struct
   fun isBiggishExp exp =
     let
       open Ast.Exp
+
+      fun looksBig depth exp =
+        depth >= 3
+        orelse
+        case exp of
+          Parens {exp, ...} => looksBig (depth+1) exp
+        | Unit _ => false
+        | Ident _ => false
+        | Const _ => false
+        | Select _ => false
+        | App {left, right} =>
+            looksBig (depth+1) left orelse looksBig (depth+1) right
+        | Infix {left, right, ...} =>
+            looksBig (depth+1) left orelse looksBig (depth+1) right
+        | Andalso {left, right, ...} =>
+            looksBig (depth+1) left orelse looksBig (depth+1) right
+        | Orelse {left, right, ...} =>
+            looksBig (depth+1) left orelse looksBig (depth+1) right
+        | Raise {exp, ...} =>
+            looksBig (depth+1) exp
+        | Typed {exp, ...} =>
+            looksBig (depth+1) exp
+        | Fn {elems, ...} =>
+            Seq.length elems > 1
+            orelse
+            looksBig (depth+1) (#exp (Seq.nth elems 0))
+        | _ => true
     in
-      case exp of
-        Parens {exp, ...} => isBiggishExp exp
-      | Ident _ => false
-      | Fn {elems, ...} =>
-          Seq.length elems > 1
-          orelse
-          isBiggishExp (#exp (Seq.nth elems 0))
-      | _ => true
+      looksBig 0 exp
     end
 
 
@@ -716,13 +736,58 @@ struct
 
       | DecVal {vall, tyvars, elems, delims} =>
           let
-            fun mk (starter, {recc, pat, eq, exp}) =
+            fun mkSplittable (starter, {recc, pat, eq, exp}) =
+              newTab tab (fn flatGhost =>
+              newTab tab (fn expGhost =>
+              newTab tab (fn child =>
+                let
+                  val patContents = withNewChild showPat tab pat
+
+                  val expAtChild = at child (showExp child exp)
+
+                  fun expContents ec =
+                    cond expGhost
+                      { inactive =
+                          cond child
+                            { inactive = var ec
+                            , active =
+                                at expGhost (splitShowExpLeft expGhost exp)
+                                ++
+                                at child (splitShowExpRight child exp)
+                            }
+                      , active = var ec
+                      }
+                in
+                  at tab (starter ++ showOption token recc)
+                  ++
+                  letdoc patContents (fn pc =>
+                    cond flatGhost
+                      { inactive = at flatGhost (var pc)
+                      , active = var pc
+                      })
+                  ++
+                  token eq
+                  ++
+                  letdoc expAtChild (fn ec =>
+                    cond flatGhost
+                      { inactive = expContents ec
+                      , active = var ec
+                      })
+                end)))
+
+            fun mkSimple (starter, {recc, pat, eq, exp}) =
               at tab
                 (starter
                 ++ showOption token recc
                 ++ withNewChild showPat tab pat
                 ++ token eq
                 ++ withNewChild showExp tab exp)
+
+            fun mk (starter, xxx as {recc, pat, eq, exp}) =
+              if not (isSplittableExp exp) then
+                mkSimple (starter, xxx)
+              else
+                mkSplittable (starter, xxx)
 
             val front = token vall ++ showTokenSyntaxSeq tab tyvars
           in
@@ -871,10 +936,19 @@ struct
             isFirst (front, {fname_args, ty, eq, exp}) =
         let
           fun afterFront tab clauseChildStyle =
-            showFNameArgs tab clauseChildStyle fname_args
-            ++ showOption (showColonTy tab) ty
-            ++ token eq
-            ++ withNewChildWithStyle clauseChildStyle showExp tab exp
+            let
+              val expChildStyle =
+                if isBiggishExp exp then
+                  Tab.Style.combine (Tab.Style.combine
+                    (Tab.Style.indented, Tab.Style.rigid), clauseChildStyle)
+                else
+                  clauseChildStyle
+            in
+              showFNameArgs tab clauseChildStyle fname_args
+              ++ showOption (showColonTy tab) ty
+              ++ token eq
+              ++ withNewChildWithStyle expChildStyle showExp tab exp
+            end
         in
           if isFirst then
             at mainTab (front ++ afterFront mainTab clauseChildStyleFirst)
