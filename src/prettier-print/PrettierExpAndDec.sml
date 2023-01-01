@@ -280,7 +280,29 @@ struct
       | Record {left, elems, delims, right} =>
           let
             fun showRow tab {lab, eq, exp} =
-              token lab ++ token eq ++ (withNewChild showExp tab) exp
+              if not (isSplittableExp exp) then
+                token lab ++ token eq ++ (withNewChild showExp tab) exp
+              else
+                token lab ++ token eq
+                ++
+                newTab tab (fn expGhost =>
+                newTab tab (fn child =>
+                  let
+                    val expAtChild = at child (showExp child exp)
+                  in
+                    letdoc expAtChild (fn ec =>
+                      cond expGhost
+                        { inactive =
+                            cond child
+                              { inactive = var ec
+                              , active =
+                                  at expGhost (splitShowExpLeft expGhost exp)
+                                  ++
+                                  at child (splitShowExpRight child exp)
+                              }
+                        , active = var ec
+                        })
+                  end))
           in
             showSequence (fn _ => false) (withNewChild showRow) tab
               { openn = left
@@ -743,6 +765,7 @@ struct
                 let
                   val patContents = withNewChild showPat tab pat
 
+                  (* *)
                   val expAtChild = at child (showExp child exp)
 
                   fun expContents ec =
