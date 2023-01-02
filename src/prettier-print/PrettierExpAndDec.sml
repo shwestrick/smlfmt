@@ -170,6 +170,13 @@ struct
     end
 
 
+  fun isIdentLength1 exp =
+    case exp of
+      Ast.Exp.Ident {opp=NONE, id} =>
+        1 = Source.length (Token.getSource (MaybeLongToken.getToken id))
+    | _ => false
+
+
   fun decHasAtLeastTwoDecs dec =
     let
       open Ast.Exp
@@ -590,8 +597,27 @@ struct
                       }
                 }))
           end))
+
+      val argsStyle =
+        (* This is a funny edge case, where indented style would look strange,
+         * for example:
+         *   f
+         *     arg1
+         *     arg2
+         *
+         * So instead we use inplace style which allows for this:
+         *   f arg1
+         *     arg2
+         *)
+        if isIdentLength1 fExp then
+          Tab.Style.inplace
+        else
+          Tab.Style.indented
+
+      val argsStyle =
+        Tab.Style.combine (Tab.Style.allowComments, argsStyle)
     in
-      newTabWithStyle tab (indentedAllowComments, fn alignedArgsTab =>
+      newTabWithStyle tab (argsStyle, fn alignedArgsTab =>
       newTab tab (fn allArgsGhost =>
         at tab (showExp tab fExp)
         ++
