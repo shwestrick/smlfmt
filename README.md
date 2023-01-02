@@ -9,6 +9,9 @@ Supports SML source files
 [MLton](https://github.com/MLton/mlton) conventions,
 including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
 
+Most of the SML code in this repository (everything in `src`, except `src/lib`)
+has been formatted by `smlfmt`. Take a look!
+
 **Note (Dec 29, 2022)**: changed repository name to `smlfmt` (used to be `parse-sml`).
 
 ## Examples: Error Messages
