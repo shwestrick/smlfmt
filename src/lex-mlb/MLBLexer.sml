@@ -18,12 +18,9 @@ end =
 struct
 
   fun error {what, pos, explain} =
-    raise Error.Error (Error.lineError
-      { header = "SYNTAX ERROR"
-      , pos = pos
-      , what = what
-      , explain = explain
-      })
+    raise Error.Error
+      (Error.lineError
+         {header = "SYNTAX ERROR", pos = pos, what = what, explain = explain})
 
   fun success x = SOME x
 
@@ -45,27 +42,35 @@ struct
       val src = Source.wholeFile src
 
       (** Some helpers for making source slices and tokens. *)
-      fun slice (i, j) = Source.slice src (i, j-i)
-      fun sliceFrom i = slice (i, Source.length src)
-      fun mk x (i, j) = MLBToken.Pretoken.make (slice (i, j)) x
-      fun mkr x (i, j) = MLBToken.Pretoken.reserved (slice (i, j)) x
+      fun slice (i, j) =
+        Source.slice src (i, j - i)
+      fun sliceFrom i =
+        slice (i, Source.length src)
+      fun mk x (i, j) =
+        MLBToken.Pretoken.make (slice (i, j)) x
+      fun mkr x (i, j) =
+        MLBToken.Pretoken.reserved (slice (i, j)) x
 
       fun get i = Source.nth src i
 
-      fun isEndOfFileAt i =
-        i >= Source.length src
+      fun isEndOfFileAt i = i >= Source.length src
 
-      fun check f i = i < Source.length src andalso f (get i)
-      fun is c = check (fn c' => c = c')
+      fun check f i =
+        i < Source.length src andalso f (get i)
+      fun is c =
+        check (fn c' => c = c')
 
       fun isString str i =
         Source.length src - i >= String.size str
         andalso
-        Util.all (0, String.size str) (fn j => get (i+j) = String.sub (str, j))
+        Util.all (0, String.size str) (fn j =>
+          get (i + j) = String.sub (str, j))
 
 
       fun loop_toplevel i =
-        if isEndOfFileAt i then
+        if
+          isEndOfFileAt i
+        then
           NONE
 
         else if
@@ -81,29 +86,29 @@ struct
         else if
           isString "bas" i
         then
-          loop_after_bas (i+3)
+          loop_after_bas (i + 3)
 
         else if
-          isString "ann" i andalso
-          not (check LexUtils.isValidUnquotedPathChar (i+3))
+          isString "ann" i
+          andalso not (check LexUtils.isValidUnquotedPathChar (i + 3))
         then
-          success (mkr MLBToken.Ann (i, i+3))
+          success (mkr MLBToken.Ann (i, i + 3))
 
         else if
-          isString "_prim" i andalso
-          not (check LexUtils.isValidUnquotedPathChar (i+5))
+          isString "_prim" i
+          andalso not (check LexUtils.isValidUnquotedPathChar (i + 5))
         then
-          success (mkr MLBToken.UnderscorePrim (i, i+5))
+          success (mkr MLBToken.UnderscorePrim (i, i + 5))
 
         else if
           check LexUtils.isValidUnquotedPathChar i
         then
-          loop_maybePath {start=i} (i+1)
+          loop_maybePath {start = i} (i + 1)
 
         else if
           check Char.isSpace i
         then
-          loop_toplevel (i+1)
+          loop_toplevel (i + 1)
 
         else
           expectSMLToken (fn _ => true) (sliceFrom i)
@@ -114,18 +119,15 @@ struct
         *)
       and loop_after_bas i =
         if
-          isString "is" i andalso
-          not (check LexUtils.isValidUnquotedPathChar (i+2))
-        then
-          success (mkr MLBToken.Basis (i-3, i+2))
+          isString "is" i
+          andalso not (check LexUtils.isValidUnquotedPathChar (i + 2))
+        then success (mkr MLBToken.Basis (i - 3, i + 2))
 
         else if
           not (check LexUtils.isValidUnquotedPathChar i)
-        then
-          success (mkr MLBToken.Bas (i-3, i))
+        then success (mkr MLBToken.Bas (i - 3, i))
 
-        else
-          loop_maybePath {start = i-3} i
+        else loop_maybePath {start = i - 3} i
 
 
       (** Paths are strange. You really could see anything... the only
@@ -135,11 +137,9 @@ struct
         *)
       and loop_maybePath {start} i =
         if check LexUtils.isValidUnquotedPathChar i then
-          loop_maybePath {start=start} (i+1)
+          loop_maybePath {start = start} (i + 1)
 
-        else if
-          Util.exists (start, i) (fn j => is #"." j orelse is #"/" j)
-        then
+        else if Util.exists (start, i) (fn j => is #"." j orelse is #"/" j) then
           case MLBToken.Pretoken.makePathFromSource (slice (start, i)) of
             SOME t => success t
           | NONE =>
@@ -174,10 +174,8 @@ struct
           finish acc
         else
           case next (Source.drop src offset) of
-            NONE =>
-              finish acc
-          | SOME tok =>
-              loop (tok :: acc) (tokEndOffset tok)
+            NONE => finish acc
+          | SOME tok => loop (tok :: acc) (tokEndOffset tok)
     in
       loop [] startOffset
     end

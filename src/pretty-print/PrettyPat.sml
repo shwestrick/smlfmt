@@ -13,9 +13,12 @@ struct
   open PrettyUtil
 
   infix 2 ++ $$ //
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
+  fun x ++ y =
+    beside (x, y)
+  fun x $$ y =
+    aboveOrSpace (x, y)
+  fun x // y =
+    aboveOrBeside (x, y)
 
   fun showTy ty = PrettyTy.showTy ty
 
@@ -24,19 +27,13 @@ struct
       open Ast.Pat
     in
       case pat of
-        Wild tok =>
-          token tok
-      | Const tok =>
-          token tok
-      | Unit {left, right} =>
-          token left ++ token right
+        Wild tok => token tok
+      | Const tok => token tok
+      | Unit {left, right} => token left ++ token right
       | Ident {opp, id} =>
           separateWithSpaces
-            [ Option.map token opp
-            , SOME (token (MaybeLongToken.getToken id))
-            ]
-      | Parens {left, pat, right} =>
-          token left ++ showPat pat ++ token right
+            [Option.map token opp, SOME (token (MaybeLongToken.getToken id))]
+      | Parens {left, pat, right} => token left ++ showPat pat ++ token right
       | Tuple {left, elems, delims, right} =>
           sequence left delims right (Seq.map showPat elems)
       | List {left, elems, delims, right} =>
@@ -47,13 +44,15 @@ struct
               case patrow of
                 DotDotDot ddd => token ddd
               | LabEqPat {lab, eq, pat} =>
-                  token lab ++ space ++ token eq
-                  ++ space ++ showPat pat
+                  token lab ++ space ++ token eq ++ space ++ showPat pat
               | LabAsPat {id, ty, aspat} =>
                   separateWithSpaces
                     [ SOME (token id)
-                    , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
-                    , Option.map (fn {ass, pat} => token ass ++ space ++ showPat pat) aspat
+                    , Option.map
+                        (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
+                    , Option.map
+                        (fn {ass, pat} => token ass ++ space ++ showPat pat)
+                        aspat
                     ]
           in
             sequence left delims right (Seq.map showPatRow elems)
@@ -70,7 +69,8 @@ struct
           separateWithSpaces
             [ Option.map token opp
             , SOME (token id)
-            , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty) ty
+            , Option.map (fn {colon, ty} => token colon ++ space ++ showTy ty)
+                ty
             , SOME (token ass)
             , SOME (showPat pat)
             ]

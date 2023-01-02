@@ -9,12 +9,12 @@
   *)
 functor PrettySimpleDoc
   (CustomString:
-    sig
-      type t
-      val fromString: string -> t
-      val size: t -> int
-      val concat: t list -> t
-    end) :>
+   sig
+     type t
+     val fromString: string -> t
+     val size: t -> int
+     val concat: t list -> t
+   end) :>
 sig
   type doc
   type t = doc
@@ -53,8 +53,8 @@ sig
   val rigid: doc -> doc
 
   val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int}
-           -> doc
-           -> CustomString.t
+              -> doc
+              -> CustomString.t
 
   val toString: doc -> CustomString.t
 end =
@@ -112,33 +112,23 @@ struct
 
   val indent = Indent
 
-  fun flatten (doc : doc) : flattened option =
+  fun flatten (doc: doc) : flattened option =
     let
       (** Returns (space-before?, flattened, flattened size, space-after?) *)
-      fun loop (doc : doc) : flattened option =
+      fun loop (doc: doc) : flattened option =
         case doc of
-          Empty =>
-            SOME (false, Empty, 0, false)
-        | Space keepSpace =>
-            SOME (keepSpace, Empty, 0, keepSpace)
-        | Indent d =>
-            loop d
-        | Text str =>
-            SOME (false, Text str, CustomString.size str, false)
-        | Beside (d1, d2) =>
-            loopBeside (d1, d2)
+          Empty => SOME (false, Empty, 0, false)
+        | Space keepSpace => SOME (keepSpace, Empty, 0, keepSpace)
+        | Indent d => loop d
+        | Text str => SOME (false, Text str, CustomString.size str, false)
+        | Beside (d1, d2) => loopBeside (d1, d2)
         | BesideAndAbove (withSpace, d1, d2) =>
-            if withSpace then
-              loopBeside (d1, Beside (Space true, d2))
-            else
-              loopBeside (d1, d2)
+            if withSpace then loopBeside (d1, Beside (Space true, d2))
+            else loopBeside (d1, d2)
         | Above (withSpace, d1, d2) =>
-            if withSpace then
-              loopBeside (d1, Beside (Space true, d2))
-            else
-              loopBeside (d1, d2)
-        | Choice {flattened, ...} =>
-            SOME flattened
+            if withSpace then loopBeside (d1, Beside (Space true, d2))
+            else loopBeside (d1, d2)
+        | Choice {flattened, ...} => SOME flattened
         | Rigid _ => NONE
 
       and loopBeside (d1, d2) =
@@ -153,21 +143,18 @@ struct
                 *)
               val (l, m, sz, r) =
                 case (flat1, r1 orelse l2, flat2) of
-                  (Empty, b, _) =>
-                    (b, flat2, sz2, false)
-                | (_, b, Empty) =>
-                    (false, flat1, sz1, b)
+                  (Empty, b, _) => (b, flat2, sz2, false)
+                | (_, b, Empty) => (false, flat1, sz1, b)
                 | (_, false, _) =>
-                    (false, Beside (flat1, flat2), sz1+sz2, false)
+                    (false, Beside (flat1, flat2), sz1 + sz2, false)
                 | _ =>
-                    (false, Beside (flat1, Beside (Space true, flat2)), sz1+sz2+1, false)
+                    ( false
+                    , Beside (flat1, Beside (Space true, flat2))
+                    , sz1 + sz2 + 1
+                    , false
+                    )
             in
-              SOME
-                ( l1 orelse l
-                , m
-                , sz
-                , r2 orelse r
-                )
+              SOME (l1 orelse l, m, sz, r2 orelse r)
             end
 
     in
@@ -187,10 +174,7 @@ struct
     CustomString.fromString (CharVector.tabulate (count, fn _ => #" "))
 
 
-  datatype item =
-    Spaces of int
-  | Newline
-  | Stuff of CustomString.t
+  datatype item = Spaces of int | Newline | Stuff of CustomString.t
 
 
   fun revAndStripTrailingWhitespace (items: item list) =
@@ -198,18 +182,14 @@ struct
       fun loopStrip acc items =
         case items of
           [] => acc
-        | Spaces _ :: items' =>
-            loopStrip acc items'
-        | x :: items' =>
-            loopKeep (x :: acc) items'
+        | Spaces _ :: items' => loopStrip acc items'
+        | x :: items' => loopKeep (x :: acc) items'
 
       and loopKeep acc items =
         case items of
           [] => acc
-        | Newline :: items' =>
-            loopStrip (Newline :: acc) items'
-        | x :: items' =>
-            loopKeep (x :: acc) items'
+        | Newline :: items' => loopStrip (Newline :: acc) items'
+        | x :: items' => loopKeep (x :: acc) items'
     in
       loopStrip [] items
     end
@@ -217,13 +197,10 @@ struct
 
   fun pretty {ribbonFrac, maxWidth, indentWidth} inputDoc =
     let
-      val ribbonWidth =
-        Int.max (0, Int.min (maxWidth,
-          Real.round (ribbonFrac * Real.fromInt maxWidth)))
+      val ribbonWidth = Int.max (0, Int.min (maxWidth, Real.round
+        (ribbonFrac * Real.fromInt maxWidth)))
 
-      datatype above_mode =
-        UseCurrentCol
-      | ResetTo of int
+      datatype above_mode = UseCurrentCol | ResetTo of int
 
       type layout_state = above_mode * int * int * (item list)
 
@@ -232,10 +209,8 @@ struct
 
       fun layout ((am, lnStart, col, acc): layout_state) doc : layout_state =
         case doc of
-          Empty =>
-            (am, lnStart, col, acc)
-        | Space _ =>
-            (am, lnStart, col + 1, Spaces 1 :: acc)
+          Empty => (am, lnStart, col, acc)
+        | Space _ => (am, lnStart, col + 1, Spaces 1 :: acc)
         | Indent d =>
             let
               val (col, acc) =
@@ -258,7 +233,7 @@ struct
                 | ResetTo r => ResetTo r
               val (_, lnStart, col, acc) = layout (am, lnStart, col, acc) doc1
               val (col, acc) =
-                if withSpace then (col+1, Spaces 1 :: acc) else (col, acc)
+                if withSpace then (col + 1, Spaces 1 :: acc) else (col, acc)
             in
               layout (newAm, lnStart, col, acc) doc2
             end

@@ -13,7 +13,10 @@ sig
   | JustComments of Token.t Seq.t
 
   val parse: {allowTopExp: bool} -> Source.t -> parser_output
-  val parseWithInfdict: {allowTopExp: bool} -> InfixDict.t -> Source.t -> (InfixDict.t * parser_output)
+  val parseWithInfdict: {allowTopExp: bool}
+                        -> InfixDict.t
+                        -> Source.t
+                        -> (InfixDict.t * parser_output)
 end =
 struct
 
@@ -22,9 +25,7 @@ struct
   structure PT = ParseTy
   structure PP = ParsePat
 
-  datatype parser_output =
-    Ast of Ast.t
-  | JustComments of Token.t Seq.t
+  datatype parser_output = Ast of Ast.t | JustComments of Token.t Seq.t
 
   structure Restriction = ExpPatRestriction
 
@@ -52,33 +53,26 @@ struct
         *)
       infix 5 at
       fun f at i = f i
-      fun check f i = i < numToks andalso f (tok i)
-      fun is c = check (fn t => c = Token.getClass t)
-      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i =
+        i < numToks andalso f (tok i)
+      fun is c =
+        check (fn t => c = Token.getClass t)
+      fun isReserved rc =
+        check (fn t => Token.Reserved rc = Token.getClass t)
 
 
       fun parse_reserved rc i =
         PS.reserved toks rc i
-      fun parse_tyvars i =
-        PS.tyvars toks i
-      fun parse_sigid i =
-        PS.sigid toks i
-      fun parse_strid i =
-        PS.strid toks i
-      fun parse_funid i =
-        PS.funid toks i
-      fun parse_vid i =
-        PS.vid toks i
-      fun parse_longvid i =
-        PS.longvid toks i
-      fun parse_tycon i =
-        PS.tycon toks i
-      fun parse_maybeLongTycon i =
-        PS.maybeLongTycon toks i
-      fun parse_maybeLongStrid i =
-        PS.maybeLongStrid toks i
-      fun parse_ty i =
-        PT.ty toks i
+      fun parse_tyvars i = PS.tyvars toks i
+      fun parse_sigid i = PS.sigid toks i
+      fun parse_strid i = PS.strid toks i
+      fun parse_funid i = PS.funid toks i
+      fun parse_vid i = PS.vid toks i
+      fun parse_longvid i = PS.longvid toks i
+      fun parse_tycon i = PS.tycon toks i
+      fun parse_maybeLongTycon i = PS.maybeLongTycon toks i
+      fun parse_maybeLongStrid i = PS.maybeLongStrid toks i
+      fun parse_ty i = PT.ty toks i
 
 
       fun parse_oneOrMoreDelimitedByReserved x i =
@@ -101,7 +95,7 @@ struct
         *)
       fun consume_sigDec (i, infdict) : ((int * InfixDict.t) * Ast.topdec) =
         let
-          val signaturee = tok (i-1)
+          val signaturee = tok (i - 1)
 
           fun parseOne i =
             let
@@ -109,25 +103,15 @@ struct
               val (i, eq) = parse_reserved Token.Equal i
               val (i, sigexp) = consume_sigExp infdict i
             in
-              ( i
-              , { ident = sigid
-                , eq = eq
-                , sigexp = sigexp
-                }
-              )
+              (i, {ident = sigid, eq = eq, sigexp = sigexp})
             end
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
+              {parseElem = parseOne, delim = Token.And} i
 
-          val result: Ast.topdec =
-            Ast.SigDec (Ast.Sig.Signature
-              { signaturee = signaturee
-              , elems = elems
-              , delims = delims
-              })
+          val result: Ast.topdec = Ast.SigDec (Ast.Sig.Signature
+            {signaturee = signaturee, elems = elems, delims = delims})
         in
           ((i, infdict), result)
         end
@@ -154,11 +138,7 @@ struct
           val (i, sigexp) = consume_sigExp infdict i
         in
           ( i
-          , Ast.Str.Constraint
-              { strexp = strexp
-              , colon = colon
-              , sigexp = sigexp
-              }
+          , Ast.Str.Constraint {strexp = strexp, colon = colon, sigexp = sigexp}
           )
         end
 
@@ -168,13 +148,7 @@ struct
           val ((i, _), strdec) = consume_strdec (i, infdict)
           val (i, endd) = parse_reserved Token.End i
         in
-          ( i
-          , Ast.Str.Struct
-              { structt = structt
-              , strdec = strdec
-              , endd = endd
-              }
-          )
+          (i, Ast.Str.Struct {structt = structt, strdec = strdec, endd = endd})
         end
 
 
@@ -187,9 +161,8 @@ struct
         *)
       and consume_strexpFunApp infdict funid lparen i =
         if
-          check Token.isDecStartToken i orelse
-          check Token.isStrDecStartToken i orelse
-          isReserved Token.CloseParen i
+          check Token.isDecStartToken i orelse check Token.isStrDecStartToken i
+          orelse isReserved Token.CloseParen i
         then
           let
             val ((i, _), strdec) = consume_strdec (i, infdict)
@@ -245,20 +218,26 @@ struct
       and consume_strexp infdict i =
         let
           val (i, strexp) =
-            if isReserved Token.Struct i then
-              consume_strexpStruct infdict (tok i) (i+1)
+            if
+              isReserved Token.Struct i
+            then
+              consume_strexpStruct infdict (tok i) (i + 1)
 
             else if
-              check Token.isStrIdentifier i andalso
-              isReserved Token.OpenParen (i+1)
+              check Token.isStrIdentifier i
+              andalso isReserved Token.OpenParen (i + 1)
             then
-              consume_strexpFunApp infdict (tok i) (tok (i+1)) (i+2)
+              consume_strexpFunApp infdict (tok i) (tok (i + 1)) (i + 2)
 
-            else if check Token.isMaybeLongStrIdentifier i then
-              (i+1, Ast.Str.Ident (MaybeLongToken.make (tok i)))
+            else if
+              check Token.isMaybeLongStrIdentifier i
+            then
+              (i + 1, Ast.Str.Ident (MaybeLongToken.make (tok i)))
 
-            else if isReserved Token.Let i then
-              consume_strexpLetInEnd infdict (tok i) (i+1)
+            else if
+              isReserved Token.Let i
+            then
+              consume_strexpLetInEnd infdict (tok i) (i + 1)
 
             else
               ParserUtils.tokError toks
@@ -274,16 +253,12 @@ struct
       and consume_afterStrexp infdict strexp i =
         let
           val (again, (i, strexp)) =
-            if isReserved Token.Colon i orelse isReserved Token.ColonArrow i
-            then
-              (true, consume_strexpConstraint infdict strexp (tok i) (i+1))
+            if isReserved Token.Colon i orelse isReserved Token.ColonArrow i then
+              (true, consume_strexpConstraint infdict strexp (tok i) (i + 1))
             else
               (false, (i, strexp))
         in
-          if again then
-            consume_afterStrexp infdict strexp i
-          else
-            (i, strexp)
+          if again then consume_afterStrexp infdict strexp i else (i, strexp)
         end
 
 
@@ -298,7 +273,7 @@ struct
           fun parse_maybeConstraint infdict i =
             if isReserved Token.Colon i orelse isReserved Token.ColonArrow i then
               let
-                val (i, colon) = (i+1, tok i)
+                val (i, colon) = (i + 1, tok i)
                 val (i, sigexp) = consume_sigExp infdict i
               in
                 (i, SOME {colon = colon, sigexp = sigexp})
@@ -324,15 +299,11 @@ struct
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
+              {parseElem = parseOne, delim = Token.And} i
         in
           ( i
           , Ast.Str.DecStructure
-              { structuree = structuree
-              , elems = elems
-              , delims = delims
-              }
+              {structuree = structuree, elems = elems, delims = delims}
           )
         end
 
@@ -349,7 +320,7 @@ struct
           val ((i, _), strdec2) = consume_strdec (i, infdict)
           val (i, endd) = parse_reserved Token.End i
         in
-          ( (i, original_infdict)   (** TODO: check this? *)
+          ( (i, original_infdict) (** TODO: check this? *)
           , Ast.Str.DecLocalInEnd
               { locall = locall
               , strdec1 = strdec1
@@ -361,24 +332,20 @@ struct
         end
 
 
-      and consume_exactlyOneStrdec (i, infdict)
-          : ((int * InfixDict.t) * Ast.Str.strdec) =
+      and consume_exactlyOneStrdec (i, infdict) :
+        ((int * InfixDict.t) * Ast.Str.strdec) =
         if isReserved Token.Structure i then
-          let
-            val (i, dec) = consume_strdecStructure infdict (tok i) (i+1)
-          in
-            ((i, infdict), dec)
+          let val (i, dec) = consume_strdecStructure infdict (tok i) (i + 1)
+          in ((i, infdict), dec)
           end
         else if isReserved Token.Local i then
-          consume_strdecLocalInEnd (tok i) (i+1, infdict)
+          consume_strdecLocalInEnd (tok i) (i + 1, infdict)
         else
           let
             val ((i, infdict), dec) =
-              ParseExpAndDec.dec {forceExactlyOne=true} toks (i, infdict)
+              ParseExpAndDec.dec {forceExactlyOne = true} toks (i, infdict)
           in
-            ( (i, infdict)
-            , Ast.Str.DecCore dec
-            )
+            ((i, infdict), Ast.Str.DecCore dec)
           end
 
 
@@ -386,13 +353,13 @@ struct
         let
           fun consume_maybeSemicolon (i, infdict) =
             if isReserved Token.Semicolon i then
-              ((i+1, infdict), SOME (tok i))
+              ((i + 1, infdict), SOME (tok i))
             else
               ((i, infdict), NONE)
 
           fun continue (i, _) =
-            check Token.isDecStartToken i orelse
-            check Token.isStrDecStartToken i
+            check Token.isDecStartToken i
+            orelse check Token.isStrDecStartToken i
 
           (** While we see a strdec start-token, parse pairs of
             *   (dec, semicolon option)
@@ -400,32 +367,22 @@ struct
             * declarations can affect local infixity.
             *)
           val ((i, infdict), strdecs) =
-            parse_zeroOrMoreWhile
-              continue
+            parse_zeroOrMoreWhile continue
               (parse_two (consume_exactlyOneStrdec, consume_maybeSemicolon))
               (i, infdict)
 
           fun makeDecMultiple () =
             Ast.Str.DecMultiple
-              { elems = Seq.map #1 strdecs
-              , delims = Seq.map #2 strdecs
-              }
+              {elems = Seq.map #1 strdecs, delims = Seq.map #2 strdecs}
 
           val result =
             case Seq.length strdecs of
-              0 =>
-                Ast.Str.DecEmpty
+              0 => Ast.Str.DecEmpty
             | 1 =>
-                let
-                  val (dec, semicolon) = Seq.nth strdecs 0
-                in
-                  if isSome semicolon then
-                    makeDecMultiple ()
-                  else
-                    dec
+                let val (dec, semicolon) = Seq.nth strdecs 0
+                in if isSome semicolon then makeDecMultiple () else dec
                 end
-            | _ =>
-                makeDecMultiple ()
+            | _ => makeDecMultiple ()
         in
           ((i, infdict), result)
         end
@@ -450,7 +407,7 @@ struct
           fun parse_maybeConstraint infdict i =
             if isReserved Token.Colon i orelse isReserved Token.ColonArrow i then
               let
-                val (i, colon) = (i+1, tok i)
+                val (i, colon) = (i + 1, tok i)
                 val (i, sigexp) = consume_sigExp infdict i
               in
                 (i, SOME {colon = colon, sigexp = sigexp})
@@ -460,23 +417,18 @@ struct
 
           fun parse_funarg infdict i =
             if not (check Token.isStrIdentifier i) then
-              let
-                val (i, spec) = consume_sigSpec infdict i
-              in
-                (i, Ast.Fun.ArgSpec spec)
+              let val (i, spec) = consume_sigSpec infdict i
+              in (i, Ast.Fun.ArgSpec spec)
               end
             else
               let
-                val (i, strid) = (i+1, tok i)
+                val (i, strid) = (i + 1, tok i)
                 val (i, colon) = parse_reserved Token.Colon i
                 val (i, sigexp) = consume_sigExp infdict i
               in
                 ( i
                 , Ast.Fun.ArgIdent
-                    { strid = strid
-                    , colon = colon
-                    , sigexp = sigexp
-                    }
+                    {strid = strid, colon = colon, sigexp = sigexp}
                 )
               end
 
@@ -504,15 +456,11 @@ struct
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
+              {parseElem = parseOne, delim = Token.And} i
         in
           ( (i, infdict)
           , Ast.FunDec (Ast.Fun.DecFunctor
-              { functorr = functorr
-              , elems = elems
-              , delims = delims
-              })
+              {functorr = functorr, elems = elems, delims = delims})
           )
         end
 
@@ -526,52 +474,51 @@ struct
               , explain = SOME "Expected beginning of top-level declaration."
               }
         in
-          if i >= numToks then err () else
-          let
-            val nextTok = tok i
-            val isMLtonThing =
-              Token.isIdentifier nextTok andalso
-              case Source.toString (Token.getSource nextTok) of
-                "overload" => true
-              | _ => false
-            val _ =
-              if isMLtonThing
-              then ()
-              else err ()
-            val (i, overload) = (i+1, nextTok)
-            val (i, prec) =
-              if check Token.isDecimalIntegerConstant i then
-                (i+1, tok i)
-              else
-                ParserUtils.error
-                  { pos = Token.getSource underscore
-                  , what = "Unexpected token."
-                  , explain = SOME "Expected integer literal."
-                  }
-            val (i, name) = parse_vid i
-            val (i, colon) = parse_reserved Token.Colon i
-            val (i, ty) = parse_ty i
-            val (i, ass) = parse_reserved Token.As i
+          if i >= numToks then
+            err ()
+          else
+            let
+              val nextTok = tok i
+              val isMLtonThing =
+                Token.isIdentifier nextTok
+                andalso
+                case Source.toString (Token.getSource nextTok) of
+                  "overload" => true
+                | _ => false
+              val _ = if isMLtonThing then () else err ()
+              val (i, overload) = (i + 1, nextTok)
+              val (i, prec) =
+                if check Token.isDecimalIntegerConstant i then
+                  (i + 1, tok i)
+                else
+                  ParserUtils.error
+                    { pos = Token.getSource underscore
+                    , what = "Unexpected token."
+                    , explain = SOME "Expected integer literal."
+                    }
+              val (i, name) = parse_vid i
+              val (i, colon) = parse_reserved Token.Colon i
+              val (i, ty) = parse_ty i
+              val (i, ass) = parse_reserved Token.As i
 
-            val (i, {elems, delims}) =
-              parse_oneOrMoreDelimitedByReserved
-                {parseElem = parse_longvid, delim = Token.And}
-                i
-          in
-            ( i
-            , Ast.Str.MLtonOverload
-                { underscore = underscore
-                , overload = overload
-                , prec = prec
-                , name = name
-                , colon = colon
-                , ty = ty
-                , ass = ass
-                , elems = elems
-                , delims = delims
-                }
-            )
-          end
+              val (i, {elems, delims}) =
+                parse_oneOrMoreDelimitedByReserved
+                  {parseElem = parse_longvid, delim = Token.And} i
+            in
+              ( i
+              , Ast.Str.MLtonOverload
+                  { underscore = underscore
+                  , overload = overload
+                  , prec = prec
+                  , name = name
+                  , colon = colon
+                  , ty = ty
+                  , ass = ass
+                  , elems = elems
+                  , delims = delims
+                  }
+              )
+            end
         end
 
 
@@ -579,46 +526,47 @@ struct
         * Top-level
         *)
 
-      fun consume_topDecOne (i, infdict): ((int * InfixDict.t) * Ast.topdec) =
-        if isReserved Token.Signature at i then
-          consume_sigDec (i+1, infdict)
-        else if isReserved Token.Functor at i then
-          consume_fundec infdict (tok i) (i+1)
-        else if check Token.isStrDecStartToken at i orelse
-                check Token.isDecStartToken at i then
-          let
-            val (xx, strdec) = consume_strdec (i, infdict)
-          in
-            (xx, Ast.StrDec strdec)
+      fun consume_topDecOne (i, infdict) : ((int * InfixDict.t) * Ast.topdec) =
+        if
+          isReserved Token.Signature at i
+        then
+          consume_sigDec (i + 1, infdict)
+        else if
+          isReserved Token.Functor at i
+        then
+          consume_fundec infdict (tok i) (i + 1)
+        else if
+          check Token.isStrDecStartToken at i
+          orelse check Token.isDecStartToken at i
+        then
+          let val (xx, strdec) = consume_strdec (i, infdict)
+          in (xx, Ast.StrDec strdec)
           end
-        else if isReserved Token.Underscore i then
-          let
-            val (i, strdec) = consume_MLtonOverload (tok i) (i+1)
-          in
-            ((i, infdict), Ast.StrDec strdec)
+        else if
+          isReserved Token.Underscore i
+        then
+          let val (i, strdec) = consume_MLtonOverload (tok i) (i + 1)
+          in ((i, infdict), Ast.StrDec strdec)
           end
-        else if allowTopExp then
+        else if
+          allowTopExp
+        then
           let
             val (i, exp) =
               ParseExpAndDec.exp toks infdict ExpPatRestriction.None i
-            val (i, semicolon) =
-              ParseSimple.reserved toks Token.Semicolon i
+            val (i, semicolon) = ParseSimple.reserved toks Token.Semicolon i
           in
-            ( (i, infdict)
-            , Ast.TopExp
-                { exp = exp
-                , semicolon = semicolon
-                }
-            )
+            ((i, infdict), Ast.TopExp {exp = exp, semicolon = semicolon})
           end
         else
           ParserUtils.tokError toks
             { pos = i
             , what = "Unexpected token."
             , explain =
-                SOME "Invalid start of top-level declaration. If you want to \
-                     \allow top-level expressions, use the command-line \
-                     \argument `-allow-top-level-exps true`."
+                SOME
+                  "Invalid start of top-level declaration. If you want to \
+                  \allow top-level expressions, use the command-line \
+                  \argument `-allow-top-level-exps true`."
             }
 
       fun parse_topDecMaybeSemicolon (i, infdict) =
@@ -626,19 +574,16 @@ struct
           val ((i, infdict), topdec) = consume_topDecOne (i, infdict)
           val (i, semicolon) = ParseSimple.maybeReserved toks Token.Semicolon i
         in
-          ( (i, infdict)
-          , {topdec = topdec, semicolon = semicolon}
-          )
+          ((i, infdict), {topdec = topdec, semicolon = semicolon})
         end
 
       val ((i, infdict), topdecs) =
-        parse_zeroOrMoreWhile
-          (fn (i, _) => i < numToks)
-          parse_topDecMaybeSemicolon
-          (0, infdict)
+        parse_zeroOrMoreWhile (fn (i, _) => i < numToks)
+          parse_topDecMaybeSemicolon (0, infdict)
 
       val _ =
-        if i >= numToks then ()
+        if i >= numToks then
+          ()
         else
           ParserUtils.error
             { pos = Token.getSource (tok i)
@@ -663,7 +608,8 @@ struct
   fun parse {allowTopExp} src =
     let
       val (_, result) =
-        parseWithInfdict {allowTopExp=allowTopExp} InfixDict.initialTopLevel src
+        parseWithInfdict {allowTopExp = allowTopExp} InfixDict.initialTopLevel
+          src
     in
       result
     end

@@ -28,7 +28,9 @@ sig
 
   val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
 
-  val justCommentsToStringDoc: {tabWidth: int} -> Token.t Seq.t -> TabbedStringDoc.t
+  val justCommentsToStringDoc: {tabWidth: int}
+                               -> Token.t Seq.t
+                               -> TabbedStringDoc.t
 end =
 struct
 
@@ -64,7 +66,8 @@ struct
   val token = Token
   val text = Text
   val var = Var
-  fun at t d = At (t, d)
+  fun at t d =
+    At (t, d)
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -72,7 +75,8 @@ struct
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
 
-  fun cond tab {inactive, active} = Cond {tab=tab, inactive=inactive, active=active}
+  fun cond tab {inactive, active} =
+    Cond {tab = tab, inactive = inactive, active = active}
 
   fun toString doc =
     case doc of
@@ -83,13 +87,15 @@ struct
     | Token t => "Token('" ^ Token.toString t ^ "')"
     | Text t => "Text('" ^ t ^ "')"
     | At (t, d) => "At(" ^ Tab.toString t ^ "," ^ toString d ^ ")"
-    | NewTab {tab=t, doc=d, ...} => "NewTab(" ^ Tab.toString t ^ ", " ^ toString d ^ ")"
-    | Cond {tab=t, inactive=df, active=dnf} =>
-        "Cond(" ^ Tab.toString t ^ ", " ^ toString df ^ ", " ^ toString dnf ^ ")"
-    | LetDoc {var, doc=d, inn} =>
-        "LetDoc(" ^ DocVar.toString var ^ ", " ^ toString d ^ ", " ^ toString inn ^ ")"
-    | Var v =>
-        "Var(" ^ DocVar.toString v ^ ")"
+    | NewTab {tab = t, doc = d, ...} =>
+        "NewTab(" ^ Tab.toString t ^ ", " ^ toString d ^ ")"
+    | Cond {tab = t, inactive = df, active = dnf} =>
+        "Cond(" ^ Tab.toString t ^ ", " ^ toString df ^ ", " ^ toString dnf
+        ^ ")"
+    | LetDoc {var, doc = d, inn} =>
+        "LetDoc(" ^ DocVar.toString var ^ ", " ^ toString d ^ ", "
+        ^ toString inn ^ ")"
+    | Var v => "Var(" ^ DocVar.toString v ^ ")"
 
   fun letdoc d f =
     let
@@ -101,13 +107,14 @@ struct
 
   fun newTabWithStyle parent (style, genDocUsingTab: tab -> doc) =
     let
-      val t = Tab.new {parent=parent, style=style}
+      val t = Tab.new {parent = parent, style = style}
       val d = genDocUsingTab t
     in
-      NewTab {tab=t, doc=d}
+      NewTab {tab = t, doc = d}
     end
 
-  fun newTab parent f = newTabWithStyle parent (Tab.Style.inplace, f)
+  fun newTab parent f =
+    newTabWithStyle parent (Tab.Style.inplace, f)
 
   (* ====================================================================== *)
   (* ====================================================================== *)
@@ -135,17 +142,19 @@ struct
     | AnnSpace => "_"
     | AnnNoSpace => "NoSpace"
     | AnnConcat (d1, d2) => annToString d1 ^ " ++ " ^ annToString d2
-    | AnnToken {tok=t, ...} => "Token('" ^ Token.toString t ^ "')"
-    | AnnText {txt=t, ...} => "Text('" ^ t ^ "')"
+    | AnnToken {tok = t, ...} => "Token('" ^ Token.toString t ^ "')"
+    | AnnText {txt = t, ...} => "Text('" ^ t ^ "')"
     | AnnAt {tab, doc} =>
         "At(" ^ Tab.toString tab ^ ", " ^ annToString doc ^ ")"
-    | AnnNewTab {tab=t, doc=d, ...} => "NewTab(" ^ Tab.toString t ^ ", " ^ annToString d ^ ")"
-    | AnnCond {tab=t, inactive=df, active=dnf} =>
-        "Cond(" ^ Tab.toString t ^ ", " ^ annToString df ^ ", " ^ annToString dnf ^ ")"
-    | AnnLetDoc {var, doc=d, inn} =>
-        "LetDoc(" ^ DocVar.toString var ^ ", " ^ annToString d ^ ", " ^ annToString inn ^ ")"
-    | AnnVar v =>
-        "Var(" ^ DocVar.toString v ^ ")"
+    | AnnNewTab {tab = t, doc = d, ...} =>
+        "NewTab(" ^ Tab.toString t ^ ", " ^ annToString d ^ ")"
+    | AnnCond {tab = t, inactive = df, active = dnf} =>
+        "Cond(" ^ Tab.toString t ^ ", " ^ annToString df ^ ", "
+        ^ annToString dnf ^ ")"
+    | AnnLetDoc {var, doc = d, inn} =>
+        "LetDoc(" ^ DocVar.toString var ^ ", " ^ annToString d ^ ", "
+        ^ annToString inn ^ ")"
+    | AnnVar v => "Var(" ^ DocVar.toString v ^ ")"
 
 
   fun annConcat (d1, d2) =
@@ -163,17 +172,14 @@ struct
           Empty => AnnEmpty
         | Space => AnnSpace
         | NoSpace => AnnNoSpace
-        | Token t => AnnToken {at=NONE, tok=t}
-        | Text t => AnnText {at=NONE, txt=t}
+        | Token t => AnnToken {at = NONE, tok = t}
+        | Text t => AnnText {at = NONE, txt = t}
         | Var v => AnnVar v
         | LetDoc {var, doc, inn} =>
-            AnnLetDoc {var=var, doc = loop doc, inn = loop inn}
-        | At (tab, doc) =>
-            AnnAt {tab = tab, doc = loop doc}
-        | Concat (d1, d2) =>
-            AnnConcat (loop d1, loop d2)
-        | NewTab {tab, doc} =>
-            AnnNewTab {tab = tab, doc = loop doc}
+            AnnLetDoc {var = var, doc = loop doc, inn = loop inn}
+        | At (tab, doc) => AnnAt {tab = tab, doc = loop doc}
+        | Concat (d1, d2) => AnnConcat (loop d1, loop d2)
+        | NewTab {tab, doc} => AnnNewTab {tab = tab, doc = loop doc}
         | Cond {tab, inactive, active} =>
             AnnCond {tab = tab, inactive = loop inactive, active = loop active}
 
@@ -189,8 +195,7 @@ struct
   fun ensureSpaces debug (doc: anndoc) =
     let
       fun dbgprintln s =
-        if not debug then ()
-        else print (s ^ "\n")
+        if not debug then () else print (s ^ "\n")
 
       datatype edge = Spacey | MaybeNotSpacey
 
@@ -225,24 +230,18 @@ struct
                   (SOME MaybeNotSpacey, SOME MaybeNotSpacey) =>
                     AnnConcat (AnnConcat (d1, AnnSpace), d2)
                 | _ => AnnConcat (d1, d2)
-              val left =
-                if Option.isSome left then left else rightleft
-              val right =
-                if Option.isSome right then right else leftright
+              val left = if Option.isSome left then left else rightleft
+              val right = if Option.isSome right then right else leftright
             in
               (left, doc, right)
             end
         | AnnAt {tab, doc} =>
-            let
-              val (left, doc, right) = loop vars doc
-            in
-              (left, AnnAt {tab=tab, doc=doc}, right)
+            let val (left, doc, right) = loop vars doc
+            in (left, AnnAt {tab = tab, doc = doc}, right)
             end
         | AnnNewTab {tab, doc} =>
-            let
-              val (left, doc, right) = loop vars doc
-            in
-              (left, AnnNewTab {tab=tab, doc=doc}, right)
+            let val (left, doc, right) = loop vars doc
+            in (left, AnnNewTab {tab = tab, doc = doc}, right)
             end
         | AnnCond {tab, active, inactive} =>
             let
@@ -250,7 +249,7 @@ struct
               val (left2, inactive, right2) = loop vars inactive
             in
               ( edgeOptUnion (left1, left2)
-              , AnnCond {tab=tab, active=active, inactive=inactive}
+              , AnnCond {tab = tab, active = active, inactive = inactive}
               , edgeOptUnion (right1, right2)
               )
             end
@@ -260,16 +259,11 @@ struct
               val vars = VarDict.insert vars (var, (left, right))
               val (left, inn, right) = loop vars inn
             in
-              ( left
-              , AnnLetDoc {var=var, doc=doc, inn=inn}
-              , right
-              )
+              (left, AnnLetDoc {var = var, doc = doc, inn = inn}, right)
             end
         | AnnVar v =>
-            let
-              val (left, right) = VarDict.lookup vars v
-            in
-              (left, doc, right)
+            let val (left, right) = VarDict.lookup vars v
+            in (left, doc, right)
             end
 
       val (_, doc, _) = loop VarDict.empty doc
@@ -289,8 +283,13 @@ struct
         val s1 = Token.getSource t1
         val s2 = Token.getSource t2
       in
-        case Int.compare (Source.absoluteStartOffset s1, Source.absoluteStartOffset s2) of
-          EQUAL => Int.compare (Source.absoluteEndOffset s1, Source.absoluteEndOffset s2)
+        case
+          Int.compare
+            (Source.absoluteStartOffset s1, Source.absoluteStartOffset s2)
+        of
+          EQUAL =>
+            Int.compare
+              (Source.absoluteEndOffset s1, Source.absoluteEndOffset s2)
         | other => other
       end
   end
@@ -305,8 +304,7 @@ struct
   fun flowAts debug (doc: anndoc) =
     let
       fun dbgprintln s =
-        if not debug then ()
-        else print (s ^ "\n")
+        if not debug then () else print (s ^ "\n")
 
       datatype tab_constraint = Active | Inactive
       type context = tab_constraint TabDict.t
@@ -317,8 +315,7 @@ struct
       fun markActive ctx tab =
         case Tab.parent tab of
           NONE => ctx
-        | SOME p =>
-            markActive (TabDict.insert ctx (tab, Active)) p
+        | SOME p => markActive (TabDict.insert ctx (tab, Active)) p
 
       fun flowunion (flow1, flow2) =
         case (flow1, flow2) of
@@ -335,24 +332,28 @@ struct
         | AnnToken {tok, ...} =>
             let
               val _ =
-                Option.app (fn ts =>
-                  dbgprintln
-                    ("token '" ^ Token.toString tok ^ "' at: " ^
-                     String.concatWith " " (List.map Tab.toString (TabSet.listKeys ts))))
-                flowval
+                Option.app
+                  (fn ts =>
+                     dbgprintln
+                       ("token '" ^ Token.toString tok ^ "' at: "
+                        ^
+                        String.concatWith " "
+                          (List.map Tab.toString (TabSet.listKeys ts)))) flowval
             in
-              (NONE, vars, AnnToken {tok=tok, at=flowval})
+              (NONE, vars, AnnToken {tok = tok, at = flowval})
             end
         | AnnText {txt, ...} =>
             let
               val _ =
-                Option.app (fn ts =>
-                  dbgprintln
-                    ("text '" ^ txt ^ "' at: " ^
-                     String.concatWith " " (List.map Tab.toString (TabSet.listKeys ts))))
-                flowval
+                Option.app
+                  (fn ts =>
+                     dbgprintln
+                       ("text '" ^ txt ^ "' at: "
+                        ^
+                        String.concatWith " "
+                          (List.map Tab.toString (TabSet.listKeys ts)))) flowval
             in
-              (NONE, vars, AnnText {txt=txt, at=flowval})
+              (NONE, vars, AnnText {txt = txt, at = flowval})
             end
         | AnnAt {tab, doc} =>
             let
@@ -360,7 +361,7 @@ struct
               val flowval = flowunion (flowval, SOME (TabSet.singleton tab))
               val (_, vars, doc) = loop ctx (flowval, vars, doc)
             in
-              (NONE, vars, AnnAt {tab=tab, doc=doc})
+              (NONE, vars, AnnAt {tab = tab, doc = doc})
             end
         | AnnConcat (d1, d2) =>
             let
@@ -370,60 +371,63 @@ struct
               (flowval, vars, AnnConcat (d1, d2))
             end
         | AnnNewTab {tab, doc} =>
-            let
-              val (flowval, vars, doc) = loop ctx (flowval, vars, doc)
-            in
-              (flowval, vars, AnnNewTab {tab=tab, doc=doc})
+            let val (flowval, vars, doc) = loop ctx (flowval, vars, doc)
+            in (flowval, vars, AnnNewTab {tab = tab, doc = doc})
             end
         | AnnCond {tab, active, inactive} =>
             (case TabDict.find ctx tab of
-              SOME Active => loop ctx (flowval, vars, active)
-            | SOME Inactive => loop ctx (flowval, vars, inactive)
-            | _ =>
-                let
-                  val (flow1, vars, inactive) = loop (markInactive ctx tab) (flowval, vars, inactive)
-                  val (flow2, vars, active) = loop (markActive ctx tab) (flowval, vars, active)
-                  val flowval =
-                    (* TODO: is union necessary here? *)
-                    flowunion (flow1, flow2)
-                in
-                  (flowval, vars, AnnCond {tab=tab, active=active, inactive=inactive})
-                end)
+               SOME Active => loop ctx (flowval, vars, active)
+             | SOME Inactive => loop ctx (flowval, vars, inactive)
+             | _ =>
+                 let
+                   val (flow1, vars, inactive) = loop (markInactive ctx tab)
+                     (flowval, vars, inactive)
+                   val (flow2, vars, active) = loop (markActive ctx tab)
+                     (flowval, vars, active)
+                   val flowval = (* TODO: is union necessary here? *) flowunion
+                     (flow1, flow2)
+                 in
+                   ( flowval
+                   , vars
+                   , AnnCond {tab = tab, active = active, inactive = inactive}
+                   )
+                 end)
         | AnnLetDoc {var, doc, inn} =>
             let
               val vars = VarDict.insert vars (var, NONE)
               val (flowval, vars, inn) = loop ctx (flowval, vars, inn)
             in
-              (flowval, vars, AnnLetDoc {var=var, doc=doc, inn=inn})
+              (flowval, vars, AnnLetDoc {var = var, doc = doc, inn = inn})
             end
         | AnnVar v =>
             let
-              val vars =
-                VarDict.insert vars (v, flowunion (VarDict.lookup vars v, flowval))
+              val vars = VarDict.insert vars (v, flowunion
+                (VarDict.lookup vars v, flowval))
             in
               (NONE, vars, AnnVar v)
             end
 
-      val (_, varinfo, doc) =
-        loop TabDict.empty (SOME (TabSet.singleton root), VarDict.empty, doc)
+      val (_, varinfo, doc) = loop TabDict.empty
+        (SOME (TabSet.singleton root), VarDict.empty, doc)
 
       fun updateVars doc =
         case doc of
-          AnnLetDoc {var, doc=d, inn} =>
+          AnnLetDoc {var, doc = d, inn} =>
             let
               val flowval = VarDict.lookup varinfo var
               val (_, _, d) = loop TabDict.empty (flowval, varinfo, d)
             in
-              AnnLetDoc {var=var, doc=d, inn = updateVars inn}
+              AnnLetDoc {var = var, doc = d, inn = updateVars inn}
             end
-        | AnnConcat (d1, d2) =>
-            AnnConcat (updateVars d1, updateVars d2)
-        | AnnAt {tab, doc} =>
-            AnnAt {tab=tab, doc = updateVars doc}
+        | AnnConcat (d1, d2) => AnnConcat (updateVars d1, updateVars d2)
+        | AnnAt {tab, doc} => AnnAt {tab = tab, doc = updateVars doc}
         | AnnCond {tab, inactive, active} =>
-            AnnCond {tab=tab, inactive = updateVars inactive, active = updateVars active}
-        | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab=tab, doc = updateVars doc}
+            AnnCond
+              { tab = tab
+              , inactive = updateVars inactive
+              , active = updateVars active
+              }
+        | AnnNewTab {tab, doc} => AnnNewTab {tab = tab, doc = updateVars doc}
         | _ => doc
     in
       updateVars doc
@@ -436,14 +440,13 @@ struct
   fun insertComments debug (doc: anndoc) =
     let
       fun dbgprintln s =
-        if not debug then ()
-        else print (s ^ "\n")
+        if not debug then () else print (s ^ "\n")
 
       fun isLast tok =
         not (Option.isSome (Token.nextTokenNotCommentOrWhitespace tok))
 
       fun commentsToDocs cs =
-        Seq.map (fn c => AnnToken {at=NONE, tok=c}) cs
+        Seq.map (fn c => AnnToken {at = NONE, tok = c}) cs
 
       val noComments = Seq.empty ()
 
@@ -458,11 +461,9 @@ struct
         let
           val n = Seq.length comments
           fun loop i =
-            if i >= n then n else
-            if Token.lineDifference (tok1, Seq.nth comments i) > 0 then
-              i
-            else
-              loop (i+1)
+            if i >= n then n
+            else if Token.lineDifference (tok1, Seq.nth comments i) > 0 then i
+            else loop (i + 1)
         in
           loop 0
         end
@@ -494,7 +495,8 @@ struct
        *   if not ctxAllowsComments
        *   then (commentsBefore and commentsAfter are both empty)
        *)
-      fun loop ctxAllowsComments vars doc : (bool * anndoc Seq.t * anndoc * anndoc Seq.t) =
+      fun loop ctxAllowsComments vars doc :
+        (bool * anndoc Seq.t * anndoc * anndoc Seq.t) =
         case doc of
           AnnEmpty => (false, noComments, doc, noComments)
         | AnnNewline => (false, noComments, doc, noComments)
@@ -504,18 +506,17 @@ struct
 
         | AnnAt {tab, doc} =>
             let
-              val (ht, cb, doc, ca) =
-                (* loop false vars doc *)
+              val (ht, cb, doc, ca) = (* loop false vars doc *)
                 loop (ctxAllowsComments orelse Tab.allowsComments tab) vars doc
               val numComments = Seq.length cb + Seq.length ca
               val (ht, cb, doc, ca) =
                 if numComments = 0 orelse not (Tab.allowsComments tab) then
-                  (ht, cb, AnnAt {tab=tab, doc=doc}, ca)
+                  (ht, cb, AnnAt {tab = tab, doc = doc}, ca)
                 else
                   let
                     val all =
-                      Seq.map (fn d => AnnAt {tab=tab, doc=d})
-                        (Seq.append3 (cb, Seq.singleton doc, ca))
+                      Seq.map (fn d => AnnAt {tab = tab, doc = d}) (Seq.append3
+                        (cb, Seq.singleton doc, ca))
                   in
                     (true, noComments, concatDocs all, noComments)
                   end
@@ -539,21 +540,14 @@ struct
                 if ht1 andalso ht2 then
                   ( true
                   , cb1
-                  , annConcat (d1, annConcat (concatDocs (Seq.append (ca1, cb2)), d2))
+                  , annConcat (d1, annConcat
+                      (concatDocs (Seq.append (ca1, cb2)), d2))
                   , ca2
                   )
                 else if ht1 andalso not ht2 then
-                  ( true
-                  , cb1
-                  , AnnConcat (d1, d2)
-                  , Seq.append3 (ca1, cb2, ca2)
-                  )
+                  (true, cb1, AnnConcat (d1, d2), Seq.append3 (ca1, cb2, ca2))
                 else if (not ht1) andalso ht2 then
-                  ( true
-                  , Seq.append3 (cb1, ca1, cb2)
-                  , AnnConcat (d1, d2)
-                  , ca2
-                  )
+                  (true, Seq.append3 (cb1, ca1, cb2), AnnConcat (d1, d2), ca2)
                 else
                   ( false
                   , Seq.flatten (Seq.fromList [cb1, ca1, cb2, ca2])
@@ -563,10 +557,8 @@ struct
               end
 
         | AnnNewTab {tab, doc} =>
-            let
-              val (ht, cb, doc, ca) = loop ctxAllowsComments vars doc
-            in
-              (ht, cb, AnnNewTab {tab = tab, doc = doc}, ca)
+            let val (ht, cb, doc, ca) = loop ctxAllowsComments vars doc
+            in (ht, cb, AnnNewTab {tab = tab, doc = doc}, ca)
             end
 
         | AnnCond {tab, inactive, active} =>
@@ -590,8 +582,7 @@ struct
               (ht, cb, AnnLetDoc {var = var, doc = doc, inn = inn}, ca)
             end
 
-        | AnnVar v =>
-            (VarDict.lookup vars v, noComments, doc, noComments)
+        | AnnVar v => (VarDict.lookup vars v, noComments, doc, noComments)
 
         | AnnToken {at = flow, tok} =>
             let
@@ -602,45 +593,42 @@ struct
               val doc = annConcat (doc, concatDocs ca)
             in
               if ctxAllowsComments then
-                (* (true, cb, doc, ca) *)
-                (true, cb, doc, noComments)
+                (* (true, cb, doc, ca) *) (true, cb, doc, noComments)
               else if numComments = 0 then
                 (true, noComments, doc, noComments)
               else
 
-              case flow of
-                NONE =>
-                  ( true
-                  , noComments
-                  (* , concatDocs (Seq.append3 (cb, Seq.singleton doc, ca)) *)
-                  , concatDocs (Seq.append (cb, Seq.singleton doc))
-                  , noComments
-                  )
-
-              | SOME tabs =>
-                  let
-                    val tab =
-                      (* TODO: what to do when there are multiple possible tabs
-                       * this token could be at? Here we just pick the first
-                       * of these in the set, and usually it seems each token
-                       * is only ever 'at' one possible tab...
-                       *)
-                      List.hd (TabSet.listKeys tabs)
-
-                    fun withBreak d =
-                      AnnAt {tab=tab, doc=d}
-
-                    (* val all = Seq.append3 (cb, Seq.singleton doc, ca) *)
-                    val all = Seq.append (cb, Seq.singleton doc)
-                  in
+                case flow of
+                  NONE =>
                     ( true
                     , noComments
-                    , Seq.iterate annConcat
-                        (Seq.nth all 0)
-                        (Seq.map withBreak (Seq.drop all 1))
+                    (* , concatDocs (Seq.append3 (cb, Seq.singleton doc, ca)) *)
+                    , concatDocs (Seq.append (cb, Seq.singleton doc))
                     , noComments
                     )
-                  end
+
+                | SOME tabs =>
+                    let
+                      val tab =
+                        (* TODO: what to do when there are multiple possible tabs
+                         * this token could be at? Here we just pick the first
+                         * of these in the set, and usually it seems each token
+                         * is only ever 'at' one possible tab...
+                         *) List.hd (TabSet.listKeys tabs)
+
+                      fun withBreak d =
+                        AnnAt {tab = tab, doc = d}
+
+                      (* val all = Seq.append3 (cb, Seq.singleton doc, ca) *)
+                      val all = Seq.append (cb, Seq.singleton doc)
+                    in
+                      ( true
+                      , noComments
+                      , Seq.iterate annConcat (Seq.nth all 0)
+                          (Seq.map withBreak (Seq.drop all 1))
+                      , noComments
+                      )
+                    end
             end
 
       val (_, _, doc, _) = loop false VarDict.empty doc
@@ -677,29 +665,26 @@ struct
   fun insertBlankLines debug (doc: anndoc) =
     let
       fun dbgprintln s =
-        if not debug then ()
-        else print (s ^ "\n")
+        if not debug then () else print (s ^ "\n")
 
       fun breaksBefore doc tab n =
-        if n = 0 then doc else
-        let
-          val doc =
-            AnnConcat
+        if n = 0 then
+          doc
+        else
+          let
+            val doc = AnnConcat
               ( AnnCond {tab = tab, inactive = AnnEmpty, active = AnnNewline}
               , doc
               )
-        in
-          breaksBefore doc tab (n-1)
-        end
+          in
+            breaksBefore doc tab (n - 1)
+          end
 
       fun prevTokenNotWhitespace t =
         case Token.prevToken t of
           NONE => NONE
         | SOME p =>
-            if Token.isWhitespace p then
-              prevTokenNotWhitespace p
-            else
-              SOME p
+            if Token.isWhitespace p then prevTokenNotWhitespace p else SOME p
 
       fun loop doc =
         case doc of
@@ -708,32 +693,31 @@ struct
         | AnnNoSpace => doc
         | AnnSpace => doc
         | AnnText _ => doc
-        | AnnAt {tab, doc} =>
-            AnnAt {tab=tab, doc = loop doc}
+        | AnnAt {tab, doc} => AnnAt {tab = tab, doc = loop doc}
         | AnnToken {at = NONE, tok} => doc
         | AnnToken {at = SOME tabs, tok} =>
             (case prevTokenNotWhitespace tok of
-              NONE => doc
-            | SOME prevTok =>
-                let
-                  val diff = Token.lineDifference (prevTok, tok) - 1
-                  val diff = Int.max (0, Int.min (2, diff))
-                  val _ = dbgprintln ("line diff ('" ^ Token.toString prevTok ^ "','" ^ Token.toString tok ^ "'): " ^ Int.toString diff)
-                in
-                  if diff = 0 then
-                    doc
-                  else
-                    (* TODO: what to do when there are multiple possible tabs
-                     * this token could be at? Here we just pick the first
-                     * of these in the set, and usually it seems each token
-                     * is only ever 'at' one possible tab...
-                     *)
-                    breaksBefore doc (List.hd (TabSet.listKeys tabs)) diff
-                end)
-        | AnnConcat (d1, d2) =>
-            AnnConcat (loop d1, loop d2)
-        | AnnNewTab {tab, doc} =>
-            AnnNewTab {tab = tab, doc = loop doc}
+               NONE => doc
+             | SOME prevTok =>
+                 let
+                   val diff = Token.lineDifference (prevTok, tok) - 1
+                   val diff = Int.max (0, Int.min (2, diff))
+                   val _ = dbgprintln
+                     ("line diff ('" ^ Token.toString prevTok ^ "','"
+                      ^ Token.toString tok ^ "'): " ^ Int.toString diff)
+                 in
+                   if diff = 0 then
+                     doc
+                   else
+                     (* TODO: what to do when there are multiple possible tabs
+                      * this token could be at? Here we just pick the first
+                      * of these in the set, and usually it seems each token
+                      * is only ever 'at' one possible tab...
+                      *)
+                     breaksBefore doc (List.hd (TabSet.listKeys tabs)) diff
+                 end)
+        | AnnConcat (d1, d2) => AnnConcat (loop d1, loop d2)
+        | AnnNewTab {tab, doc} => AnnNewTab {tab = tab, doc = loop doc}
         | AnnCond {tab, inactive, active} =>
             AnnCond {tab = tab, inactive = loop inactive, active = loop active}
         | AnnLetDoc {var, doc, inn} =>
@@ -753,72 +737,69 @@ struct
     if not (Token.isComment tok orelse Token.isStringConstant tok) then
       D.text (SyntaxHighlighter.highlightToken tok)
     else
-    let
-      val src = Token.getSource tok
+      let
+        val src = Token.getSource tok
 
-      (** effective offset of the beginning of this token within its line,
-        * counting tab-widths appropriately.
-        *)
-      val effectiveOffset =
-        let
-          val {col, line=lineNum} = Source.absoluteStart src
-          val len = col-1
-          val charsBeforeOnSameLine =
-            Source.take (Source.wholeLine src lineNum) len
-          fun loop effOff i =
-            if i >= len then effOff
-            else if #"\t" = Source.nth charsBeforeOnSameLine i then
-              (* advance up to next tabstop *)
-              loop (effOff + tabWidth - effOff mod tabWidth) (i+1)
-            else
-              loop (effOff+1) (i+1)
-        in
-          loop 0 0
-        end
+        (** effective offset of the beginning of this token within its line,
+          * counting tab-widths appropriately.
+          *)
+        val effectiveOffset =
+          let
+            val {col, line = lineNum} = Source.absoluteStart src
+            val len = col - 1
+            val charsBeforeOnSameLine =
+              Source.take (Source.wholeLine src lineNum) len
+            fun loop effOff i =
+              if i >= len then
+                effOff
+              else if #"\t" = Source.nth charsBeforeOnSameLine i then
+                (* advance up to next tabstop *)
+                loop (effOff + tabWidth - effOff mod tabWidth) (i + 1)
+              else
+                loop (effOff + 1) (i + 1)
+          in
+            loop 0 0
+          end
 
-      fun strip line =
-        let
-          val (_, ln) =
-            TCS.stripEffectiveWhitespace
-              {tabWidth=tabWidth, removeAtMost=effectiveOffset}
-              line
-        in
-          ln
-        end
+        fun strip line =
+          let
+            val (_, ln) =
+              TCS.stripEffectiveWhitespace
+                {tabWidth = tabWidth, removeAtMost = effectiveOffset} line
+          in
+            ln
+          end
 
-      val t = SyntaxHighlighter.highlightToken tok
+        val t = SyntaxHighlighter.highlightToken tok
 
-      val pieces =
-        Seq.map
-          (fn (i, j) => D.text (strip (TCS.substring (t, i, j-i))))
-          (Source.lineRanges src)
+        val pieces =
+          Seq.map (fn (i, j) => D.text (strip (TCS.substring (t, i, j - i))))
+            (Source.lineRanges src)
 
-      val numPieces = Seq.length pieces
-    in
-      if numPieces = 1 then
-        D.text t
-      else
-        let
-          val tab = Tab.new
-            { parent = currentTab
-            , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
-            }
-          val doc =
-            (* a bit of a hack here: we concatenate a space on the end of
-             * each piece (except last), which guarantees that blank lines
-             * within the comment are preserved.
-             *)
-            Seq.iterate D.concat D.empty
-              (Seq.map (fn x => D.at tab (D.concat (x, D.space)))
-                (Seq.take pieces (numPieces-1)))
-          val doc =
-            D.concat (doc, D.at tab (Seq.nth pieces (numPieces-1)))
-          val doc =
-            D.newTab (tab, doc)
-        in
-          doc
-        end
-    end
+        val numPieces = Seq.length pieces
+      in
+        if numPieces = 1 then
+          D.text t
+        else
+          let
+            val tab = Tab.new
+              { parent = currentTab
+              , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+              }
+            val doc =
+              (* a bit of a hack here: we concatenate a space on the end of
+               * each piece (except last), which guarantees that blank lines
+               * within the comment are preserved.
+               *)
+              Seq.iterate D.concat D.empty
+                (Seq.map (fn x => D.at tab (D.concat (x, D.space)))
+                   (Seq.take pieces (numPieces - 1)))
+            val doc = D.concat (doc, D.at tab (Seq.nth pieces (numPieces - 1)))
+            val doc = D.newTab (tab, doc)
+          in
+            doc
+          end
+      end
 
   (* ====================================================================== *)
 
@@ -832,8 +813,7 @@ struct
   fun toStringDoc (args as {tabWidth, debug}) doc =
     let
       fun dbgprintln s =
-        if not debug then ()
-        else print (s ^ "\n")
+        if not debug then () else print (s ^ "\n")
 
       val (doc, tm) = Util.getTime (fn _ => annotate doc)
       val _ = dbgprintln ("annotate: " ^ Time.fmt 3 tm ^ "s")
@@ -858,26 +838,25 @@ struct
         | AnnToken {at, tok} =>
             let
               val tab =
-                case at of
+                case
+                  at
+                of
                   NONE => currentTab
                 | SOME tabs =>
                     (* TODO: what to do when there are multiple possible
-                     * tabs here? *)
-                    List.hd (TabSet.listKeys tabs)
+                     * tabs here? *) List.hd (TabSet.listKeys tabs)
 
               val doc = tokenToStringDoc tab tabWidth tok
             in
               doc
             end
-        | AnnAt {tab, doc, ...} =>
-            D.at tab (loop currentTab vars doc)
+        | AnnAt {tab, doc, ...} => D.at tab (loop currentTab vars doc)
         | AnnCond {tab, inactive, active} =>
             D.cond tab
               { inactive = loop currentTab vars inactive
               , active = loop currentTab vars active
               }
-        | AnnNewTab {tab, doc} =>
-            D.newTab (tab, loop tab vars doc)
+        | AnnNewTab {tab, doc} => D.newTab (tab, loop tab vars doc)
         | AnnLetDoc {var, doc, inn} =>
             let
               val doc' = loop currentTab vars doc
@@ -885,11 +864,9 @@ struct
             in
               loop currentTab vars inn
             end
-        | AnnVar v =>
-            VarDict.lookup vars v
+        | AnnVar v => VarDict.lookup vars v
 
-      val (result, tm) = Util.getTime (fn _ =>
-        loop Tab.root VarDict.empty doc)
+      val (result, tm) = Util.getTime (fn _ => loop Tab.root VarDict.empty doc)
 
       val _ = dbgprintln ("convert: " ^ Time.fmt 3 tm ^ "s")
     in

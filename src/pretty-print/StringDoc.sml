@@ -1,2 +1,1 @@
-structure StringDoc =
-  PrettySimpleDoc(TerminalColorString)
+structure StringDoc = PrettySimpleDoc(TerminalColorString)

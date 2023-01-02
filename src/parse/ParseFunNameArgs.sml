@@ -8,9 +8,7 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val fname_args: tokens
-               -> InfixDict.t
-               -> (int, Ast.Exp.fname_args) parser
+  val fname_args: tokens -> InfixDict.t -> (int, Ast.Exp.fname_args) parser
 end =
 struct
 
@@ -29,7 +27,8 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i = i < numToks andalso f (tok i)
+      fun check f i =
+        i < numToks andalso f (tok i)
       fun isReserved rc i =
         check (fn t => Token.Reserved rc = Token.getClass t) i
 
@@ -42,8 +41,7 @@ struct
           fun continue i =
             not (isReserved Token.Colon i orelse isReserved Token.Equal i)
         in
-          PC.zeroOrMoreWhile
-            continue (PP.pat toks infdict Restriction.At) i
+          PC.zeroOrMoreWhile continue (PP.pat toks infdict Restriction.At) i
         end
 
 
@@ -70,13 +68,7 @@ struct
           (* val _ = print ("prefixedFun\n") *)
           val (i, args) = restOfCurriedArgs i
         in
-          ( i
-          , Ast.Exp.PrefixedFun
-              { opp = opp
-              , id = id
-              , args = args
-              }
-          )
+          (i, Ast.Exp.PrefixedFun {opp = opp, id = id, args = args})
         end
 
 
@@ -85,13 +77,7 @@ struct
           (* val _ = print ("infixedFun\n") *)
           val (i, rarg) = PP.pat toks infdict Restriction.At i
         in
-          ( i
-          , Ast.Exp.InfixedFun
-              { larg = larg
-              , id = id
-              , rarg = rarg
-              }
-          )
+          (i, Ast.Exp.InfixedFun {larg = larg, id = id, rarg = rarg})
         end
 
 
@@ -105,12 +91,11 @@ struct
           }
     in
       if isInfixedValueIdentifierNoEqual i then
-        infixedFun firstPat (tok i) (i+1)
+        infixedFun firstPat (tok i) (i + 1)
       else
         case firstPat of
           Ast.Pat.Parens
-            {left=lp, right=rp, pat = Ast.Pat.Infix {left, id, right}}
-            =>
+            {left = lp, right = rp, pat = Ast.Pat.Infix {left, id, right}} =>
             curriedInfix lp left id right rp i
 
         | Ast.Pat.Ident {opp, id} =>

@@ -63,35 +63,30 @@ struct
       (** Check that we can use the slice base as the actual base. *)
       val (_, absoluteOffset, _) = ArraySlice.base contents
       val _ =
-        if absoluteOffset = 0 then ()
-        else raise Fail "bug in Source.loadFromFile: expected \
-                        \ReadFile.contentsSeq to return slice at offset 0"
+        if absoluteOffset = 0 then
+          ()
+        else
+          raise Fail
+            "bug in Source.loadFromFile: expected \
+            \ReadFile.contentsSeq to return slice at offset 0"
 
       val newlineIdxs =
-        ArraySlice.full (SeqBasis.filter 2000 (0, n)
-          (fn i => i)
-          (fn i => Seq.nth contents i = #"\n"))
+        ArraySlice.full (SeqBasis.filter 2000 (0, n) (fn i => i) (fn i =>
+          Seq.nth contents i = #"\n"))
     in
-      { data = contents
-      , fileName = path
-      , newlineIdxs = newlineIdxs
-      }
+      {data = contents, fileName = path, newlineIdxs = newlineIdxs}
     end
 
   fun fileName (s: source) = #fileName s
 
   fun absoluteStartOffset ({data, ...}: source) =
-    let
-      val (_, off, _) = ArraySlice.base data
-    in
-      off
+    let val (_, off, _) = ArraySlice.base data
+    in off
     end
 
   fun absoluteEndOffset ({data, ...}: source) =
-    let
-      val (_, off, n) = ArraySlice.base data
-    in
-      off + n
+    let val (_, off, n) = ArraySlice.base data
+    in off + n
     end
 
   fun absoluteStart (s as {newlineIdxs, ...}: source) =
@@ -105,8 +100,7 @@ struct
           if lineNum = 0 then 0 else 1 + Seq.nth newlineIdxs (lineNum - 1)
         val charNum = absoluteStartOffset s - lineOffset
       in
-        (** Convert to 1-indexing *)
-        {line = lineNum+1, col = charNum+1}
+        (** Convert to 1-indexing *) {line = lineNum + 1, col = charNum + 1}
       end
 
   fun length ({data, ...}: source) = Seq.length data
@@ -118,8 +112,10 @@ struct
     , newlineIdxs = newlineIdxs
     }
 
-  fun take s k = slice s (0, k)
-  fun drop s k = slice s (k, length s - k)
+  fun take s k =
+    slice s (0, k)
+  fun drop s k =
+    slice s (k, length s - k)
 
   fun absoluteEnd s =
     absoluteStart (drop s (length s))
@@ -131,10 +127,7 @@ struct
     let
       val (a, _, _) = ArraySlice.base data
     in
-      { data = ArraySlice.full a
-      , fileName = fileName
-      , newlineIdxs = newlineIdxs
-      }
+      {data = ArraySlice.full a, fileName = fileName, newlineIdxs = newlineIdxs}
     end
 
   fun wholeLine (s as {data, fileName, newlineIdxs}: source) lineNum1 =
@@ -145,16 +138,11 @@ struct
       val lineNum0 = lineNum1 - 1
 
       val lineStartOffset =
-        if lineNum0 = 0 then
-          0
-        else
-          1 + Seq.nth newlineIdxs (lineNum0 - 1)
+        if lineNum0 = 0 then 0 else 1 + Seq.nth newlineIdxs (lineNum0 - 1)
 
       val lineEndOffset =
-        if lineNum0 >= Seq.length newlineIdxs then
-          length base
-        else
-          Seq.nth newlineIdxs lineNum0
+        if lineNum0 >= Seq.length newlineIdxs then length base
+        else Seq.nth newlineIdxs lineNum0
 
     in
       slice base (lineStartOffset, lineEndOffset - lineStartOffset)
@@ -163,15 +151,15 @@ struct
 
   fun abut (src1, src2) =
     if
-      FilePath.sameFile (fileName src1, fileName src2) andalso
-      absoluteEndOffset src1 = absoluteStartOffset src2
+      FilePath.sameFile (fileName src1, fileName src2)
+      andalso absoluteEndOffset src1 = absoluteStartOffset src2
     then
       let
         val src = wholeFile src1
         val i = absoluteStartOffset src1
         val j = absoluteEndOffset src2
       in
-        SOME (slice src (i, j-i))
+        SOME (slice src (i, j - i))
       end
     else
       NONE
@@ -180,24 +168,20 @@ struct
   fun lineRanges (s as {newlineIdxs, ...}: source) =
     let
       (** convert back to 0-indexing (-_-) *)
-      val {line=lnStart, ...} = absoluteStart s
-      val lnStart = lnStart-1
-      val {line=lnEnd, ...} = absoluteEnd s
-      val lnEnd = lnEnd-1
+      val {line = lnStart, ...} = absoluteStart s
+      val lnStart = lnStart - 1
+      val {line = lnEnd, ...} = absoluteEnd s
+      val lnEnd = lnEnd - 1
 
-      val numLines = lnEnd-lnStart+1
+      val numLines = lnEnd - lnStart + 1
 
       fun start i =
-        if i = 0 then
-          absoluteStartOffset s
-        else
-          1 + Seq.nth newlineIdxs (lnStart+i-1)
+        if i = 0 then absoluteStartOffset s
+        else 1 + Seq.nth newlineIdxs (lnStart + i - 1)
 
       fun endd i =
-        if i = numLines-1 then
-          absoluteEndOffset s
-        else
-          Seq.nth newlineIdxs (lnStart+i)
+        if i = numLines - 1 then absoluteEndOffset s
+        else Seq.nth newlineIdxs (lnStart + i)
 
       val off = absoluteStartOffset s
     in

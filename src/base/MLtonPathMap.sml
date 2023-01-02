@@ -15,10 +15,9 @@ sig
   (** Recursively expand a path until convergence. In addition to the
     * final path, returns which keys were used.
     *)
-  val expandPath: pathmap -> FilePath.t ->
-    { result: FilePath.t
-    , used: string list
-    }
+  val expandPath: pathmap
+                  -> FilePath.t
+                  -> {result: FilePath.t, used: string list}
 end =
 struct
 
@@ -48,7 +47,8 @@ struct
         case FindInPath.find "mlton" of
           SOME path => FilePath.toHostPath path
         | NONE =>
-            ( TextIO.output (TextIO.stdErr, "[WARN] could not find 'mlton' in PATH\n")
+            ( TextIO.output
+                (TextIO.stdErr, "[WARN] could not find 'mlton' in PATH\n")
             ; "mlton"
             )
 
@@ -71,33 +71,31 @@ struct
   fun lookup pathmap key =
     case pathmap of
       [] => NONE
-    | (k, v) :: pathmap' =>
-        if key = k then SOME v else lookup pathmap' key
+    | (k, v) :: pathmap' => if key = k then SOME v else lookup pathmap' key
 
 
   fun tryExpandField (pathmap: pathmap) (field: string) =
     let
       val n = String.size field
-      fun c i = String.sub (field, i)
-      fun slice (i, j) = String.substring (field, i, j-i)
+      fun c i =
+        String.sub (field, i)
+      fun slice (i, j) =
+        String.substring (field, i, j - i)
 
 
       fun findNextKeyStart (i: int) =
         if i >= n then
           NONE
-        else if i+1 < n andalso c i = #"$" andalso c (i+1) = #"(" then
+        else if i + 1 < n andalso c i = #"$" andalso c (i + 1) = #"(" then
           SOME i
         else
-          findNextKeyStart (i+1)
+          findNextKeyStart (i + 1)
 
 
       fun findNextKeyEnd (i: int) =
-        if i >= n then
-          NONE
-        else if c i = #")" then
-          SOME (i+1)
-        else
-          findNextKeyEnd (i+1)
+        if i >= n then NONE
+        else if c i = #")" then SOME (i + 1)
+        else findNextKeyEnd (i + 1)
 
 
       fun finishLoop (usedKeys, acc) =
@@ -114,27 +112,24 @@ struct
         if i >= n then
           finishLoop (usedKeys, acc)
         else
-        case findNextKeyStart i of
-          NONE => finishLoop (usedKeys, slice (i, n) :: acc)
-        | SOME j =>
-            case findNextKeyEnd (j+2) of
-              NONE => finishLoop (usedKeys, slice (i, n) :: acc)
-            | SOME k =>
-                let
-                  val prefix = slice (i, j)
-                  val key = slice (j+2, k-1)
-                in
-                  case lookup pathmap key of
-                    NONE => loop usedKeys (slice (j, k) :: prefix :: acc) k
-                  | SOME v => loop (key :: usedKeys) (v :: prefix :: acc) k
-                end
+          case findNextKeyStart i of
+            NONE => finishLoop (usedKeys, slice (i, n) :: acc)
+          | SOME j =>
+              case findNextKeyEnd (j + 2) of
+                NONE => finishLoop (usedKeys, slice (i, n) :: acc)
+              | SOME k =>
+                  let
+                    val prefix = slice (i, j)
+                    val key = slice (j + 2, k - 1)
+                  in
+                    case lookup pathmap key of
+                      NONE => loop usedKeys (slice (j, k) :: prefix :: acc) k
+                    | SOME v => loop (key :: usedKeys) (v :: prefix :: acc) k
+                  end
 
       val (usedKeys, expanded) = loop [] [] 0
     in
-      if List.null usedKeys then
-        NONE
-      else
-        SOME (usedKeys, expanded)
+      if List.null usedKeys then NONE else SOME (usedKeys, expanded)
     end
 
 
@@ -145,8 +140,8 @@ struct
           NONE => ([], [field])
         | SOME (usedKeys, field') =>
             let
-              val (usedKeys', field'') =
-                expand (FilePath.toFields (FilePath.fromUnixPath field'))
+              val (usedKeys', field'') = expand
+                (FilePath.toFields (FilePath.fromUnixPath field'))
             in
               (usedKeys' @ usedKeys, field'')
             end
@@ -155,24 +150,23 @@ struct
         let
           val expanded = List.map expandField fields
         in
-          (List.concat (List.map #1 expanded), List.concat (List.map #2 expanded))
+          ( List.concat (List.map #1 expanded)
+          , List.concat (List.map #2 expanded)
+          )
         end
 
-      val (usedKeys, result) =
-        expand (FilePath.toFields path)
+      val (usedKeys, result) = expand (FilePath.toFields path)
     in
-      { result = FilePath.fromFields result
-      , used = usedKeys
-      }
+      {result = FilePath.fromFields result, used = usedKeys}
     end
 
-  (* val expandPath = fn pathmap => fn path =>
-    let
-      val _ = print ("expanding " ^ FilePath.toUnixPath path ^ "\n")
-      val result = expandPath pathmap path
-      val _ = print ("result: " ^ FilePath.toUnixPath result ^ "\n")
-    in
-      result
-    end *)
+(* val expandPath = fn pathmap => fn path =>
+  let
+    val _ = print ("expanding " ^ FilePath.toUnixPath path ^ "\n")
+    val result = expandPath pathmap path
+    val _ = print ("result: " ^ FilePath.toUnixPath result ^ "\n")
+  in
+    result
+  end *)
 
 end

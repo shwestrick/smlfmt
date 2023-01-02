@@ -9,17 +9,21 @@ struct
   open TokenDoc
   infix 2 ++ $$ //
   infix 1 \\
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
-  fun x \\ y = group (x $$ indent y)
+  fun x ++ y =
+    beside (x, y)
+  fun x $$ y =
+    aboveOrSpace (x, y)
+  fun x // y =
+    aboveOrBeside (x, y)
+  fun x \\ y =
+    group (x $$ indent y)
 
   fun seqWithSpaces elems f =
-    if Seq.length elems = 0 then empty else
-    Seq.iterate
-      (fn (prev, tok) => prev ++ space ++ f tok)
-      (f (Seq.nth elems 0))
-      (Seq.drop elems 1)
+    if Seq.length elems = 0 then
+      empty
+    else
+      Seq.iterate (fn (prev, tok) => prev ++ space ++ f tok)
+        (f (Seq.nth elems 0)) (Seq.drop elems 1)
 
 
   fun spaces n =
@@ -32,13 +36,12 @@ struct
     else
       let
         val top = token openn ++ softspace ++ Seq.nth xs 0
-        fun f (delim, x) = token delim ++ space ++ x
+        fun f (delim, x) =
+          token delim ++ space ++ x
       in
-        group (
-          Seq.iterate op// top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
-          //
-          token close
-        )
+        group
+          (Seq.iterate op// top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))
+           // token close)
       end
 
 
@@ -53,8 +56,7 @@ struct
     end
 
   fun rigidVertically (item: doc) (items: doc Seq.t) : doc =
-    if Seq.length items = 0 then item else
-      rigid (Seq.iterate op$$ item items)
+    if Seq.length items = 0 then item else rigid (Seq.iterate op$$ item items)
 
 
   fun maybeShowSyntaxSeq s f =

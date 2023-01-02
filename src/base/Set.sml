@@ -34,9 +34,14 @@ struct
   type set = unit D.t
   type t = set
 
-  fun insert s x = D.insert s (x, ())
-  fun singleton x = D.singleton (x, ())
-  fun fromList xs = D.fromList (List.map (fn x => (x, ())) xs)
-  fun union (s, t) = D.unionWith (fn _ => ()) (s, t)
-  fun intersect (s, t) = D.intersectWith (fn _ => ()) (s, t)
+  fun insert s x =
+    D.insert s (x, ())
+  fun singleton x =
+    D.singleton (x, ())
+  fun fromList xs =
+    D.fromList (List.map (fn x => (x, ())) xs)
+  fun union (s, t) =
+    D.unionWith (fn _ => ()) (s, t)
+  fun intersect (s, t) =
+    D.intersectWith (fn _ => ()) (s, t)
 end

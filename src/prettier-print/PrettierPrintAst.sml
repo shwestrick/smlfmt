@@ -5,9 +5,10 @@
 
 structure PrettierPrintAst:
 sig
-  val pretty: {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int, debug: bool}
-           -> Ast.t
-           -> TerminalColorString.t
+  val pretty:
+    {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int, debug: bool}
+    -> Ast.t
+    -> TerminalColorString.t
 end =
 struct
 
@@ -17,7 +18,8 @@ struct
   open PrettierStr
   open PrettierFun
   infix 2 ++
-  fun x ++ y = concat (x, y)
+  fun x ++ y =
+    concat (x, y)
 
   (* ====================================================================== *)
 
@@ -34,8 +36,8 @@ struct
               | Ast.SigDec d => showSigDec tab d
               | Ast.FunDec d => showFunDec tab d
               | Ast.TopExp {exp, semicolon} =>
-                  PrettierExpAndDec.showExp tab exp
-                  ++ nospace ++ token semicolon
+                  PrettierExpAndDec.showExp tab exp ++ nospace
+                  ++ token semicolon
             val sc =
               case semicolon of
                 NONE => empty
@@ -46,20 +48,21 @@ struct
 
         val all = Seq.map (showOneAt root) tds
       in
-        Seq.iterate op++ (Seq.nth all 0)
-          (Seq.map (at root) (Seq.drop all 1))
+        Seq.iterate op++ (Seq.nth all 0) (Seq.map (at root) (Seq.drop all 1))
       end
 
 
   fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
     let
-      val doc = showAst ast
-      (* val doc = TokenDoc.insertComments doc
-      val doc = TokenDoc.insertBlankLines doc *)
+      val doc = showAst ast (* val doc = TokenDoc.insertComments doc
+                            val doc = TokenDoc.insertBlankLines doc *)
     in
       TabbedStringDoc.pretty
-        {ribbonFrac=ribbonFrac, maxWidth=maxWidth, indentWidth=indent, debug=debug}
-        (toStringDoc {tabWidth=tabWidth, debug=debug} doc)
+        { ribbonFrac = ribbonFrac
+        , maxWidth = maxWidth
+        , indentWidth = indent
+        , debug = debug
+        } (toStringDoc {tabWidth = tabWidth, debug = debug} doc)
     end
 
 end

@@ -24,8 +24,9 @@ sig
     * for a tab is typically larger than 1, as indicated in the argument. All
     * other characters are effective space 1.
     *)
-  val stripEffectiveWhitespace:
-    {tabWidth: int, removeAtMost: int} -> t -> int * t
+  val stripEffectiveWhitespace: {tabWidth: int, removeAtMost: int}
+                                -> t
+                                -> int * t
 
   val foreground: color -> t -> t
   val background: color -> t -> t
@@ -64,14 +65,15 @@ struct
 
   fun size t =
     case t of
-      Append {size=n, ...} => n
-    | Attributes {size=n, ...} => n
+      Append {size = n, ...} => n
+    | Attributes {size = n, ...} => n
     | String s => String.size s
     | Empty => 0
 
   val empty = Empty
 
-  fun fromChar c = String (String.str c)
+  fun fromChar c =
+    String (String.str c)
   fun fromString s = String s
 
   fun append (t1, t2) =
@@ -89,119 +91,115 @@ struct
     | first :: rest =>
         List.foldl (fn (next, prev) => concat [prev, t, next]) first rest
 
-  fun stripEffectiveWhitespace {tabWidth, removeAtMost=n} t =
-    if n <= 0 then (0, t) else
-    case t of
-      Empty => (0, Empty)
+  fun stripEffectiveWhitespace {tabWidth, removeAtMost = n} t =
+    if n <= 0 then
+      (0, t)
+    else
+      case t of
+        Empty => (0, Empty)
 
-    | Attributes {attr, child, ...} =>
-        let
-          val (count, child') =
-            stripEffectiveWhitespace
-              {tabWidth=tabWidth, removeAtMost=n}
-              child
-        in
-          (count, Attributes {size = size child', attr = attr, child = child'})
-        end
+      | Attributes {attr, child, ...} =>
+          let
+            val (count, child') =
+              stripEffectiveWhitespace {tabWidth = tabWidth, removeAtMost = n}
+                child
+          in
+            ( count
+            , Attributes {size = size child', attr = attr, child = child'}
+            )
+          end
 
-    | Append {left, right, ...} =>
-        let
-          val (count, left') =
-            stripEffectiveWhitespace
-              {tabWidth=tabWidth, removeAtMost=n}
-              left
-        in
-          if size left' > 0 then
-            (count, append (left', right))
-          else
-            let
-              val remaining = n - count
-              val (count', right') =
-                stripEffectiveWhitespace
-                  {tabWidth=tabWidth, removeAtMost=remaining}
-                  right
-            in
-              (count+count', right')
-            end
-        end
-
-    | String s =>
-        let
-          (* val _ =
-            ( print ( "TCS.stripEffectiveWhitespace\n"
-                    ^ "  tabWidth " ^ Int.toString tabWidth ^ "\n"
-                    ^ "  removeAtMost " ^ Int.toString n ^ "\n"
-                    ^ "  string " ^ String.toString s ^ "\n")) *)
-
-          (** Walk forwards in the string, keep track of current index i
-            * and count of effective whitespace that has been stripped.
-            * Normal characters count 1 effective, and tabs are handled
-            * specially.
-            *
-            * Returns the final count and index, as well as possibly a new
-            * front for the string (where a tab has been split into multiple
-            * spaces).
-            *
-            * TODO: Generalize this for arbitrary characters with arbitrary
-            * widths?
-            *)
-          fun strip count i =
-            if count >= n orelse i >= String.size s then
-              ("", count, i)
-            else if String.sub (s, i) = #"\t" then
-              let
-                val tabstop = count + tabWidth - count mod tabWidth
-              in
-                if tabstop <= n then
-                  strip tabstop (i+1)
-                else
-                  let
-                    val newfront =
-                      CharVector.tabulate (tabstop-n, fn _ => #" ")
-                  in
-                    (newfront, count, i)
-                  end
-              end
-            else if Char.isSpace (String.sub (s, i)) then
-              strip (count+1) (i+1)
+      | Append {left, right, ...} =>
+          let
+            val (count, left') =
+              stripEffectiveWhitespace {tabWidth = tabWidth, removeAtMost = n}
+                left
+          in
+            if size left' > 0 then
+              (count, append (left', right))
             else
-              ("", count, i)
+              let
+                val remaining = n - count
+                val (count', right') =
+                  stripEffectiveWhitespace
+                    {tabWidth = tabWidth, removeAtMost = remaining} right
+              in
+                (count + count', right')
+              end
+          end
 
-          val (newfront, count, i) = strip 0 0
+      | String s =>
+          let
+            (* val _ =
+              ( print ( "TCS.stripEffectiveWhitespace\n"
+                      ^ "  tabWidth " ^ Int.toString tabWidth ^ "\n"
+                      ^ "  removeAtMost " ^ Int.toString n ^ "\n"
+                      ^ "  string " ^ String.toString s ^ "\n")) *)
 
-          (* val _ =
-            print ( "  count " ^ Int.toString count ^ "\n"
-                  ^ "  idx " ^ Int.toString i ^ "\n") *)
-        in
-          (count, String (newfront ^ String.extract (s, i, NONE)))
-        end
+            (** Walk forwards in the string, keep track of current index i
+              * and count of effective whitespace that has been stripped.
+              * Normal characters count 1 effective, and tabs are handled
+              * specially.
+              *
+              * Returns the final count and index, as well as possibly a new
+              * front for the string (where a tab has been split into multiple
+              * spaces).
+              *
+              * TODO: Generalize this for arbitrary characters with arbitrary
+              * widths?
+              *)
+            fun strip count i =
+              if count >= n orelse i >= String.size s then
+                ("", count, i)
+              else if String.sub (s, i) = #"\t" then
+                let
+                  val tabstop = count + tabWidth - count mod tabWidth
+                in
+                  if tabstop <= n then
+                    strip tabstop (i + 1)
+                  else
+                    let
+                      val newfront = CharVector.tabulate (tabstop - n, fn _ =>
+                        #" ")
+                    in
+                      (newfront, count, i)
+                    end
+                end
+              else if Char.isSpace (String.sub (s, i)) then
+                strip (count + 1) (i + 1)
+              else
+                ("", count, i)
+
+            val (newfront, count, i) = strip 0 0
+              (* val _ =
+                print ( "  count " ^ Int.toString count ^ "\n"
+                      ^ "  idx " ^ Int.toString i ^ "\n") *)
+          in
+            (count, String (newfront ^ String.extract (s, i, NONE)))
+          end
 
   fun substring (t, i, n) =
-    if i < 0 orelse n < 0 orelse size t < i+n then
+    if i < 0 orelse n < 0 orelse size t < i + n then
       raise Subscript
     else
-    let
-      fun cut (t, i, n) =
-        case t of
-          Empty =>
-            Empty
-        | String s =>
-            String (String.substring (s, i, n))
-        | Attributes {size, attr, child} =>
-            Attributes {size = n, attr = attr, child = cut (child, i, n)}
-        | Append {left, right, ...} =>
-            if i < size left andalso i+n <= size left then
-              cut (left, i, n)
-            else if i >= size left then
-              cut (right, i - size left, n)
-            else
-              append (
-                cut (left, i, size left - i),
-                cut (right, 0, i + n - size left)
-              )
-    in
-      cut (t, i, n)
-    end
+      let
+        fun cut (t, i, n) =
+          case t of
+            Empty => Empty
+          | String s => String (String.substring (s, i, n))
+          | Attributes {size, attr, child} =>
+              Attributes {size = n, attr = attr, child = cut (child, i, n)}
+          | Append {left, right, ...} =>
+              if i < size left andalso i + n <= size left then
+                cut (left, i, n)
+              else if i >= size left then
+                cut (right, i - size left, n)
+              else
+                append (cut (left, i, size left - i), cut
+                  (right, 0, i + n - size left))
+      in
+        cut (t, i, n)
+      end
 
   val default =
     { foreground = NONE
@@ -266,7 +264,7 @@ struct
 
   fun splitAttributes t =
     case t of
-      Attributes {attr=a, child, ...} => (a, child)
+      Attributes {attr = a, child, ...} => (a, child)
     | _ => (default, t)
 
   fun hasNoBackground t =
@@ -274,70 +272,35 @@ struct
       Append {left, right, ...} =>
         hasNoBackground left andalso hasNoBackground right
     | Attributes {attr, child, ...} =>
-        not (Option.isSome (#background attr))
-        andalso
-        hasNoBackground child
+        not (Option.isSome (#background attr)) andalso hasNoBackground child
     | _ => true
 
   fun foreground color t =
-    let
-      val (a, t) = splitAttributes t
-    in
-      Attributes
-        { size = size t
-        , attr = setForeground a color
-        , child = t
-        }
+    let val (a, t) = splitAttributes t
+    in Attributes {size = size t, attr = setForeground a color, child = t}
     end
 
   fun background color t =
-    let
-      val (a, t) = splitAttributes t
-    in
-      Attributes
-        { size = size t
-        , attr = setBackground a color
-        , child = t
-        }
+    let val (a, t) = splitAttributes t
+    in Attributes {size = size t, attr = setBackground a color, child = t}
     end
 
   fun backgroundIfNone color t =
-    if hasNoBackground t then
-      background color t
-    else
-      t
+    if hasNoBackground t then background color t else t
 
   fun bold t =
-    let
-      val (a, t) = splitAttributes t
-    in
-      Attributes
-        { size = size t
-        , attr = setBold a
-        , child = t
-        }
+    let val (a, t) = splitAttributes t
+    in Attributes {size = size t, attr = setBold a, child = t}
     end
 
   fun italic t =
-    let
-      val (a, t) = splitAttributes t
-    in
-      Attributes
-        { size = size t
-        , attr = setItalic a
-        , child = t
-        }
+    let val (a, t) = splitAttributes t
+    in Attributes {size = size t, attr = setItalic a, child = t}
     end
 
   fun underline t =
-    let
-      val (a, t) = splitAttributes t
-    in
-      Attributes
-        { size = size t
-        , attr = setUnderline a
-        , child = t
-        }
+    let val (a, t) = splitAttributes t
+    in Attributes {size = size t, attr = setUnderline a, child = t}
     end
 
   fun clear t =
@@ -363,26 +326,28 @@ struct
         case t of
           Append {left, right, ...} =>
             traverse attr (traverse attr acc left) right
-        | Attributes {attr=attr', child, ...} =>
+        | Attributes {attr = attr', child, ...} =>
             traverse (mergeAttributes attr attr') acc child
         | Empty => acc
         | String s =>
-            if not colors then s :: acc else
-            let
-              val acc =
-                case #foreground attr of
-                  NONE => acc
-                | SOME c => TC.foreground c :: acc
-              val acc =
-                case #background attr of
-                  NONE => acc
-                | SOME c => TC.background c :: acc
-              val acc = if #bold attr then TC.bold :: acc else acc
-              val acc = if #underline attr then TC.underline :: acc else acc
-              val acc = if #italic attr then TC.italic :: acc else acc
-            in
-              TC.reset :: s :: acc
-            end
+            if not colors then
+              s :: acc
+            else
+              let
+                val acc =
+                  case #foreground attr of
+                    NONE => acc
+                  | SOME c => TC.foreground c :: acc
+                val acc =
+                  case #background attr of
+                    NONE => acc
+                  | SOME c => TC.background c :: acc
+                val acc = if #bold attr then TC.bold :: acc else acc
+                val acc = if #underline attr then TC.underline :: acc else acc
+                val acc = if #italic attr then TC.italic :: acc else acc
+              in
+                TC.reset :: s :: acc
+              end
 
     in
       String.concat (List.rev (traverse default [] t))
@@ -392,8 +357,7 @@ struct
     case t of
       Append {left, right, ...} =>
         "Append(" ^ debugShow left ^ "," ^ debugShow right ^ ")"
-    | Attributes {child, ...} =>
-        "(" ^ debugShow child ^ ")"
+    | Attributes {child, ...} => "(" ^ debugShow child ^ ")"
     | Empty => ""
     | String s => s
 
@@ -409,10 +373,8 @@ struct
 
       val kind = OS.IO.kind (Posix.FileSys.fdToIOD filedesc)
     in
-      if kind = OS.IO.Kind.tty then
-        printer (toString {colors=true} t)
-      else
-        printer (toString {colors=false} t)
+      if kind = OS.IO.Kind.tty then printer (toString {colors = true} t)
+      else printer (toString {colors = false} t)
     end
 
   val print = print_ stdout

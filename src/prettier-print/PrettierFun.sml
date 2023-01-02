@@ -16,7 +16,8 @@ struct
   open PrettierStrUtil
   open PrettierStr
   infix 2 ++
-  fun x ++ y = concat (x, y)
+  fun x ++ y =
+    concat (x, y)
 
   (* ======================================================================= *)
 
@@ -33,37 +34,30 @@ struct
           (* NOTE: nospace before the colon should be safe here, because
            * structure identifiers cannot be symbolic *)
           at tab
-            (token strid ++
-            (if Token.hasCommentsAfter strid then empty else nospace)
-            ++ token colon
-            ++ showSigExpInDec tab sigexp))
+            (token strid
+             ++ (if Token.hasCommentsAfter strid then empty else nospace)
+             ++ token colon ++ showSigExpInDec tab sigexp))
 
   fun showFunDec tab (Ast.Fun.DecFunctor {functorr, elems, delims}) =
     let
-      fun showFunctor
-            first
-            (starter, {funid, lparen, funarg, rparen, constraint, eq, strexp})
-        =
-          at tab
-            (token starter ++ token funid
-            ++ (if funArgWantsSpaceBefore funarg then
-                  space
-                else
-                  nospace)
-            ++ newTab tab (fn inner =>
-                at inner
-                  (token lparen ++ nospace
-                  ++ showFunArg inner funarg ++ nospace
-                  ++ token rparen))
-            ++ showOption (showConstraintInStrDec tab) constraint
-            ++ token eq
-            ++ (if strExpWantsSameTabAsDec strexp then
-                  at tab (showStrExp tab strexp)
-                else
-                  withNewChild showStrExp tab strexp))
+      fun showFunctor first
+        (starter, {funid, lparen, funarg, rparen, constraint, eq, strexp}) =
+        at tab
+          (token starter ++ token funid
+           ++ (if funArgWantsSpaceBefore funarg then space else nospace)
+           ++
+           newTab tab (fn inner =>
+             at inner
+               (token lparen ++ nospace ++ showFunArg inner funarg ++ nospace
+                ++ token rparen))
+           ++ showOption (showConstraintInStrDec tab) constraint ++ token eq
+           ++
+           (if strExpWantsSameTabAsDec strexp then
+              at tab (showStrExp tab strexp)
+            else
+              withNewChild showStrExp tab strexp))
     in
-      Seq.iterate op++
-        (showFunctor true (functorr, Seq.nth elems 0))
+      Seq.iterate op++ (showFunctor true (functorr, Seq.nth elems 0))
         (Seq.map (showFunctor false) (Seq.zip (delims, Seq.drop elems 1)))
     end
 

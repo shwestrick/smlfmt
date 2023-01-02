@@ -48,74 +48,74 @@ struct
 
   fun reserved toks rc i =
     if isReserved toks rc i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
         { pos = i
         , what =
-            "Unexpected token. Expected to see "
-            ^ "'" ^ Token.reservedToString rc ^ "'"
+            "Unexpected token. Expected to see " ^ "'"
+            ^ Token.reservedToString rc ^ "'"
         , explain = NONE
         }
 
 
   fun maybeReserved toks rc i =
-    if isReserved toks rc i then
-      (i+1, SOME (Seq.nth toks i))
-    else
-      (i, NONE)
+    if isReserved toks rc i then (i + 1, SOME (Seq.nth toks i)) else (i, NONE)
 
 
   fun tyvar toks i =
     if check toks Token.isTyVar i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
-        { pos = i
-        , what = "Expected tyvar."
-        , explain = NONE
-        }
+        {pos = i, what = "Expected tyvar.", explain = NONE}
 
 
   fun strid toks i =
     if check toks Token.isStrIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
         { pos = i
         , what = "Expected structure identifier."
-        , explain = SOME "Must be alphanumeric, and cannot start with a\
-                         \ prime (')"
+        , explain =
+            SOME
+              "Must be alphanumeric, and cannot start with a\
+              \ prime (')"
         }
 
 
   fun sigid toks i =
     if check toks Token.isStrIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
         { pos = i
         , what = "Expected signature identifier."
-        , explain = SOME "Must be alphanumeric, and cannot start with a\
-                         \ prime (')"
+        , explain =
+            SOME
+              "Must be alphanumeric, and cannot start with a\
+              \ prime (')"
         }
 
 
   fun funid toks i =
     if check toks Token.isStrIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
         { pos = i
         , what = "Expected functor identifier."
-        , explain = SOME "Must be alphanumeric, and cannot start with a\
-                         \ prime (')"
+        , explain =
+            SOME
+              "Must be alphanumeric, and cannot start with a\
+              \ prime (')"
         }
 
 
   fun vid toks i =
     if check toks Token.isValueIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
         { pos = i
@@ -126,7 +126,7 @@ struct
 
   fun longvid toks i =
     if check toks Token.isMaybeLongIdentifier i then
-      (i+1, MaybeLongToken.make (Seq.nth toks i))
+      (i + 1, MaybeLongToken.make (Seq.nth toks i))
     else
       ParserUtils.tokError toks
         { pos = i
@@ -136,18 +136,15 @@ struct
 
   fun recordLabel toks i =
     if check toks Token.isRecordLabel i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
-        { pos = i
-        , what = "Expected record label."
-        , explain = NONE
-        }
+        {pos = i, what = "Expected record label.", explain = NONE}
 
 
   fun tycon toks i =
     if check toks Token.isTyCon i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.tokError toks
         { pos = i
@@ -158,42 +155,47 @@ struct
 
   fun maybeLongTycon toks i =
     if check toks Token.isMaybeLongTyCon i then
-      (i+1, MaybeLongToken.make (Seq.nth toks i))
+      (i + 1, MaybeLongToken.make (Seq.nth toks i))
     else
       ParserUtils.tokError toks
         { pos = i
-        , what = "Unexpected token. Invalid (possibly qualified)\
-                 \ type constructor."
+        , what =
+            "Unexpected token. Invalid (possibly qualified)\
+            \ type constructor."
         , explain = NONE
         }
 
 
   fun maybeLongStrid toks i =
     if check toks Token.isMaybeLongStrIdentifier i then
-      (i+1, MaybeLongToken.make (Seq.nth toks i))
+      (i + 1, MaybeLongToken.make (Seq.nth toks i))
     else
       ParserUtils.tokError toks
         { pos = i
-        , what = "Unexpected token. Invalid (possibly qualified)\
-                 \ structure identifier."
+        , what =
+            "Unexpected token. Invalid (possibly qualified)\
+            \ structure identifier."
         , explain = NONE
         }
 
 
   fun tyvars toks i =
-    if check toks Token.isTyVar i then
-      (i+1, Ast.SyntaxSeq.One (Seq.nth toks i))
-    else if not (isReserved toks Token.OpenParen i
-                 andalso check toks Token.isTyVar (i+1)) then
+    if
+      check toks Token.isTyVar i
+    then
+      (i + 1, Ast.SyntaxSeq.One (Seq.nth toks i))
+    else if
+      not
+        (isReserved toks Token.OpenParen i
+         andalso check toks Token.isTyVar (i + 1))
+    then
       (i, Ast.SyntaxSeq.Empty)
     else
       let
-        val (i, openParen) = (i+1, Seq.nth toks i)
+        val (i, openParen) = (i + 1, Seq.nth toks i)
         val (i, {elems, delims}) =
-          ParserCombinators.oneOrMoreDelimitedByReserved
-            toks
-            {parseElem = tyvar toks, delim = Token.Comma}
-            i
+          ParserCombinators.oneOrMoreDelimitedByReserved toks
+            {parseElem = tyvar toks, delim = Token.Comma} i
         val (i, closeParen) = reserved toks Token.CloseParen i
       in
         ( i

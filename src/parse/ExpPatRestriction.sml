@@ -14,10 +14,10 @@ structure ExpPatRestriction =
 struct
 
   datatype t =
-    At    (* AtExp/Pat *)
-  | App   (* AppExp/Pat *)
-  | Inf   (* InfExp/Pat *)
-  | None  (* Exp *)
+    At (* AtExp/Pat *)
+  | App (* AppExp/Pat *)
+  | Inf (* InfExp/Pat *)
+  | None (* Exp *)
 
   fun appOkay restrict =
     case restrict of

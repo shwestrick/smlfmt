@@ -21,14 +21,10 @@ sig
   val spaces: int -> doc
 
   val showSequence:
-    ('a -> bool)  (* elem starts with star? *)
+    ('a -> bool) (* elem starts with star? *)
     -> 'a shower
-    -> { openn: Token.t
-       , elems: 'a Seq.t
-       , delims: Token.t Seq.t
-       , close: Token.t
-       }
-       shower
+    ->
+      {openn: Token.t, elems: 'a Seq.t, delims: Token.t Seq.t, close: Token.t} shower
 
   val showSyntaxSeq: 'a shower -> 'a Ast.SyntaxSeq.t shower
   val showTokenSyntaxSeq: Token.t Ast.SyntaxSeq.t shower
@@ -44,8 +40,7 @@ sig
     , inn: Token.t
     , doc2: doc
     , endd: Token.t
-    }
-    shower
+    } shower
 
   val expStartsWithStar: Ast.Exp.exp -> bool
   val patStartsWithStar: Ast.Pat.t -> bool
@@ -55,12 +50,12 @@ struct
 
   open TabbedTokenDoc
   infix 2 ++
-  fun x ++ y = concat (x, y)
+  fun x ++ y =
+    concat (x, y)
 
-  val indentedAllowComments =
-    Tab.Style.combine (Tab.Style.indented, Tab.Style.allowComments)
-  val rigidInplace =
-    Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+  val indentedAllowComments = Tab.Style.combine
+    (Tab.Style.indented, Tab.Style.allowComments)
+  val rigidInplace = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
   val indented = Tab.Style.indented
   fun indentedAtLeastBy x = Tab.Style.indentedAtLeastBy x
 
@@ -77,38 +72,32 @@ struct
     List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
-  fun showSequence elemStartsWithStar (elemShower: 'a shower) tab {openn, elems: 'a Seq.t, delims, close} =
+  fun showSequence elemStartsWithStar (elemShower: 'a shower) tab
+    {openn, elems: 'a Seq.t, delims, close} =
     if Seq.length elems = 0 then
       token openn ++ nospace ++ token close
     else if Seq.length elems = 1 then
-      token openn ++ nospace
-      ++ elemShower tab (Seq.nth elems 0)
-      ++ nospace ++ token close
+      token openn ++ nospace ++ elemShower tab (Seq.nth elems 0) ++ nospace
+      ++ token close
     else
       newTabWithStyle tab (Tab.Style.allowComments, fn inner =>
         let
           val topspacer =
             if
               Token.isOpenParen openn
-              andalso
-              elemStartsWithStar (Seq.nth elems 0)
-            then
-              empty
-            else
-              cond inner {inactive = nospace, active = space}
+              andalso elemStartsWithStar (Seq.nth elems 0)
+            then empty
+            else cond inner {inactive = nospace, active = space}
 
           val top =
-            token openn ++ topspacer ++
-            elemShower inner (Seq.nth elems 0)
+            token openn ++ topspacer ++ elemShower inner (Seq.nth elems 0)
 
           fun f (delim, x) =
             nospace ++ at inner (token delim ++ elemShower inner x)
         in
           at inner
-            (Seq.iterate op++ top
-              (Seq.map f (Seq.zip (delims, Seq.drop elems 1)))
-            ++
-            nospace ++ at inner (token close))
+            (Seq.iterate op++ top (Seq.map f (Seq.zip
+               (delims, Seq.drop elems 1))) ++ nospace ++ at inner (token close))
         end)
 
 
@@ -118,11 +107,7 @@ struct
     | Ast.SyntaxSeq.One x => elemShower tab x
     | Ast.SyntaxSeq.Many {left, elems, delims, right} =>
         showSequence (fn _ => false) elemShower tab
-          { openn = left
-          , elems = elems
-          , delims = delims
-          , close = right
-          }
+          {openn = left, elems = elems, delims = delims, close = right}
 
 
   fun showTokenSyntaxSeq tab s =
@@ -137,15 +122,11 @@ struct
 
   fun showThingSimilarToLetInEnd tab {lett, isEmpty1, doc1, inn, doc2, endd} =
     let in
-      at tab (token lett) ++
-      (if isEmpty1 andalso not (Token.hasCommentsAfter lett) then
-        token inn
-      else if isEmpty1 then
-        at tab (token inn)
-      else
-        doc1 ++ at tab (token inn))
-      ++ doc2
-      ++ at tab (token endd)
+      at tab (token lett)
+      ++
+      (if isEmpty1 andalso not (Token.hasCommentsAfter lett) then token inn
+       else if isEmpty1 then at tab (token inn)
+       else doc1 ++ at tab (token inn)) ++ doc2 ++ at tab (token endd)
     end
 
 
@@ -156,13 +137,10 @@ struct
         let
           val wantsToTouch =
             Token.isSymbolicIdentifier tok
-            andalso
-            not (Token.isLongIdentifier tok)
+            andalso not (Token.isLongIdentifier tok)
         in
-          if wantsToTouch then
-            token opp ++ nospace ++ token tok
-          else
-            token opp ++ token tok
+          if wantsToTouch then token opp ++ nospace ++ token tok
+          else token opp ++ token tok
         end
 
 
@@ -171,20 +149,13 @@ struct
       open Ast.Exp
     in
       case exp of
-        Ident {opp=NONE, id} =>
-          Token.isStar (MaybeLongToken.getToken id)
-      | App {left, ...} =>
-          expStartsWithStar left
-      | Infix {left, ...} =>
-          expStartsWithStar left
-      | Typed {exp, ...} =>
-          expStartsWithStar exp
-      | Andalso {left, ...} =>
-          expStartsWithStar left
-      | Orelse {left, ...} =>
-          expStartsWithStar left
-      | Handle {exp, ...} =>
-          expStartsWithStar exp
+        Ident {opp = NONE, id} => Token.isStar (MaybeLongToken.getToken id)
+      | App {left, ...} => expStartsWithStar left
+      | Infix {left, ...} => expStartsWithStar left
+      | Typed {exp, ...} => expStartsWithStar exp
+      | Andalso {left, ...} => expStartsWithStar left
+      | Orelse {left, ...} => expStartsWithStar left
+      | Handle {exp, ...} => expStartsWithStar exp
       | _ => false
     end
 
@@ -194,16 +165,11 @@ struct
       open Ast.Pat
     in
       case pat of
-        Ident {opp=NONE, id} =>
-          Token.isStar (MaybeLongToken.getToken id)
-      | Infix {left, ...} =>
-          patStartsWithStar left
-      | Typed {pat, ...} =>
-          patStartsWithStar pat
-      | Con {opp=NONE, id, ...} =>
-          Token.isStar (MaybeLongToken.getToken id)
-      | Layered {opp=NONE, id, ...} =>
-          Token.isStar id
+        Ident {opp = NONE, id} => Token.isStar (MaybeLongToken.getToken id)
+      | Infix {left, ...} => patStartsWithStar left
+      | Typed {pat, ...} => patStartsWithStar pat
+      | Con {opp = NONE, id, ...} => Token.isStar (MaybeLongToken.getToken id)
+      | Layered {opp = NONE, id, ...} => Token.isStar id
       | _ => false
     end
 

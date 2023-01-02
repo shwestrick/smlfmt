@@ -55,16 +55,10 @@ struct
     * `maybeRotateLeft`!
     *)
 
-  type replacer =
-    { exp: Ast.Exp.exp
-    , replaceWith: Ast.Exp.exp -> Ast.Exp.exp
-    }
+  type replacer = {exp: Ast.Exp.exp, replaceWith: Ast.Exp.exp -> Ast.Exp.exp}
 
   datatype info =
-    F of { prec: int
-         , left: replacer option
-         , right: replacer option
-         }
+    F of {prec: int, left: replacer option, right: replacer option}
 
 
   fun getInfo e =
@@ -74,7 +68,8 @@ struct
       case e of
         Typed {exp, colon, ty} =>
           let
-            fun leftReplaceWith e = Typed {exp=e, colon=colon, ty=ty}
+            fun leftReplaceWith e =
+              Typed {exp = e, colon = colon, ty = ty}
           in
             F { prec = 10
               , left = SOME {exp = exp, replaceWith = leftReplaceWith}
@@ -85,9 +80,9 @@ struct
       | Andalso {left, andalsoo, right} =>
           let
             fun leftReplaceWith e =
-              Andalso {left=e, andalsoo=andalsoo, right=right}
+              Andalso {left = e, andalsoo = andalsoo, right = right}
             fun rightReplaceWith e =
-              Andalso {left=left, andalsoo=andalsoo, right=e}
+              Andalso {left = left, andalsoo = andalsoo, right = e}
           in
             F { prec = 9
               , left = SOME {exp = left, replaceWith = leftReplaceWith}
@@ -98,9 +93,9 @@ struct
       | Orelse {left, orelsee, right} =>
           let
             fun leftReplaceWith e =
-              Orelse {left=e, orelsee=orelsee, right=right}
+              Orelse {left = e, orelsee = orelsee, right = right}
             fun rightReplaceWith e =
-              Orelse {left=left, orelsee=orelsee, right=e}
+              Orelse {left = left, orelsee = orelsee, right = e}
           in
             F { prec = 8
               , left = SOME {exp = left, replaceWith = leftReplaceWith}
@@ -111,7 +106,8 @@ struct
       | Handle {exp, handlee, elems, delims} =>
           let
             fun leftReplaceWith e =
-              Handle {exp = e, handlee=handlee, elems=elems, delims=delims}
+              Handle
+                {exp = e, handlee = handlee, elems = elems, delims = delims}
           in
             F { prec = 7
               , left = SOME {exp = exp, replaceWith = leftReplaceWith}
@@ -122,7 +118,7 @@ struct
       | Raise {raisee, exp} =>
           let
             fun replaceRightWith e =
-              Raise {raisee=raisee, exp=e}
+              Raise {raisee = raisee, exp = e}
           in
             F { prec = 6
               , left = NONE
@@ -134,7 +130,13 @@ struct
           let
             fun replaceRightWith e =
               IfThenElse
-              {iff=iff, exp1=exp1, thenn=thenn, exp2=exp2, elsee=elsee, exp3=e}
+                { iff = iff
+                , exp1 = exp1
+                , thenn = thenn
+                , exp2 = exp2
+                , elsee = elsee
+                , exp3 = e
+                }
           in
             F { prec = 5
               , left = NONE
@@ -145,7 +147,7 @@ struct
       | While {whilee, exp1, doo, exp2} =>
           let
             fun replaceRightWith e =
-              While {whilee=whilee, exp1=exp1, doo=doo, exp2=e}
+              While {whilee = whilee, exp1 = exp1, doo = doo, exp2 = e}
           in
             F { prec = 4
               , left = NONE
@@ -153,27 +155,23 @@ struct
               }
           end
 
-      | _ =>
-          F { prec = 0
-            , left = NONE
-            , right = NONE
-            }
+      | _ => F {prec = 0, left = NONE, right = NONE}
     end
 
 
   fun maybeRotateLeft e =
     let
-      val F {prec=rootPrecedence, right, ...} = getInfo e
+      val F {prec = rootPrecedence, right, ...} = getInfo e
     in
       case right of
         NONE => e
-      | SOME {exp=rootRight, replaceWith=rootReplaceRightWith} =>
+      | SOME {exp = rootRight, replaceWith = rootReplaceRightWith} =>
           let
-            val F {prec=rightPrecedence, left, ...} = getInfo rootRight
+            val F {prec = rightPrecedence, left, ...} = getInfo rootRight
           in
             case left of
               NONE => e
-            | SOME {exp=rightLeft, replaceWith=rightReplaceLeftWith} =>
+            | SOME {exp = rightLeft, replaceWith = rightReplaceLeftWith} =>
                 if rootPrecedence > rightPrecedence then
                   rightReplaceLeftWith (rootReplaceRightWith rightLeft)
                 else

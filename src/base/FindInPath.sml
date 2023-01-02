@@ -38,12 +38,11 @@ struct
       val dirs =
         List.map (FilePath.fromUnixPath o OS.Path.toUnixPath)
           (String.tokens (fn c => c = #":")
-            (Option.valOf (Posix.ProcEnv.getenv "PATH")))
+             (Option.valOf (Posix.ProcEnv.getenv "PATH")))
 
       fun executableInDir dir =
         (List.exists (fn x => x = name) (contents dir)
-        andalso
-        isExecutable (FilePath.join (dir, FilePath.fromFields [name])))
+         andalso isExecutable (FilePath.join (dir, FilePath.fromFields [name])))
         handle _ => false
     in
       case List.find executableInDir dirs of

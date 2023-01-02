@@ -22,111 +22,123 @@ struct
     i < Seq.length toks andalso f (Seq.nth toks i)
 
   fun isReserved_ toks rc i =
-    check_ toks (fn t =>
-      case MLBToken.getClass t of
-        MLBToken.Reserved rc' => rc = rc'
-      | _ => false)
-    i
+    check_ toks
+      (fn t =>
+         case MLBToken.getClass t of
+           MLBToken.Reserved rc' => rc = rc'
+         | _ => false) i
 
   fun isSMLReserved_ toks rc i =
-    check_ toks (fn t =>
-      case MLBToken.getClass t of
-        MLBToken.SML (Token.Reserved rc') => rc = rc'
-      | _ => false)
-    i
+    check_ toks
+      (fn t =>
+         case MLBToken.getClass t of
+           MLBToken.SML (Token.Reserved rc') => rc = rc'
+         | _ => false) i
 
 
   fun nyi_ toks fname i =
     if i >= Seq.length toks then
-      raise Error.Error (Error.lineError
-        { header = "ERROR: NOT YET IMPLEMENTED"
-        , pos = MLBToken.getSource (Seq.nth toks (Seq.length toks - 1))
-        , what = "Unexpected EOF after token."
-        , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
-        })
+      raise Error.Error
+        (Error.lineError
+           { header = "ERROR: NOT YET IMPLEMENTED"
+           , pos = MLBToken.getSource (Seq.nth toks (Seq.length toks - 1))
+           , what = "Unexpected EOF after token."
+           , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
+           })
     else if i >= 0 then
-      raise Error.Error (Error.lineError
-        { header = "ERROR: NOT YET IMPLEMENTED"
-        , pos = MLBToken.getSource (Seq.nth toks i)
-        , what = "Unexpected token."
-        , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
-        })
+      raise Error.Error
+        (Error.lineError
+           { header = "ERROR: NOT YET IMPLEMENTED"
+           , pos = MLBToken.getSource (Seq.nth toks i)
+           , what = "Unexpected token."
+           , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
+           })
     else
       raise Fail ("Bug in parser " ^ fname ^ ": position out of bounds??")
 
 
   fun parse_SMLReserved toks rc i =
     if isSMLReserved_ toks rc i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what =
-            "Unexpected token. Expected to see "
-            ^ "'" ^ Token.reservedToString rc ^ "'"
+            "Unexpected token. Expected to see " ^ "'"
+            ^ Token.reservedToString rc ^ "'"
         , explain = NONE
         }
 
 
   fun checkSML toks f i =
-    i < Seq.length toks andalso
+    i < Seq.length toks
+    andalso
     case MLBToken.getClass (Seq.nth toks i) of
       MLBToken.SML c =>
-        f (Token.fromPre (Token.Pretoken.make (MLBToken.getSource (Seq.nth toks i)) c))
+        f (Token.fromPre
+          (Token.Pretoken.make (MLBToken.getSource (Seq.nth toks i)) c))
     | _ => false
 
 
   fun parse_strid toks i =
     if checkSML toks Token.isStrIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected structure identifier."
-        , explain = SOME "Must be alphanumeric, and cannot start with a\
-                         \ prime (')"
+        , explain =
+            SOME
+              "Must be alphanumeric, and cannot start with a\
+              \ prime (')"
         }
 
 
   fun parse_sigid toks i =
     if checkSML toks Token.isStrIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected signature identifier."
-        , explain = SOME "Must be alphanumeric, and cannot start with a\
-                         \ prime (')"
+        , explain =
+            SOME
+              "Must be alphanumeric, and cannot start with a\
+              \ prime (')"
         }
 
 
   fun parse_funid toks i =
     if checkSML toks Token.isStrIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected functor identifier."
-        , explain = SOME "Must be alphanumeric, and cannot start with a\
-                         \ prime (')"
+        , explain =
+            SOME
+              "Must be alphanumeric, and cannot start with a\
+              \ prime (')"
         }
 
 
   fun parse_basid toks i =
     if checkSML toks Token.isStrIdentifier i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected basis identifier."
-        , explain = SOME "Must be alphanumeric, and cannot start with a\
-                         \ prime (')"
+        , explain =
+            SOME
+              "Must be alphanumeric, and cannot start with a\
+              \ prime (')"
         }
 
 
   fun parse_stringConstant toks i =
     if checkSML toks Token.isStringConstant i then
-      (i+1, Seq.nth toks i)
+      (i + 1, Seq.nth toks i)
     else
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
@@ -147,19 +159,13 @@ struct
           val (i, elem) = parseElem i
           val elems = elem :: elems
         in
-          if isReserved delim i then
-            loop elems (tok i :: delims) (i+1)
-          else
-            (i, elems, delims)
+          if isReserved delim i then loop elems (tok i :: delims) (i + 1)
+          else (i, elems, delims)
         end
 
       val (i, elems, delims) = loop [] [] i
     in
-      ( i
-      , { elems = Seq.fromRevList elems
-        , delims = Seq.fromRevList delims
-        }
-      )
+      (i, {elems = Seq.fromRevList elems, delims = Seq.fromRevList delims})
     end
 
 
@@ -167,9 +173,12 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i = check_ toks f i
-      fun isReserved rc i = isReserved_ toks rc i
-      fun isSMLReserved rc i = isSMLReserved_ toks rc i
+      fun check f i =
+        check_ toks f i
+      fun isReserved rc i =
+        isReserved_ toks rc i
+      fun isSMLReserved rc i =
+        isSMLReserved_ toks rc i
 
 
       (** bas basdec end
@@ -180,13 +189,7 @@ struct
           val (i, basdec) = basdec toks i
           val (i, endd) = parse_SMLReserved toks Token.End i
         in
-          ( i
-          , MLBAst.BasEnd
-              { bas = bas
-              , basdec = basdec
-              , endd = endd
-              }
-          )
+          (i, MLBAst.BasEnd {bas = bas, basdec = basdec, endd = endd})
         end
 
 
@@ -214,11 +217,11 @@ struct
 
       and parse_basexp i =
         if checkSML toks Token.isStrIdentifier i then
-          (i+1, MLBAst.Ident (tok i))
+          (i + 1, MLBAst.Ident (tok i))
         else if isReserved MLBToken.Bas i then
-          parse_bas (tok i) (i+1)
+          parse_bas (tok i) (i + 1)
         else if isSMLReserved Token.Let i then
-          parse_let (tok i) (i+1)
+          parse_let (tok i) (i + 1)
         else
           ParserUtils.error
             { pos = MLBToken.getSource (tok i)
@@ -235,26 +238,26 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i = check_ toks f i
-      fun isReserved rc i = isReserved_ toks rc i
-      fun isSMLReserved rc i = isSMLReserved_ toks rc i
+      fun check f i =
+        check_ toks f i
+      fun isReserved rc i =
+        isReserved_ toks rc i
+      fun isSMLReserved rc i =
+        isSMLReserved_ toks rc i
 
 
       (** not yet implemented *)
-      fun nyi fname i = nyi_ toks fname i
+      fun nyi fname i =
+        nyi_ toks fname i
 
 
       fun makeSMLPath pathtok pathstr =
         MLBAst.DecPathSML
-          { token = pathtok
-          , path = FilePath.fromUnixPath pathstr
-          }
+          {token = pathtok, path = FilePath.fromUnixPath pathstr}
 
       fun makeMLBPath pathtok pathstr =
         MLBAst.DecPathMLB
-          { token = pathtok
-          , path = FilePath.fromUnixPath pathstr
-          }
+          {token = pathtok, path = FilePath.fromUnixPath pathstr}
 
 
       (**  "path.{sml,mlb,...}"
@@ -273,18 +276,17 @@ struct
           val n = Source.length thisSrc
           val _ =
             if
-              n >= 2 andalso
-              Source.nth thisSrc 0 = #"\"" andalso
-              Source.nth thisSrc (n - 1) = #"\""
-            then
-              ()
-            else
-              raise Fail "MLBParser bug! see parse_decPathFromString: fail 1"
+              n >= 2 andalso Source.nth thisSrc 0 = #"\""
+              andalso Source.nth thisSrc (n - 1) = #"\""
+            then ()
+            else raise Fail "MLBParser bug! see parse_decPathFromString: fail 1"
 
-          val pathstr = Source.toString (Source.slice thisSrc (1, n-2))
+          val pathstr = Source.toString (Source.slice thisSrc (1, n - 2))
 
-          fun mlbCase () = (i+1, makeMLBPath thisTok pathstr)
-          fun smlCase () = (i+1, makeSMLPath thisTok pathstr)
+          fun mlbCase () =
+            (i + 1, makeMLBPath thisTok pathstr)
+          fun smlCase () =
+            (i + 1, makeSMLPath thisTok pathstr)
         in
           case OS.Path.ext pathstr of
             SOME "mlb" => mlbCase ()
@@ -311,22 +313,14 @@ struct
               val (i, eq) = parse_SMLReserved toks Token.Equal i
               val (i, basexp) = basexp toks i
             in
-              (i, {basid=basid, eq=eq, basexp=basexp})
+              (i, {basid = basid, eq = eq, basexp = basexp})
             end
 
           val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedBySMLReserved
-              toks
-              {parseElem = parseElem, delim = Token.And}
-              i
+            parse_oneOrMoreDelimitedBySMLReserved toks
+              {parseElem = parseElem, delim = Token.And} i
         in
-          ( i
-          , MLBAst.DecBasis
-              { basis = basis
-              , elems = elems
-              , delims = delims
-              }
-          )
+          (i, MLBAst.DecBasis {basis = basis, elems = elems, delims = delims})
         end
 
 
@@ -337,16 +331,9 @@ struct
         let
           val (i, elems) =
             ParserCombinators.oneOrMoreWhile
-              (checkSML toks Token.isStrIdentifier)
-              (parse_basid toks)
-              i
+              (checkSML toks Token.isStrIdentifier) (parse_basid toks) i
         in
-          ( i
-          , MLBAst.DecOpen
-              { openn = openn
-              , elems = elems
-              }
-          )
+          (i, MLBAst.DecOpen {openn = openn, elems = elems})
         end
 
 
@@ -363,7 +350,7 @@ struct
                   (i, NONE)
                 else
                   let
-                    val (i, eq) = (i+1, tok i)
+                    val (i, eq) = (i + 1, tok i)
                     val (i, strid) = parse_strid toks i
                   in
                     (i, SOME {eq = eq, strid = strid})
@@ -373,17 +360,12 @@ struct
             end
 
           val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedBySMLReserved
-              toks
-              {parseElem = parseElem, delim = Token.And}
-              i
+            parse_oneOrMoreDelimitedBySMLReserved toks
+              {parseElem = parseElem, delim = Token.And} i
         in
           ( i
           , MLBAst.DecStructure
-              { structuree = structuree
-              , elems = elems
-              , delims = delims
-              }
+              {structuree = structuree, elems = elems, delims = delims}
           )
         end
 
@@ -401,7 +383,7 @@ struct
                   (i, NONE)
                 else
                   let
-                    val (i, eq) = (i+1, tok i)
+                    val (i, eq) = (i + 1, tok i)
                     val (i, sigid) = parse_sigid toks i
                   in
                     (i, SOME {eq = eq, sigid = sigid})
@@ -411,17 +393,12 @@ struct
             end
 
           val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedBySMLReserved
-              toks
-              {parseElem = parseElem, delim = Token.And}
-              i
+            parse_oneOrMoreDelimitedBySMLReserved toks
+              {parseElem = parseElem, delim = Token.And} i
         in
           ( i
           , MLBAst.DecSignature
-              { signaturee = signaturee
-              , elems = elems
-              , delims = delims
-              }
+              {signaturee = signaturee, elems = elems, delims = delims}
           )
         end
 
@@ -439,7 +416,7 @@ struct
                   (i, NONE)
                 else
                   let
-                    val (i, eq) = (i+1, tok i)
+                    val (i, eq) = (i + 1, tok i)
                     val (i, funid) = parse_funid toks i
                   in
                     (i, SOME {eq = eq, funid = funid})
@@ -449,17 +426,12 @@ struct
             end
 
           val (i, {elems, delims}) =
-            parse_oneOrMoreDelimitedBySMLReserved
-              toks
-              {parseElem = parseElem, delim = Token.And}
-              i
+            parse_oneOrMoreDelimitedBySMLReserved toks
+              {parseElem = parseElem, delim = Token.And} i
         in
           ( i
           , MLBAst.DecFunctor
-              { functorr = functorr
-              , elems = elems
-              , delims = delims
-              }
+              {functorr = functorr, elems = elems, delims = delims}
           )
         end
 
@@ -471,8 +443,7 @@ struct
         let
           val (i, annotations) =
             ParserCombinators.oneOrMoreWhile
-              (checkSML toks Token.isStringConstant)
-              (parse_stringConstant toks)
+              (checkSML toks Token.isStringConstant) (parse_stringConstant toks)
               i
 
           val (i, inn) = parse_SMLReserved toks Token.In i
@@ -515,31 +486,31 @@ struct
 
       and parse_exactlyOneDec i =
         if check MLBToken.isSMLPath i then
-          ( i+1
+          ( i + 1
           , makeSMLPath (tok i) (Source.toString (MLBToken.getSource (tok i)))
           )
         else if check MLBToken.isMLBPath i then
-          ( i+1
+          ( i + 1
           , makeMLBPath (tok i) (Source.toString (MLBToken.getSource (tok i)))
           )
         else if check MLBToken.isStringConstant i then
           parse_decPathFromString i
         else if isReserved MLBToken.UnderscorePrim i then
-          (i+1, MLBAst.DecUnderscorePrim (tok i))
+          (i + 1, MLBAst.DecUnderscorePrim (tok i))
         else if isReserved MLBToken.Basis i then
-          parse_decBasis (tok i) (i+1)
+          parse_decBasis (tok i) (i + 1)
         else if isReserved MLBToken.Ann i then
-          parse_decAnn (tok i) (i+1)
+          parse_decAnn (tok i) (i + 1)
         else if isSMLReserved Token.Open i then
-          parse_decOpen (tok i) (i+1)
+          parse_decOpen (tok i) (i + 1)
         else if isSMLReserved Token.Local i then
-          parse_decLocal (tok i) (i+1)
+          parse_decLocal (tok i) (i + 1)
         else if isSMLReserved Token.Structure i then
-          parse_decStructure (tok i) (i+1)
+          parse_decStructure (tok i) (i + 1)
         else if isSMLReserved Token.Signature i then
-          parse_decSignature (tok i) (i+1)
+          parse_decSignature (tok i) (i + 1)
         else if isSMLReserved Token.Functor i then
-          parse_decFunctor (tok i) (i+1)
+          parse_decFunctor (tok i) (i + 1)
         else
           ParserUtils.error
             { pos = MLBToken.getSource (tok i)
@@ -551,47 +522,31 @@ struct
       and parse_dec i =
         let
           fun parse_maybeSemicolon i =
-            if isSMLReserved Token.Semicolon i then
-              (i+1, SOME (tok i))
-            else
-              (i, NONE)
+            if isSMLReserved Token.Semicolon i then (i + 1, SOME (tok i))
+            else (i, NONE)
 
-          fun continue i =
-            check MLBToken.isBasDecStartToken i
+          fun continue i = check MLBToken.isBasDecStartToken i
 
           (** While we see a basdec start-token, parse pairs of
             *   (dec, semicolon option)
             *)
           val (i, basdecs) =
-            ParserCombinators.zeroOrMoreWhile
-              continue
-              (ParserCombinators.two
-                ( parse_exactlyOneDec
-                , parse_maybeSemicolon
-                ))
+            ParserCombinators.zeroOrMoreWhile continue
+              (ParserCombinators.two (parse_exactlyOneDec, parse_maybeSemicolon))
               i
 
           fun makeDecMultiple () =
             MLBAst.DecMultiple
-              { elems = Seq.map #1 basdecs
-              , delims = Seq.map #2 basdecs
-              }
+              {elems = Seq.map #1 basdecs, delims = Seq.map #2 basdecs}
 
           val result =
             case Seq.length basdecs of
-              0 =>
-                MLBAst.DecEmpty
+              0 => MLBAst.DecEmpty
             | 1 =>
-                let
-                  val (dec, semicolon) = Seq.nth basdecs 0
-                in
-                  if isSome semicolon then
-                    makeDecMultiple ()
-                  else
-                    dec
+                let val (dec, semicolon) = Seq.nth basdecs 0
+                in if isSome semicolon then makeDecMultiple () else dec
                 end
-            | _ =>
-                makeDecMultiple ()
+            | _ => makeDecMultiple ()
         in
           (i, result)
         end
@@ -604,17 +559,20 @@ struct
   fun parse src =
     let
       val toksWithComments = MLBLexer.tokens src
-      val toks = Seq.filter (not o MLBToken.isCommentOrWhitespace) toksWithComments
+      val toks =
+        Seq.filter (not o MLBToken.isCommentOrWhitespace) toksWithComments
 
       val (i, basdec) = basdec toks 0
 
       val _ =
-        if i >= Seq.length toks then () else
-        ParserUtils.error
-          { pos = MLBToken.getSource (Seq.nth toks i)
-          , what = "Unexpected token."
-          , explain = SOME "Invalid start of basis declaration!"
-          }
+        if i >= Seq.length toks then
+          ()
+        else
+          ParserUtils.error
+            { pos = MLBToken.getSource (Seq.nth toks i)
+            , what = "Unexpected token."
+            , explain = SOME "Invalid start of basis declaration!"
+            }
     in
       MLBAst.Ast basdec
     end

@@ -17,16 +17,14 @@ struct
   val counter = ref 0
 
   fun new () =
-    let
-      val result = DocVar {id = !counter}
-    in
-      counter := !counter + 1;
-      result
+    let val result = DocVar {id = !counter}
+    in counter := !counter + 1; result
     end
 
-  fun toString (DocVar {id}) = "[v" ^ Int.toString id ^ "]"
+  fun toString (DocVar {id}) =
+    "[v" ^ Int.toString id ^ "]"
 
-  fun compare (DocVar {id=id1}, DocVar {id=id2}) =
+  fun compare (DocVar {id = id1}, DocVar {id = id2}) =
     Int.compare (id1, id2)
 
 end

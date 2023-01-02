@@ -20,7 +20,7 @@ struct
       val p = create
         { path = tputPath
         , env = NONE
-        , args = [ "cols" ]
+        , args = ["cols"]
         , stderr = Param.self
         , stdin = Param.null
         , stdout = Param.pipe
