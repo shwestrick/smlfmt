@@ -273,8 +273,8 @@ struct
     let
       val src1 = getSource tok1
       val src2 = getSource tok2
-      val {line=end1, ...} = Source.absoluteEnd (getSource tok1)
-      val {line=start2, ...} = Source.absoluteStart (getSource tok2)
+      val {line = end1, ...} = Source.absoluteEnd (getSource tok1)
+      val {line = start2, ...} = Source.absoluteStart (getSource tok2)
     in
       if FilePath.sameFile (Source.fileName src1, Source.fileName src2) then
         start2 - end1
@@ -283,10 +283,8 @@ struct
     end
 
   fun toString tok =
-    let
-      val src = getSource tok
-    in
-      CharVector.tabulate (Source.length src, Source.nth src)
+    let val src = getSource tok
+    in CharVector.tabulate (Source.length src, Source.nth src)
     end
 
   fun tryReserved src =
@@ -347,8 +345,7 @@ struct
       | "structure" => r Structure
       | "where" => r Where
 
-      | other => NONE
-          (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
+      | other => NONE (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
     end
 
   fun reservedToString rc =
@@ -441,8 +438,7 @@ struct
       Whitespace => true
     | _ => false
 
-  fun isCommentOrWhitespace tok =
-    isComment tok orelse isWhitespace tok
+  fun isCommentOrWhitespace tok = isComment tok orelse isWhitespace tok
 
   fun isComma tok =
     case getClass tok of
@@ -460,10 +456,8 @@ struct
     | _ => false
 
   fun isStar tok =
-    let
-      val src = getSource tok
-    in
-      Source.length src = 1 andalso Source.nth src 0 = #"*"
+    let val src = getSource tok
+    in Source.length src = 1 andalso Source.nth src 0 = #"*"
     end
 
   fun isOpenParen tok =
@@ -508,8 +502,7 @@ struct
   fun isSymbolicIdentifier tok =
     let
       val src = getSource tok
-      val isSymb =
-        LexUtils.isSymbolic (Source.nth src (Source.length src - 1))
+      val isSymb = LexUtils.isSymbolic (Source.nth src (Source.length src - 1))
     in
       case getClass tok of
         Identifier => isSymb
@@ -551,8 +544,7 @@ struct
         not (isStar tok) andalso (Source.nth (getSource tok) 0 <> #"'")
     | _ => false
 
-  fun isMaybeLongTyCon tok =
-    isTyCon tok orelse isLongIdentifier tok
+  fun isMaybeLongTyCon tok = isTyCon tok orelse isLongIdentifier tok
 
   (** SML permits ints, strings, words, and chars as constants in patterns,
     * but NOT reals.
@@ -580,9 +572,8 @@ struct
     in
       case getClass tok of
         IntegerConstant =>
-          Source.length src > 2 andalso
-          Source.nth src 0 = #"0" andalso
-          Source.nth src 1 = #"x"
+          Source.length src > 2 andalso Source.nth src 0 = #"0"
+          andalso Source.nth src 1 = #"x"
       | _ => false
     end
 
@@ -611,47 +602,31 @@ struct
     , Local
     ]
 
-  val strDecStartTokens =
-    [ Structure
-    , Local
-    ]
+  val strDecStartTokens = [Structure, Local]
 
-  val sigDecStartTokens =
-    [ Signature
-    ]
+  val sigDecStartTokens = [Signature]
 
   val sigSpecStartTokens =
-    [ Val
-    , Type
-    , Eqtype
-    , Datatype
-    , Exception
-    , Structure
-    , Include
-    ]
+    [Val, Type, Eqtype, Datatype, Exception, Structure, Include]
 
   fun isDecStartToken tok =
     case getClass tok of
-      Reserved rc =>
-        List.exists (fn rc' => rc = rc') decStartTokens
+      Reserved rc => List.exists (fn rc' => rc = rc') decStartTokens
     | _ => false
 
   fun isStrDecStartToken tok =
     case getClass tok of
-      Reserved rc =>
-        List.exists (fn rc' => rc = rc') strDecStartTokens
+      Reserved rc => List.exists (fn rc' => rc = rc') strDecStartTokens
     | _ => false
 
   fun isSigDecStartToken tok =
     case getClass tok of
-      Reserved rc =>
-        List.exists (fn rc' => rc = rc') sigDecStartTokens
+      Reserved rc => List.exists (fn rc' => rc = rc') sigDecStartTokens
     | _ => false
 
   fun isSigSpecStartToken tok =
     case getClass tok of
-      Reserved rc =>
-        List.exists (fn rc' => rc = rc') sigSpecStartTokens
+      Reserved rc => List.exists (fn rc' => rc = rc') sigSpecStartTokens
     | _ => false
 
   fun classToString class =
@@ -690,12 +665,7 @@ struct
       Comment => false
     | Reserved rc =>
         List.exists (fn rc' => rc = rc')
-          [ OpenParen
-          , OpenSquareBracket
-          , OpenCurlyBracket
-          , Underscore
-          , Op
-          ]
+          [OpenParen, OpenSquareBracket, OpenCurlyBracket, Underscore, Op]
     | _ => true
 
 
@@ -703,11 +673,8 @@ struct
     * the current expression and pop up to the previous context.
     *)
   fun endsCurrentExp tok =
-    isDecStartToken tok
-    orelse
-    isStrDecStartToken tok
-    orelse
-    isSigDecStartToken tok
+    isDecStartToken tok orelse isStrDecStartToken tok
+    orelse isSigDecStartToken tok
     orelse
     case getClass tok of
       Reserved rc =>
@@ -729,54 +696,40 @@ struct
     | _ => false
 
 
-
-  fun makeGroup (s: pretoken Seq.t): token Seq.t =
+  fun makeGroup (s: pretoken Seq.t) : token Seq.t =
     Seq.tabulate (fn i => {idx = i, context = s}) (Seq.length s)
 
   fun fromPre (t: pretoken) =
     Seq.nth (makeGroup (Seq.singleton t)) 0
 
-  fun nextToken ({idx=i, context}: token) =
-    if i+1 < Seq.length context then
-      SOME {idx = i+1, context = context}
-    else
-      NONE
+  fun nextToken ({idx = i, context}: token) =
+    if i + 1 < Seq.length context then SOME {idx = i + 1, context = context}
+    else NONE
 
-  fun prevToken ({idx=i, context}: token) =
-    if i > 0 then
-      SOME {idx = i-1, context = context}
-    else
-      NONE
+  fun prevToken ({idx = i, context}: token) =
+    if i > 0 then SOME {idx = i - 1, context = context} else NONE
 
   fun prevTokenNotCommentOrWhitespace tok =
     case prevToken tok of
       NONE => NONE
     | SOME t' =>
-        if isCommentOrWhitespace t' then
-          prevTokenNotCommentOrWhitespace t'
-        else
-          SOME t'
+        if isCommentOrWhitespace t' then prevTokenNotCommentOrWhitespace t'
+        else SOME t'
 
   fun nextTokenNotCommentOrWhitespace tok =
     case nextToken tok of
       NONE => NONE
     | SOME t' =>
-        if isCommentOrWhitespace t' then
-          nextTokenNotCommentOrWhitespace t'
-        else
-          SOME t'
+        if isCommentOrWhitespace t' then nextTokenNotCommentOrWhitespace t'
+        else SOME t'
 
   fun commentsOrWhitespaceBefore tok =
     let
       fun loop acc t =
         case prevToken t of
           SOME t' =>
-            if isCommentOrWhitespace t' then
-              loop (t' :: acc) t'
-            else
-              acc
-        | NONE =>
-            acc
+            if isCommentOrWhitespace t' then loop (t' :: acc) t' else acc
+        | NONE => acc
     in
       Seq.fromList (loop [] tok)
     end
@@ -786,12 +739,8 @@ struct
       fun loop acc t =
         case nextToken t of
           SOME t' =>
-            if isCommentOrWhitespace t' then
-              loop (t' :: acc) t'
-            else
-              acc
-        | NONE =>
-            acc
+            if isCommentOrWhitespace t' then loop (t' :: acc) t' else acc
+        | NONE => acc
     in
       Seq.fromRevList (loop [] tok)
     end
@@ -816,14 +765,10 @@ struct
       fun loop acc t =
         case prevToken t of
           SOME t' =>
-            if isWhitespace t' then
-              loop acc t'
-            else if isComment t' then
-              loop (t' :: acc) t'
-            else
-              acc
-        | NONE =>
-            acc
+            if isWhitespace t' then loop acc t'
+            else if isComment t' then loop (t' :: acc) t'
+            else acc
+        | NONE => acc
     in
       Seq.fromList (loop [] tok)
     end
@@ -834,14 +779,10 @@ struct
       fun loop acc t =
         case nextToken t of
           SOME t' =>
-            if isWhitespace t' then
-              loop acc t'
-            else if isComment t' then
-              loop (t' :: acc) t'
-            else
-              acc
-        | NONE =>
-            acc
+            if isWhitespace t' then loop acc t'
+            else if isComment t' then loop (t' :: acc) t'
+            else acc
+        | NONE => acc
     in
       Seq.fromRevList (loop [] tok)
     end

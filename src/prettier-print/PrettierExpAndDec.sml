@@ -15,14 +15,17 @@ struct
   open PrettierTy
   open PrettierPat
   infix 2 ++
-  fun x ++ y = concat (x, y)
+  fun x ++ y =
+    concat (x, y)
 
   (* ====================================================================== *)
 
   fun ifThenElseChain acc exp =
     case exp of
       Ast.Exp.IfThenElse {iff, exp1, thenn, exp2, elsee, exp3} =>
-        ifThenElseChain ({iff=iff, exp1=exp1, thenn=thenn, exp2=exp2, elsee=elsee} :: acc) exp3
+        ifThenElseChain
+          ({iff = iff, exp1 = exp1, thenn = thenn, exp2 = exp2, elsee = elsee}
+           :: acc) exp3
     | _ => (Seq.fromRevList acc, exp)
 
 
@@ -60,11 +63,9 @@ struct
 
   fun tryViewExpAsSimpleIdentifier e =
     case e of
-      Ast.Exp.Ident {opp=NONE, id} =>
-        if MaybeLongToken.isLong id then
-          NONE
-        else
-          SOME (MaybeLongToken.getToken id)
+      Ast.Exp.Ident {opp = NONE, id} =>
+        if MaybeLongToken.isLong id then NONE
+        else SOME (MaybeLongToken.getToken id)
 
     | _ => NONE
 
@@ -75,7 +76,7 @@ struct
 
       val rightNice =
         case right of
-          Ident {opp=NONE, id} =>
+          Ident {opp = NONE, id} =>
             not (MaybeLongToken.isLong id)
             andalso
             not (Token.isSymbolicIdentifier (MaybeLongToken.getToken id))
@@ -91,8 +92,7 @@ struct
       andalso
       case tryViewExpAsSimpleIdentifier left of
         SOME id =>
-          Token.isSymbolicIdentifier id
-          andalso not (Token.hasCommentsAfter id)
+          Token.isSymbolicIdentifier id andalso not (Token.hasCommentsAfter id)
       | NONE => false
     end
 
@@ -111,10 +111,11 @@ struct
             NONE
           else
             (case left of
-              Ident {opp=NONE, id} => SOME (MaybeLongToken.getToken id, right)
-            | _ => NONE)
+               Ident {opp = NONE, id} =>
+                 SOME (MaybeLongToken.getToken id, right)
+             | _ => NONE)
 
-      | _  => NONE
+      | _ => NONE
     end
 
 
@@ -126,27 +127,24 @@ struct
         depth >= 3
         orelse
         case exp of
-          Parens {exp, ...} => looksBig (depth+1) exp
+          Parens {exp, ...} => looksBig (depth + 1) exp
         | Unit _ => false
         | Ident _ => false
         | Const _ => false
         | Select _ => false
         | App {left, right} =>
-            looksBig (depth+1) left orelse looksBig (depth+1) right
+            looksBig (depth + 1) left orelse looksBig (depth + 1) right
         | Infix {left, right, ...} =>
-            looksBig (depth+1) left orelse looksBig (depth+1) right
+            looksBig (depth + 1) left orelse looksBig (depth + 1) right
         | Andalso {left, right, ...} =>
-            looksBig (depth+1) left orelse looksBig (depth+1) right
+            looksBig (depth + 1) left orelse looksBig (depth + 1) right
         | Orelse {left, right, ...} =>
-            looksBig (depth+1) left orelse looksBig (depth+1) right
-        | Raise {exp, ...} =>
-            looksBig (depth+1) exp
-        | Typed {exp, ...} =>
-            looksBig (depth+1) exp
+            looksBig (depth + 1) left orelse looksBig (depth + 1) right
+        | Raise {exp, ...} => looksBig (depth + 1) exp
+        | Typed {exp, ...} => looksBig (depth + 1) exp
         | Fn {elems, ...} =>
             Seq.length elems > 1
-            orelse
-            looksBig (depth+1) (#exp (Seq.nth elems 0))
+            orelse looksBig (depth + 1) (#exp (Seq.nth elems 0))
         | _ => true
     in
       looksBig 0 exp
@@ -172,7 +170,7 @@ struct
 
   fun isIdentLength1 exp =
     case exp of
-      Ast.Exp.Ident {opp=NONE, id} =>
+      Ast.Exp.Ident {opp = NONE, id} =>
         1 = Source.length (Token.getSource (MaybeLongToken.getToken id))
     | _ => false
 
@@ -192,52 +190,45 @@ struct
     let
       fun showOne first (starter, {tyvars, tycon, ty, eq}) =
         at tab
-          (token starter ++
-          showTokenSyntaxSeq tab tyvars ++
-          token tycon ++
-          token eq ++
-          withNewChild showTy tab ty)
+          (token starter ++ showTokenSyntaxSeq tab tyvars ++ token tycon
+           ++ token eq ++ withNewChild showTy tab ty)
     in
-      Seq.iterate op++
-        (showOne true (front, Seq.nth elems 0))
+      Seq.iterate op++ (showOne true (front, Seq.nth elems 0))
         (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
     end
 
 
   fun showDatbind tab (front, datbind: Ast.Exp.datbind as {elems, delims}) =
     newTabWithStyle tab (Tab.Style.allowComments, fn tab =>
-    let
-      fun showCon (starter, {opp, id, arg}) =
-        at tab
-          (starter ++
-          showMaybeOpToken opp id ++
-          showOption
-            (fn {off, ty} =>
-              token off ++ withNewChildWithStyle (indentedAtLeastBy 4) showTy tab ty)
-            arg)
+      let
+        fun showCon (starter, {opp, id, arg}) =
+          at tab
+            (starter ++ showMaybeOpToken opp id
+             ++
+             showOption
+               (fn {off, ty} =>
+                  token off
+                  ++ withNewChildWithStyle (indentedAtLeastBy 4) showTy tab ty)
+               arg)
 
-      fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
-        let
-          val initial =
-            at tab
-              (token starter ++
-              showTokenSyntaxSeq tab tyvars ++
-              token tycon ++
-              token eq)
+        fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
+          let
+            val initial = at tab
+              (token starter ++ showTokenSyntaxSeq tab tyvars ++ token tycon
+               ++ token eq)
 
-          val skipper = cond tab {inactive=empty, active=space++space}
-          fun dd delim = token delim ++ space
-        in
-          initial ++
-          Seq.iterate op++
-            (showCon (skipper, Seq.nth elems 0))
-            (Seq.zipWith showCon (Seq.map dd delims, Seq.drop elems 1))
-        end
-    in
-      Seq.iterate op++
-        (showOne (front, Seq.nth elems 0))
-        (Seq.zipWith showOne (delims, Seq.drop elems 1))
-    end)
+            val skipper = cond tab {inactive = empty, active = space ++ space}
+            fun dd delim = token delim ++ space
+          in
+            initial
+            ++
+            Seq.iterate op++ (showCon (skipper, Seq.nth elems 0))
+              (Seq.zipWith showCon (Seq.map dd delims, Seq.drop elems 1))
+          end
+      in
+        Seq.iterate op++ (showOne (front, Seq.nth elems 0))
+          (Seq.zipWith showOne (delims, Seq.drop elems 1))
+      end)
 
   (* ====================================================================== *)
 
@@ -246,43 +237,27 @@ struct
       open Ast.Exp
     in
       case exp of
-        Const tok =>
-          token tok
+        Const tok => token tok
 
-      | Unit {left, right} =>
-          token left ++ nospace ++ token right
+      | Unit {left, right} => token left ++ nospace ++ token right
 
-      | Ident {opp, id} =>
-          showMaybeOpToken opp (MaybeLongToken.getToken id)
+      | Ident {opp, id} => showMaybeOpToken opp (MaybeLongToken.getToken id)
 
       | Parens {left, exp, right} =>
-          token left ++
-          (if expStartsWithStar exp then empty else nospace)
+          token left ++ (if expStartsWithStar exp then empty else nospace)
           ++ withNewChild showExp tab exp ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
           showSequence expStartsWithStar (withNewChild showExp) tab
-            { openn = left
-            , elems = elems
-            , delims = delims
-            , close = right
-            }
+            {openn = left, elems = elems, delims = delims, close = right}
 
       | Sequence {left, elems, delims, right} =>
           showSequence expStartsWithStar (withNewChild showExp) tab
-            { openn = left
-            , elems = elems
-            , delims = delims
-            , close = right
-            }
+            {openn = left, elems = elems, delims = delims, close = right}
 
       | List {left, elems, delims, right} =>
           showSequence expStartsWithStar (withNewChild showExp) tab
-            { openn = left
-            , elems = elems
-            , delims = delims
-            , close = right
-            }
+            {openn = left, elems = elems, delims = delims, close = right}
 
       | Record {left, elems, delims, right} =>
           let
@@ -293,112 +268,93 @@ struct
                 token lab ++ token eq
                 ++
                 newTab tab (fn expGhost =>
-                newTab tab (fn child =>
-                  let
-                    val expAtChild = at child (showExp child exp)
-                  in
-                    letdoc expAtChild (fn ec =>
-                      cond expGhost
-                        { inactive =
-                            cond child
+                  newTab tab (fn child =>
+                    let
+                      val expAtChild = at child (showExp child exp)
+                    in
+                      letdoc expAtChild (fn ec =>
+                        cond expGhost
+                          { inactive = cond child
                               { inactive = var ec
                               , active =
                                   at expGhost (splitShowExpLeft expGhost exp)
-                                  ++
-                                  at child (splitShowExpRight child exp)
+                                  ++ at child (splitShowExpRight child exp)
                               }
-                        , active = var ec
-                        })
-                  end))
+                          , active = var ec
+                          })
+                    end))
           in
             showSequence (fn _ => false) (withNewChild showRow) tab
-              { openn = left
-              , elems = elems
-              , delims = delims
-              , close = right
-              }
+              {openn = left, elems = elems, delims = delims, close = right}
           end
 
       | Select {hash, label} =>
-          token hash ++
+          token hash
+          ++
           (if
-            Token.isSymbolicIdentifier label
-            orelse Token.hasCommentsAfter hash
-          then
-            empty
-          else
-            nospace)
-          ++ token label
+             Token.isSymbolicIdentifier label orelse Token.hasCommentsAfter hash
+           then empty
+           else nospace) ++ token label
 
-      | App _ =>
-          showApp tab exp
+      | App _ => showApp tab exp
 
       | Typed {exp, colon, ty} =>
-          withNewChild showExp tab exp ++ token colon ++ withNewChild showTy tab ty
+          withNewChild showExp tab exp ++ token colon
+          ++ withNewChild showTy tab ty
 
       | IfThenElse _ (*{iff, exp1, thenn, exp2, elsee, exp3}*) =>
           showIfThenElseAt tab exp
 
-      | LetInEnd xxx =>
-          showLetInEndAt tab xxx
+      | LetInEnd xxx => showLetInEndAt tab xxx
 
       | Fn {fnn, elems, delims} =>
           newTab tab (fn inner => (* do we need the newTab here? *)
-          let
-            fun mk (delim, {pat, arrow, exp}) =
-              at inner
-                (cond inner {inactive=empty, active=space} ++ token delim
-                ++ withNewChild showPat inner pat ++ token arrow
-                ++ withNewChild showExp inner exp)
+            let
+              fun mk (delim, {pat, arrow, exp}) =
+                at inner
+                  (cond inner {inactive = empty, active = space} ++ token delim
+                   ++ withNewChild showPat inner pat ++ token arrow
+                   ++ withNewChild showExp inner exp)
 
-            val {pat, arrow, exp} = Seq.nth elems 0
-            val initial =
-              at inner
-                (token fnn
-                ++ withNewChild showPat inner pat
-                ++ token arrow
-                ++ withNewChild showExp inner exp)
-          in
-            Seq.iterate op++ initial (Seq.map mk (Seq.zip (delims, Seq.drop elems 1)))
-          end)
+              val {pat, arrow, exp} = Seq.nth elems 0
+              val initial = at inner
+                (token fnn ++ withNewChild showPat inner pat ++ token arrow
+                 ++ withNewChild showExp inner exp)
+            in
+              Seq.iterate op++ initial (Seq.map mk (Seq.zip
+                (delims, Seq.drop elems 1)))
+            end)
 
-      | Case {casee, exp=expTop, off, elems, delims} =>
+      | Case {casee, exp = expTop, off, elems, delims} =>
           let
             fun showBranch inner1 {pat, arrow, exp} =
-              withNewChild showPat inner1 pat
-              ++ token arrow
+              withNewChild showPat inner1 pat ++ token arrow
               ++ withNewChildWithStyle (indentedAtLeastBy 4) showExp inner1 exp
             fun mk inner1 (delim, branch) =
               at inner1
                 ((case delim of
                     SOME d => token d
                   | _ => cond inner1 {active = space ++ space, inactive = empty})
-                ++ showBranch inner1 branch)
+                 ++ showBranch inner1 branch)
 
             val style =
-              if Seq.length elems <= 1 then
-                Tab.Style.inplace
-              else
-                rigidInplace
+              if Seq.length elems <= 1 then Tab.Style.inplace else rigidInplace
 
-            val style =
-              Tab.Style.combine (style, Tab.Style.allowComments)
+            val style = Tab.Style.combine (style, Tab.Style.allowComments)
           in
             newTabWithStyle tab (style, fn inner1 =>
-            newTab inner1 (fn inner2 =>
-              at inner1 (token casee)
-              ++
-              at inner2 (showExp inner2 expTop)
-              ++
-              cond inner2 {inactive = token off, active = at inner1 (token off)}
-              ++
-              Seq.iterate op++ (mk inner1 (NONE, Seq.nth elems 0))
-                (Seq.zipWith (mk inner1) (Seq.map SOME delims, Seq.drop elems 1))
-            ))
+              newTab inner1 (fn inner2 =>
+                at inner1 (token casee) ++ at inner2 (showExp inner2 expTop)
+                ++
+                cond inner2
+                  {inactive = token off, active = at inner1 (token off)}
+                ++
+                Seq.iterate op++ (mk inner1 (NONE, Seq.nth elems 0))
+                  (Seq.zipWith (mk inner1)
+                     (Seq.map SOME delims, Seq.drop elems 1))))
           end
 
-      | Infix {left, id, right} =>
-          showInfixedExpAt tab (left, id, right)
+      | Infix {left, id, right} => showInfixedExpAt tab (left, id, right)
 
       | Andalso {left, andalsoo, right} =>
           showInfixedExpAt tab (left, andalsoo, right)
@@ -408,21 +364,19 @@ struct
 
       | While {whilee, exp1, doo, exp2} =>
           newTab tab (fn inner1 =>
-          newTab tab (fn inner2 =>
-            token whilee ++
-            at inner1 (showExp inner1 exp1) ++
-            cond inner1 {inactive = token doo, active = at tab (token doo)} ++
-            at inner2 (showExp inner2 exp2)))
+            newTab tab (fn inner2 =>
+              token whilee ++ at inner1 (showExp inner1 exp1)
+              ++ cond inner1 {inactive = token doo, active = at tab (token doo)}
+              ++ at inner2 (showExp inner2 exp2)))
 
       | Raise {raisee, exp} =>
           (case tryViewAsSimpleApp exp of
-            NONE => token raisee ++ withNewChild showExp tab exp
-          | SOME (id, exp') =>
-              token raisee
-              ++ newTab tab (fn inner => at inner (token id))
-              ++ withNewChild showExp tab exp')
+             NONE => token raisee ++ withNewChild showExp tab exp
+           | SOME (id, exp') =>
+               token raisee ++ newTab tab (fn inner => at inner (token id))
+               ++ withNewChild showExp tab exp')
 
-      | Handle (args as {exp=expLeft, handlee, elems, delims}) =>
+      | Handle (args as {exp = expLeft, handlee, elems, delims}) =>
           if Seq.length elems > 1 then
             showHandle tab args
           else
@@ -433,16 +387,14 @@ struct
                 at tab (showExp tab expLeft)
                 ++
                 at tab (at inner
-                  (token handlee
-                  ++ withNewChild showPat inner pat
-                  ++ token arrow
-                  ++ withNewChild showExp inner exp))
+                  (token handlee ++ withNewChild showPat inner pat
+                   ++ token arrow ++ withNewChild showExp inner exp))
               end)
 
       | MLtonSpecific {underscore, directive, contents, semicolon} =>
           token underscore ++ nospace ++ token directive
-          ++ Seq.iterate op++ empty (Seq.map token contents)
-          ++ nospace ++ token semicolon
+          ++ Seq.iterate op++ empty (Seq.map token contents) ++ nospace
+          ++ token semicolon
 
     end
 
@@ -460,42 +412,31 @@ struct
         empty
       else
 
-      case exp of
-        Parens {left, exp, right} =>
-          token left
-          ++
-          (if expStartsWithStar exp then empty else nospace)
-          ++
-          withNewChild splitShowExpLeft tab exp
+        case exp of
+          Parens {left, exp, right} =>
+            token left ++ (if expStartsWithStar exp then empty else nospace)
+            ++ withNewChild splitShowExpLeft tab exp
 
-      | Fn {fnn, elems, delims} =>
-          let
-            val {pat, arrow, exp} = Seq.nth elems 0
-          in
-            token fnn ++ withNewChild showPat tab pat ++ token arrow
-          end
+        | Fn {fnn, elems, delims} =>
+            let val {pat, arrow, exp} = Seq.nth elems 0
+            in token fnn ++ withNewChild showPat tab pat ++ token arrow
+            end
 
-      | App {left, right} =>
-          showExp tab left
-          ++
-          splitShowExpLeft tab right
+        | App {left, right} => showExp tab left ++ splitShowExpLeft tab right
 
-      | Tuple {left, elems, delims, right} =>
-          let
-            fun make (e, d) =
-              withNewChild showExp tab e ++ nospace ++ token d
-          in
-            token left
-            ++
-            (if expStartsWithStar (Seq.nth elems 0) then empty else nospace)
-            ++
-            Seq.iterate op++ empty
-              (Seq.map make (Seq.zip (elems, delims)))
-            ++
-            splitShowExpLeft tab (Seq.nth elems (Seq.length elems - 1))
-          end
+        | Tuple {left, elems, delims, right} =>
+            let
+              fun make (e, d) =
+                withNewChild showExp tab e ++ nospace ++ token d
+            in
+              token left
+              ++
+              (if expStartsWithStar (Seq.nth elems 0) then empty else nospace)
+              ++ Seq.iterate op++ empty (Seq.map make (Seq.zip (elems, delims)))
+              ++ splitShowExpLeft tab (Seq.nth elems (Seq.length elems - 1))
+            end
 
-      | _ => empty
+        | _ => empty
     end
 
 
@@ -508,25 +449,22 @@ struct
         showExp tab exp
       else
 
-      case exp of
-        Parens {left, exp, right} =>
-          splitShowExpRight tab exp ++ nospace ++ token right
+        case exp of
+          Parens {left, exp, right} =>
+            splitShowExpRight tab exp ++ nospace ++ token right
 
-      | Fn {fnn, elems, delims} =>
-          let
-            val {pat, arrow, exp} = Seq.nth elems 0
-          in
-            showExp tab exp
-          end
+        | Fn {fnn, elems, delims} =>
+            let val {pat, arrow, exp} = Seq.nth elems 0
+            in showExp tab exp
+            end
 
-      | App {left, right} =>
-          splitShowExpRight tab right
+        | App {left, right} => splitShowExpRight tab right
 
-      | Tuple {left, elems, delims, right} =>
-          splitShowExpRight tab (Seq.nth elems (Seq.length elems - 1))
-          ++ nospace ++ token right
+        | Tuple {left, elems, delims, right} =>
+            splitShowExpRight tab (Seq.nth elems (Seq.length elems - 1))
+            ++ nospace ++ token right
 
-      | _ => showExp tab exp
+        | _ => showExp tab exp
     end
 
 
@@ -535,7 +473,7 @@ struct
       val (fExp, args) = appChain exp
       val nArgs = Seq.length args
       val (allButLastArg, lastArg) =
-        (Seq.take args (nArgs-1), Seq.nth args (nArgs-1))
+        (Seq.take args (nArgs - 1), Seq.nth args (nArgs - 1))
 
       (* This is a cool trick: we create a new "ghost" tab which contains the
        * content of this arg, and use it to determine whether or not the arg
@@ -549,54 +487,45 @@ struct
       fun makeArg alignedArgsTab allArgsGhost arg =
         newTab allArgsGhost (fn ghost =>
           let
-            val contents =
-              cond ghost
-                { inactive = at ghost (showExp ghost arg)
-                , active = at alignedArgsTab (showExp alignedArgsTab arg)
-                }
+            val contents = cond ghost
+              { inactive = at ghost (showExp ghost arg)
+              , active = at alignedArgsTab (showExp alignedArgsTab arg)
+              }
           in
             letdoc contents (fn c =>
               cond allArgsGhost
-                { inactive = at allArgsGhost (var c)
-                , active = var c
-                })
+                {inactive = at allArgsGhost (var c), active = var c})
           end)
 
       fun makeLastArg alignedArgsTab allArgsGhost arg =
         newTab tab (fn ghost1 =>
-        newTab tab (fn ghost2 =>
-          let
-            val aligned =
-              at alignedArgsTab (showExp alignedArgsTab arg)
+          newTab tab (fn ghost2 =>
+            let
+              val aligned = at alignedArgsTab (showExp alignedArgsTab arg)
 
-            val flat =
-              at ghost2 (showExp ghost2 arg)
+              val flat = at ghost2 (showExp ghost2 arg)
 
-            fun contents f a =
-              cond ghost1
-                { inactive =
-                    cond ghost2
+              fun contents f a =
+                cond ghost1
+                  { inactive = cond ghost2
                       { inactive = var f
                       , active =
                           at ghost1 (splitShowExpLeft ghost1 arg)
                           ++
-                          at alignedArgsTab (splitShowExpRight alignedArgsTab arg)
+                          at alignedArgsTab
+                            (splitShowExpRight alignedArgsTab arg)
                       }
 
-                , active = var a
-                }
-          in
-            letdoc aligned (fn a =>
-            letdoc flat (fn f =>
-              cond allArgsGhost
-                { inactive = contents f a
-                , active =
-                    cond ghost2
-                      { inactive = var f
-                      , active = var a
-                      }
-                }))
-          end))
+                  , active = var a
+                  }
+            in
+              letdoc aligned (fn a =>
+                letdoc flat (fn f =>
+                  cond allArgsGhost
+                    { inactive = contents f a
+                    , active = cond ghost2 {inactive = var f, active = var a}
+                    }))
+            end))
 
       val argsStyle =
         (* This is a funny edge case, where indented style would look strange,
@@ -609,113 +538,105 @@ struct
          *   f arg1
          *     arg2
          *)
-        if isIdentLength1 fExp then
-          Tab.Style.inplace
-        else
-          Tab.Style.indented
+        if isIdentLength1 fExp then Tab.Style.inplace
+        else Tab.Style.indented
 
-      val argsStyle =
-        Tab.Style.combine (Tab.Style.allowComments, argsStyle)
+      val argsStyle = Tab.Style.combine (Tab.Style.allowComments, argsStyle)
     in
       newTabWithStyle tab (argsStyle, fn alignedArgsTab =>
-      newTab tab (fn allArgsGhost =>
-        at tab (showExp tab fExp)
-        ++
-        (if appWantsSpace fExp (Seq.nth args 0) then empty else nospace)
-        ++
-        Seq.iterate op++ empty (Seq.map (makeArg alignedArgsTab allArgsGhost) allButLastArg)
-        ++
-        makeLastArg alignedArgsTab allArgsGhost lastArg
-      ))
+        newTab tab (fn allArgsGhost =>
+          at tab (showExp tab fExp)
+          ++ (if appWantsSpace fExp (Seq.nth args 0) then empty else nospace)
+          ++
+          Seq.iterate op++ empty
+            (Seq.map (makeArg alignedArgsTab allArgsGhost) allButLastArg)
+          ++ makeLastArg alignedArgsTab allArgsGhost lastArg))
     end
 
 
-  and showHandle tab {exp=expLeft, handlee, elems, delims} =
+  and showHandle tab {exp = expLeft, handlee, elems, delims} =
     newTabWithStyle tab (Tab.Style.allowComments, fn inner =>
       let
         fun showBranch {pat, arrow, exp} =
-          withNewChild showPat inner pat
-          ++ token arrow
+          withNewChild showPat inner pat ++ token arrow
           ++ withNewChildWithStyle (indentedAtLeastBy 4) showExp inner exp
         fun mk (delim, branch) =
           at inner
             ((case delim of
                 SOME d => token d
               | _ => cond inner {active = space ++ space, inactive = empty})
-            ++ showBranch branch)
+             ++ showBranch branch)
       in
-        at tab (showExp tab expLeft)
+        at tab (showExp tab expLeft) ++ at tab (at inner (token handlee))
         ++
-        at tab (at inner (token handlee))
-        ++
-        Seq.iterate op++ (mk (NONE, Seq.nth elems 0))
-          (Seq.zipWith mk (Seq.map SOME delims, Seq.drop elems 1))
+        Seq.iterate op++ (mk (NONE, Seq.nth elems 0)) (Seq.zipWith mk
+          (Seq.map SOME delims, Seq.drop elems 1))
       end)
 
 
   and showInfixedExpAt tab (l, t, r) =
     newTab tab (fn tab =>
-    let
-      open Ast.Exp
+      let
+        open Ast.Exp
 
-      fun infixChainLeft () =
-        let
-          fun loop acc exp =
-            case tryViewAsInfix exp of
-              NONE => (exp, acc)
-            | SOME (left, id, right) =>
-                if Token.same (t, id) then
-                  loop ({id=id, right=right} :: acc) left
-                else
-                  (exp, acc)
-          val (exp, elems) = loop [{id=t, right=r}] l
-        in
-          (exp, Seq.fromList elems)
-        end
+        fun infixChainLeft () =
+          let
+            fun loop acc exp =
+              case tryViewAsInfix exp of
+                NONE => (exp, acc)
+              | SOME (left, id, right) =>
+                  if Token.same (t, id) then
+                    loop ({id = id, right = right} :: acc) left
+                  else
+                    (exp, acc)
+            val (exp, elems) = loop [{id = t, right = r}] l
+          in
+            (exp, Seq.fromList elems)
+          end
 
-      fun infixChainRight () =
-        let
-          fun loop acc (prevId, exp) =
-            case tryViewAsInfix exp of
-              NONE => {id=prevId, right=exp} :: acc
-            | SOME (left, id, right) =>
-                if not (Token.same (t, id)) then
-                  {id=prevId, right=exp} :: acc
-                else
-                  loop ({id=prevId, right=left} :: acc) (id, right)
+        fun infixChainRight () =
+          let
+            fun loop acc (prevId, exp) =
+              case tryViewAsInfix exp of
+                NONE => {id = prevId, right = exp} :: acc
+              | SOME (left, id, right) =>
+                  if not (Token.same (t, id)) then
+                    {id = prevId, right = exp} :: acc
+                  else
+                    loop ({id = prevId, right = left} :: acc) (id, right)
 
-          val elems = loop [] (t, r)
-        in
-          (l, Seq.fromRevList elems)
-        end
+            val elems = loop [] (t, r)
+          in
+            (l, Seq.fromRevList elems)
+          end
 
-      val (leftmostExp1, rightElems1) = infixChainLeft ()
-      val (leftmostExp2, rightElems2) = infixChainRight ()
+        val (leftmostExp1, rightElems1) = infixChainLeft ()
+        val (leftmostExp2, rightElems2) = infixChainRight ()
 
-      fun showRightElem {id, right} =
-        newTab tab (fn ghost =>
-          cond ghost
-            { inactive = at ghost (token id ++ showExp ghost right)
-            , active =
-                at tab (token id ++
-                  newTab tab (fn ghostChild =>
-                    cond ghostChild
-                      { inactive = at ghostChild (showExp ghostChild right)
-                      , active = at tab (showExp tab right)
-                      }))
-            })
+        fun showRightElem {id, right} =
+          newTab tab (fn ghost =>
+            cond ghost
+              { inactive = at ghost (token id ++ showExp ghost right)
+              , active = at tab
+                  (token id
+                   ++
+                   newTab tab (fn ghostChild =>
+                     cond ghostChild
+                       { inactive = at ghostChild (showExp ghostChild right)
+                       , active = at tab (showExp tab right)
+                       }))
+              })
         (* at tab (token id) ++ withNewChild showExp tab right *)
 
-      val (leftmostExp, rightElems) =
-        if Seq.length rightElems1 >= Seq.length rightElems2 then
-          (leftmostExp1, rightElems1)
-        else
-          (leftmostExp2, rightElems2)
-    in
-      at tab (withNewChild showExp tab leftmostExp)
-      ++
-      Seq.iterate op++ empty (Seq.map showRightElem rightElems)
-    end)
+        val (leftmostExp, rightElems) =
+          if Seq.length rightElems1 >= Seq.length rightElems2 then
+            (leftmostExp1, rightElems1)
+          else
+            (leftmostExp2, rightElems2)
+      in
+        at tab (withNewChild showExp tab leftmostExp)
+        ++ Seq.iterate op++ empty (Seq.map showRightElem rightElems)
+      end)
 
 
   and showLetInEndAt outerTab {lett, dec, inn, exps, delims, endd} =
@@ -723,11 +644,12 @@ struct
       val numExps = Seq.length exps
       fun d i = Seq.nth delims i
       fun withDelims innerTab =
-        Seq.mapIdx (fn (i, e) =>
-          at innerTab
-            (showExp innerTab e
-            ++ (if i = numExps - 1 then empty else nospace ++ token (d i))))
-        exps
+        Seq.mapIdx
+          (fn (i, e) =>
+             at innerTab
+               (showExp innerTab e
+                ++ (if i = numExps - 1 then empty else nospace ++ token (d i))))
+          exps
 
       val innerStyle =
         if decHasAtLeastTwoDecs dec then
@@ -749,30 +671,30 @@ struct
 
   and showIfThenElseAt outer exp =
     newTabWithStyle outer (Tab.Style.allowComments, fn outer =>
-    newTabWithStyle outer (indentedAllowComments, fn inner2 =>
-    newTabWithStyle outer (indentedAllowComments, fn inner1 =>
-    let
-      open Ast.Exp
-      val (chain, last) = ifThenElseChain [] exp
+      newTabWithStyle outer (indentedAllowComments, fn inner2 =>
+        newTabWithStyle outer (indentedAllowComments, fn inner1 =>
+          let
+            open Ast.Exp
+            val (chain, last) = ifThenElseChain [] exp
 
-      fun breakShowAt tab e = at tab (showExp tab e)
+            fun breakShowAt tab e =
+              at tab (showExp tab e)
 
-      fun f i =
-        let
-          val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain i
-        in
-          token iff ++
-          breakShowAt inner1 exp1 ++
-          cond inner1 {inactive = token thenn, active = at outer (token thenn)} ++
-          breakShowAt inner2 exp2 ++
-          at outer (token elsee)
-        end
-    in
-      at outer
-        (Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
-        ++
-        breakShowAt inner2 last)
-    end)))
+            fun f i =
+              let
+                val {iff, exp1, thenn, exp2, elsee} = Seq.nth chain i
+              in
+                token iff ++ breakShowAt inner1 exp1
+                ++
+                cond inner1
+                  {inactive = token thenn, active = at outer (token thenn)}
+                ++ breakShowAt inner2 exp2 ++ at outer (token elsee)
+              end
+          in
+            at outer
+              (Util.loop (0, Seq.length chain) empty (fn (d, i) => d ++ f i)
+               ++ breakShowAt inner2 last)
+          end)))
 
 
   and showDec tab dec =
@@ -786,67 +708,54 @@ struct
           let
             fun mkSplittable (starter, {recc, pat, eq, exp}) =
               newTab tab (fn flatGhost =>
-              newTab tab (fn expGhost =>
-              newTabWithStyle tab (Tab.Style.allowComments, fn child =>
-                let
-                  val patContents = withNewChild showPat tab pat
+                newTab tab (fn expGhost =>
+                  newTabWithStyle tab (Tab.Style.allowComments, fn child =>
+                    let
+                      val patContents = withNewChild showPat tab pat
 
-                  (* *)
-                  val expAtChild = at child (showExp child exp)
+                      (* *)
+                      val expAtChild = at child (showExp child exp)
 
-                  fun expContents ec =
-                    cond expGhost
-                      { inactive =
-                          cond child
-                            { inactive = var ec
-                            , active =
-                                at expGhost (splitShowExpLeft expGhost exp)
-                                ++
-                                at child (splitShowExpRight child exp)
-                            }
-                      , active = var ec
-                      }
-                in
-                  at tab (starter ++ showOption token recc)
-                  ++
-                  letdoc patContents (fn pc =>
-                    cond flatGhost
-                      { inactive = at flatGhost (var pc)
-                      , active = var pc
-                      })
-                  ++
-                  token eq
-                  ++
-                  letdoc expAtChild (fn ec =>
-                    cond flatGhost
-                      { inactive = expContents ec
-                      , active = var ec
-                      })
-                end)))
+                      fun expContents ec =
+                        cond expGhost
+                          { inactive = cond child
+                              { inactive = var ec
+                              , active =
+                                  at expGhost (splitShowExpLeft expGhost exp)
+                                  ++ at child (splitShowExpRight child exp)
+                              }
+                          , active = var ec
+                          }
+                    in
+                      at tab (starter ++ showOption token recc)
+                      ++
+                      letdoc patContents (fn pc =>
+                        cond flatGhost
+                          {inactive = at flatGhost (var pc), active = var pc})
+                      ++ token eq
+                      ++
+                      letdoc expAtChild (fn ec =>
+                        cond flatGhost
+                          {inactive = expContents ec, active = var ec})
+                    end)))
 
             fun mkSimple (starter, {recc, pat, eq, exp}) =
               at tab
-                (starter
-                ++ showOption token recc
-                ++ withNewChild showPat tab pat
-                ++ token eq
-                ++ withNewChild showExp tab exp)
+                (starter ++ showOption token recc
+                 ++ withNewChild showPat tab pat ++ token eq
+                 ++ withNewChild showExp tab exp)
 
             fun mk (starter, xxx as {recc, pat, eq, exp}) =
-              if not (isSplittableExp exp) then
-                mkSimple (starter, xxx)
-              else
-                mkSplittable (starter, xxx)
+              if not (isSplittableExp exp) then mkSimple (starter, xxx)
+              else mkSplittable (starter, xxx)
 
             val front = token vall ++ showTokenSyntaxSeq tab tyvars
           in
-            Seq.iterate op++
-              (mk (front, Seq.nth elems 0))
-              (Seq.zipWith mk (Seq.map token delims, Seq.drop elems 1))
+            Seq.iterate op++ (mk (front, Seq.nth elems 0)) (Seq.zipWith mk
+              (Seq.map token delims, Seq.drop elems 1))
           end
 
-      | DecFun args =>
-          showDecFunAt tab args
+      | DecFun args => showDecFunAt tab args
 
       | DecInfix {infixx, precedence, elems} =>
           token infixx ++ showOption token precedence
@@ -864,28 +773,28 @@ struct
             fun mk first (elem, delim) =
               at tab
                 (showDec tab elem
-                ++ showOption (fn d => nospace ++ token d) delim)
+                 ++ showOption (fn d => nospace ++ token d) delim)
 
             val things = Seq.zip (elems, delims)
           in
-            Seq.iterate op++
-              (mk true (Seq.nth things 0))
-              (Seq.map (mk false) (Seq.drop things 1))
+            Seq.iterate op++ (mk true (Seq.nth things 0)) (Seq.map (mk false)
+              (Seq.drop things 1))
           end
 
       | DecOpen {openn, elems} =>
-          token openn ++
+          token openn
+          ++
           Seq.iterate op++ empty
             (Seq.map (token o MaybeLongToken.getToken) elems)
 
-      | DecType {typee, typbind} =>
-          showTypbind tab (typee, typbind)
+      | DecType {typee, typbind} => showTypbind tab (typee, typbind)
 
       | DecDatatype {datatypee, datbind, withtypee} =>
           showDatbind tab (datatypee, datbind)
-          ++ showOption (fn {withtypee, typbind} =>
-               at tab (showTypbind tab (withtypee, typbind)))
-             withtypee
+          ++
+          showOption
+            (fn {withtypee, typbind} =>
+               at tab (showTypbind tab (withtypee, typbind))) withtypee
 
       | DecException {exceptionn, elems, delims} =>
           let
@@ -893,32 +802,30 @@ struct
               case exbind of
                 ExnNew {opp, id, arg} =>
                   showMaybeOpToken opp id
-                  ++ showOption (fn {off, ty} => token off ++ withNewChild showTy tab ty) arg
+                  ++
+                  showOption
+                    (fn {off, ty} => token off ++ withNewChild showTy tab ty)
+                    arg
               | ExnReplicate {opp, left_id, eq, right_id} =>
-                  showOption token opp
-                  ++ token left_id
-                  ++ token eq
+                  showOption token opp ++ token left_id ++ token eq
                   ++ token (MaybeLongToken.getToken right_id)
 
             fun showOne first (starter, elem) =
-              at tab
-                (token starter ++ showExbind elem)
+              at tab (token starter ++ showExbind elem)
           in
-            Seq.iterate op++
-              (showOne true (exceptionn, Seq.nth elems 0))
+            Seq.iterate op++ (showOne true (exceptionn, Seq.nth elems 0))
               (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
           end
 
       | DecReplicateDatatype
           {left_datatypee, left_id, eq, right_datatypee, right_id} =>
-          Seq.iterate op++ empty
-            (Seq.map token (Seq.fromList
-              [ left_datatypee
-              , left_id
-              , eq
-              , right_datatypee
-              , MaybeLongToken.getToken right_id
-              ]))
+          Seq.iterate op++ empty (Seq.map token (Seq.fromList
+            [ left_datatypee
+            , left_id
+            , eq
+            , right_datatypee
+            , MaybeLongToken.getToken right_id
+            ]))
 
       | DecLocal {locall, left_dec, inn, right_dec, endd} =>
           showThingSimilarToLetInEnd tab
@@ -932,26 +839,24 @@ struct
 
       | DecAbstype {abstypee, datbind, withtypee, withh, dec, endd} =>
           let
-            val datbinds =
-              showDatbind tab (abstypee, datbind)
+            val datbinds = showDatbind tab (abstypee, datbind)
 
             val bottom =
               at tab
-                (token withh
-                ++ withNewChildWithStyle (indented) showDec tab dec)
-              ++
-              at tab (token endd)
+                (token withh ++ withNewChildWithStyle (indented) showDec tab dec)
+              ++ at tab (token endd)
           in
             showDatbind tab (abstypee, datbind)
-            ++ showOption (fn {withtypee, typbind} =>
-                 at tab (showTypbind tab (withtypee, typbind)))
-               withtypee
+            ++
+            showOption
+              (fn {withtypee, typbind} =>
+                 at tab (showTypbind tab (withtypee, typbind))) withtypee
             ++ bottom
           end
     end
 
 
-  and showDecFunAt tab {funn, tyvars, fvalbind={elems, delims}} =
+  and showDecFunAt tab {funn, tyvars, fvalbind = {elems, delims}} =
     let
       open Ast.Exp
 
@@ -960,8 +865,7 @@ struct
           (Seq.map (withNewChildWithStyle clauseChildStyle showPat tab) args)
 
       fun showInfixed tab clauseChildStyle (larg, id, rarg) =
-        withNewChildWithStyle clauseChildStyle showPat tab larg
-        ++ token id
+        withNewChildWithStyle clauseChildStyle showPat tab larg ++ token id
         ++ withNewChildWithStyle clauseChildStyle showPat tab rarg
 
       fun showFNameArgs tab clauseChildStyle xx =
@@ -971,31 +875,29 @@ struct
         | InfixedFun {larg, id, rarg} =>
             showInfixed tab clauseChildStyle (larg, id, rarg)
         | CurriedInfixedFun {lparen, larg, id, rarg, rparen, args} =>
-            token lparen ++
-            (if patStartsWithStar larg then empty else nospace)
-            ++ showInfixed tab clauseChildStyle (larg, id, rarg)
-            ++ nospace ++ token rparen
-            ++ showArgs tab clauseChildStyle args
+            token lparen ++ (if patStartsWithStar larg then empty else nospace)
+            ++ showInfixed tab clauseChildStyle (larg, id, rarg) ++ nospace
+            ++ token rparen ++ showArgs tab clauseChildStyle args
 
       fun showColonTy tab {ty: Ast.Ty.t, colon: Token.t} =
         token colon ++ withNewChild showTy tab ty
 
-      fun showClause
-            mainTab clauseTab clauseChildStyleFirst clauseChildStyleRest
-            isFirst (front, {fname_args, ty, eq, exp}) =
+      fun showClause mainTab clauseTab clauseChildStyleFirst
+        clauseChildStyleRest isFirst (front, {fname_args, ty, eq, exp}) =
         let
           fun afterFront tab clauseChildStyle =
             let
               val expChildStyle =
                 if isBiggishExp exp then
-                  Tab.Style.combine (Tab.Style.combine
-                    (Tab.Style.indented, Tab.Style.rigid), clauseChildStyle)
+                  Tab.Style.combine
+                    ( Tab.Style.combine (Tab.Style.indented, Tab.Style.rigid)
+                    , clauseChildStyle
+                    )
                 else
                   clauseChildStyle
             in
               showFNameArgs tab clauseChildStyle fname_args
-              ++ showOption (showColonTy tab) ty
-              ++ token eq
+              ++ showOption (showColonTy tab) ty ++ token eq
               ++ withNewChildWithStyle expChildStyle showExp tab exp
             end
         in
@@ -1005,43 +907,38 @@ struct
             at clauseTab (front ++ afterFront clauseTab clauseChildStyleRest)
         end
 
-      fun mkFunction (starter, {elems=innerElems, delims}) =
+      fun mkFunction (starter, {elems = innerElems, delims}) =
         let
           val clauseChildStyleFirst =
-            if Seq.length innerElems <= 1 then
-              Tab.Style.inplace
-            else
-              indentedAtLeastBy 6
+            if Seq.length innerElems <= 1 then Tab.Style.inplace
+            else indentedAtLeastBy 6
 
           val clauseChildStyleRest = indentedAtLeastBy 4
 
-          val mainStyle =
-            Tab.Style.combine (rigidInplace, Tab.Style.allowComments)
+          val mainStyle = Tab.Style.combine
+            (rigidInplace, Tab.Style.allowComments)
 
           val clauseStyle =
-            Tab.Style.combine (Tab.Style.allowComments,
-              Tab.Style.combine (Tab.Style.rigid, Tab.Style.indentedExactlyBy 2))
+            Tab.Style.combine (Tab.Style.allowComments, Tab.Style.combine
+              (Tab.Style.rigid, Tab.Style.indentedExactlyBy 2))
         in
-          at tab (
-            newTabWithStyle tab (mainStyle, fn mainTab =>
+          at tab (newTabWithStyle tab (mainStyle, fn mainTab =>
             newTabWithStyle mainTab (clauseStyle, fn clauseTab =>
               let
                 val showClause' =
-                  showClause mainTab clauseTab
-                    clauseChildStyleFirst clauseChildStyleRest
+                  showClause mainTab clauseTab clauseChildStyleFirst
+                    clauseChildStyleRest
               in
                 Seq.iterate op++
                   (showClause' true (starter, Seq.nth innerElems 0))
                   (Seq.zipWith (showClause' false)
-                    (Seq.map token delims, Seq.drop innerElems 1))
+                     (Seq.map token delims, Seq.drop innerElems 1))
               end)))
         end
 
-      val front =
-        token funn ++ showTokenSyntaxSeq tab tyvars
+      val front = token funn ++ showTokenSyntaxSeq tab tyvars
     in
-      Seq.iterate op++
-        (mkFunction (front, Seq.nth elems 0))
+      Seq.iterate op++ (mkFunction (front, Seq.nth elems 0))
         (Seq.zipWith mkFunction (Seq.map token delims, Seq.drop elems 1))
     end
 

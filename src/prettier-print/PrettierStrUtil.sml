@@ -10,7 +10,8 @@ sig
   val strExpInsideFunAppWantsSpaceBefore: Ast.Str.strexp -> bool
   val strDecInsideFunAppWantsSpaceBefore: Ast.Str.strdec -> bool
   val strDecIsEmpty: Ast.Str.strdec -> bool
-  val showConstraintInStrDec: {colon: Token.t, sigexp: Ast.Sig.sigexp} PrettierUtil.shower
+  val showConstraintInStrDec:
+    {colon: Token.t, sigexp: Ast.Sig.sigexp} PrettierUtil.shower
 end =
 struct
 
@@ -19,7 +20,8 @@ struct
   open PrettierSigUtil
   open PrettierSig
   infix 2 ++
-  fun x ++ y = concat (x, y)
+  fun x ++ y =
+    concat (x, y)
 
   (* ====================================================================== *)
 
@@ -74,15 +76,9 @@ struct
 
   fun showConstraintInStrDec tab {colon, sigexp} =
     (if
-      Token.getClass colon = Token.Reserved Token.ColonArrow
-      orelse Token.hasCommentsBefore colon
-    then
-      empty
-    else
-      nospace)
-    ++
-    token colon
-    ++
-    showSigExpInDec tab sigexp
+       Token.getClass colon = Token.Reserved Token.ColonArrow
+       orelse Token.hasCommentsBefore colon
+     then empty
+     else nospace) ++ token colon ++ showSigExpInDec tab sigexp
 
 end

@@ -6,8 +6,9 @@
 structure ParserUtils:
 sig
   val error: {pos: Source.t, what: string, explain: string option} -> 'a
-  val tokError:
-    Token.t Seq.t -> {pos: int, what: string, explain: string option} -> 'a
+  val tokError: Token.t Seq.t
+                -> {pos: int, what: string, explain: string option}
+                -> 'a
 
   val errorIfInfixNotOpped: InfixDict.t -> Token.t option -> Token.t -> unit
 
@@ -16,12 +17,9 @@ end =
 struct
 
   fun error {what, pos, explain} =
-    raise Error.Error (Error.lineError
-      { header = "PARSE ERROR"
-      , pos = pos
-      , what = what
-      , explain = explain
-      })
+    raise Error.Error
+      (Error.lineError
+         {header = "PARSE ERROR", pos = pos, what = what, explain = explain})
 
   fun tokError toks {what, pos, explain} =
     if pos >= Seq.length toks then
@@ -29,11 +27,7 @@ struct
         val wholeSrc = Source.wholeFile (Token.getSource (Seq.nth toks 0))
         val src = Source.drop wholeSrc (Source.length wholeSrc - 1)
       in
-        error
-          { pos = src
-          , what = "Unexpected end of file."
-          , explain = NONE
-          }
+        error {pos = src, what = "Unexpected end of file.", explain = NONE}
       end
     else
       error
@@ -55,19 +49,21 @@ struct
 
   fun nyi toks fname i =
     if i >= Seq.length toks then
-      raise Error.Error (Error.lineError
-        { header = "ERROR: NOT YET IMPLEMENTED"
-        , pos = Token.getSource (Seq.nth toks (Seq.length toks - 1))
-        , what = "Unexpected EOF after token."
-        , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
-        })
+      raise Error.Error
+        (Error.lineError
+           { header = "ERROR: NOT YET IMPLEMENTED"
+           , pos = Token.getSource (Seq.nth toks (Seq.length toks - 1))
+           , what = "Unexpected EOF after token."
+           , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
+           })
     else if i >= 0 then
-      raise Error.Error (Error.lineError
-        { header = "ERROR: NOT YET IMPLEMENTED"
-        , pos = Token.getSource (Seq.nth toks i)
-        , what = "Unexpected token."
-        , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
-        })
+      raise Error.Error
+        (Error.lineError
+           { header = "ERROR: NOT YET IMPLEMENTED"
+           , pos = Token.getSource (Seq.nth toks i)
+           , what = "Unexpected token."
+           , explain = SOME ("(TODO: see parser " ^ fname ^ ")")
+           })
     else
       raise Fail ("Bug in parser " ^ fname ^ ": position out of bounds??")
 

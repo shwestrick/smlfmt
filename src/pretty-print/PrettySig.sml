@@ -23,20 +23,18 @@ struct
   fun showDec dec = PrettyExpAndDec.showDec dec
 
   fun showSpec spec =
-    case spec of
-      Ast.Sig.EmptySpec =>
-        empty
+    case
+      spec
+    of
+      Ast.Sig.EmptySpec => empty
 
     | Ast.Sig.Val {vall, elems, delims} =>
         let
           fun showOne (starter, {vid, colon, ty}) =
-            token starter
-            ++ space ++
-            token vid ++ space ++ token colon ++ space
+            token starter ++ space ++ token vid ++ space ++ token colon ++ space
             ++ showTy ty
         in
-          rigidVertically
-            (showOne (vall, Seq.nth elems 0))
+          rigidVertically (showOne (vall, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
@@ -49,8 +47,7 @@ struct
               , SOME (token tycon)
               ]
         in
-          rigidVertically
-            (showOne (typee, Seq.nth elems 0))
+          rigidVertically (showOne (typee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
@@ -65,8 +62,7 @@ struct
               , SOME (showTy ty)
               ]
         in
-          rigidVertically
-            (showOne (typee, Seq.nth elems 0))
+          rigidVertically (showOne (typee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
@@ -79,8 +75,7 @@ struct
               , SOME (token tycon)
               ]
         in
-          rigidVertically
-            (showOne (eqtypee, Seq.nth elems 0))
+          rigidVertically (showOne (eqtypee, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
@@ -90,112 +85,87 @@ struct
           *)
         let
           fun showCon (starter, {vid, arg}) =
-            starter
-            ++ space ++
-            group (
-              separateWithSpaces
-                [ SOME (token vid)
-                , Option.map (fn {off, ty} =>
-                    token off $$ indent (showTy ty)) arg
-                ]
-            )
+            starter ++ space
+            ++
+            group (separateWithSpaces
+              [ SOME (token vid)
+              , Option.map (fn {off, ty} => token off $$ indent (showTy ty)) arg
+              ])
 
           fun show_datdesc (starter, {tyvars, tycon, eq, elems, delims}) =
             let
-              val initial =
-                group (
-                  separateWithSpaces
-                    [ SOME (token starter)
-                    , maybeShowSyntaxSeq tyvars token
-                    , SOME (token tycon)
-                    , SOME (token eq)
-                    ]
-                )
+              val initial = group (separateWithSpaces
+                [ SOME (token starter)
+                , maybeShowSyntaxSeq tyvars token
+                , SOME (token tycon)
+                , SOME (token eq)
+                ])
             in
-              group (
-                initial
-                $$
-                group (
-                  Seq.iterate op$$
-                    (showCon (space, Seq.nth elems 0))
-                    (Seq.zipWith showCon (Seq.map token delims, Seq.drop elems 1))
-                )
-              )
+              group
+                (initial
+                 $$
+                 group
+                   (Seq.iterate op$$ (showCon (space, Seq.nth elems 0))
+                      (Seq.zipWith showCon
+                         (Seq.map token delims, Seq.drop elems 1))))
             end
         in
-          rigidVertically
-            (show_datdesc (datatypee, Seq.nth elems 0))
+          rigidVertically (show_datdesc (datatypee, Seq.nth elems 0))
             (Seq.zipWith show_datdesc (delims, Seq.drop elems 1))
         end
 
     | Ast.Sig.ReplicateDatatype
-      {left_datatypee, left_id, eq, right_datatypee, right_id} =>
-        group (
-          separateWithSpaces
-            [ SOME (token left_datatypee)
-            , SOME (token left_id)
-            , SOME (token eq)
-            ]
-          $$
-          indent (
-            token right_datatypee
-            ++ space ++
-            token (MaybeLongToken.getToken right_id)
-          )
-        )
+        {left_datatypee, left_id, eq, right_datatypee, right_id} =>
+        group
+          (separateWithSpaces
+             [ SOME (token left_datatypee)
+             , SOME (token left_id)
+             , SOME (token eq)
+             ]
+           $$
+           indent
+             (token right_datatypee ++ space
+              ++ token (MaybeLongToken.getToken right_id)))
 
     | Ast.Sig.Exception {exceptionn, elems, delims} =>
         let
           fun showOne (starter, {vid, arg}) =
-              group (
-                separateWithSpaces
-                  [ SOME (token starter)
-                  , SOME (token vid)
-                  , Option.map (fn {off, ty} => token off ++ space ++ showTy ty) arg
-                  ]
-              )
+            group (separateWithSpaces
+              [ SOME (token starter)
+              , SOME (token vid)
+              , Option.map (fn {off, ty} => token off ++ space ++ showTy ty) arg
+              ])
         in
-          rigidVertically
-            (showOne (exceptionn, Seq.nth elems 0))
+          rigidVertically (showOne (exceptionn, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
     | Ast.Sig.Structure {structuree, elems, delims} =>
         let
           fun showOne (starter, {id, colon, sigexp}) =
-            group (
-              separateWithSpaces
-                [ SOME (token starter)
-                , SOME (token id)
-                , SOME (token colon)
-                ]
-              $$
-              indent (showSigExp sigexp)
-            )
+            group
+              (separateWithSpaces
+                 [SOME (token starter), SOME (token id), SOME (token colon)]
+               $$ indent (showSigExp sigexp))
         in
-          rigidVertically
-            (showOne (structuree, Seq.nth elems 0))
+          rigidVertically (showOne (structuree, Seq.nth elems 0))
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
     | Ast.Sig.Include {includee, sigexp} =>
-        group (
-          token includee
-          $$
-          indent (showSigExp sigexp)
-        )
+        group (token includee $$ indent (showSigExp sigexp))
 
     | Ast.Sig.IncludeIds {includee, sigids} =>
-        Seq.iterate (fn (a, b) => a ++ space ++ token b)
-          (token includee)
-          sigids
+        Seq.iterate (fn (a, b) => a ++ space ++ token b) (token includee) sigids
 
     | Ast.Sig.Multiple {elems, delims} =>
         let
           fun showOne (elem: Ast.Sig.spec, delim: Token.t option) =
             showSpec elem
             ++
-            (case delim of NONE => empty | SOME sc => token sc)
+            (case delim of
+               NONE => empty
+             | SOME sc => token sc)
         in
           rigid (Seq.iterate op$$ empty (Seq.zipWith showOne (elems, delims)))
         end
@@ -203,73 +173,54 @@ struct
     | Ast.Sig.Sharing {spec, sharingg, elems, delims} =>
         let
           fun showOne (delim, elem) =
-            token delim (** this is an '=' *)
-            ++ space
+            token delim (** this is an '=' *) ++ space
             ++ token (MaybeLongToken.getToken elem)
 
           val stuff =
-            Seq.iterate
-              (fn (a, b) => a ++ space ++ b)
+            Seq.iterate (fn (a, b) => a ++ space ++ b)
               (token (MaybeLongToken.getToken (Seq.nth elems 0)))
               (Seq.zipWith showOne (delims, Seq.drop elems 1))
         in
-          group (
-            showSpec spec
-            $$
-            rigid (token sharingg ++ space ++ stuff)
-          )
+          group (showSpec spec $$ rigid (token sharingg ++ space ++ stuff))
         end
 
     | Ast.Sig.SharingType {spec, sharingg, typee, elems, delims} =>
         let
           fun showOne (delim, elem) =
-            token delim (** this is an '=' *)
-            ++ space
+            token delim (** this is an '=' *) ++ space
             ++ token (MaybeLongToken.getToken elem)
 
           val stuff =
-            Seq.iterate
-              (fn (a, b) => a ++ space ++ b)
+            Seq.iterate (fn (a, b) => a ++ space ++ b)
               (token (MaybeLongToken.getToken (Seq.nth elems 0)))
               (Seq.zipWith showOne (delims, Seq.drop elems 1))
         in
-          group (
-            showSpec spec
-            $$
-            rigid (token sharingg ++ space ++ token typee ++ space ++ stuff)
-          )
+          group
+            (showSpec spec
+             $$ rigid (token sharingg ++ space ++ token typee ++ space ++ stuff))
         end
 
 
   and showSigExp sigexp =
     case sigexp of
-      Ast.Sig.Ident id =>
-        token id
+      Ast.Sig.Ident id => token id
 
     | Ast.Sig.Spec {sigg, spec, endd} =>
-        group (
-          token sigg
-          $$
-          indent (showSpec spec)
-          $$
-          token endd
-        )
+        group (token sigg $$ indent (showSpec spec) $$ token endd)
 
     | Ast.Sig.WhereType {sigexp, elems} =>
         let
           val se = showSigExp sigexp
 
           fun showElem {wheree, typee, tyvars, tycon, eq, ty} =
-            indent (
-              separateWithSpaces
-                [ SOME (token wheree) (** this could be 'and' *)
-                , SOME (token typee)
-                , maybeShowSyntaxSeq tyvars token
-                , SOME (token (MaybeLongToken.getToken tycon))
-                , SOME (token eq)
-                , SOME (showTy ty)
-                ]
-            )
+            indent (separateWithSpaces
+              [ SOME (token wheree) (** this could be 'and' *)
+              , SOME (token typee)
+              , maybeShowSyntaxSeq tyvars token
+              , SOME (token (MaybeLongToken.getToken tycon))
+              , SOME (token eq)
+              , SOME (showTy ty)
+              ])
         in
           Seq.iterate op$$ se (Seq.map showElem elems)
         end
@@ -278,15 +229,11 @@ struct
   fun showSigDec (Ast.Sig.Signature {signaturee, elems, delims}) =
     let
       fun showOne (starter, {ident, eq, sigexp}) =
-        group (
-          (token starter
-          ++ space ++ token ident ++ space ++ token eq)
-          $$
-          indent (showSigExp sigexp)
-        )
+        group
+          ((token starter ++ space ++ token ident ++ space ++ token eq)
+           $$ indent (showSigExp sigexp))
     in
-      rigidVertically
-        (showOne (signaturee, Seq.nth elems 0))
+      rigidVertically (showOne (signaturee, Seq.nth elems 0))
         (Seq.zipWith showOne (delims, Seq.drop elems 1))
     end
 

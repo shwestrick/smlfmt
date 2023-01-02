@@ -34,31 +34,23 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i = i < numToks andalso f (tok i)
-      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i =
+        i < numToks andalso f (tok i)
+      fun isReserved rc =
+        check (fn t => Token.Reserved rc = Token.getClass t)
 
       fun parse_reserved rc i =
         PS.reserved toks rc i
-      fun parse_tyvars i =
-        PS.tyvars toks i
-      fun parse_sigid i =
-        PS.sigid toks i
-      fun parse_strid i =
-        PS.strid toks i
-      fun parse_funid i =
-        PS.funid toks i
-      fun parse_vid i =
-        PS.vid toks i
-      fun parse_longvid i =
-        PS.longvid toks i
-      fun parse_tycon i =
-        PS.tycon toks i
-      fun parse_maybeLongTycon i =
-        PS.maybeLongTycon toks i
-      fun parse_maybeLongStrid i =
-        PS.maybeLongStrid toks i
-      fun parse_ty i =
-        PT.ty toks i
+      fun parse_tyvars i = PS.tyvars toks i
+      fun parse_sigid i = PS.sigid toks i
+      fun parse_strid i = PS.strid toks i
+      fun parse_funid i = PS.funid toks i
+      fun parse_vid i = PS.vid toks i
+      fun parse_longvid i = PS.longvid toks i
+      fun parse_tycon i = PS.tycon toks i
+      fun parse_maybeLongTycon i = PS.maybeLongTycon toks i
+      fun parse_maybeLongStrid i = PS.maybeLongStrid toks i
+      fun parse_ty i = PT.ty toks i
 
 
       fun parse_oneOrMoreDelimitedByReserved x i =
@@ -78,12 +70,11 @@ struct
         let
           fun nextIsWhereOrAndType i =
             (isReserved Token.Where i orelse isReserved Token.And i)
-            andalso
-            (isReserved Token.Type (i+1))
+            andalso (isReserved Token.Type (i + 1))
 
           fun parseOne i =
             let
-              val (i, wheree) = (i+1, tok i)
+              val (i, wheree) = (i + 1, tok i)
               val (i, typee) = parse_reserved Token.Type i
               val (i, tyvars) = parse_tyvars i
               val (i, tycon) = parse_maybeLongTycon i
@@ -101,15 +92,9 @@ struct
               )
             end
 
-          val (i, elems) =
-            parse_oneOrMoreWhile nextIsWhereOrAndType parseOne i
+          val (i, elems) = parse_oneOrMoreWhile nextIsWhereOrAndType parseOne i
         in
-          ( i
-          , Ast.Sig.WhereType
-              { sigexp = sigexp
-              , elems = elems
-              }
-          )
+          (i, Ast.Sig.WhereType {sigexp = sigexp, elems = elems})
         end
 
 
@@ -118,17 +103,11 @@ struct
         *)
       and consume_sigExpSigEnd i =
         let
-          val sigg = tok (i-1)
+          val sigg = tok (i - 1)
           val (i, spec) = parse_spec toks infdict i
           val (i, endd) = parse_reserved Token.End i
         in
-          ( i
-          , Ast.Sig.Spec
-              { sigg = sigg
-              , spec = spec
-              , endd = endd
-              }
-          )
+          (i, Ast.Sig.Spec {sigg = sigg, spec = spec, endd = endd})
         end
 
 
@@ -136,18 +115,14 @@ struct
         let
           val (i, sigexp) =
             if isReserved Token.Sig i then
-              consume_sigExpSigEnd (i+1)
+              consume_sigExpSigEnd (i + 1)
             else
-              let
-                val (i, sigid) = parse_sigid i
-              in
-                (i, Ast.Sig.Ident sigid)
+              let val (i, sigid) = parse_sigid i
+              in (i, Ast.Sig.Ident sigid)
               end
         in
-          if isReserved Token.Where i then
-            consume_sigExpWhereType sigexp i
-          else
-            (i, sigexp)
+          if isReserved Token.Where i then consume_sigExpWhereType sigexp i
+          else (i, sigexp)
         end
 
     in
@@ -164,25 +139,20 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i = i < numToks andalso f (tok i)
-      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i =
+        i < numToks andalso f (tok i)
+      fun isReserved rc =
+        check (fn t => Token.Reserved rc = Token.getClass t)
 
       fun parse_reserved rc i =
         PS.reserved toks rc i
-      fun parse_tyvars i =
-        PS.tyvars toks i
-      fun parse_vid i =
-        PS.vid toks i
-      fun parse_longvid i =
-        PS.longvid toks i
-      fun parse_tycon i =
-        PS.tycon toks i
-      fun parse_maybeLongTycon i =
-        PS.maybeLongTycon toks i
-      fun parse_maybeLongStrid i =
-        PS.maybeLongStrid toks i
-      fun parse_ty i =
-        PT.ty toks i
+      fun parse_tyvars i = PS.tyvars toks i
+      fun parse_vid i = PS.vid toks i
+      fun parse_longvid i = PS.longvid toks i
+      fun parse_tycon i = PS.tycon toks i
+      fun parse_maybeLongTycon i = PS.maybeLongTycon toks i
+      fun parse_maybeLongStrid i = PS.maybeLongStrid toks i
+      fun parse_ty i = PT.ty toks i
 
 
       fun parse_oneOrMoreDelimitedByReserved x i =
@@ -206,16 +176,12 @@ struct
                 else
                   let
                     val off = tok i
-                    val (i, ty) = parse_ty (i+1)
+                    val (i, ty) = parse_ty (i + 1)
                   in
                     (i, SOME {off = off, ty = ty})
                   end
             in
-              ( i
-              , { vid = vid
-                , arg = arg
-                }
-              )
+              (i, {vid = vid, arg = arg})
             end
 
           fun parseElem i =
@@ -226,8 +192,7 @@ struct
 
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
-                  {parseElem = parse_condesc, delim = Token.Bar}
-                  i
+                  {parseElem = parse_condesc, delim = Token.Bar} i
             in
               ( i
               , { tyvars = tyvars
@@ -241,14 +206,9 @@ struct
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseElem, delim = Token.And}
-              i
+              {parseElem = parseElem, delim = Token.And} i
         in
-          ( i
-          , { elems = elems
-            , delims = delims
-            }
-          )
+          (i, {elems = elems, delims = delims})
         end
 
       (** val vid : ty [and ...]
@@ -256,7 +216,7 @@ struct
         *)
       fun consume_sigSpecVal i =
         let
-          val vall = tok (i-1)
+          val vall = tok (i - 1)
 
           fun parseOne i =
             let
@@ -264,26 +224,14 @@ struct
               val (i, colon) = parse_reserved Token.Colon i
               val (i, ty) = parse_ty i
             in
-              ( i
-              , { vid = vid
-                , colon = colon
-                , ty = ty
-                }
-              )
+              (i, {vid = vid, colon = colon, ty = ty})
             end
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
+              {parseElem = parseOne, delim = Token.And} i
         in
-          ( i
-          , Ast.Sig.Val
-              { vall = vall
-              , elems = elems
-              , delims = delims
-              }
-          )
+          (i, Ast.Sig.Val {vall = vall, elems = elems, delims = delims})
         end
 
 
@@ -301,7 +249,7 @@ struct
           )
         else
           let
-            val (i, firstDelim) = (i+1, tok i)
+            val (i, firstDelim) = (i + 1, tok i)
 
             fun parseOne i =
               let
@@ -310,19 +258,12 @@ struct
                 val (i, eq) = parse_reserved Token.Equal i
                 val (i, ty) = parse_ty i
               in
-                ( i
-                , { tyvars = tyvars
-                  , tycon = tycon
-                  , eq = eq
-                  , ty = ty
-                  }
-                )
+                (i, {tyvars = tyvars, tycon = tycon, eq = eq, ty = ty})
               end
 
             val (i, {elems, delims}) =
               parse_oneOrMoreDelimitedByReserved
-                {parseElem = parseOne, delim = Token.And}
-                i
+                {parseElem = parseOne, delim = Token.And} i
           in
             ( i
             , Ast.Sig.TypeAbbreviation
@@ -348,24 +289,19 @@ struct
           )
         else
           let
-            val (i, firstDelim) = (i+1, tok i)
+            val (i, firstDelim) = (i + 1, tok i)
 
             fun parseOne i =
               let
                 val (i, tyvars) = parse_tyvars i
                 val (i, tycon) = parse_tycon i
               in
-                ( i
-                , { tyvars = tyvars
-                  , tycon = tycon
-                  }
-                )
+                (i, {tyvars = tyvars, tycon = tycon})
               end
 
             val (i, {elems, delims}) =
               parse_oneOrMoreDelimitedByReserved
-                {parseElem = parseOne, delim = Token.And}
-                i
+                {parseElem = parseOne, delim = Token.And} i
           in
             ( i
             , Ast.Sig.Type
@@ -387,12 +323,11 @@ struct
               val (i, eq) = parse_reserved Token.Equal i
               val (i, ty) = parse_ty i
             in
-              consume_sigSpecTypeAbbreviation
-                typee {tyvars=tyvars, tycon=tycon, eq=eq, ty=ty} i
+              consume_sigSpecTypeAbbreviation typee
+                {tyvars = tyvars, tycon = tycon, eq = eq, ty = ty} i
             end
           else
-            consume_sigSpecType
-              typee {tyvars=tyvars, tycon=tycon} i
+            consume_sigSpecType typee {tyvars = tyvars, tycon = tycon} i
         end
 
 
@@ -401,31 +336,22 @@ struct
         *)
       fun consume_sigSpecEqtype i =
         let
-          val eqtypee = tok (i-1)
+          val eqtypee = tok (i - 1)
 
           fun parseOne i =
             let
               val (i, tyvars) = parse_tyvars i
               val (i, tycon) = parse_tycon i
             in
-              ( i
-              , { tyvars =  tyvars
-                , tycon = tycon
-                }
-              )
+              (i, {tyvars = tyvars, tycon = tycon})
             end
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
+              {parseElem = parseOne, delim = Token.And} i
         in
           ( i
-          , Ast.Sig.Eqtype
-              { eqtypee = eqtypee
-              , elems = elems
-              , delims = delims
-              }
+          , Ast.Sig.Eqtype {eqtypee = eqtypee, elems = elems, delims = delims}
           )
         end
 
@@ -437,30 +363,27 @@ struct
         *         ^
         *)
       fun consume_sigSpecDatatypeDeclarationOrReplication i =
-        if (
-          isReserved Token.OpenParen i (* datatype ('a, ...) foo *)
-          orelse check Token.isTyVar i (* datatype 'a foo *)
-          orelse ( (* datatype foo = A *)
-            check Token.isValueIdentifierNoEqual i
-            andalso isReserved Token.Equal (i+1)
-            andalso not (isReserved Token.Datatype (i+2))
-          )
-        ) then
+        if
+          (isReserved Token.OpenParen i (* datatype ('a, ...) foo *)
+           orelse check Token.isTyVar i (* datatype 'a foo *)
+           orelse
+           ( (* datatype foo = A *)
+             check Token.isValueIdentifierNoEqual i
+             andalso isReserved Token.Equal (i + 1)
+             andalso not (isReserved Token.Datatype (i + 2))))
+        then
           let
-            val datatypee = tok (i-1)
+            val datatypee = tok (i - 1)
             val (i, {elems, delims}) = parse_datdesc i
           in
             ( i
             , Ast.Sig.Datatype
-              { datatypee = datatypee
-              , elems = elems
-              , delims = delims
-              }
+                {datatypee = datatypee, elems = elems, delims = delims}
             )
           end
         else
           let
-            val left_datatypee = tok (i-1)
+            val left_datatypee = tok (i - 1)
             val (i, left_id) = parse_vid i
             val (i, eq) = parse_reserved Token.Equal i
             val (i, right_datatypee) = parse_reserved Token.Datatype i
@@ -468,12 +391,12 @@ struct
           in
             ( i
             , Ast.Sig.ReplicateDatatype
-              { left_datatypee = left_datatypee
-              , left_id = left_id
-              , eq = eq
-              , right_datatypee = right_datatypee
-              , right_id = right_id
-              }
+                { left_datatypee = left_datatypee
+                , left_id = left_id
+                , eq = eq
+                , right_datatypee = right_datatypee
+                , right_id = right_id
+                }
             )
           end
 
@@ -483,7 +406,7 @@ struct
         *)
       fun consume_sigSpecException i =
         let
-          val exceptionn = tok (i-1)
+          val exceptionn = tok (i - 1)
           fun parseOne i =
             let
               val (i, vid) = parse_vid i
@@ -493,29 +416,21 @@ struct
                 else
                   let
                     val off = tok i
-                    val (i, ty) = parse_ty (i+1)
+                    val (i, ty) = parse_ty (i + 1)
                   in
                     (i, SOME {off = off, ty = ty})
                   end
             in
-              ( i
-              , { vid = vid
-                , arg = arg
-                }
-              )
+              (i, {vid = vid, arg = arg})
             end
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
+              {parseElem = parseOne, delim = Token.And} i
         in
           ( i
           , Ast.Sig.Exception
-              { exceptionn = exceptionn
-              , elems = elems
-              , delims= delims
-              }
+              {exceptionn = exceptionn, elems = elems, delims = delims}
           )
         end
 
@@ -527,16 +442,11 @@ struct
         let
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parse_maybeLongStrid, delim = Token.Equal}
-              i
+              {parseElem = parse_maybeLongStrid, delim = Token.Equal} i
         in
           ( i
           , Ast.Sig.Sharing
-              { spec = spec
-              , sharingg = sharingg
-              , elems = elems
-              , delims = delims
-              }
+              {spec = spec, sharingg = sharingg, elems = elems, delims = delims}
           )
         end
 
@@ -548,8 +458,7 @@ struct
         let
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parse_maybeLongTycon, delim = Token.Equal}
-              i
+              {parseElem = parse_maybeLongTycon, delim = Token.Equal} i
         in
           ( i
           , Ast.Sig.SharingType
@@ -567,18 +476,16 @@ struct
         let
           val (again, (i, spec)) =
             if isReserved Token.Sharing i then
-              if isReserved Token.Type (i+1) then
-                (true, consume_sigSharingType
-                         spec (tok i) (tok (i+1)) (i+2))
+              if isReserved Token.Type (i + 1) then
+                ( true
+                , consume_sigSharingType spec (tok i) (tok (i + 1)) (i + 2)
+                )
               else
-                (true, consume_sigSharing spec (tok i) (i+1))
+                (true, consume_sigSharing spec (tok i) (i + 1))
             else
               (false, (i, spec))
         in
-          if again then
-            consume_afterSigSpec spec i
-          else
-            (i, spec)
+          if again then consume_afterSigSpec spec i else (i, spec)
         end
 
 
@@ -587,7 +494,7 @@ struct
         *)
       fun consume_sigSpecStructure i =
         let
-          val structuree = tok (i-1)
+          val structuree = tok (i - 1)
 
           fun parseOne i =
             let
@@ -595,25 +502,16 @@ struct
               val (i, colon) = parse_reserved Token.Colon i
               val (i, sigexp) = parse_sigexp toks infdict i
             in
-              ( i
-              , { id = id
-                , colon = colon
-                , sigexp = sigexp
-                }
-              )
+              (i, {id = id, colon = colon, sigexp = sigexp})
             end
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
-              {parseElem = parseOne, delim = Token.And}
-              i
+              {parseElem = parseOne, delim = Token.And} i
         in
           ( i
           , Ast.Sig.Structure
-              { structuree = structuree
-              , elems = elems
-              , delims = delims
-              }
+              {structuree = structuree, elems = elems, delims = delims}
           )
         end
 
@@ -626,24 +524,17 @@ struct
         *)
       and consume_sigSpecInclude i =
         let
-          val includee = tok (i-1)
+          val includee = tok (i - 1)
           val (i, sigexp) = parse_sigexp toks infdict i
 
           fun makeInclude i =
-            ( i
-            , Ast.Sig.Include
-                { includee = includee
-                , sigexp = sigexp
-                }
-            )
+            (i, Ast.Sig.Include {includee = includee, sigexp = sigexp})
 
           fun makeIncludeIds firstId i =
             let
               val (i, ids) =
-                PC.zeroOrMoreWhile
-                (check Token.isStrIdentifier)
-                (fn i => (i+1, tok i))
-                i
+                PC.zeroOrMoreWhile (check Token.isStrIdentifier)
+                  (fn i => (i + 1, tok i)) i
             in
               ( i
               , Ast.Sig.IncludeIds
@@ -655,10 +546,8 @@ struct
 
         in
           case sigexp of
-            Ast.Sig.Ident id =>
-              makeIncludeIds id i
-          | _ =>
-              makeInclude i
+            Ast.Sig.Ident id => makeIncludeIds id i
+          | _ => makeInclude i
         end
 
 
@@ -666,19 +555,19 @@ struct
         let
           val (i, spec) =
             if isReserved Token.Val i then
-              consume_sigSpecVal (i+1)
+              consume_sigSpecVal (i + 1)
             else if isReserved Token.Type i then
-              consume_sigSpecTypeOrAbbreviation (tok i) (i+1)
+              consume_sigSpecTypeOrAbbreviation (tok i) (i + 1)
             else if isReserved Token.Eqtype i then
-              consume_sigSpecEqtype (i+1)
+              consume_sigSpecEqtype (i + 1)
             else if isReserved Token.Datatype i then
-              consume_sigSpecDatatypeDeclarationOrReplication (i+1)
+              consume_sigSpecDatatypeDeclarationOrReplication (i + 1)
             else if isReserved Token.Exception i then
-              consume_sigSpecException (i+1)
+              consume_sigSpecException (i + 1)
             else if isReserved Token.Structure i then
-              consume_sigSpecStructure (i+1)
+              consume_sigSpecStructure (i + 1)
             else if isReserved Token.Include i then
-              consume_sigSpecInclude (i+1)
+              consume_sigSpecInclude (i + 1)
             else
               ParserUtils.tokError toks
                 { pos = i
@@ -693,42 +582,25 @@ struct
       and consume_sigSpec i =
         let
           fun consume_maybeSemicolon i =
-            if isReserved Token.Semicolon i then
-              (i+1, SOME (tok i))
-            else
-              (i, NONE)
+            if isReserved Token.Semicolon i then (i + 1, SOME (tok i))
+            else (i, NONE)
 
           val (i, specs) =
-            parse_zeroOrMoreWhile
-              (fn i => check Token.isSigSpecStartToken i)
-              ( parse_two
-                ( consume_oneSigSpec
-                , consume_maybeSemicolon
-                )
-              )
-              i
+            parse_zeroOrMoreWhile (fn i => check Token.isSigSpecStartToken i)
+              (parse_two (consume_oneSigSpec, consume_maybeSemicolon)) i
 
           fun makeSpecMultiple () =
             Ast.Sig.Multiple
-              { elems = Seq.map #1 specs
-              , delims = Seq.map #2 specs
-              }
+              {elems = Seq.map #1 specs, delims = Seq.map #2 specs}
 
           val result =
             case Seq.length specs of
-              0 =>
-                Ast.Sig.EmptySpec
+              0 => Ast.Sig.EmptySpec
             | 1 =>
-                let
-                  val (spec, semicolon) = Seq.nth specs 0
-                in
-                  if isSome semicolon then
-                    makeSpecMultiple ()
-                  else
-                    spec
+                let val (spec, semicolon) = Seq.nth specs 0
+                in if isSome semicolon then makeSpecMultiple () else spec
                 end
-            | _ =>
-                makeSpecMultiple ()
+            | _ => makeSpecMultiple ()
         in
           (i, result)
         end
@@ -742,8 +614,10 @@ struct
     * ========================================================================
     *)
 
-  fun spec toks infdict i = parse_spec toks infdict i
-  fun sigexp toks infdict i = parse_sigexp toks infdict i
+  fun spec toks infdict i =
+    parse_spec toks infdict i
+  fun sigexp toks infdict i =
+    parse_sigexp toks infdict i
 
 
 end

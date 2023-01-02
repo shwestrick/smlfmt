@@ -10,32 +10,23 @@ sig
 
   val zeroOrMoreDelimitedByReserved:
     Token.t Seq.t
-    -> { parseElem: (int, 'a) parser
-       , delim: Token.reserved
-       , shouldStop: int peeker
-       }
+    ->
+      { parseElem: (int, 'a) parser
+      , delim: Token.reserved
+      , shouldStop: int peeker
+      }
     -> (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
 
   val oneOrMoreDelimitedByReserved:
     Token.t Seq.t
-    -> { parseElem: (int, 'a) parser
-       , delim: Token.reserved
-       }
+    -> {parseElem: (int, 'a) parser, delim: Token.reserved}
     -> (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
 
-  val two:
-    ('s, 'a) parser * ('s, 'b) parser
-    -> ('s, ('a * 'b)) parser
+  val two: ('s, 'a) parser * ('s, 'b) parser -> ('s, ('a * 'b)) parser
 
-  val zeroOrMoreWhile:
-    's peeker
-    -> ('s, 'a) parser
-    -> ('s, 'a Seq.t) parser
+  val zeroOrMoreWhile: 's peeker -> ('s, 'a) parser -> ('s, 'a Seq.t) parser
 
-  val oneOrMoreWhile:
-    's peeker
-    -> ('s, 'a) parser
-    -> ('s, 'a Seq.t) parser
+  val oneOrMoreWhile: 's peeker -> ('s, 'a) parser -> ('s, 'a Seq.t) parser
 
 end =
 struct
@@ -47,8 +38,10 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i = i < numToks andalso f (tok i)
-      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i =
+        i < numToks andalso f (tok i)
+      fun isReserved rc =
+        check (fn t => Token.Reserved rc = Token.getClass t)
 
       fun loop elems delims i =
         if shouldStop i then
@@ -58,19 +51,13 @@ struct
             val (i, elem) = parseElem i
             val elems = elem :: elems
           in
-            if isReserved delim i then
-              loop elems (tok i :: delims) (i+1)
-            else
-              (i, elems, delims)
+            if isReserved delim i then loop elems (tok i :: delims) (i + 1)
+            else (i, elems, delims)
           end
 
       val (i, elems, delims) = loop [] [] i
     in
-      ( i
-      , { elems = Seq.fromRevList elems
-        , delims = Seq.fromRevList delims
-        }
-      )
+      (i, {elems = Seq.fromRevList elems, delims = Seq.fromRevList delims})
     end
 
 
@@ -78,27 +65,23 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i = i < numToks andalso f (tok i)
-      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i =
+        i < numToks andalso f (tok i)
+      fun isReserved rc =
+        check (fn t => Token.Reserved rc = Token.getClass t)
 
       fun loop elems delims i =
         let
           val (i, elem) = parseElem i
           val elems = elem :: elems
         in
-          if isReserved delim i then
-            loop elems (tok i :: delims) (i+1)
-          else
-            (i, elems, delims)
+          if isReserved delim i then loop elems (tok i :: delims) (i + 1)
+          else (i, elems, delims)
         end
 
       val (i, elems, delims) = loop [] [] i
     in
-      ( i
-      , { elems = Seq.fromRevList elems
-        , delims = Seq.fromRevList delims
-        }
-      )
+      (i, {elems = Seq.fromRevList elems, delims = Seq.fromRevList delims})
     end
 
 
@@ -114,13 +97,15 @@ struct
   fun zeroOrMoreWhile continue parse state =
     let
       fun loop elems state =
-        if not (continue state) then (state, elems) else
-        let
-          val (state, elem) = parse state
-          val elems = elem :: elems
-        in
-          loop elems state
-        end
+        if not (continue state) then
+          (state, elems)
+        else
+          let
+            val (state, elem) = parse state
+            val elems = elem :: elems
+          in
+            loop elems state
+          end
 
       val (state, elems) = loop [] state
     in
@@ -135,10 +120,7 @@ struct
           val (state, elem) = parse state
           val elems = elem :: elems
         in
-          if not (continue state) then
-            (state, elems)
-          else
-            loop elems state
+          if not (continue state) then (state, elems) else loop elems state
         end
 
       val (state, elems) = loop [] state

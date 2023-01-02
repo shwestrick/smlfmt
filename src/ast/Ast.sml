@@ -15,15 +15,9 @@ struct
 
   val empty = Ast (Seq.empty ())
 
-  structure SyntaxSeq =
-  struct
-    open AstType.SyntaxSeq
-  end
+  structure SyntaxSeq = struct open AstType.SyntaxSeq end
 
-  structure Ty =
-  struct
-    open AstType.Ty
-  end
+  structure Ty = struct open AstType.Ty end
 
   structure Pat =
   struct
@@ -36,7 +30,7 @@ struct
 
     fun unpackForConPat pat =
       case pat of
-        Ident {opp, id} => {opp=opp, id=id}
+        Ident {opp, id} => {opp = opp, id = id}
       | _ => raise Fail "Bug: Ast.Pat.unpackForConPat: invalid argument"
 
     fun isValueIdentifier pat =
@@ -49,8 +43,7 @@ struct
       isValueIdentifier pat
       orelse
       case pat of
-        Typed {pat, ...} =>
-          isValueIdentifier pat
+        Typed {pat, ...} => isValueIdentifier pat
       | _ => false
 
     (** Not that the unpacked id has to be a "short" identifer. We could
@@ -59,10 +52,7 @@ struct
     fun unpackForAsPat pat =
       case pat of
         Ident {opp, id} =>
-          { opp = opp
-          , id = MaybeLongToken.getToken id
-          , ty = NONE
-          }
+          {opp = opp, id = MaybeLongToken.getToken id, ty = NONE}
       | Typed {pat = Ident {opp, id}, colon, ty} =>
           { opp = opp
           , id = MaybeLongToken.getToken id
@@ -83,16 +73,18 @@ struct
       | _ => false
 
     fun isAppPat pat =
-      isAtPat pat orelse
+      isAtPat pat
+      orelse
       (case pat of
-        Con _ => true
-      | _ => false)
+         Con _ => true
+       | _ => false)
 
     fun isInfPat pat =
-      isAppPat pat orelse
+      isAppPat pat
+      orelse
       (case pat of
-        Infix _ => true
-      | _ => false)
+         Infix _ => true
+       | _ => false)
 
     fun leftMostToken pat =
       case pat of
@@ -100,17 +92,23 @@ struct
       | Unit {left, ...} => left
       | Const t => t
       | Ident {opp, id} =>
-          (case opp of SOME t => t | NONE => MaybeLongToken.getToken id)
+          (case opp of
+             SOME t => t
+           | NONE => MaybeLongToken.getToken id)
       | List {left, ...} => left
       | Tuple {left, ...} => left
       | Record {left, ...} => left
       | Parens {left, ...} => left
       | Con {opp, id, ...} =>
-          (case opp of SOME t => t | NONE => MaybeLongToken.getToken id)
+          (case opp of
+             SOME t => t
+           | NONE => MaybeLongToken.getToken id)
       | Infix {left, ...} => leftMostToken left
       | Typed {pat, ...} => leftMostToken pat
       | Layered {opp, id, ...} =>
-          (case opp of SOME t => t | NONE => id)
+          (case opp of
+             SOME t => t
+           | NONE => id)
   end
 
   structure Exp =
@@ -132,28 +130,27 @@ struct
       | _ => false
 
     fun isAppExp exp =
-      isAtExp exp orelse
+      isAtExp exp
+      orelse
       (case exp of
-        App _ => true
-      | _ => false)
+         App _ => true
+       | _ => false)
 
     fun isInfExp exp =
-      isAppExp exp orelse
+      isAppExp exp
+      orelse
       (case exp of
-        Infix _ => true
-      | _ => false)
+         Infix _ => true
+       | _ => false)
 
     fun isMultipleDecs dec =
       case dec of
-        DecMultiple {elems, ...} =>
-          Seq.length elems > 1
+        DecMultiple {elems, ...} => Seq.length elems > 1
       | _ => false
 
     (** All the names have to match. *)
-    fun checkValidFValBind
-      (fvalbind: exp fvalbind)
-      (error: {what: string, pos: Source.t, explain: string option} -> unit)
-      =
+    fun checkValidFValBind (fvalbind: exp fvalbind)
+      (error: {what: string, pos: Source.t, explain: string option} -> unit) =
       let
         fun getName {fname_args, ...} =
           case fname_args of
@@ -165,12 +162,14 @@ struct
           let
             val fname = getName (Seq.nth elems 0)
             fun checkName clause =
-              if Token.same (getName clause, fname) then () else
-              error
-                { pos = Token.getSource (getName clause)
-                , what = "Function name does not match."
-                , explain = NONE
-                }
+              if Token.same (getName clause, fname) then
+                ()
+              else
+                error
+                  { pos = Token.getSource (getName clause)
+                  , what = "Function name does not match."
+                  , explain = NONE
+                  }
           in
             Seq.applyIdx (Seq.drop elems 1) (fn (_, elem) => checkName elem)
           end
@@ -188,8 +187,7 @@ struct
 
     fun isMultipleDecs dec =
       case dec of
-        DecMultiple {elems, ...} =>
-          Seq.length elems > 1
+        DecMultiple {elems, ...} => Seq.length elems > 1
       | _ => false
   end
 

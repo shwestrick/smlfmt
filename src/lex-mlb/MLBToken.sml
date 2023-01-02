@@ -10,13 +10,9 @@ sig
     Bas
   | Basis
   | Ann
-  | UnderscorePrim  (** This is MLton-specific *)
+  | UnderscorePrim (** This is MLton-specific *)
 
-  datatype class =
-    SMLPath
-  | MLBPath
-  | Reserved of reserved
-  | SML of Token.class
+  datatype class = SMLPath | MLBPath | Reserved of reserved | SML of Token.class
 
   type t
   type token = t
@@ -45,7 +41,7 @@ sig
     val fromSMLPretoken: Token.Pretoken.t -> pretoken
 
     val makePathFromSource: Source.t -> pretoken option
-    (* val makePathFromSourceString: Source.t -> string -> pretoken option *)
+  (* val makePathFromSourceString: Source.t -> string -> pretoken option *)
   end
 
   val fromPre: Pretoken.t -> token
@@ -58,13 +54,9 @@ struct
     Bas
   | Basis
   | Ann
-  | UnderscorePrim  (** This is MLton-specific *)
+  | UnderscorePrim (** This is MLton-specific *)
 
-  datatype class =
-    SMLPath
-  | MLBPath
-  | Reserved of reserved
-  | SML of Token.class
+  datatype class = SMLPath | MLBPath | Reserved of reserved | SML of Token.class
 
   type pretoken = class WithSource.t
 
@@ -96,8 +88,7 @@ struct
       SML Token.Whitespace => true
     | _ => false
 
-  fun isCommentOrWhitespace tok =
-    isComment tok orelse isWhitespace tok
+  fun isCommentOrWhitespace tok = isComment tok orelse isWhitespace tok
 
   fun isSMLPath tok =
     case getClass tok of
@@ -129,10 +120,8 @@ struct
     ]
 
   fun isBasDecStartToken tok =
-    let
-      val c = getClass tok
-    in
-      List.exists (fn c' => c' = c) basDecStartTokens
+    let val c = getClass tok
+    in List.exists (fn c' => c' = c) basDecStartTokens
     end
 
 
@@ -142,10 +131,10 @@ struct
         if i = 0 then
           NONE
         else
-          case Source.nth src (i-1) of
-            #"." => SOME (i-1)
+          case Source.nth src (i - 1) of
+            #"." => SOME (i - 1)
           | #"/" => NONE
-          | _ => findDot (i-1)
+          | _ => findDot (i - 1)
     in
       case findDot (Source.length src) of
         NONE => NONE
@@ -172,7 +161,7 @@ struct
     | _ => NONE *)
 
 
-  fun makeGroup (s: pretoken Seq.t): token Seq.t =
+  fun makeGroup (s: pretoken Seq.t) : token Seq.t =
     Seq.tabulate (fn i => {idx = i, context = s}) (Seq.length s)
 
   fun fromPre (t: pretoken) =
@@ -192,7 +181,7 @@ struct
     val fromSMLPretoken = fromSMLPretoken
 
     val makePathFromSource = makePathFromSource
-    (* val makePathFromSourceString = makePathFromSourceString *)
+  (* val makePathFromSourceString = makePathFromSourceString *)
   end
 
 end

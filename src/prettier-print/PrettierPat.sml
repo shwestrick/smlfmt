@@ -13,7 +13,8 @@ struct
   open PrettierUtil
   open PrettierTy
   infix 2 ++
-  fun x ++ y = concat (x, y)
+  fun x ++ y =
+    concat (x, y)
 
   (* ====================================================================== *)
 
@@ -41,38 +42,25 @@ struct
       open Ast.Pat
     in
       case pat of
-        Wild tok =>
-          token tok
+        Wild tok => token tok
 
-      | Const tok =>
-          token tok
+      | Const tok => token tok
 
-      | Unit {left, right} =>
-          token left ++ nospace ++ token right
+      | Unit {left, right} => token left ++ nospace ++ token right
 
-      | Ident {opp, id} =>
-          showMaybeOpToken opp (MaybeLongToken.getToken id)
+      | Ident {opp, id} => showMaybeOpToken opp (MaybeLongToken.getToken id)
 
       | Parens {left, pat, right} =>
-          token left ++
-          (if patStartsWithStar pat then empty else nospace)
+          token left ++ (if patStartsWithStar pat then empty else nospace)
           ++ withNewChild showPat tab pat ++ nospace ++ token right
 
       | Tuple {left, elems, delims, right} =>
           showSequence patStartsWithStar (withNewChild showPat) tab
-            { openn = left
-            , elems = elems
-            , delims = delims
-            , close = right
-            }
+            {openn = left, elems = elems, delims = delims, close = right}
 
       | List {left, elems, delims, right} =>
           showSequence patStartsWithStar (withNewChild showPat) tab
-            { openn = left
-            , elems = elems
-            , delims = delims
-            , close = right
-            }
+            {openn = left, elems = elems, delims = delims, close = right}
 
       | Record {left, elems, delims, right} =>
           let
@@ -84,25 +72,23 @@ struct
                     at inner
                       (token lab ++ token eq ++ withNewChild showPat inner pat))
               | LabAsPat {id, ty, aspat} =>
-                  token id ++
-                  showOption (fn {colon, ty} =>
-                    (if
-                      Token.isSymbolicIdentifier id
-                      orelse Token.hasCommentsBefore colon
-                    then
-                      empty
-                    else
-                      nospace)
-                    ++ token colon ++ withNewChild showTy tab ty) ty ++
-                  showOption (fn {ass, pat} =>
-                    token ass ++ withNewChild showPat tab pat) aspat
+                  token id
+                  ++
+                  showOption
+                    (fn {colon, ty} =>
+                       (if
+                          Token.isSymbolicIdentifier id
+                          orelse Token.hasCommentsBefore colon
+                        then empty
+                        else nospace) ++ token colon
+                       ++ withNewChild showTy tab ty) ty
+                  ++
+                  showOption
+                    (fn {ass, pat} => token ass ++ withNewChild showPat tab pat)
+                    aspat
           in
             showSequence (fn _ => false) (withNewChild showPatRow) tab
-              { openn = left
-              , elems = elems
-              , delims = delims
-              , close = right
-              }
+              {openn = left, elems = elems, delims = delims, close = right}
           end
 
       | Con {opp, id, atpat} =>
@@ -110,29 +96,24 @@ struct
           ++ withNewChild showPat tab atpat
 
       | Typed {pat, colon, ty} =>
-          showPat tab pat ++
-          (if
-            patBeforeColonNeedsSpace pat
-            orelse Token.hasCommentsBefore colon
-          then
-            empty
-          else
-            nospace)
-          ++ token colon ++ withNewChild showTy tab ty
+          showPat tab pat
+          ++
+          (if patBeforeColonNeedsSpace pat orelse Token.hasCommentsBefore colon then
+             empty
+           else
+             nospace) ++ token colon ++ withNewChild showTy tab ty
 
       | Layered {opp, id, ty, ass, pat} =>
-          showMaybeOpToken opp id ++
-          showOption (fn {colon, ty} =>
-            (if
-              Token.isSymbolicIdentifier id
-              orelse Token.hasCommentsBefore colon
-            then
-              empty
-            else
-              nospace)
-            ++ token colon ++ withNewChild showTy tab ty) ty ++
-          token ass ++
-          withNewChild showPat tab pat
+          showMaybeOpToken opp id
+          ++
+          showOption
+            (fn {colon, ty} =>
+               (if
+                  Token.isSymbolicIdentifier id
+                  orelse Token.hasCommentsBefore colon
+                then empty
+                else nospace) ++ token colon ++ withNewChild showTy tab ty) ty
+          ++ token ass ++ withNewChild showPat tab pat
 
       | Infix {left, id, right} =>
           showPat tab left ++ token id ++ withNewChild showPat tab right

@@ -11,7 +11,7 @@ sig
     type style
     type t = style
 
-    val inplace: style  (* default *)
+    val inplace: style (* default *)
     val indented: style
     val indentedAtLeastBy: int -> style
     val indentedAtMostBy: int -> style
@@ -78,8 +78,8 @@ struct
         (Inplace, Inplace) => Inplace
       | (Inplace, Indented _) => i2
       | (Indented _, Inplace) => i1
-      | ( Indented {minIndent=min1, maxIndent=max1}
-        , Indented {minIndent=min2, maxIndent=max2}
+      | ( Indented {minIndent = min1, maxIndent = max1}
+        , Indented {minIndent = min2, maxIndent = max2}
         ) =>
           Indented
             { minIndent = combineOpts Int.max (min1, min2)
@@ -88,8 +88,8 @@ struct
 
     fun combine (s1, s2) =
       let
-        val S {indent=i1, rigid=r1, allowsComments=c1} = s1
-        val S {indent=i2, rigid=r2, allowsComments=c2} = s2
+        val S {indent = i1, rigid = r1, allowsComments = c1} = s1
+        val S {indent = i2, rigid = r2, allowsComments = c2} = s2
       in
         S { indent = combineIndentStyles (i1, i2)
           , rigid = r1 orelse r2
@@ -97,20 +97,30 @@ struct
           }
       end
 
-    val inplace =
-      S {indent = Inplace, rigid = false, allowsComments = false}
-    val indented =
-      S {indent = Indented {minIndent=NONE, maxIndent=NONE}, rigid = false, allowsComments = false}
+    val inplace = S {indent = Inplace, rigid = false, allowsComments = false}
+    val indented = S
+      { indent = Indented {minIndent = NONE, maxIndent = NONE}
+      , rigid = false
+      , allowsComments = false
+      }
     fun indentedAtLeastBy i =
-      S {indent = Indented {minIndent = SOME i, maxIndent=NONE}, rigid = false, allowsComments = false}
+      S { indent = Indented {minIndent = SOME i, maxIndent = NONE}
+        , rigid = false
+        , allowsComments = false
+        }
     fun indentedAtMostBy i =
-      S {indent = Indented {minIndent=NONE, maxIndent = SOME i}, rigid = false, allowsComments = false}
+      S { indent = Indented {minIndent = NONE, maxIndent = SOME i}
+        , rigid = false
+        , allowsComments = false
+        }
     fun indentedExactlyBy i =
-      S {indent = Indented {minIndent = SOME i, maxIndent = SOME i}, rigid = false, allowsComments = false}
-    val rigid =
-      S {indent = Inplace, rigid = true, allowsComments = false}
-    val allowComments =
-      S {indent = Inplace, rigid = false, allowsComments = true}
+      S { indent = Indented {minIndent = SOME i, maxIndent = SOME i}
+        , rigid = false
+        , allowsComments = false
+        }
+    val rigid = S {indent = Inplace, rigid = true, allowsComments = false}
+    val allowComments = S
+      {indent = Inplace, rigid = false, allowsComments = true}
 
     fun isRigid (S {rigid, ...}) = rigid
 
@@ -129,7 +139,7 @@ struct
         Indented {maxIndent = SOME mi, ...} => mi
       | _ => valOf Int.maxInt
 
-    fun allowsComments (S {allowsComments=c, ...}) = c
+    fun allowsComments (S {allowsComments = c, ...}) = c
   end
 
   (* ===================================================================== *)
@@ -144,11 +154,8 @@ struct
   val tabCounter = ref 0
 
   fun new {parent, style} =
-    let
-      val c = !tabCounter
-    in
-      tabCounter := c+1;
-      Tab {id = c, style = style, parent = parent}
+    let val c = !tabCounter
+    in tabCounter := c + 1; Tab {id = c, style = style, parent = parent}
     end
 
   val root = Root
@@ -161,12 +168,12 @@ struct
   fun style t =
     case t of
       Root => Style.inplace
-    | Tab {style=s, ...} => s
+    | Tab {style = s, ...} => s
 
   fun name t =
     case t of
       Root => "root"
-    | Tab {id=c, ...} => Int.toString c
+    | Tab {id = c, ...} => Int.toString c
 
   fun toString t =
     "[" ^ name t ^ "]"
@@ -184,12 +191,17 @@ struct
   fun depth t =
     case t of
       Root => 0
-    | Tab {parent=p, ...} => 1 + depth p
+    | Tab {parent = p, ...} => 1 + depth p
 
-  fun isRigid t = Style.isRigid (style t)
-  fun isInplace t = Style.isInplace (style t)
-  fun minIndent t = Style.minIndent (style t)
-  fun maxIndent t = Style.maxIndent (style t)
-  fun allowsComments t = Style.allowsComments (style t)
+  fun isRigid t =
+    Style.isRigid (style t)
+  fun isInplace t =
+    Style.isInplace (style t)
+  fun minIndent t =
+    Style.minIndent (style t)
+  fun maxIndent t =
+    Style.maxIndent (style t)
+  fun allowsComments t =
+    Style.allowsComments (style t)
 
 end

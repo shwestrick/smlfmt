@@ -18,7 +18,8 @@ struct
   open PrettierSig
   open PrettierStrUtil
   infix 2 ++
-  fun x ++ y = concat (x, y)
+  fun x ++ y =
+    concat (x, y)
 
   (* ====================================================================== *)
 
@@ -26,25 +27,22 @@ struct
     let
       open Ast.Str
     in
-      case e of
-        Ident id =>
-          token (MaybeLongToken.getToken id)
+      case
+        e
+      of
+        Ident id => token (MaybeLongToken.getToken id)
 
       | Struct {structt, strdec, endd} =>
           if strDecIsEmpty strdec then
             token structt ++ at tab (token endd)
           else
             newTabWithStyle tab (indented, fn inner =>
-              token structt
-              ++ at inner (showStrDec inner strdec)
-              ++ cond inner
-                { inactive = token endd
-                , active = at tab (token endd)
-                })
+              token structt ++ at inner (showStrDec inner strdec)
+              ++
+              cond inner {inactive = token endd, active = at tab (token endd)})
 
       | Constraint {strexp, colon, sigexp} =>
-          showStrExp tab strexp
-          ++ token colon
+          showStrExp tab strexp ++ token colon
           ++ withNewChild showSigExp tab sigexp
 
       | FunAppExp {funid, lparen, strexp, rparen} =>
@@ -55,28 +53,25 @@ struct
            * open to debate.)
            *)
           newTab tab (fn inner =>
-            token funid ++
-            (if strExpInsideFunAppWantsSpaceBefore strexp then
-               space
-             else
-               nospace) ++
+            token funid
+            ++
+            (if strExpInsideFunAppWantsSpaceBefore strexp then space
+             else nospace)
+            ++
             at inner
-              (token lparen ++ nospace
-              ++ withNewChild showStrExp inner strexp
-              ++ nospace ++ token rparen))
+              (token lparen ++ nospace ++ withNewChild showStrExp inner strexp
+               ++ nospace ++ token rparen))
 
-      | FunAppDec {funid, lparen, strdec, rparen} =>
-          (* See note above, about the maybe-space after `funid` *)
+      | FunAppDec {funid, lparen, strdec, rparen} => (* See note above, about the maybe-space after `funid` *)
           newTab tab (fn inner =>
-            token funid ++
-            (if strDecInsideFunAppWantsSpaceBefore strdec then
-               space
-             else
-               nospace) ++
+            token funid
+            ++
+            (if strDecInsideFunAppWantsSpaceBefore strdec then space
+             else nospace)
+            ++
             at inner
-              (token lparen ++ nospace
-              ++ withNewChild showStrDec inner strdec
-              ++ nospace ++ token rparen))
+              (token lparen ++ nospace ++ withNewChild showStrDec inner strdec
+               ++ nospace ++ token rparen))
 
       | LetInEnd {lett, strdec, inn, strexp, endd} =>
           showThingSimilarToLetInEnd tab
@@ -95,36 +90,33 @@ struct
       open Ast.Str
     in
       case d of
-        DecEmpty =>
-          empty
+        DecEmpty => empty
 
-      | DecCore d =>
-          showDec tab d
+      | DecCore d => showDec tab d
 
       | DecStructure {structuree, elems, delims} =>
           newTab tab (fn tab =>
-          let
-            fun showConstraint constraint =
-              case constraint of
-                NONE => empty
-              | SOME {colon, sigexp} =>
-                  showConstraintInStrDec tab {colon=colon, sigexp=sigexp}
+            let
+              fun showConstraint constraint =
+                case constraint of
+                  NONE => empty
+                | SOME {colon, sigexp} =>
+                    showConstraintInStrDec tab {colon = colon, sigexp = sigexp}
 
-            fun showOne (starter, {strid, constraint, eq, strexp}) =
-              token starter
-              ++ token strid
-              ++ showConstraint constraint
-              ++ token eq
-              ++ (if strExpWantsSameTabAsDec strexp then
-                    at tab (showStrExp tab strexp)
-                  else
-                    withNewChild showStrExp tab strexp)
-          in
-            at tab (Seq.iterate op++
-              (showOne (structuree, Seq.nth elems 0))
-              (Seq.map (fn x => at tab (showOne x))
-                (Seq.zip (delims, (Seq.drop elems 1)))))
-          end)
+              fun showOne (starter, {strid, constraint, eq, strexp}) =
+                token starter ++ token strid ++ showConstraint constraint
+                ++ token eq
+                ++
+                (if strExpWantsSameTabAsDec strexp then
+                   at tab (showStrExp tab strexp)
+                 else
+                   withNewChild showStrExp tab strexp)
+            in
+              at tab
+                (Seq.iterate op++ (showOne (structuree, Seq.nth elems 0))
+                   (Seq.map (fn x => at tab (showOne x)) (Seq.zip
+                      (delims, (Seq.drop elems 1)))))
+            end)
 
 
       | DecMultiple {elems, delims} =>
@@ -132,13 +124,12 @@ struct
             fun mk first (elem, delim) =
               at tab
                 (showStrDec tab elem
-                ++ showOption (fn d => nospace ++ token d) delim)
+                 ++ showOption (fn d => nospace ++ token d) delim)
 
             val things = Seq.zip (elems, delims)
           in
-            Seq.iterate op++
-              (mk true (Seq.nth things 0))
-              (Seq.map (mk false) (Seq.drop things 1))
+            Seq.iterate op++ (mk true (Seq.nth things 0)) (Seq.map (mk false)
+              (Seq.drop things 1))
           end
 
       | DecLocalInEnd {locall, strdec1, inn, strdec2, endd} =>
@@ -154,30 +145,25 @@ struct
       (** This is MLton-specific. Useful for testing by parsing the entire
         * MLton implementation of the standard basis.
         *)
-      | MLtonOverload {underscore, overload, prec, name, colon, ty, ass, elems, delims} =>
+      | MLtonOverload
+          {underscore, overload, prec, name, colon, ty, ass, elems, delims} =>
           newTab tab (fn inner =>
             let
               val front =
                 at inner
-                  (token underscore ++ nospace ++ token overload
-                  ++ token prec
-                  ++ token name
-                  ++ token colon)
-                ++ withNewChild showTy inner ty
+                  (token underscore ++ nospace ++ token overload ++ token prec
+                   ++ token name ++ token colon) ++ withNewChild showTy inner ty
                 ++
                 at inner
                   (token ass
-                  ++ token (MaybeLongToken.getToken (Seq.nth elems 0)))
+                   ++ token (MaybeLongToken.getToken (Seq.nth elems 0)))
 
               fun showOne (d, e) =
                 at inner (token d ++ token (MaybeLongToken.getToken e))
             in
-              Seq.iterate op++
-                front
-                (Seq.zipWith showOne (delims, Seq.drop elems 1))
-            end)
-
-      (* | _ => text "<strdec>" *)
+              Seq.iterate op++ front (Seq.zipWith showOne
+                (delims, Seq.drop elems 1))
+            end) (* | _ => text "<strdec>" *)
     end
 
 end

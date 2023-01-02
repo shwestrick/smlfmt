@@ -32,11 +32,11 @@ struct
   type color = {red: real, green: real, blue: real}
   fun rgb x = x
 
-  val white = {red=1.0, green=1.0, blue=1.0}
-  val black = {red=0.0, green=0.0, blue=0.0}
-  val red = {red=1.0, green=0.0, blue=0.0}
-  val green = {red=0.0, green=1.0, blue=0.0}
-  val blue = {red=0.0, green=0.0, blue=1.0}
+  val white = {red = 1.0, green = 1.0, blue = 1.0}
+  val black = {red = 0.0, green = 0.0, blue = 0.0}
+  val red = {red = 1.0, green = 0.0, blue = 0.0}
+  val green = {red = 0.0, green = 1.0, blue = 0.0}
+  val blue = {red = 0.0, green = 0.0, blue = 1.0}
 
   fun hsv {h, s, v} =
     let
@@ -50,12 +50,12 @@ struct
       val X = C * (1.0 - Real.abs (Real.rem (H', 2.0) - 1.0))
 
       val (R1, G1, B1) =
-        if H' < 1.0 then      (C,   X,   0.0)
-        else if H' < 2.0 then (X,   C,   0.0)
-        else if H' < 3.0 then (0.0, C,   X)
-        else if H' < 4.0 then (0.0, X,   C)
-        else if H' < 5.0 then (X,   0.0, C)
-        else                  (C,   0.0, X)
+        if H' < 1.0 then (C, X, 0.0)
+        else if H' < 2.0 then (X, C, 0.0)
+        else if H' < 3.0 then (0.0, C, X)
+        else if H' < 4.0 then (0.0, X, C)
+        else if H' < 5.0 then (X, 0.0, C)
+        else (C, 0.0, X)
 
       val m = V - C
     in
@@ -68,18 +68,12 @@ struct
   val esc = "\027["
 
   fun background {red, green, blue} =
-    esc ^ "48;2;" ^
-    Int.toString (to256 red) ^ ";" ^
-    Int.toString (to256 green) ^ ";" ^
-    Int.toString (to256 blue) ^
-    "m"
+    esc ^ "48;2;" ^ Int.toString (to256 red) ^ ";" ^ Int.toString (to256 green)
+    ^ ";" ^ Int.toString (to256 blue) ^ "m"
 
   fun foreground {red, green, blue} =
-    esc ^ "38;2;" ^
-    Int.toString (to256 red) ^ ";" ^
-    Int.toString (to256 green) ^ ";" ^
-    Int.toString (to256 blue) ^
-    "m"
+    esc ^ "38;2;" ^ Int.toString (to256 red) ^ ";" ^ Int.toString (to256 green)
+    ^ ";" ^ Int.toString (to256 blue) ^ "m"
 
   val bold = esc ^ "1m"
 

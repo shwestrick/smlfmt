@@ -21,11 +21,7 @@ struct
       }
 
   (** bas basdec end *)
-  | BasEnd of
-      { bas: MLBToken.t
-      , basdec: basdec
-      , endd: MLBToken.t
-      }
+  | BasEnd of {bas: MLBToken.t, basdec: basdec, endd: MLBToken.t}
 
 
   and basdec =
@@ -33,31 +29,18 @@ struct
     DecEmpty
 
   (** basdec [;] basdec *)
-  | DecMultiple of
-      { elems: basdec Seq.t
-      , delims: MLBToken.t option Seq.t
-      }
+  | DecMultiple of {elems: basdec Seq.t, delims: MLBToken.t option Seq.t}
 
   (** path/to/file.mlb *)
-  | DecPathMLB of
-      { path: FilePath.t
-      , token: MLBToken.t
-      }
+  | DecPathMLB of {path: FilePath.t, token: MLBToken.t}
 
   (** path/to/file.{sml,sig,fun} *)
-  | DecPathSML of
-      { path: FilePath.t
-      , token: MLBToken.t
-      }
+  | DecPathSML of {path: FilePath.t, token: MLBToken.t}
 
   (** basis basid = basexp [and ...] *)
   | DecBasis of
       { basis: MLBToken.t
-      , elems:
-          { basid: MLBToken.t
-          , eq: MLBToken.t
-          , basexp: basexp
-          } Seq.t
+      , elems: {basid: MLBToken.t, eq: MLBToken.t, basexp: basexp} Seq.t
       (** 'and' delims *)
       , delims: MLBToken.t Seq.t
       }
@@ -72,20 +55,14 @@ struct
       }
 
   (** open basid ... basid *)
-  | DecOpen of
-      { openn: MLBToken.t
-      , elems: MLBToken.t Seq.t
-      }
+  | DecOpen of {openn: MLBToken.t, elems: MLBToken.t Seq.t}
 
   (** structure strid [= strid] [and ...] *)
   | DecStructure of
       { structuree: MLBToken.t
       , elems:
           { strid: MLBToken.t
-          , eqstrid:
-              { eq: MLBToken.t
-              , strid: MLBToken.t
-              } option
+          , eqstrid: {eq: MLBToken.t, strid: MLBToken.t} option
           } Seq.t
       (** 'and' delimiters *)
       , delims: MLBToken.t Seq.t
@@ -96,10 +73,7 @@ struct
       { signaturee: MLBToken.t
       , elems:
           { sigid: MLBToken.t
-          , eqsigid:
-              { eq: MLBToken.t
-              , sigid: MLBToken.t
-              } option
+          , eqsigid: {eq: MLBToken.t, sigid: MLBToken.t} option
           } Seq.t
       (** 'and' delimiters *)
       , delims: MLBToken.t Seq.t
@@ -110,10 +84,7 @@ struct
       { functorr: MLBToken.t
       , elems:
           { funid: MLBToken.t
-          , eqfunid:
-              { eq: MLBToken.t
-              , funid: MLBToken.t
-              } option
+          , eqfunid: {eq: MLBToken.t, funid: MLBToken.t} option
           } Seq.t
       (** 'and' delimiters *)
       , delims: MLBToken.t Seq.t

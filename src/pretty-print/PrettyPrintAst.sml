@@ -5,9 +5,10 @@
 
 structure PrettyPrintAst:
 sig
-  val pretty: {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int, debug: bool}
-           -> Ast.t
-           -> TerminalColorString.t
+  val pretty:
+    {ribbonFrac: real, maxWidth: int, tabWidth: int, indent: int, debug: bool}
+    -> Ast.t
+    -> TerminalColorString.t
 end =
 struct
 
@@ -16,9 +17,12 @@ struct
   open PrettyUtil
 
   infix 2 ++ $$ //
-  fun x ++ y = beside (x, y)
-  fun x $$ y = aboveOrSpace (x, y)
-  fun x // y = aboveOrBeside (x, y)
+  fun x ++ y =
+    beside (x, y)
+  fun x $$ y =
+    aboveOrSpace (x, y)
+  fun x // y =
+    aboveOrBeside (x, y)
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
@@ -45,10 +49,11 @@ struct
               | Ast.SigDec d => showSigDec d
               | Ast.FunDec d => showFunDec d
               | Ast.TopExp _ =>
-                  raise Fail "unsupported: top-level expressions. Note: you are \
-                             \using `-engine pretty`, which is headed towards \
-                             \deprecation. Please use `-engine prettier` instead, \
-                             \which supports top-level expressions."
+                  raise Fail
+                    "unsupported: top-level expressions. Note: you are \
+                    \using `-engine pretty`, which is headed towards \
+                    \deprecation. Please use `-engine prettier` instead, \
+                    \which supports top-level expressions."
             val sc =
               case semicolon of
                 NONE => empty
@@ -70,8 +75,8 @@ struct
       val doc = TokenDoc.insertBlankLines doc
     in
       StringDoc.pretty
-        {ribbonFrac=ribbonFrac, maxWidth=maxWidth, indentWidth=indent}
-        (toStringDoc {tabWidth=tabWidth} doc)
+        {ribbonFrac = ribbonFrac, maxWidth = maxWidth, indentWidth = indent}
+        (toStringDoc {tabWidth = tabWidth} doc)
     end
 
 end

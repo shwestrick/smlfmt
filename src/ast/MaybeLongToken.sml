@@ -20,8 +20,9 @@ struct
     if Token.isMaybeLongIdentifier tok then
       tok
     else
-      raise Fail ("MaybeLongToken.make: given non-identifier ("
-                  ^ Token.classToString (Token.getClass tok) ^ ")")
+      raise Fail
+        ("MaybeLongToken.make: given non-identifier ("
+         ^ Token.classToString (Token.getClass tok) ^ ")")
 
   fun getToken tok = tok
 

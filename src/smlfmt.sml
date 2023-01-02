@@ -5,33 +5,34 @@
 
 structure TCS = TerminalColorString
 structure TC = TerminalColors
-fun boldc c x = TCS.bold (TCS.foreground c (TCS.fromString x))
-fun printErr m = TextIO.output (TextIO.stdErr, m)
+fun boldc c x =
+  TCS.bold (TCS.foreground c (TCS.fromString x))
+fun printErr m =
+  TextIO.output (TextIO.stdErr, m)
 
 val optionalArgDesc =
-"  [--force]              overwrite files without interactive confirmation\n\
-\  [--preview]            show formatted before writing to file\n\
-\  [--preview-only]       show formatted output and skip file overwrite\n\
-\                         (incompatible with --force)\n\
-\  [-max-width W]         try to use at most <W> columns in each line\n\
-\                         (default 80)\n\
-\  [-ribbon-frac R]       controls how dense each line should be\n\
-\                         (default 1.0; requires 0 < R <= 1)\n\
-\  [-tab-width T]         parse input tab-stops as having width <T>\n\
-\                         (default 4)\n\
-\  [-indent-width I]      use <I> spaces for indentation in output\n\
-\                         (default 2)\n\
-\  [-mlb-path-var 'K V']  MLton-style path variable\n\
-\  [-engine E]            Select a pretty printing engine.\n\
-\                         Valid options are: prettier, pretty\n\
-\                         (default 'prettier')\n\
-\  [--debug-engine]       Enable debugging output (for devs)\n\
-\  [--help]               print this message\n"
+  "  [--force]              overwrite files without interactive confirmation\n\
+  \  [--preview]            show formatted before writing to file\n\
+  \  [--preview-only]       show formatted output and skip file overwrite\n\
+  \                         (incompatible with --force)\n\
+  \  [-max-width W]         try to use at most <W> columns in each line\n\
+  \                         (default 80)\n\
+  \  [-ribbon-frac R]       controls how dense each line should be\n\
+  \                         (default 1.0; requires 0 < R <= 1)\n\
+  \  [-tab-width T]         parse input tab-stops as having width <T>\n\
+  \                         (default 4)\n\
+  \  [-indent-width I]      use <I> spaces for indentation in output\n\
+  \                         (default 2)\n\
+  \  [-mlb-path-var 'K V']  MLton-style path variable\n\
+  \  [-engine E]            Select a pretty printing engine.\n\
+  \                         Valid options are: prettier, pretty\n\
+  \                         (default 'prettier')\n\
+  \  [--debug-engine]       Enable debugging output (for devs)\n\
+  \  [--help]               print this message\n"
 
 fun usage () =
-  "usage: smlfmt [ARGS] FILE ... FILE\n" ^
-  "Optional arguments:\n" ^
-  optionalArgDesc
+  "usage: smlfmt [ARGS] FILE ... FILE\n" ^ "Optional arguments:\n"
+  ^ optionalArgDesc
 
 
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
@@ -52,26 +53,27 @@ val showPreview = preview orelse previewOnly
 
 val _ =
   if doHelp orelse List.null inputfiles then
-    ( print (usage ())
-    ; OS.Process.exit OS.Process.success
-    )
-  else ()
+    (print (usage ()); OS.Process.exit OS.Process.success)
+  else
+    ()
 
 val _ =
   if previewOnly andalso doForce then
-    ( TCS.printErr (boldc Palette.red
-        "ERROR: --force incompatible with --preview-only\n")
+    ( TCS.printErr
+        (boldc Palette.red "ERROR: --force incompatible with --preview-only\n")
     ; OS.Process.exit OS.Process.failure
     )
-  else ()
+  else
+    ()
 
 val _ =
   if doDebug andalso not (previewOnly) then
-    ( TCS.printErr (boldc Palette.red
-        "ERROR: --debug-engine requires --preview-only\n")
+    ( TCS.printErr
+        (boldc Palette.red "ERROR: --debug-engine requires --preview-only\n")
     ; OS.Process.exit OS.Process.failure
     )
-  else ()
+  else
+    ()
 
 val prettyPrinter =
   case engine of
@@ -79,8 +81,7 @@ val prettyPrinter =
   | "pretty" => PrettyPrintAst.pretty
   | other =>
       ( TCS.printErr (boldc Palette.red
-          ("ERROR: unknown engine '"
-           ^ other
+          ("ERROR: unknown engine '" ^ other
            ^ "'; valid options are: prettier, pretty\n"))
       ; OS.Process.exit OS.Process.failure
       )
@@ -100,8 +101,8 @@ fun handleLexOrParseError exn =
   in
     TCS.print
       (Error.show {highlighter = SOME SyntaxHighlighter.fuzzyHighlight} e);
-    if List.null hist then () else
-      print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
+    if List.null hist then ()
+    else print ("\n" ^ String.concat (List.map (fn ln => ln ^ "\n") hist));
     OS.Process.exit OS.Process.failure
   end
 
@@ -113,7 +114,8 @@ fun exnToString exn =
       if List.null (MLton.Exn.history exn) then
         ""
       else
-        "\nSTACK TRACE:\n" ^
+        "\nSTACK TRACE:\n"
+        ^
         List.foldl op^ ""
           (List.map (fn s => "  " ^ s ^ "\n") (MLton.Exn.history exn))
   in
@@ -133,8 +135,7 @@ fun doSMLAst (fp, parserOutput) =
             , maxWidth = maxWidth
             , indentWidth = indentWidth
             , debug = doDebug
-            }
-            (TabbedTokenDoc.justCommentsToStringDoc {tabWidth=tabWidth} cs)
+            } (TabbedTokenDoc.justCommentsToStringDoc {tabWidth = tabWidth} cs)
 
       | Parser.Ast ast =>
           prettyPrinter
@@ -143,10 +144,9 @@ fun doSMLAst (fp, parserOutput) =
             , tabWidth = tabWidth
             , indent = indentWidth
             , debug = doDebug
-            }
-            ast
+            } ast
 
-    val result = TCS.toString {colors=false} prettied
+    val result = TCS.toString {colors = false} prettied
 
     fun writeOut () =
       let
@@ -163,13 +163,12 @@ fun doSMLAst (fp, parserOutput) =
       ; case TextIO.inputLine TextIO.stdIn of
           NONE => printErr ("skipping " ^ hfp ^ "\n")
         | SOME line =>
-            if line = "y\n" orelse line = "Y\n" then
-              writeOut ()
-            else
-              printErr ("skipping " ^ hfp ^ "\n")
+            if line = "y\n" orelse line = "Y\n" then writeOut ()
+            else printErr ("skipping " ^ hfp ^ "\n")
       )
   in
-    if not showPreview then ()
+    if not showPreview then
+      ()
     else
       ( TCS.print (boldc Palette.lightblue ("---- " ^ hfp ^ " ----"))
       ; print "\n"
@@ -179,23 +178,17 @@ fun doSMLAst (fp, parserOutput) =
       ; print "\n"
       );
 
-    if previewOnly then ()
-    else if doForce then
-      writeOut ()
-    else
-      confirm ()
+    if previewOnly then () else if doForce then writeOut () else confirm ()
   end
-  handle exn =>
-    TCS.printErr (boldc Palette.red (exnToString exn ^ "\n"))
+  handle exn => TCS.printErr (boldc Palette.red (exnToString exn ^ "\n"))
 
 
 fun doSML filepath =
   let
     val fp = FilePath.fromUnixPath filepath
     val source = Source.loadFromFile fp
-    val result =
-      Parser.parse {allowTopExp = allowTopExp} source
-      handle exn => handleLexOrParseError exn
+    val result = Parser.parse {allowTopExp = allowTopExp} source
+                 handle exn => handleLexOrParseError exn
   in
     doSMLAst (fp, result)
   end
@@ -205,12 +198,11 @@ fun doMLB filepath =
   let
     val fp = FilePath.fromUnixPath filepath
     val asts =
-      ParseAllSMLFromMLB.parse {skipBasis = true, pathmap = pathmap, allowTopExp = allowTopExp} fp
+      ParseAllSMLFromMLB.parse
+        {skipBasis = true, pathmap = pathmap, allowTopExp = allowTopExp} fp
       handle exn => handleLexOrParseError exn
   in
-    Util.for (0, Seq.length asts) (fn i =>
-      doSMLAst (Seq.nth asts i)
-    )
+    Util.for (0, Seq.length asts) (fn i => doSMLAst (Seq.nth asts i))
   end
 
 
@@ -229,27 +221,29 @@ fun fileinfo filepath =
       NONE => MissingExtension
     | SOME "mlb" => MLBFile
     | SOME e =>
-        if List.exists (fn e' => e = e') ["sml","fun","sig"] then
-          SMLFile
-        else
-          Unsupported e
+        if List.exists (fn e' => e = e') ["sml", "fun", "sig"] then SMLFile
+        else Unsupported e
   end
   handle exn => FileError exn
 
 fun okayFile (filepath, info) =
-  case info of SMLFile => true | MLBFile => true | _ => false
+  case info of
+    SMLFile => true
+  | MLBFile => true
+  | _ => false
 
 fun skipFile (filepath, info) =
-  printErr ("skipping file " ^ filepath ^ ": "
-  ^ (case info of
-      MissingExtension => "missing extension"
-    | Unsupported e => "unsupported file extension: " ^ e
-    | FileError exn => exnMessage exn
-    | _ => raise Fail "Error! Bug! Please submit an error report...")
-  ^ "\n")
+  printErr
+    ("skipping file " ^ filepath ^ ": "
+     ^
+     (case info of
+        MissingExtension => "missing extension"
+      | Unsupported e => "unsupported file extension: " ^ e
+      | FileError exn => exnMessage exn
+      | _ => raise Fail "Error! Bug! Please submit an error report...") ^ "\n")
 
-val (filesToDo, filesToSkip) =
-  List.partition okayFile (List.map (fn x => (x, fileinfo x)) inputfiles)
+val (filesToDo, filesToSkip) = List.partition okayFile
+  (List.map (fn x => (x, fileinfo x)) inputfiles)
 
 fun doFile (fp, info) =
   case info of
@@ -257,8 +251,6 @@ fun doFile (fp, info) =
   | MLBFile => doMLB fp
   | _ => raise Fail "Error! Bug! Please submit an error report..."
 
-val _ =
-  List.app skipFile filesToSkip
+val _ = List.app skipFile filesToSkip
 
-val _ =
-  List.app doFile filesToDo
+val _ = List.app doFile filesToDo

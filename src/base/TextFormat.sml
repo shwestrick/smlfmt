@@ -25,18 +25,12 @@ struct
     CharVector.tabulate (n, fn _ => c)
 
   fun leftPadWith char desiredWidth str =
-    if String.size str >= desiredWidth then
-      str
-    else
-      repeatChar (desiredWidth - String.size str) char
-      ^ str
+    if String.size str >= desiredWidth then str
+    else repeatChar (desiredWidth - String.size str) char ^ str
 
   fun rightPadWith char desiredWidth str =
-    if String.size str >= desiredWidth then
-      str
-    else
-      str
-      ^ repeatChar (desiredWidth - String.size str) char
+    if String.size str >= desiredWidth then str
+    else str ^ repeatChar (desiredWidth - String.size str) char
 
   fun centerPadWith char desiredWidth str =
     if String.size str >= desiredWidth then
@@ -47,41 +41,30 @@ struct
         val leftCount = count div 2
         val rightCount = count - leftCount
       in
-        repeatChar leftCount char
-        ^ str
-        ^ repeatChar rightCount char
+        repeatChar leftCount char ^ str ^ repeatChar rightCount char
       end
 
   fun spreadWith char desiredWidth {left, right} =
     if String.size left + String.size right >= desiredWidth then
       left ^ right
     else
-      let
-        val count = desiredWidth - (String.size left + String.size right)
-      in
-        left
-        ^ repeatChar count char
-        ^ right
+      let val count = desiredWidth - (String.size left + String.size right)
+      in left ^ repeatChar count char ^ right
       end
 
   fun textWrap desiredWidth str =
     let
-      fun finishLine ln = String.concatWith " " (List.rev ln)
+      fun finishLine ln =
+        String.concatWith " " (List.rev ln)
       fun loop lines (currLine, currLen) toks =
         case toks of
           tok :: remaining =>
             if currLen + String.size tok + 1 > desiredWidth then
-              loop
-                (finishLine currLine :: lines)
-                ([], 0)
-                toks
+              loop (finishLine currLine :: lines) ([], 0) toks
             else
-              loop
-                lines
-                (tok :: currLine, currLen + String.size tok + 1)
+              loop lines (tok :: currLine, currLen + String.size tok + 1)
                 remaining
-        | [] =>
-            String.concatWith "\n" (List.rev (finishLine currLine :: lines))
+        | [] => String.concatWith "\n" (List.rev (finishLine currLine :: lines))
     in
       loop [] ([], 0) (String.tokens Char.isSpace str)
     end
