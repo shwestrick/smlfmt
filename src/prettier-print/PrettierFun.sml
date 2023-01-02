@@ -29,12 +29,14 @@ struct
     case fa of
       Ast.Fun.ArgSpec spec => withNewChild showSpec tab spec
     | Ast.Fun.ArgIdent {strid, colon, sigexp} =>
-        (* NOTE: nospace before the colon should be safe here, because
-         * structure identifiers cannot be symbolic *)
-        token strid ++
-        (if Token.hasCommentsAfter strid then empty else nospace)
-        ++ token colon
-        ++ withNewChild showSigExp tab sigexp
+        newTab tab (fn tab =>
+          (* NOTE: nospace before the colon should be safe here, because
+           * structure identifiers cannot be symbolic *)
+          at tab
+            (token strid ++
+            (if Token.hasCommentsAfter strid then empty else nospace)
+            ++ token colon
+            ++ showSigExpInDec tab sigexp))
 
   fun showFunDec tab (Ast.Fun.DecFunctor {functorr, elems, delims}) =
     let
