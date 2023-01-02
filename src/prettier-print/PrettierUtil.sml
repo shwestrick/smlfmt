@@ -1,4 +1,4 @@
-(** Copyright (c) 2022 Sam Westrick
+(** Copyright (c) 2022-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -85,7 +85,7 @@ struct
       ++ elemShower tab (Seq.nth elems 0)
       ++ nospace ++ token close
     else
-      newTab tab (fn inner =>
+      newTabWithStyle tab (Tab.Style.allowComments, fn inner =>
         let
           val topspacer =
             if

@@ -1,4 +1,4 @@
-(** Copyright (c) 2022 Sam Westrick
+(** Copyright (c) 2022-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -761,7 +761,7 @@ struct
             fun mkSplittable (starter, {recc, pat, eq, exp}) =
               newTab tab (fn flatGhost =>
               newTab tab (fn expGhost =>
-              newTab tab (fn child =>
+              newTabWithStyle tab (Tab.Style.allowComments, fn child =>
                 let
                   val patContents = withNewChild showPat tab pat
 
