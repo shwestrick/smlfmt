@@ -790,8 +790,10 @@ struct
         Seq.map
           (fn (i, j) => D.text (strip (TCS.substring (t, i, j-i))))
           (Source.lineRanges src)
+
+      val numPieces = Seq.length pieces
     in
-      if Seq.length pieces = 1 then
+      if numPieces = 1 then
         (false, D.text t)
       else
         let
@@ -800,8 +802,15 @@ struct
             , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
             }
           val doc =
+            (* a bit of a hack here: we concatenate a space on the end of
+             * each piece (except last), which guarantees that blank lines
+             * within the comment are preserved.
+             *)
             Seq.iterate D.concat D.empty
-              (Seq.map (fn x => D.at tab x) pieces)
+              (Seq.map (fn x => D.at tab (D.concat (x, D.space)))
+                (Seq.take pieces (numPieces-1)))
+          val doc =
+            D.concat (doc, D.at tab (Seq.nth pieces (numPieces-1)))
           val doc =
             D.newTab (tab, doc)
         in
