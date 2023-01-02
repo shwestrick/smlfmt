@@ -1,4 +1,4 @@
-(** Copyright (c) 2022 Sam Westrick
+(** Copyright (c) 2022-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -448,6 +448,44 @@ struct
       fun concatDocs ds =
         Seq.iterate annConcat AnnEmpty ds
 
+      (* Find index i where the first i comments belong to tok1, and the
+       * rest belong to tok2.
+       * (tok1, comments, tok2) must be adjacent.
+       *)
+      fun findSplit (tok1, comments, tok2) =
+        let
+          val n = Seq.length comments
+          fun loop i =
+            if i >= n then n else
+            if Token.lineDifference (tok1, Seq.nth comments i) > 0 then
+              i
+            else
+              loop (i+1)
+        in
+          loop 0
+        end
+
+      fun commentsBefore tok =
+        case Token.prevTokenNotCommentOrWhitespace tok of
+          NONE => commentsToDocs (Token.commentsBefore tok)
+        | SOME ptok =>
+            let
+              val cs = Token.commentsBefore tok
+              val cs = Seq.drop cs (findSplit (ptok, cs, tok))
+            in
+              commentsToDocs cs
+            end
+
+      fun commentsAfter tok =
+        case Token.nextTokenNotCommentOrWhitespace tok of
+          NONE => commentsToDocs (Token.commentsAfter tok)
+        | SOME ntok =>
+            let
+              val cs = Token.commentsAfter tok
+              val cs = Seq.take cs (findSplit (tok, cs, ntok))
+            in
+              commentsToDocs cs
+            end
 
       (* returns (hasTokens?, commentsBefore, doc', commentsAfter)
        * ensures:
@@ -555,16 +593,15 @@ struct
 
         | AnnToken {at = flow, tok} =>
             let
-              val commentsBefore =
-                commentsToDocs (Token.commentsBefore tok)
-              val commentsAfter =
-                if not (isLast tok) then Seq.empty () else
-                commentsToDocs (Token.commentsAfter tok)
-              val numComments =
-                Seq.length commentsBefore + Seq.length commentsAfter
+              val cb = commentsBefore tok
+              val ca = commentsAfter tok
+              val numComments = Seq.length cb (* + Seq.length ca *)
+
+              val doc = annConcat (doc, concatDocs ca)
             in
               if ctxAllowsComments then
-                (true, commentsBefore, doc, commentsAfter)
+                (* (true, cb, doc, ca) *)
+                (true, cb, doc, noComments)
               else if numComments = 0 then
                 (true, noComments, doc, noComments)
               else
@@ -573,8 +610,8 @@ struct
                 NONE =>
                   ( true
                   , noComments
-                  , concatDocs (Seq.append3
-                      (commentsBefore, Seq.singleton doc, commentsAfter))
+                  (* , concatDocs (Seq.append3 (cb, Seq.singleton doc, ca)) *)
+                  , concatDocs (Seq.append (cb, Seq.singleton doc))
                   , noComments
                   )
 
@@ -582,17 +619,17 @@ struct
                   let
                     val tab =
                       (* TODO: what to do when there are multiple possible tabs
-                      * this token could be at? Here we just pick the first
-                      * of these in the set, and usually it seems each token
-                      * is only ever 'at' one possible tab...
-                      *)
+                       * this token could be at? Here we just pick the first
+                       * of these in the set, and usually it seems each token
+                       * is only ever 'at' one possible tab...
+                       *)
                       List.hd (TabSet.listKeys tabs)
 
                     fun withBreak d =
                       AnnAt {tab=tab, doc=d}
 
-                    val all =
-                      Seq.append3 (commentsBefore, Seq.singleton doc, commentsAfter)
+                    (* val all = Seq.append3 (cb, Seq.singleton doc, ca) *)
+                    val all = Seq.append (cb, Seq.singleton doc)
                   in
                     ( true
                     , noComments
