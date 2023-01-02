@@ -121,19 +121,30 @@ fun exnToString exn =
   end
 
 
-fun doSMLAst (fp, ast) =
+fun doSMLAst (fp, parserOutput) =
   let
     val hfp = FilePath.toHostPath fp
 
     val prettied =
-      (prettyPrinter
-        { ribbonFrac = ribbonFrac
-        , maxWidth = maxWidth
-        , tabWidth = tabWidth
-        , indent = indentWidth
-        , debug = doDebug
-        }
-        ast)
+      case parserOutput of
+        Parser.JustComments cs =>
+          TabbedStringDoc.pretty
+            { ribbonFrac = ribbonFrac
+            , maxWidth = maxWidth
+            , indentWidth = indentWidth
+            , debug = doDebug
+            }
+            (TabbedTokenDoc.justCommentsToStringDoc {tabWidth=tabWidth} cs)
+
+      | Parser.Ast ast =>
+          prettyPrinter
+            { ribbonFrac = ribbonFrac
+            , maxWidth = maxWidth
+            , tabWidth = tabWidth
+            , indent = indentWidth
+            , debug = doDebug
+            }
+            ast
 
     val result = TCS.toString {colors=false} prettied
 
@@ -182,11 +193,11 @@ fun doSML filepath =
   let
     val fp = FilePath.fromUnixPath filepath
     val source = Source.loadFromFile fp
-    val ast =
+    val result =
       Parser.parse {allowTopExp = allowTopExp} source
       handle exn => handleLexOrParseError exn
   in
-    doSMLAst (fp, ast)
+    doSMLAst (fp, result)
   end
 
 

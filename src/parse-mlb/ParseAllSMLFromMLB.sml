@@ -10,7 +10,7 @@ sig
     *)
   val parse: {pathmap: MLtonPathMap.t, skipBasis: bool, allowTopExp: bool}
           -> FilePath.t
-          -> (FilePath.t * Ast.t) Seq.t
+          -> (FilePath.t * Parser.parser_output) Seq.t
 end =
 struct
 
@@ -68,11 +68,11 @@ struct
     TextIO.output (TextIO.stdErr, m)
 
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
-  fun parse {skipBasis, pathmap, allowTopExp} mlbPath : (FilePath.t * Ast.ast) Seq.t =
+  fun parse {skipBasis, pathmap, allowTopExp} mlbPath : (FilePath.t * Parser.parser_output) Seq.t =
     let
       open MLBAst
 
-      type asts = (FilePath.t * Ast.ast) list
+      type asts = (FilePath.t * Parser.parser_output) list
 
       fun expandAndJoin relativeDir path =
         let

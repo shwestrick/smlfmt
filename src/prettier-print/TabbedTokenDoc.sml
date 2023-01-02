@@ -27,6 +27,8 @@ sig
   val at: tab -> doc -> doc
 
   val toStringDoc: {tabWidth: int, debug: bool} -> doc -> TabbedStringDoc.t
+
+  val justCommentsToStringDoc: {tabWidth: int} -> Token.t Seq.t -> TabbedStringDoc.t
 end =
 struct
 
@@ -749,7 +751,7 @@ struct
 
   fun tokenToStringDoc currentTab tabWidth tok =
     if not (Token.isComment tok orelse Token.isStringConstant tok) then
-      (false, D.text (SyntaxHighlighter.highlightToken tok))
+      D.text (SyntaxHighlighter.highlightToken tok)
     else
     let
       val src = Token.getSource tok
@@ -794,7 +796,7 @@ struct
       val numPieces = Seq.length pieces
     in
       if numPieces = 1 then
-        (false, D.text t)
+        D.text t
       else
         let
           val tab = Tab.new
@@ -814,10 +816,15 @@ struct
           val doc =
             D.newTab (tab, doc)
         in
-          (true, doc)
+          doc
         end
     end
 
+  (* ====================================================================== *)
+
+  fun justCommentsToStringDoc {tabWidth} cs =
+    Seq.iterate D.concat D.empty
+      (Seq.map (fn c => D.at Tab.root (tokenToStringDoc Tab.root tabWidth c)) cs)
 
   (* ====================================================================== *)
 
@@ -858,7 +865,7 @@ struct
                      * tabs here? *)
                     List.hd (TabSet.listKeys tabs)
 
-              val (shouldBeRigid, doc) = tokenToStringDoc tab tabWidth tok
+              val doc = tokenToStringDoc tab tabWidth tok
             in
               doc
             end
