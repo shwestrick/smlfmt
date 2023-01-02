@@ -5,8 +5,15 @@
 
 structure Parser:
 sig
-  val parse: {allowTopExp: bool} -> Source.t -> Ast.t
-  val parseWithInfdict: {allowTopExp: bool} -> InfixDict.t -> Source.t -> (InfixDict.t * Ast.t)
+  (* Comments are implicit in our representation and are associated with normal
+   * tokens. This results in an edge case here, where the input contains only
+   * comments and nothing else. It's easy enough to handle, though. *)
+  datatype parser_output =
+    Ast of Ast.t
+  | JustComments of Token.t Seq.t
+
+  val parse: {allowTopExp: bool} -> Source.t -> parser_output
+  val parseWithInfdict: {allowTopExp: bool} -> InfixDict.t -> Source.t -> (InfixDict.t * parser_output)
 end =
 struct
 
@@ -14,6 +21,10 @@ struct
   structure PS = ParseSimple
   structure PT = ParseTy
   structure PP = ParsePat
+
+  datatype parser_output =
+    Ast of Ast.t
+  | JustComments of Token.t Seq.t
 
   structure Restriction = ExpPatRestriction
 
@@ -635,15 +646,26 @@ struct
             , explain = SOME "Invalid start of top-level declaration."
             }
     in
-      (infdict, Ast.Ast topdecs)
+      if numToks > 0 then
+        (infdict, Ast (Ast.Ast topdecs))
+      else
+        let
+          val commentsOnly = Seq.filter Token.isComment allTokens
+        in
+          if Seq.length commentsOnly > 0 then
+            (infdict, JustComments commentsOnly)
+          else
+            (infdict, Ast (Ast.Ast topdecs))
+        end
     end
 
 
   fun parse {allowTopExp} src =
     let
-      val (_, ast) = parseWithInfdict {allowTopExp=allowTopExp} InfixDict.initialTopLevel src
+      val (_, result) =
+        parseWithInfdict {allowTopExp=allowTopExp} InfixDict.initialTopLevel src
     in
-      ast
+      result
     end
 
 
