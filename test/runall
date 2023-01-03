@@ -26,14 +26,14 @@ def info(msg):
   print('[INFO] ' + msg)
 
 info('building parser...')
-MAKE_CMD = ['make', '-C', ROOT, 'demo']
+MAKE_CMD = ['make', '-C', ROOT, 'smlfmt']
 run_must_succeed(MAKE_CMD)
 info('built parser successfully')
 
-MAIN = os.path.join(ROOT, 'demo')
+MAIN = os.path.join(ROOT, 'smlfmt')
 
 def run_test(path, expect_success=True):
-  cmd = [MAIN, '--no-skip-basis', '--pretty', path]
+  cmd = [MAIN, '--no-skip-basis', '--preview-only', path]
   process = \
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out, err = process.communicate()
