@@ -110,8 +110,9 @@ struct
             parse_oneOrMoreDelimitedByReserved
               {parseElem = parseOne, delim = Token.And} i
 
-          val result: Ast.topdec = Ast.SigDec (Ast.Sig.Signature
-            {signaturee = signaturee, elems = elems, delims = delims})
+          val result: Ast.topdec = Ast.SigDec
+            (Ast.Sig.Signature
+               {signaturee = signaturee, elems = elems, delims = delims})
         in
           ((i, infdict), result)
         end
@@ -461,8 +462,9 @@ struct
               {parseElem = parseOne, delim = Token.And} i
         in
           ( (i, infdict)
-          , Ast.FunDec (Ast.Fun.DecFunctor
-              {functorr = functorr, elems = elems, delims = delims})
+          , Ast.FunDec
+              (Ast.Fun.DecFunctor
+                 {functorr = functorr, elems = elems, delims = delims})
           )
         end
 
@@ -565,11 +567,10 @@ struct
           ParserUtils.tokError toks
             { pos = i
             , what = "Unexpected token."
-            , explain =
-                SOME
-                  "Invalid start of top-level declaration. If you want to \
-                  \allow top-level expressions, use the command-line \
-                  \argument `-allow-top-level-exps true`."
+            , explain = SOME
+                "Invalid start of top-level declaration. If you want to \
+                \allow top-level expressions, use the command-line \
+                \argument `-allow-top-level-exps true`."
             }
 
       fun parse_topDecMaybeSemicolon (i, infdict) =

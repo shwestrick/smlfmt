@@ -87,10 +87,9 @@ struct
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected structure identifier."
-        , explain =
-            SOME
-              "Must be alphanumeric, and cannot start with a\
-              \ prime (')"
+        , explain = SOME
+            "Must be alphanumeric, and cannot start with a\
+            \ prime (')"
         }
 
 
@@ -101,10 +100,9 @@ struct
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected signature identifier."
-        , explain =
-            SOME
-              "Must be alphanumeric, and cannot start with a\
-              \ prime (')"
+        , explain = SOME
+            "Must be alphanumeric, and cannot start with a\
+            \ prime (')"
         }
 
 
@@ -115,10 +113,9 @@ struct
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected functor identifier."
-        , explain =
-            SOME
-              "Must be alphanumeric, and cannot start with a\
-              \ prime (')"
+        , explain = SOME
+            "Must be alphanumeric, and cannot start with a\
+            \ prime (')"
         }
 
 
@@ -129,10 +126,9 @@ struct
       ParserUtils.error
         { pos = MLBToken.getSource (Seq.nth toks i)
         , what = "Expected basis identifier."
-        , explain =
-            SOME
-              "Must be alphanumeric, and cannot start with a\
-              \ prime (')"
+        , explain = SOME
+            "Must be alphanumeric, and cannot start with a\
+            \ prime (')"
         }
 
 

@@ -77,8 +77,7 @@ struct
   fun tryExpandField (pathmap: pathmap) (field: string) =
     let
       val n = String.size field
-      fun c i =
-        String.sub (field, i)
+      fun c i = String.sub (field, i)
       fun slice (i, j) =
         String.substring (field, i, j - i)
 

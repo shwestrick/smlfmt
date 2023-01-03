@@ -18,8 +18,7 @@ struct
   open PrettierStr
   open PrettierFun
   infix 2 ++
-  fun x ++ y =
-    concat (x, y)
+  fun x ++ y = concat (x, y)
 
   (* ====================================================================== *)
 
@@ -54,8 +53,9 @@ struct
 
   fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
     let
-      val doc = showAst ast (* val doc = TokenDoc.insertComments doc
-                            val doc = TokenDoc.insertBlankLines doc *)
+      val doc =
+        showAst ast (* val doc = TokenDoc.insertComments doc
+                    val doc = TokenDoc.insertBlankLines doc *)
     in
       TabbedStringDoc.pretty
         { ribbonFrac = ribbonFrac

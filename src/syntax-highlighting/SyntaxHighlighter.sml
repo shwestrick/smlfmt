@@ -143,8 +143,8 @@ struct
       val startOffset = Source.absoluteStartOffset source
       val endOffset = Source.absoluteEndOffset source
       val wholeSrc = Source.wholeFile source
-      val result = loop tokColor TCS.empty (wholeSrc, startOffset, endOffset)
-        (toks, 0)
+      val result =
+        loop tokColor TCS.empty (wholeSrc, startOffset, endOffset) (toks, 0)
     in
       (* print (TCS.debugShow result ^ "\n"); *)
       result

@@ -85,8 +85,7 @@ struct
   val newline = Newline
   val space = Space
   val text = Text
-  fun at t d =
-    At (t, d)
+  fun at t d = At (t, d)
 
   fun cond tab {inactive, active} =
     Cond {tab = tab, inactive = inactive, active = active}
@@ -97,8 +96,7 @@ struct
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
 
-  fun newTab (tab, doc) =
-    NewTab {tab = tab, doc = doc}
+  fun newTab (tab, doc) = NewTab {tab = tab, doc = doc}
 
   (* ====================================================================== *)
 

@@ -80,12 +80,11 @@ struct
           error
             { pos = Token.getSource bar
             , what = msg
-            , explain =
-                SOME
-                  "This is disallowed in Standard ML, but allowed in \
-                  \SuccessorML with \"optional bar\" syntax. To enable \
-                  \optional bar syntax, use the command-line argument \
-                  \'-allow-opt-bar true'."
+            , explain = SOME
+                "This is disallowed in Standard ML, but allowed in \
+                \SuccessorML with \"optional bar\" syntax. To enable \
+                \optional bar syntax, use the command-line argument \
+                \'-allow-opt-bar true'."
             }
 
 

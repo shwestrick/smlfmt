@@ -93,10 +93,9 @@ struct
           error
             { pos = slice (s, s + 1)
             , what = "Invalid character."
-            , explain =
-                SOME
-                  "Strings can only contain printable (visible or \
-                  \whitespace) ASCII characters."
+            , explain = SOME
+                "Strings can only contain printable (visible or \
+                \whitespace) ASCII characters."
             }
         else
           SOME (EndOfChar (s + 1))
@@ -145,10 +144,9 @@ struct
           error
             { pos = slice (s - 1, s)
             , what = "Invalid escape sequence"
-            , explain =
-                SOME
-                  "Three-digit escape sequences must look like \
-                  \\\DDD where D is a decimal digit."
+            , explain = SOME
+                "Three-digit escape sequences must look like \
+                \\\DDD where D is a decimal digit."
             }
 
 
@@ -167,10 +165,9 @@ struct
           error
             { pos = slice (s - 2, s - 1)
             , what = "Invalid escape sequence."
-            , explain =
-                SOME
-                  "Four-digit escape sequences must look like \
-                  \\\uXXXX where X is a hexadecimal digit."
+            , explain = SOME
+                "Four-digit escape sequences must look like \
+                \\\uXXXX where X is a hexadecimal digit."
             }
 
 
@@ -184,10 +181,9 @@ struct
           error
             { pos = slice (s - 2, s - 1)
             , what = "Invalid escape sequence."
-            , explain =
-                SOME
-                  "Control escape sequences should look like \\^C where C is \
-                  \one of the following characters: @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
+            , explain = SOME
+                "Control escape sequences should look like \\^C where C is \
+                \one of the following characters: @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
             }
 
 
@@ -210,10 +206,9 @@ struct
           error
             { pos = slice (s, s + 1)
             , what = "Invalid format escape character."
-            , explain =
-                SOME
-                  "Formatting escape sequences have to be enclosed by backslashes\
-                  \ and should only contain whitespace characters."
+            , explain = SOME
+                "Formatting escape sequences have to be enclosed by backslashes\
+                \ and should only contain whitespace characters."
             }
 
 
@@ -232,8 +227,8 @@ struct
                         "Bug found in lexer! Please report on GitHub..."
                     , Error.Paragraph
                         "Lexer.advance_toEndOfString: could not find end of string:"
-                    , Error.SourceReference (slice
-                        (stringStart, stringStart + 1))
+                    , Error.SourceReference
+                        (slice (stringStart, stringStart + 1))
                     , Error.Paragraph "Got up to here:"
                     , Error.SourceReference (slice (s, s + 1))
                     ]
@@ -359,8 +354,8 @@ struct
               error
                 { pos = srcHere
                 , what = "Unexpected reserved symbol."
-                , explain =
-                    SOME "Reserved symbols cannot be used as identifiers."
+                , explain = SOME
+                    "Reserved symbols cannot be used as identifiers."
                 }
             else if not isQualified then
               success tok
@@ -385,8 +380,8 @@ struct
               error
                 { pos = srcHere
                 , what = "Unexpected reserved keyword."
-                , explain =
-                    SOME "Reserved keywords cannot be used as identifiers."
+                , explain = SOME
+                    "Reserved keywords cannot be used as identifiers."
                 }
             else if
               is #"." at s andalso startsPrime
@@ -420,8 +415,8 @@ struct
           error
             { pos = slice (s, s + 1)
             , what = "Unexpected character."
-            , explain =
-                SOME "Identifiers have to start with a letter or symbol."
+            , explain = SOME
+                "Identifiers have to start with a letter or symbol."
             }
 
 
@@ -497,9 +492,8 @@ struct
           error
             { pos = slice (constStart, s)
             , what = "Invalid real constant."
-            , explain =
-                SOME
-                  "After the dot, there needs to be at least one decimal digit."
+            , explain = SOME
+                "After the dot, there needs to be at least one decimal digit."
             }
 
 

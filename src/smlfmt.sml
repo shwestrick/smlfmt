@@ -7,8 +7,7 @@ structure TCS = TerminalColorString
 structure TC = TerminalColors
 fun boldc c x =
   TCS.bold (TCS.foreground c (TCS.fromString x))
-fun printErr m =
-  TextIO.output (TextIO.stdErr, m)
+fun printErr m = TextIO.output (TextIO.stdErr, m)
 
 val optionalArgDesc =
   "  [--force]                  overwrite files without interactive confirmation\n\
@@ -79,8 +78,8 @@ val _ =
 
 val _ =
   if previewOnly andalso doForce then
-    ( TCS.printErr
-        (boldc Palette.red "ERROR: --force incompatible with --preview-only\n")
+    ( TCS.printErr (boldc Palette.red
+        "ERROR: --force incompatible with --preview-only\n")
     ; OS.Process.exit OS.Process.failure
     )
   else
@@ -88,8 +87,8 @@ val _ =
 
 val _ =
   if doDebug andalso not (previewOnly) then
-    ( TCS.printErr
-        (boldc Palette.red "ERROR: --debug-engine requires --preview-only\n")
+    ( TCS.printErr (boldc Palette.red
+        "ERROR: --debug-engine requires --preview-only\n")
     ; OS.Process.exit OS.Process.failure
     )
   else

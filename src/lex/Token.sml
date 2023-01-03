@@ -1,4 +1,4 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -108,6 +108,8 @@ sig
     * raises Fail if not from the same file.
     *)
   val lineDifference: token * token -> int
+
+  val spansMultipleLines: token -> bool
 
   val isReserved: token -> bool
   val isStringConstant: token -> bool
@@ -280,6 +282,14 @@ struct
         start2 - end1
       else
         raise Fail "Bug! lineDifference on tokens from different files"
+    end
+
+  fun spansMultipleLines tok =
+    let
+      val {line = lnStart, ...} = Source.absoluteStart (getSource tok)
+      val {line = lnEnd, ...} = Source.absoluteEnd (getSource tok)
+    in
+      lnEnd <> lnStart
     end
 
   fun toString tok =

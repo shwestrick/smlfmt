@@ -63,8 +63,7 @@ struct
   type token = {idx: int, context: pretoken Seq.t}
   type t = token
 
-  fun make src class =
-    WithSource.make {value = class, source = src}
+  fun make src class = WithSource.make {value = class, source = src}
 
   fun reserved src rclass =
     WithSource.make {value = Reserved rclass, source = src}

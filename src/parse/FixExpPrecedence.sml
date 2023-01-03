@@ -68,8 +68,7 @@ struct
       case e of
         Typed {exp, colon, ty} =>
           let
-            fun leftReplaceWith e =
-              Typed {exp = e, colon = colon, ty = ty}
+            fun leftReplaceWith e = Typed {exp = e, colon = colon, ty = ty}
           in
             F { prec = 10
               , left = SOME {exp = exp, replaceWith = leftReplaceWith}
@@ -122,8 +121,7 @@ struct
 
       | Raise {raisee, exp} =>
           let
-            fun replaceRightWith e =
-              Raise {raisee = raisee, exp = e}
+            fun replaceRightWith e = Raise {raisee = raisee, exp = e}
           in
             F { prec = 6
               , left = NONE

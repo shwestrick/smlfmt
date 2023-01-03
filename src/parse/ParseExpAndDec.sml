@@ -64,10 +64,9 @@ struct
             ParserUtils.error
               { pos = Token.getSource rId
               , what = "Ambiguous infix expression."
-              , explain =
-                  SOME
-                    "You are not allowed to mix left- and right-associative \
-                    \operators of same precedence"
+              , explain = SOME
+                  "You are not allowed to mix left- and right-associative \
+                  \operators of same precedence"
               }
 
       | _ => default
@@ -88,8 +87,7 @@ struct
         Ast.Exp.DecInfix {precedence, elems, ...} =>
           let
             val p = parsePrec precedence
-            fun mk tok =
-              (tok, p, InfixDict.AssocLeft)
+            fun mk tok = (tok, p, InfixDict.AssocLeft)
           in
             Seq.iterate (fn (d, tok) => InfixDict.setInfix d (mk tok)) infdict
               elems
@@ -98,8 +96,7 @@ struct
       | Ast.Exp.DecInfixr {precedence, elems, ...} =>
           let
             val p = parsePrec precedence
-            fun mk tok =
-              (tok, p, InfixDict.AssocRight)
+            fun mk tok = (tok, p, InfixDict.AssocRight)
           in
             Seq.iterate (fn (d, tok) => InfixDict.setInfix d (mk tok)) infdict
               elems
@@ -241,9 +238,8 @@ struct
               val (i, tycon) = parse_vid i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, optbar) = parse_maybeReserved Token.Bar i
-              val _ =
-                ParserUtils.checkOptBar allowOptBar optbar
-                  "Unexpected bar on first branch of datatype declaration."
+              val _ = ParserUtils.checkOptBar allowOptBar optbar
+                "Unexpected bar on first branch of datatype declaration."
 
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
@@ -469,9 +465,8 @@ struct
                 end
 
               val (i, optbar) = parse_maybeReserved Token.Bar i
-              val _ =
-                ParserUtils.checkOptBar allowOptBar optbar
-                  "Unexpected bar on first branch of 'fun'."
+              val _ = ParserUtils.checkOptBar allowOptBar optbar
+                "Unexpected bar on first branch of 'fun'."
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
                   {parseElem = parseBranch, delim = Token.Bar} i
@@ -771,8 +766,8 @@ struct
                 ParserUtils.tokError toks
                   { pos = i
                   , what = "Unexpected if-then-else expression."
-                  , explain =
-                      SOME "Try using parentheses: (if ... then ... else ...)"
+                  , explain = SOME
+                      "Try using parentheses: (if ... then ... else ...)"
                   }
 
             else if isReserved Token.Raise at i then
@@ -1036,9 +1031,8 @@ struct
           val (i, exp) = consume_exp infdict Restriction.None i
           val (i, off) = parse_reserved Token.Of i
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ =
-            ParserUtils.checkOptBar allowOptBar optbar
-              "Unexpected bar on first branch of 'case'."
+          val _ = ParserUtils.checkOptBar allowOptBar optbar
+            "Unexpected bar on first branch of 'case'."
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
@@ -1077,9 +1071,8 @@ struct
         let
           val fnn = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ =
-            ParserUtils.checkOptBar allowOptBar optbar
-              "Unexpected bar on first branch of anonymous function."
+          val _ = ParserUtils.checkOptBar allowOptBar optbar
+            "Unexpected bar on first branch of anonymous function."
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
@@ -1160,9 +1153,8 @@ struct
         let
           val handlee = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ =
-            ParserUtils.checkOptBar allowOptBar optbar
-              "Unexpected bar on first branch of 'handle'."
+          val _ = ParserUtils.checkOptBar allowOptBar optbar
+            "Unexpected bar on first branch of 'handle'."
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i

@@ -77,9 +77,9 @@ struct
   fun newScope d = D.empty :: d
 
   fun popScope [_] = raise TopScope
-    | popScope (x :: d) =
-        {old = d, popped = [x]}
-    | popScope [] = raise Fail "Impossible! Bug in InfixDict"
+    | popScope (x :: d) = {old = d, popped = [x]}
+    | popScope [] =
+        raise Fail "Impossible! Bug in InfixDict"
 
   fun find d tok =
     let

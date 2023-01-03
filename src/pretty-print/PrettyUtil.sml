@@ -9,12 +9,9 @@ struct
   open TokenDoc
   infix 2 ++ $$ //
   infix 1 \\
-  fun x ++ y =
-    beside (x, y)
-  fun x $$ y =
-    aboveOrSpace (x, y)
-  fun x // y =
-    aboveOrBeside (x, y)
+  fun x ++ y = beside (x, y)
+  fun x $$ y = aboveOrSpace (x, y)
+  fun x // y = aboveOrBeside (x, y)
   fun x \\ y =
     group (x $$ indent y)
 

@@ -192,8 +192,7 @@ struct
       fun finalize (doc, commBefore, commAfter) =
         aboveOrSpace (commBefore, aboveOrSpace (doc, commAfter))
 
-      fun modifyDoc g (ht, doc, cb, ca) =
-        (ht, g doc, cb, ca)
+      fun modifyDoc g (ht, doc, cb, ca) = (ht, g doc, cb, ca)
 
       fun combine bin (hasToks1, d1, cb1, ca1) (hasToks2, d2, cb2, ca2) =
         let

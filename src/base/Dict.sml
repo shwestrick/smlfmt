@@ -110,14 +110,10 @@ struct
   val unionWith = M.unionWith
   val intersectWith = M.intersectWith
 
-  fun insert d (k, v) =
-    M.insert (d, k, v)
-  fun lookup d k =
-    M.lookup (d, k)
-  fun find d k =
-    M.find (d, k)
-  fun contains d k =
-    M.inDomain (d, k)
+  fun insert d (k, v) = M.insert (d, k, v)
+  fun lookup d k = M.lookup (d, k)
+  fun find d k = M.find (d, k)
+  fun contains d k = M.inDomain (d, k)
 
   fun remove d k =
     #1 (M.remove (d, k))

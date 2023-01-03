@@ -51,8 +51,7 @@ struct
 
 
   infix 6 ^^
-  fun x ^^ y =
-    TCS.append (x, y)
+  fun x ^^ y = TCS.append (x, y)
   fun $ x = TCS.fromString x
 
   fun showElement highlighter desiredWidth e =

@@ -159,8 +159,8 @@ struct
                     strip tabstop (i + 1)
                   else
                     let
-                      val newfront = CharVector.tabulate (tabstop - n, fn _ =>
-                        #" ")
+                      val newfront =
+                        CharVector.tabulate (tabstop - n, fn _ => #" ")
                     in
                       (newfront, count, i)
                     end
