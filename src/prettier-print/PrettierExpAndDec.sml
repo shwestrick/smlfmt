@@ -316,18 +316,23 @@ struct
           newTab tab (fn inner => (* do we need the newTab here? *)
             let
               fun mk (delim, {pat, arrow, exp}) =
-                at inner
-                  ((case delim of
-                      NONE => empty
-                    | SOME d =>
-                        cond inner {inactive = empty, active = space} ++ token d)
-                   ++ withNewChild showPat inner pat ++ token arrow
-                   ++ withNewChild showExp inner exp)
+                let
+                  val stuff =
+                    withNewChild showPat inner pat ++ token arrow
+                    ++ withNewChild showExp inner exp
+                in
+                  case delim of
+                    NONE => stuff
+                  | SOME d =>
+                      at inner
+                        (cond inner {inactive = empty, active = space}
+                         ++ token d ++ stuff)
+                end
 
-              val initial = at inner (token fnn) ++ mk (optbar, Seq.nth elems 0)
+              val initial = token fnn ++ mk (optbar, Seq.nth elems 0)
             in
-              Seq.iterate op++ initial (Seq.zipWith mk
-                (Seq.map SOME delims, Seq.drop elems 1))
+              at inner (Seq.iterate op++ initial (Seq.zipWith mk
+                (Seq.map SOME delims, Seq.drop elems 1)))
             end)
 
       | Case {casee, exp = expTop, off, elems, delims, optbar} =>
