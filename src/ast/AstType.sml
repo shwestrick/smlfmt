@@ -219,6 +219,9 @@ struct
 
           (** the `|` delimiters *)
           , delims: Token.t Seq.t
+
+          (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+          , optbar: Token.t option
           } Seq.t
 
       (** the `and` delimiters *)

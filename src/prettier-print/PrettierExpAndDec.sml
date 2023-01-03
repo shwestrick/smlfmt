@@ -910,11 +910,13 @@ struct
             at clauseTab (front ++ afterFront clauseTab clauseChildStyleRest)
         end
 
-      fun mkFunction (starter, {elems = innerElems, delims}) =
+      fun mkFunction (starter, {elems = innerElems, delims, optbar}) =
         let
           val clauseChildStyleFirst =
-            if Seq.length innerElems <= 1 then Tab.Style.inplace
-            else indentedAtLeastBy 6
+            if Seq.length innerElems <= 1 andalso not (Option.isSome optbar) then
+              Tab.Style.inplace
+            else
+              indentedAtLeastBy 6
 
           val clauseChildStyleRest = indentedAtLeastBy 4
 
@@ -932,10 +934,19 @@ struct
                   showClause mainTab clauseTab clauseChildStyleFirst
                     clauseChildStyleRest
               in
-                Seq.iterate op++
-                  (showClause' true (starter, Seq.nth innerElems 0))
-                  (Seq.zipWith (showClause' false)
-                     (Seq.map token delims, Seq.drop innerElems 1))
+                case optbar of
+                  NONE =>
+                    Seq.iterate op++
+                      (showClause' true (starter, Seq.nth innerElems 0))
+                      (Seq.zipWith (showClause' false)
+                         (Seq.map token delims, Seq.drop innerElems 1))
+                | SOME bar =>
+                    at mainTab starter
+                    ++
+                    Seq.iterate op++ empty (Seq.zipWith (showClause' false)
+                      ( Seq.map token (Seq.append (Seq.singleton bar, delims))
+                      , innerElems
+                      ))
               end)))
         end
 

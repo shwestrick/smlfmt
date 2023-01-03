@@ -86,6 +86,14 @@ struct
     end
 
 
+  fun optBarFail () =
+    raise Fail
+      "unsupported: SuccessorML optional bar syntax. Note: you are \
+      \using `-engine pretty`, which is headed towards \
+      \deprecation. Please use `-engine prettier` instead, \
+      \which supports optional bar syntax."
+
+
   fun showDecFun {funn, tyvars, fvalbind = {elems, delims}} =
     let
       open Ast.Exp
@@ -126,8 +134,10 @@ struct
              , SOME (token eq)
              ] $$ indentExp (showExp exp))
 
-      fun mkFunction (starter, {elems = innerElems, delims}) =
+      fun mkFunction (starter, {elems = innerElems, delims, optbar}) =
         let
+          val _ = if Option.isSome optbar then optBarFail () else ()
+
           fun firstIndentExp x =
             spaces (if Seq.length innerElems = 1 then 0 else 4) ++ indent x
           fun restIndentExp x = spaces 2 ++ indent x
@@ -295,13 +305,6 @@ struct
   and showExp exp =
     let
       open Ast.Exp
-
-      fun optBarFail () =
-        raise Fail
-          "unsupported: SuccessorML optional bar syntax. Note: you are \
-          \using `-engine pretty`, which is headed towards \
-          \deprecation. Please use `-engine prettier` instead, \
-          \which supports optional bar syntax."
     in
       case exp of
         Const tok => token tok

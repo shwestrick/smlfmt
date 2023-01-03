@@ -134,6 +134,27 @@ struct
   (** ========================================================================
     *)
 
+  fun checkOptBar allowOptBar optbar msg =
+    case optbar of
+      NONE => ()
+    | SOME bar =>
+        if allowOptBar then
+          ()
+        else
+          ParserUtils.error
+            { pos = Token.getSource bar
+            , what = msg
+            , explain =
+                SOME
+                  "This is disallowed in Standard ML, but allowed in \
+                  \SuccessorML with \"optional bar\" syntax. To enable \
+                  \optional bar syntax, use the command-line argument \
+                  \'-allow-opt-bar true'."
+            }
+
+  (** ========================================================================
+    *)
+
 
   fun dec {forceExactlyOne, allowOptBar} toks (start, infdict) =
     let
@@ -462,11 +483,16 @@ struct
                 in
                   (i, {fname_args = fname_args, ty = ty, eq = eq, exp = exp})
                 end
-              val (i, func_def) =
+
+              val (i, optbar) = parse_maybeReserved Token.Bar i
+              val _ =
+                checkOptBar allowOptBar optbar
+                  "Unexpected bar on first branch of 'fun'."
+              val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
                   {parseElem = parseBranch, delim = Token.Bar} i
             in
-              (i, func_def)
+              (i, {elems = elems, delims = delims, optbar = optbar})
             end
 
           val funn = tok (i - 1)
@@ -731,25 +757,6 @@ struct
 
       fun consume_dec xx =
         dec {forceExactlyOne = false, allowOptBar = allowOptBar} toks xx
-
-
-      fun checkOptBar optbar msg =
-        case optbar of
-          NONE => ()
-        | SOME bar =>
-            if allowOptBar then
-              ()
-            else
-              ParserUtils.error
-                { pos = Token.getSource bar
-                , what = msg
-                , explain =
-                    SOME
-                      "This is disallowed in Standard ML, but allowed in \
-                      \SuccessorML with \"optional bar\" syntax. To enable \
-                      \optional bar syntax, use the command-line argument \
-                      \'-allow-opt-bar true'."
-                }
 
 
       fun consume_exp infdict restriction i =
@@ -1045,7 +1052,9 @@ struct
           val (i, exp) = consume_exp infdict Restriction.None i
           val (i, off) = parse_reserved Token.Of i
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ = checkOptBar optbar "Unexpected bar on first branch of 'case'."
+          val _ =
+            checkOptBar allowOptBar optbar
+              "Unexpected bar on first branch of 'case'."
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
@@ -1085,7 +1094,7 @@ struct
           val fnn = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
           val _ =
-            checkOptBar optbar
+            checkOptBar allowOptBar optbar
               "Unexpected bar on first branch of anonymous function."
 
           val (i, {elems, delims}) =
@@ -1168,7 +1177,8 @@ struct
           val handlee = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
           val _ =
-            checkOptBar optbar "Unexpected bar on first branch of 'handle'."
+            checkOptBar allowOptBar optbar
+              "Unexpected bar on first branch of 'handle'."
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i
