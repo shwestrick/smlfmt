@@ -1166,12 +1166,20 @@ struct
       and consume_expHandle infdict exp i =
         let
           val handlee = tok (i - 1)
+          val (i, optbar) = parse_maybeReserved Token.Bar i
+          val _ =
+            checkOptBar optbar "Unexpected bar on first branch of 'handle'."
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i
 
           val result = Ast.Exp.Handle
-            {exp = exp, handlee = handlee, elems = elems, delims = delims}
+            { exp = exp
+            , handlee = handlee
+            , elems = elems
+            , delims = delims
+            , optbar = optbar
+            }
 
           val result = FixExpPrecedence.maybeRotateLeft result
         in

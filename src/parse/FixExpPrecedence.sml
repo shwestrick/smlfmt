@@ -103,11 +103,16 @@ struct
               }
           end
 
-      | Handle {exp, handlee, elems, delims} =>
+      | Handle {exp, handlee, elems, delims, optbar} =>
           let
             fun leftReplaceWith e =
               Handle
-                {exp = e, handlee = handlee, elems = elems, delims = delims}
+                { exp = e
+                , handlee = handlee
+                , elems = elems
+                , delims = delims
+                , optbar = optbar
+                }
           in
             F { prec = 7
               , left = SOME {exp = exp, replaceWith = leftReplaceWith}

@@ -349,7 +349,9 @@ struct
 
       | Raise {raisee, exp} => token raisee \\ showExp exp
 
-      | Handle {exp = expLeft, handlee, elems, delims} =>
+      | Handle {optbar = SOME _, ...} => optBarFail ()
+
+      | Handle {exp = expLeft, handlee, elems, delims, optbar = NONE} =>
           let
             fun showBranch {pat, arrow, exp} =
               showPat pat ++ space ++ token arrow \\ showExp exp

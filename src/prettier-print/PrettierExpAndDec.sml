@@ -376,8 +376,8 @@ struct
                token raisee ++ newTab tab (fn inner => at inner (token id))
                ++ withNewChild showExp tab exp')
 
-      | Handle (args as {exp = expLeft, handlee, elems, delims}) =>
-          if Seq.length elems > 1 then
+      | Handle (args as {exp = expLeft, handlee, elems, delims, optbar}) =>
+          if Seq.length elems > 1 orelse Option.isSome optbar then
             showHandle tab args
           else
             newTab tab (fn inner =>
@@ -557,7 +557,7 @@ struct
     end
 
 
-  and showHandle tab {exp = expLeft, handlee, elems, delims} =
+  and showHandle tab {exp = expLeft, handlee, elems, delims, optbar} =
     newTabWithStyle tab (Tab.Style.allowComments, fn inner =>
       let
         fun showBranch {pat, arrow, exp} =
@@ -572,7 +572,7 @@ struct
       in
         at tab (showExp tab expLeft) ++ at tab (at inner (token handlee))
         ++
-        Seq.iterate op++ (mk (NONE, Seq.nth elems 0)) (Seq.zipWith mk
+        Seq.iterate op++ (mk (optbar, Seq.nth elems 0)) (Seq.zipWith mk
           (Seq.map SOME delims, Seq.drop elems 1))
       end)
 
