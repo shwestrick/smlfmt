@@ -1,4 +1,4 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -92,8 +92,10 @@ struct
               , Option.map (fn {off, ty} => token off $$ indent (showTy ty)) arg
               ])
 
-          fun show_datdesc (starter, {tyvars, tycon, eq, elems, delims}) =
+          fun show_datdesc (starter, {tyvars, tycon, eq, elems, delims, optbar}) =
             let
+              val _ = if Option.isSome optbar then optBarFail () else ()
+
               val initial = group (separateWithSpaces
                 [ SOME (token starter)
                 , maybeShowSyntaxSeq tyvars token

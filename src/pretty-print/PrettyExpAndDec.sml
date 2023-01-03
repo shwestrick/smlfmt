@@ -1,4 +1,4 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -49,8 +49,10 @@ struct
           , Option.map (fn {off, ty} => token off \\ showTy ty) arg
           ])
 
-      fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
+      fun showOne (starter, {tyvars, tycon, eq, elems, delims, optbar}) =
         let
+          val _ = if Option.isSome optbar then optBarFail () else ()
+
           val initial = group (separateWithSpaces
             [ SOME (token starter)
             , maybeShowSyntaxSeq tyvars token
@@ -126,8 +128,10 @@ struct
              , SOME (token eq)
              ] $$ indentExp (showExp exp))
 
-      fun mkFunction (starter, {elems = innerElems, delims}) =
+      fun mkFunction (starter, {elems = innerElems, delims, optbar}) =
         let
+          val _ = if Option.isSome optbar then optBarFail () else ()
+
           fun firstIndentExp x =
             spaces (if Seq.length innerElems = 1 then 0 else 4) ++ indent x
           fun restIndentExp x = spaces 2 ++ indent x
@@ -342,7 +346,9 @@ struct
 
       | Raise {raisee, exp} => token raisee \\ showExp exp
 
-      | Handle {exp = expLeft, handlee, elems, delims} =>
+      | Handle {optbar = SOME _, ...} => optBarFail ()
+
+      | Handle {exp = expLeft, handlee, elems, delims, optbar = NONE} =>
           let
             fun showBranch {pat, arrow, exp} =
               showPat pat ++ space ++ token arrow \\ showExp exp
@@ -357,7 +363,9 @@ struct
                (Seq.map mk (Seq.zip (delims, Seq.drop elems 1))))
           end
 
-      | Case {casee, exp = expTop, off, elems, delims} =>
+      | Case {optbar = SOME _, ...} => optBarFail ()
+
+      | Case {casee, exp = expTop, off, elems, delims, optbar = NONE} =>
           let
             fun showBranch {pat, arrow, exp} =
               showPat pat ++ space ++ token arrow \\ showExp exp
@@ -371,7 +379,9 @@ struct
                  (Seq.map mk (Seq.zip (delims, Seq.drop elems 1))))
           end
 
-      | Fn {fnn, elems, delims} =>
+      | Fn {optbar = SOME _, ...} => optBarFail ()
+
+      | Fn {fnn, elems, delims, optbar = NONE} =>
           let
             fun mk (delim, {pat, arrow, exp}) =
               space

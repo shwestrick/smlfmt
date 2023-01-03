@@ -1,4 +1,4 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -8,11 +8,12 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val dec: {forceExactlyOne: bool}
+  val dec: {forceExactlyOne: bool, allowOptBar: bool}
            -> tokens
            -> (int * InfixDict.t, Ast.Exp.dec) parser
 
-  val exp: tokens
+  val exp: {allowOptBar: bool}
+           -> tokens
            -> InfixDict.t
            -> ExpPatRestriction.t
            -> (int, Ast.Exp.exp) parser
@@ -134,7 +135,7 @@ struct
     *)
 
 
-  fun dec {forceExactlyOne} toks (start, infdict) =
+  fun dec {forceExactlyOne, allowOptBar} toks (start, infdict) =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -182,7 +183,7 @@ struct
         PC.zeroOrMoreWhile c p s
 
       fun consume_exp infdict restriction i =
-        exp toks infdict restriction i
+        exp {allowOptBar = allowOptBar} toks infdict restriction i
 
       fun consume_opvid infdict i =
         let
@@ -239,6 +240,10 @@ struct
               val (i, tyvars) = parse_tyvars i
               val (i, tycon) = parse_vid i
               val (i, eq) = parse_reserved Token.Equal i
+              val (i, optbar) = parse_maybeReserved Token.Bar i
+              val _ =
+                ParserUtils.checkOptBar allowOptBar optbar
+                  "Unexpected bar on first branch of datatype declaration."
 
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
@@ -250,6 +255,7 @@ struct
                 , eq = eq
                 , elems = elems
                 , delims = delims
+                , optbar = optbar
                 }
               )
             end
@@ -461,11 +467,16 @@ struct
                 in
                   (i, {fname_args = fname_args, ty = ty, eq = eq, exp = exp})
                 end
-              val (i, func_def) =
+
+              val (i, optbar) = parse_maybeReserved Token.Bar i
+              val _ =
+                ParserUtils.checkOptBar allowOptBar optbar
+                  "Unexpected bar on first branch of 'fun'."
+              val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
                   {parseElem = parseBranch, delim = Token.Bar} i
             in
-              (i, func_def)
+              (i, {elems = elems, delims = delims, optbar = optbar})
             end
 
           val funn = tok (i - 1)
@@ -686,7 +697,7 @@ struct
   (* ======================================================================= *)
 
 
-  and exp toks infdict restriction start =
+  and exp {allowOptBar} toks infdict restriction start =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -708,6 +719,8 @@ struct
 
       fun parse_reserved rc i =
         PS.reserved toks rc i
+      fun parse_maybeReserved rc i =
+        PS.maybeReserved toks rc i
       fun parse_vid i = PS.vid toks i
       fun parse_longvid i = PS.longvid toks i
       fun parse_recordLabel i = PS.recordLabel toks i
@@ -727,7 +740,7 @@ struct
 
 
       fun consume_dec xx =
-        dec {forceExactlyOne = false} toks xx
+        dec {forceExactlyOne = false, allowOptBar = allowOptBar} toks xx
 
 
       fun consume_exp infdict restriction i =
@@ -1022,6 +1035,11 @@ struct
           val casee = tok (i - 1)
           val (i, exp) = consume_exp infdict Restriction.None i
           val (i, off) = parse_reserved Token.Of i
+          val (i, optbar) = parse_maybeReserved Token.Bar i
+          val _ =
+            ParserUtils.checkOptBar allowOptBar optbar
+              "Unexpected bar on first branch of 'case'."
+
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i
@@ -1033,6 +1051,7 @@ struct
               , off = off
               , elems = elems
               , delims = delims
+              , optbar = optbar
               }
           )
         end
@@ -1057,11 +1076,19 @@ struct
       and consume_expFn infdict i =
         let
           val fnn = tok (i - 1)
+          val (i, optbar) = parse_maybeReserved Token.Bar i
+          val _ =
+            ParserUtils.checkOptBar allowOptBar optbar
+              "Unexpected bar on first branch of anonymous function."
+
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i
         in
-          (i, Ast.Exp.Fn {fnn = fnn, elems = elems, delims = delims})
+          ( i
+          , Ast.Exp.Fn
+              {fnn = fnn, elems = elems, delims = delims, optbar = optbar}
+          )
         end
 
 
@@ -1132,12 +1159,21 @@ struct
       and consume_expHandle infdict exp i =
         let
           val handlee = tok (i - 1)
+          val (i, optbar) = parse_maybeReserved Token.Bar i
+          val _ =
+            ParserUtils.checkOptBar allowOptBar optbar
+              "Unexpected bar on first branch of 'handle'."
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i
 
           val result = Ast.Exp.Handle
-            {exp = exp, handlee = handlee, elems = elems, delims = delims}
+            { exp = exp
+            , handlee = handlee
+            , elems = elems
+            , delims = delims
+            , optbar = optbar
+            }
 
           val result = FixExpPrecedence.maybeRotateLeft result
         in

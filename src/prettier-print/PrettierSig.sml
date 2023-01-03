@@ -1,4 +1,4 @@
-(** Copyright (c) 2022 Sam Westrick
+(** Copyright (c) 2022-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -38,7 +38,7 @@ struct
                   ++ withNewChildWithStyle (indentedAtLeastBy 4) showTy tab ty)
                arg)
 
-        fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
+        fun showOne (starter, {tyvars, tycon, eq, elems, delims, optbar}) =
           let
             val initial = at tab
               (token starter ++ showTokenSyntaxSeq tab tyvars ++ token tycon
@@ -46,10 +46,15 @@ struct
 
             val skipper = cond tab {inactive = empty, active = space ++ space}
             fun dd delim = token delim ++ space
+
+            val firstConFront =
+              case optbar of
+                NONE => skipper
+              | SOME bar => dd bar
           in
             initial
             ++
-            Seq.iterate op++ (showCon (skipper, Seq.nth elems 0))
+            Seq.iterate op++ (showCon (firstConFront, Seq.nth elems 0))
               (Seq.zipWith showCon (Seq.map dd delims, Seq.drop elems 1))
           end
       in

@@ -1,4 +1,4 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -171,6 +171,9 @@ struct
               } Seq.t
           (** the `|` delimiters between bindings *)
           , delims: Token.t Seq.t
+
+          (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+          , optbar: Token.t option
           } Seq.t
 
       (** the `and` delimiters between bindings *)
@@ -219,6 +222,9 @@ struct
 
           (** the `|` delimiters *)
           , delims: Token.t Seq.t
+
+          (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+          , optbar: Token.t option
           } Seq.t
 
       (** the `and` delimiters *)
@@ -303,6 +309,9 @@ struct
         , handlee: Token.t
         , elems: {pat: Pat.t, arrow: Token.t, exp: exp} Seq.t
         , delims: Token.t Seq.t (** the bars between match rules *)
+
+        (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+        , optbar: Token.t option
         }
 
     (** raise exp *)
@@ -328,6 +337,9 @@ struct
         , off: Token.t
         , elems: {pat: Pat.t, arrow: Token.t, exp: exp} Seq.t
         , delims: Token.t Seq.t (** the bars between match rules *)
+
+        (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+        , optbar: Token.t option
         }
 
     (** fn pat => exp [| pat => exp ...] *)
@@ -335,6 +347,9 @@ struct
         { fnn: Token.t
         , elems: {pat: Pat.t, arrow: Token.t, exp: exp} Seq.t
         , delims: Token.t Seq.t (** the bars between match rules *)
+
+        (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+        , optbar: Token.t option
         }
 
     (** things like _prim, _import, etc.
@@ -496,6 +511,8 @@ struct
             , elems: {vid: Token.t, arg: {off: Token.t, ty: Ty.t} option} Seq.t
             (** '|' delimiters between clauses *)
             , delims: Token.t Seq.t
+            (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+            , optbar: Token.t option
             } Seq.t
         (** 'and' delimiters between mutually recursive datatypes *)
         , delims: Token.t Seq.t

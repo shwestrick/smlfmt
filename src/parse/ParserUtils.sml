@@ -1,4 +1,4 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -11,6 +11,8 @@ sig
                 -> 'a
 
   val errorIfInfixNotOpped: InfixDict.t -> Token.t option -> Token.t -> unit
+
+  val checkOptBar: bool -> Token.t option -> string -> unit
 
   val nyi: Token.t Seq.t -> string -> int -> 'a
 end =
@@ -66,6 +68,25 @@ struct
            })
     else
       raise Fail ("Bug in parser " ^ fname ^ ": position out of bounds??")
+
+
+  fun checkOptBar allowOptBar optbar msg =
+    case optbar of
+      NONE => ()
+    | SOME bar =>
+        if allowOptBar then
+          ()
+        else
+          error
+            { pos = Token.getSource bar
+            , what = msg
+            , explain =
+                SOME
+                  "This is disallowed in Standard ML, but allowed in \
+                  \SuccessorML with \"optional bar\" syntax. To enable \
+                  \optional bar syntax, use the command-line argument \
+                  \'-allow-opt-bar true'."
+            }
 
 
 end

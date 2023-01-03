@@ -1,4 +1,4 @@
-(** Copyright (c) 2021 Sam Westrick
+(** Copyright (c) 2021-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -11,24 +11,43 @@ fun printErr m =
   TextIO.output (TextIO.stdErr, m)
 
 val optionalArgDesc =
-  "  [--force]              overwrite files without interactive confirmation\n\
-  \  [--preview]            show formatted before writing to file\n\
-  \  [--preview-only]       show formatted output and skip file overwrite\n\
-  \                         (incompatible with --force)\n\
-  \  [-max-width W]         try to use at most <W> columns in each line\n\
-  \                         (default 80)\n\
-  \  [-ribbon-frac R]       controls how dense each line should be\n\
-  \                         (default 1.0; requires 0 < R <= 1)\n\
-  \  [-tab-width T]         parse input tab-stops as having width <T>\n\
-  \                         (default 4)\n\
-  \  [-indent-width I]      use <I> spaces for indentation in output\n\
-  \                         (default 2)\n\
-  \  [-mlb-path-var 'K V']  MLton-style path variable\n\
-  \  [-engine E]            Select a pretty printing engine.\n\
-  \                         Valid options are: prettier, pretty\n\
-  \                         (default 'prettier')\n\
-  \  [--debug-engine]       Enable debugging output (for devs)\n\
-  \  [--help]               print this message\n"
+  "  [--force]                  overwrite files without interactive confirmation\n\
+  \\n\
+  \  [--preview]                show formatted before writing to file\n\
+  \\n\
+  \  [--preview-only]           show formatted output and skip file overwrite\n\
+  \                             (incompatible with --force)\n\
+  \\n\
+  \  [-max-width W]             try to use at most <W> columns in each line\n\
+  \                             (default 80)\n\
+  \\n\
+  \  [-ribbon-frac R]           controls how dense each line should be\n\
+  \                             (default 1.0; requires 0 < R <= 1)\n\
+  \\n\
+  \  [-tab-width T]             parse input tab-stops as having width <T>\n\
+  \                             (default 4)\n\
+  \\n\
+  \  [-indent-width I]          use <I> spaces for indentation in output\n\
+  \                             (default 2)\n\
+  \\n\
+  \  [-mlb-path-var 'K V']      MLton-style path variable\n\
+  \\n\
+  \  [-engine E]                Select a pretty printing engine.\n\
+  \                             Valid options are: prettier, pretty\n\
+  \                             (default 'prettier')\n\
+  \\n\
+  \  [--debug-engine]           Enable debugging output (for devs)\n\
+  \\n\
+  \  [-allow-top-level-exps B]  Enable/disable top-level expressions.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'true')\n\
+  \\n\
+  \  [-allow-opt-bar B]         Enable/disable SuccessorML optional bar syntax.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
+  \  [--help]                   print this message\n"
+
 
 fun usage () =
   "usage: smlfmt [ARGS] FILE ... FILE\n" ^ "Optional arguments:\n"
@@ -44,6 +63,7 @@ val engine = CommandLineArgs.parseString "engine" "prettier"
 val inputfiles = CommandLineArgs.positional ()
 
 val allowTopExp = CommandLineArgs.parseBool "allow-top-level-exps" true
+val allowOptBar = CommandLineArgs.parseBool "allow-opt-bar" false
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
@@ -187,8 +207,9 @@ fun doSML filepath =
   let
     val fp = FilePath.fromUnixPath filepath
     val source = Source.loadFromFile fp
-    val result = Parser.parse {allowTopExp = allowTopExp} source
-                 handle exn => handleLexOrParseError exn
+    val result =
+      Parser.parse {allowTopExp = allowTopExp, allowOptBar = allowOptBar} source
+      handle exn => handleLexOrParseError exn
   in
     doSMLAst (fp, result)
   end
@@ -199,7 +220,11 @@ fun doMLB filepath =
     val fp = FilePath.fromUnixPath filepath
     val asts =
       ParseAllSMLFromMLB.parse
-        {skipBasis = true, pathmap = pathmap, allowTopExp = allowTopExp} fp
+        { skipBasis = true
+        , pathmap = pathmap
+        , allowTopExp = allowTopExp
+        , allowOptBar = allowOptBar
+        } fp
       handle exn => handleLexOrParseError exn
   in
     Util.for (0, Seq.length asts) (fn i => doSMLAst (Seq.nth asts i))
