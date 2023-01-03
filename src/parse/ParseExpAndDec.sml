@@ -261,6 +261,10 @@ struct
               val (i, tyvars) = parse_tyvars i
               val (i, tycon) = parse_vid i
               val (i, eq) = parse_reserved Token.Equal i
+              val (i, optbar) = parse_maybeReserved Token.Bar i
+              val _ =
+                checkOptBar allowOptBar optbar
+                  "Unexpected bar on first branch of datatype declaration."
 
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
@@ -272,6 +276,7 @@ struct
                 , eq = eq
                 , elems = elems
                 , delims = delims
+                , optbar = optbar
                 }
               )
             end

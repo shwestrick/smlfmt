@@ -23,6 +23,13 @@ struct
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
 
+  fun optBarFail () =
+    raise Fail
+      "unsupported: SuccessorML optional bar syntax. Note: you are \
+      \using `-engine pretty`, which is headed towards \
+      \deprecation. Please use `-engine prettier` instead, \
+      \which supports optional bar syntax."
+
   fun showTypbind (front, typbind: Ast.Exp.typbind as {elems, delims}) =
     let
       fun showOne (starter, {tyvars, tycon, ty, eq}) =
@@ -49,8 +56,10 @@ struct
           , Option.map (fn {off, ty} => token off \\ showTy ty) arg
           ])
 
-      fun showOne (starter, {tyvars, tycon, eq, elems, delims}) =
+      fun showOne (starter, {tyvars, tycon, eq, elems, delims, optbar}) =
         let
+          val _ = if Option.isSome optbar then optBarFail () else ()
+
           val initial = group (separateWithSpaces
             [ SOME (token starter)
             , maybeShowSyntaxSeq tyvars token
@@ -84,14 +93,6 @@ struct
       | Andalso {left, andalsoo, right} => SOME (left, andalsoo, right)
       | _ => NONE
     end
-
-
-  fun optBarFail () =
-    raise Fail
-      "unsupported: SuccessorML optional bar syntax. Note: you are \
-      \using `-engine pretty`, which is headed towards \
-      \deprecation. Please use `-engine prettier` instead, \
-      \which supports optional bar syntax."
 
 
   fun showDecFun {funn, tyvars, fvalbind = {elems, delims}} =
