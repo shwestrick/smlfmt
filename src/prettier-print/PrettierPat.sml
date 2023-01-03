@@ -13,8 +13,7 @@ struct
   open PrettierUtil
   open PrettierTy
   infix 2 ++
-  fun x ++ y =
-    concat (x, y)
+  fun x ++ y = concat (x, y)
 
   (* ====================================================================== *)
 

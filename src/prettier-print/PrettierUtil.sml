@@ -50,11 +50,10 @@ struct
 
   open TabbedTokenDoc
   infix 2 ++
-  fun x ++ y =
-    concat (x, y)
+  fun x ++ y = concat (x, y)
 
-  val indentedAllowComments = Tab.Style.combine
-    (Tab.Style.indented, Tab.Style.allowComments)
+  val indentedAllowComments =
+    Tab.Style.combine (Tab.Style.indented, Tab.Style.allowComments)
   val rigidInplace = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
   val indented = Tab.Style.indented
   fun indentedAtLeastBy x = Tab.Style.indentedAtLeastBy x

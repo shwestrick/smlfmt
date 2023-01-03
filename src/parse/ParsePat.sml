@@ -50,10 +50,9 @@ struct
             ParserUtils.error
               { pos = Token.getSource rId
               , what = "Ambiguous infix pattern."
-              , explain =
-                  SOME
-                    "You are not allowed to mix left- and right-associative \
-                    \operators of same precedence"
+              , explain = SOME
+                  "You are not allowed to mix left- and right-associative \
+                  \operators of same precedence"
               }
 
       | _ => default

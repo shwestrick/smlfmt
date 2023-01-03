@@ -15,10 +15,8 @@ struct
 
   infix 2 ++ $$ // +/+ +$+
   infix 1 \\
-  fun x +/+ y =
-    besideAndAbove (x, y)
-  fun x +$+ y =
-    besideAndAboveOrSpace (x, y)
+  fun x +/+ y = besideAndAbove (x, y)
+  fun x +$+ y = besideAndAboveOrSpace (x, y)
 
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat

@@ -198,9 +198,8 @@ struct
               val (i, tycon) = parse_vid i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, optbar) = parse_maybeReserved Token.Bar i
-              val _ =
-                ParserUtils.checkOptBar allowOptBar optbar
-                  "Unexpected bar on first branch of datatype specification."
+              val _ = ParserUtils.checkOptBar allowOptBar optbar
+                "Unexpected bar on first branch of datatype specification."
 
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved

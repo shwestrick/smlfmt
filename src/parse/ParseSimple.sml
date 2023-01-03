@@ -78,10 +78,9 @@ struct
       ParserUtils.tokError toks
         { pos = i
         , what = "Expected structure identifier."
-        , explain =
-            SOME
-              "Must be alphanumeric, and cannot start with a\
-              \ prime (')"
+        , explain = SOME
+            "Must be alphanumeric, and cannot start with a\
+            \ prime (')"
         }
 
 
@@ -92,10 +91,9 @@ struct
       ParserUtils.tokError toks
         { pos = i
         , what = "Expected signature identifier."
-        , explain =
-            SOME
-              "Must be alphanumeric, and cannot start with a\
-              \ prime (')"
+        , explain = SOME
+            "Must be alphanumeric, and cannot start with a\
+            \ prime (')"
         }
 
 
@@ -106,10 +104,9 @@ struct
       ParserUtils.tokError toks
         { pos = i
         , what = "Expected functor identifier."
-        , explain =
-            SOME
-              "Must be alphanumeric, and cannot start with a\
-              \ prime (')"
+        , explain = SOME
+            "Must be alphanumeric, and cannot start with a\
+            \ prime (')"
         }
 
 

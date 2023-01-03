@@ -24,7 +24,6 @@ struct
   fun toString (DocVar {id}) =
     "[v" ^ Int.toString id ^ "]"
 
-  fun compare (DocVar {id = id1}, DocVar {id = id2}) =
-    Int.compare (id1, id2)
+  fun compare (DocVar {id = id1}, DocVar {id = id2}) = Int.compare (id1, id2)
 
 end

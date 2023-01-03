@@ -112,8 +112,7 @@ struct
     , newlineIdxs = newlineIdxs
     }
 
-  fun take s k =
-    slice s (0, k)
+  fun take s k = slice s (0, k)
   fun drop s k =
     slice s (k, length s - k)
 

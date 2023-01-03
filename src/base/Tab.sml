@@ -119,8 +119,8 @@ struct
         , allowsComments = false
         }
     val rigid = S {indent = Inplace, rigid = true, allowsComments = false}
-    val allowComments = S
-      {indent = Inplace, rigid = false, allowsComments = true}
+    val allowComments =
+      S {indent = Inplace, rigid = false, allowsComments = true}
 
     fun isRigid (S {rigid, ...}) = rigid
 

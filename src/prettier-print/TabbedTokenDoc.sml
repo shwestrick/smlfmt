@@ -66,8 +66,7 @@ struct
   val token = Token
   val text = Text
   val var = Var
-  fun at t d =
-    At (t, d)
+  fun at t d = At (t, d)
 
   fun concat (d1, d2) =
     case (d1, d2) of
@@ -113,8 +112,7 @@ struct
       NewTab {tab = t, doc = d}
     end
 
-  fun newTab parent f =
-    newTabWithStyle parent (Tab.Style.inplace, f)
+  fun newTab parent f = newTabWithStyle parent (Tab.Style.inplace, f)
 
   (* ====================================================================== *)
   (* ====================================================================== *)
@@ -309,8 +307,7 @@ struct
       datatype tab_constraint = Active | Inactive
       type context = tab_constraint TabDict.t
 
-      fun markInactive ctx tab =
-        TabDict.insert ctx (tab, Inactive)
+      fun markInactive ctx tab = TabDict.insert ctx (tab, Inactive)
 
       fun markActive ctx tab =
         case Tab.parent tab of
@@ -380,12 +377,12 @@ struct
              | SOME Inactive => loop ctx (flowval, vars, inactive)
              | _ =>
                  let
-                   val (flow1, vars, inactive) = loop (markInactive ctx tab)
-                     (flowval, vars, inactive)
-                   val (flow2, vars, active) = loop (markActive ctx tab)
-                     (flowval, vars, active)
-                   val flowval = (* TODO: is union necessary here? *) flowunion
-                     (flow1, flow2)
+                   val (flow1, vars, inactive) =
+                     loop (markInactive ctx tab) (flowval, vars, inactive)
+                   val (flow2, vars, active) =
+                     loop (markActive ctx tab) (flowval, vars, active)
+                   val flowval = (* TODO: is union necessary here? *)
+                     flowunion (flow1, flow2)
                  in
                    ( flowval
                    , vars
@@ -514,9 +511,8 @@ struct
                   (ht, cb, AnnAt {tab = tab, doc = doc}, ca)
                 else
                   let
-                    val all =
-                      Seq.map (fn d => AnnAt {tab = tab, doc = d}) (Seq.append3
-                        (cb, Seq.singleton doc, ca))
+                    val all = Seq.map (fn d => AnnAt {tab = tab, doc = d})
+                      (Seq.append3 (cb, Seq.singleton doc, ca))
                   in
                     (true, noComments, concatDocs all, noComments)
                   end
@@ -616,8 +612,7 @@ struct
                          * is only ever 'at' one possible tab...
                          *) List.hd (TabSet.listKeys tabs)
 
-                      fun withBreak d =
-                        AnnAt {tab = tab, doc = d}
+                      fun withBreak d = AnnAt {tab = tab, doc = d}
 
                       (* val all = Seq.append3 (cb, Seq.singleton doc, ca) *)
                       val all = Seq.append (cb, Seq.singleton doc)

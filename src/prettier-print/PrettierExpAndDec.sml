@@ -15,8 +15,7 @@ struct
   open PrettierTy
   open PrettierPat
   infix 2 ++
-  fun x ++ y =
-    concat (x, y)
+  fun x ++ y = concat (x, y)
 
   (* ====================================================================== *)
 
@@ -973,12 +972,13 @@ struct
 
           val clauseChildStyleRest = indentedAtLeastBy 4
 
-          val mainStyle = Tab.Style.combine
-            (rigidInplace, Tab.Style.allowComments)
+          val mainStyle =
+            Tab.Style.combine (rigidInplace, Tab.Style.allowComments)
 
-          val clauseStyle =
-            Tab.Style.combine (Tab.Style.allowComments, Tab.Style.combine
-              (Tab.Style.rigid, Tab.Style.indentedExactlyBy 2))
+          val clauseStyle = Tab.Style.combine
+            ( Tab.Style.allowComments
+            , Tab.Style.combine (Tab.Style.rigid, Tab.Style.indentedExactlyBy 2)
+            )
         in
           at tab (newTabWithStyle tab (mainStyle, fn mainTab =>
             newTabWithStyle mainTab (clauseStyle, fn clauseTab =>

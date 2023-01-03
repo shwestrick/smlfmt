@@ -12,8 +12,7 @@ struct
   open TabbedTokenDoc
   open PrettierUtil
   infix 2 ++
-  fun x ++ y =
-    concat (x, y)
+  fun x ++ y = concat (x, y)
 
   fun showTy tab ty : doc =
     let
