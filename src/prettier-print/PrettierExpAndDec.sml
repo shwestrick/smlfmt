@@ -123,29 +123,72 @@ struct
     let
       open Ast.Exp
 
+      (* kinda arbitrary, but seems about right. *)
+      val singleTokBignessThreshold = 30
+      fun tokIsBig t =
+        Source.length (Token.getSource t) >= singleTokBignessThreshold
+        orelse Token.spansMultipleLines t
+
       fun looksBig depth exp =
         depth >= 3
         orelse
         case exp of
           Parens {exp, ...} => looksBig (depth + 1) exp
+
         | Unit _ => false
-        | Ident _ => false
-        | Const _ => false
+
+        | Ident {id, ...} => tokIsBig (MaybeLongToken.getToken id)
+
+        | Const t => tokIsBig t
+
         | Select _ => false
+
         | App {left, right} =>
             looksBig (depth + 1) left orelse looksBig (depth + 1) right
+
         | Infix {left, right, ...} =>
             looksBig (depth + 1) left orelse looksBig (depth + 1) right
+
         | Andalso {left, right, ...} =>
             looksBig (depth + 1) left orelse looksBig (depth + 1) right
+
         | Orelse {left, right, ...} =>
             looksBig (depth + 1) left orelse looksBig (depth + 1) right
+
         | Raise {exp, ...} => looksBig (depth + 1) exp
+
         | Typed {exp, ...} => looksBig (depth + 1) exp
+
         | Fn {elems, ...} =>
             Seq.length elems > 1
             orelse looksBig (depth + 1) (#exp (Seq.nth elems 0))
+
+        | Tuple {elems, ...} =>
+            Seq.length elems >= 5
+            orelse
+            Util.exists (0, Seq.length elems) (fn i =>
+              looksBig (depth + 1) (Seq.nth elems i))
+
+        | List {elems, ...} =>
+            Seq.length elems >= 5
+            orelse
+            Util.exists (0, Seq.length elems) (fn i =>
+              looksBig (depth + 1) (Seq.nth elems i))
+
+        | Record {elems, ...} =>
+            Seq.length elems >= 4
+            orelse
+            Util.exists (0, Seq.length elems) (fn i =>
+              let val {lab, eq, exp} = Seq.nth elems i
+              in looksBig (depth + 1) exp
+              end)
+            orelse
+            SeqBasis.foldl op+ 0 (0, Seq.length elems) (fn i =>
+              Source.length (Token.getSource (#lab (Seq.nth elems i))))
+            >= singleTokBignessThreshold
+
         | _ => true
+
     in
       looksBig 0 exp
     end

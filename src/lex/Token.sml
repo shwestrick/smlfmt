@@ -109,6 +109,8 @@ sig
     *)
   val lineDifference: token * token -> int
 
+  val spansMultipleLines: token -> bool
+
   val isReserved: token -> bool
   val isStringConstant: token -> bool
   val isComment: token -> bool
@@ -280,6 +282,14 @@ struct
         start2 - end1
       else
         raise Fail "Bug! lineDifference on tokens from different files"
+    end
+
+  fun spansMultipleLines tok =
+    let
+      val {line = lnStart, ...} = Source.absoluteStart (getSource tok)
+      val {line = lnEnd, ...} = Source.absoluteEnd (getSource tok)
+    in
+      lnEnd <> lnStart
     end
 
   fun toString tok =
