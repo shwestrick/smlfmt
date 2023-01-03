@@ -8,9 +8,14 @@ sig
   (** Take an .mlb source and fully parse all SML by loading all filepaths
     * recursively specified by the .mlb and parsing them, etc.
     *)
-  val parse: {pathmap: MLtonPathMap.t, skipBasis: bool, allowTopExp: bool}
-             -> FilePath.t
-             -> (FilePath.t * Parser.parser_output) Seq.t
+  val parse:
+    { pathmap: MLtonPathMap.t
+    , skipBasis: bool
+    , allowTopExp: bool
+    , allowOptBar: bool
+    }
+    -> FilePath.t
+    -> (FilePath.t * Parser.parser_output) Seq.t
 end =
 struct
 
@@ -65,7 +70,7 @@ struct
     TextIO.output (TextIO.stdErr, m)
 
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
-  fun parse {skipBasis, pathmap, allowTopExp} mlbPath :
+  fun parse {skipBasis, pathmap, allowTopExp, allowOptBar} mlbPath :
     (FilePath.t * Parser.parser_output) Seq.t =
     let
       open MLBAst
@@ -117,7 +122,8 @@ struct
                         handle OS.SysErr (msg, _) => errFun msg
 
               val (infdict, ast) =
-                Parser.parseWithInfdict {allowTopExp = allowTopExp}
+                Parser.parseWithInfdict
+                  {allowTopExp = allowTopExp, allowOptBar = allowOptBar}
                   (#fixities basis) src
             in
               ({fixities = infdict}, [(path, ast)])

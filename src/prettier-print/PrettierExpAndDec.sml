@@ -325,7 +325,7 @@ struct
                 (delims, Seq.drop elems 1)))
             end)
 
-      | Case {casee, exp = expTop, off, elems, delims} =>
+      | Case {casee, exp = expTop, off, elems, delims, optbar} =>
           let
             fun showBranch inner1 {pat, arrow, exp} =
               withNewChild showPat inner1 pat ++ token arrow
@@ -349,7 +349,7 @@ struct
                 cond inner2
                   {inactive = token off, active = at inner1 (token off)}
                 ++
-                Seq.iterate op++ (mk inner1 (NONE, Seq.nth elems 0))
+                Seq.iterate op++ (mk inner1 (optbar, Seq.nth elems 0))
                   (Seq.zipWith (mk inner1)
                      (Seq.map SOME delims, Seq.drop elems 1))))
           end

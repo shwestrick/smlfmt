@@ -12,8 +12,8 @@ sig
     Ast of Ast.t
   | JustComments of Token.t Seq.t
 
-  val parse: {allowTopExp: bool} -> Source.t -> parser_output
-  val parseWithInfdict: {allowTopExp: bool}
+  val parse: {allowTopExp: bool, allowOptBar: bool} -> Source.t -> parser_output
+  val parseWithInfdict: {allowTopExp: bool, allowOptBar: bool}
                         -> InfixDict.t
                         -> Source.t
                         -> (InfixDict.t * parser_output)
@@ -32,7 +32,7 @@ struct
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
 
-  fun parseWithInfdict {allowTopExp} infdict src =
+  fun parseWithInfdict {allowTopExp, allowOptBar} infdict src =
     let
       (** This might raise Lexer.Error *)
       val allTokens = Lexer.tokens src
@@ -343,7 +343,9 @@ struct
         else
           let
             val ((i, infdict), dec) =
-              ParseExpAndDec.dec {forceExactlyOne = true} toks (i, infdict)
+              ParseExpAndDec.dec
+                {forceExactlyOne = true, allowOptBar = allowOptBar} toks
+                (i, infdict)
           in
             ((i, infdict), Ast.Str.DecCore dec)
           end
@@ -553,7 +555,8 @@ struct
         then
           let
             val (i, exp) =
-              ParseExpAndDec.exp toks infdict ExpPatRestriction.None i
+              ParseExpAndDec.exp {allowOptBar = allowOptBar} toks infdict
+                ExpPatRestriction.None i
             val (i, semicolon) = ParseSimple.reserved toks Token.Semicolon i
           in
             ((i, infdict), Ast.TopExp {exp = exp, semicolon = semicolon})
@@ -605,13 +608,9 @@ struct
     end
 
 
-  fun parse {allowTopExp} src =
-    let
-      val (_, result) =
-        parseWithInfdict {allowTopExp = allowTopExp} InfixDict.initialTopLevel
-          src
-    in
-      result
+  fun parse (allows as {allowTopExp, allowOptBar}) src =
+    let val (_, result) = parseWithInfdict allows InfixDict.initialTopLevel src
+    in result
     end
 
 

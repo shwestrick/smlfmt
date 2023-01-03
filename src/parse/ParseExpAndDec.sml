@@ -8,11 +8,12 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val dec: {forceExactlyOne: bool}
+  val dec: {forceExactlyOne: bool, allowOptBar: bool}
            -> tokens
            -> (int * InfixDict.t, Ast.Exp.dec) parser
 
-  val exp: tokens
+  val exp: {allowOptBar: bool}
+           -> tokens
            -> InfixDict.t
            -> ExpPatRestriction.t
            -> (int, Ast.Exp.exp) parser
@@ -134,7 +135,7 @@ struct
     *)
 
 
-  fun dec {forceExactlyOne} toks (start, infdict) =
+  fun dec {forceExactlyOne, allowOptBar} toks (start, infdict) =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -182,7 +183,7 @@ struct
         PC.zeroOrMoreWhile c p s
 
       fun consume_exp infdict restriction i =
-        exp toks infdict restriction i
+        exp {allowOptBar = allowOptBar} toks infdict restriction i
 
       fun consume_opvid infdict i =
         let
@@ -686,7 +687,7 @@ struct
   (* ======================================================================= *)
 
 
-  and exp toks infdict restriction start =
+  and exp {allowOptBar} toks infdict restriction start =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -708,6 +709,8 @@ struct
 
       fun parse_reserved rc i =
         PS.reserved toks rc i
+      fun parse_maybeReserved rc i =
+        PS.maybeReserved toks rc i
       fun parse_vid i = PS.vid toks i
       fun parse_longvid i = PS.longvid toks i
       fun parse_recordLabel i = PS.recordLabel toks i
@@ -727,7 +730,7 @@ struct
 
 
       fun consume_dec xx =
-        dec {forceExactlyOne = false} toks xx
+        dec {forceExactlyOne = false, allowOptBar = allowOptBar} toks xx
 
 
       fun consume_exp infdict restriction i =
@@ -1022,6 +1025,25 @@ struct
           val casee = tok (i - 1)
           val (i, exp) = consume_exp infdict Restriction.None i
           val (i, off) = parse_reserved Token.Of i
+          val (i, optbar) = parse_maybeReserved Token.Bar i
+          val _ =
+            case optbar of
+              NONE => ()
+            | SOME bar =>
+                if allowOptBar then
+                  ()
+                else
+                  ParserUtils.error
+                    { pos = Token.getSource bar
+                    , what = "Unexpected bar on first branch of 'case'."
+                    , explain =
+                        SOME
+                          "This is disallowed in Standard ML, but allowed in \
+                          \SuccessorML with \"optional bar\" syntax. To enable \
+                          \optional bar syntax, use the command-line argument \
+                          \'-allow-opt-bar true'."
+                    }
+
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i
@@ -1033,6 +1055,7 @@ struct
               , off = off
               , elems = elems
               , delims = delims
+              , optbar = optbar
               }
           )
         end

@@ -357,7 +357,14 @@ struct
                (Seq.map mk (Seq.zip (delims, Seq.drop elems 1))))
           end
 
-      | Case {casee, exp = expTop, off, elems, delims} =>
+      | Case {optbar = SOME _, ...} =>
+          raise Fail
+            "unsupported: SuccessorML optional bar syntax. Note: you are \
+            \using `-engine pretty`, which is headed towards \
+            \deprecation. Please use `-engine prettier` instead, \
+            \which supports optional bar syntax."
+
+      | Case {casee, exp = expTop, off, elems, delims, optbar = NONE} =>
           let
             fun showBranch {pat, arrow, exp} =
               showPat pat ++ space ++ token arrow \\ showExp exp
