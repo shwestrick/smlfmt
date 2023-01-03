@@ -338,6 +338,9 @@ struct
         { fnn: Token.t
         , elems: {pat: Pat.t, arrow: Token.t, exp: exp} Seq.t
         , delims: Token.t Seq.t (** the bars between match rules *)
+
+        (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+        , optbar: Token.t option
         }
 
     (** things like _prim, _import, etc.

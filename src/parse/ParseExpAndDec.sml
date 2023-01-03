@@ -733,6 +733,25 @@ struct
         dec {forceExactlyOne = false, allowOptBar = allowOptBar} toks xx
 
 
+      fun checkOptBar optbar msg =
+        case optbar of
+          NONE => ()
+        | SOME bar =>
+            if allowOptBar then
+              ()
+            else
+              ParserUtils.error
+                { pos = Token.getSource bar
+                , what = msg
+                , explain =
+                    SOME
+                      "This is disallowed in Standard ML, but allowed in \
+                      \SuccessorML with \"optional bar\" syntax. To enable \
+                      \optional bar syntax, use the command-line argument \
+                      \'-allow-opt-bar true'."
+                }
+
+
       fun consume_exp infdict restriction i =
         let
           val (i, exp) =
@@ -1026,23 +1045,7 @@ struct
           val (i, exp) = consume_exp infdict Restriction.None i
           val (i, off) = parse_reserved Token.Of i
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ =
-            case optbar of
-              NONE => ()
-            | SOME bar =>
-                if allowOptBar then
-                  ()
-                else
-                  ParserUtils.error
-                    { pos = Token.getSource bar
-                    , what = "Unexpected bar on first branch of 'case'."
-                    , explain =
-                        SOME
-                          "This is disallowed in Standard ML, but allowed in \
-                          \SuccessorML with \"optional bar\" syntax. To enable \
-                          \optional bar syntax, use the command-line argument \
-                          \'-allow-opt-bar true'."
-                    }
+          val _ = checkOptBar optbar "Unexpected bar on first branch of 'case'."
 
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
@@ -1080,11 +1083,19 @@ struct
       and consume_expFn infdict i =
         let
           val fnn = tok (i - 1)
+          val (i, optbar) = parse_maybeReserved Token.Bar i
+          val _ =
+            checkOptBar optbar
+              "Unexpected bar on first branch of anonymous function."
+
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
               {parseElem = consume_matchElem infdict, delim = Token.Bar} i
         in
-          (i, Ast.Exp.Fn {fnn = fnn, elems = elems, delims = delims})
+          ( i
+          , Ast.Exp.Fn
+              {fnn = fnn, elems = elems, delims = delims, optbar = optbar}
+          )
         end
 
 

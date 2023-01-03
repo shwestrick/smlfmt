@@ -307,22 +307,22 @@ struct
 
       | LetInEnd xxx => showLetInEndAt tab xxx
 
-      | Fn {fnn, elems, delims} =>
+      | Fn {fnn, elems, delims, optbar} =>
           newTab tab (fn inner => (* do we need the newTab here? *)
             let
               fun mk (delim, {pat, arrow, exp}) =
                 at inner
-                  (cond inner {inactive = empty, active = space} ++ token delim
+                  ((case delim of
+                      NONE => empty
+                    | SOME d =>
+                        cond inner {inactive = empty, active = space} ++ token d)
                    ++ withNewChild showPat inner pat ++ token arrow
                    ++ withNewChild showExp inner exp)
 
-              val {pat, arrow, exp} = Seq.nth elems 0
-              val initial = at inner
-                (token fnn ++ withNewChild showPat inner pat ++ token arrow
-                 ++ withNewChild showExp inner exp)
+              val initial = at inner (token fnn) ++ mk (optbar, Seq.nth elems 0)
             in
-              Seq.iterate op++ initial (Seq.map mk (Seq.zip
-                (delims, Seq.drop elems 1)))
+              Seq.iterate op++ initial (Seq.zipWith mk
+                (Seq.map SOME delims, Seq.drop elems 1))
             end)
 
       | Case {casee, exp = expTop, off, elems, delims, optbar} =>
@@ -417,9 +417,12 @@ struct
             token left ++ (if expStartsWithStar exp then empty else nospace)
             ++ withNewChild splitShowExpLeft tab exp
 
-        | Fn {fnn, elems, delims} =>
-            let val {pat, arrow, exp} = Seq.nth elems 0
-            in token fnn ++ withNewChild showPat tab pat ++ token arrow
+        | Fn {fnn, elems, delims, optbar} =>
+            let
+              val {pat, arrow, exp} = Seq.nth elems 0
+            in
+              token fnn ++ showOption token optbar
+              ++ withNewChild showPat tab pat ++ token arrow
             end
 
         | App {left, right} => showExp tab left ++ splitShowExpLeft tab right
@@ -453,7 +456,7 @@ struct
           Parens {left, exp, right} =>
             splitShowExpRight tab exp ++ nospace ++ token right
 
-        | Fn {fnn, elems, delims} =>
+        | Fn {fnn, elems, delims, optbar} =>
             let val {pat, arrow, exp} = Seq.nth elems 0
             in showExp tab exp
             end

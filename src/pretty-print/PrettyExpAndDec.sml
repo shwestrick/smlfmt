@@ -295,6 +295,13 @@ struct
   and showExp exp =
     let
       open Ast.Exp
+
+      fun optBarFail () =
+        raise Fail
+          "unsupported: SuccessorML optional bar syntax. Note: you are \
+          \using `-engine pretty`, which is headed towards \
+          \deprecation. Please use `-engine prettier` instead, \
+          \which supports optional bar syntax."
     in
       case exp of
         Const tok => token tok
@@ -357,12 +364,7 @@ struct
                (Seq.map mk (Seq.zip (delims, Seq.drop elems 1))))
           end
 
-      | Case {optbar = SOME _, ...} =>
-          raise Fail
-            "unsupported: SuccessorML optional bar syntax. Note: you are \
-            \using `-engine pretty`, which is headed towards \
-            \deprecation. Please use `-engine prettier` instead, \
-            \which supports optional bar syntax."
+      | Case {optbar = SOME _, ...} => optBarFail ()
 
       | Case {casee, exp = expTop, off, elems, delims, optbar = NONE} =>
           let
@@ -378,7 +380,9 @@ struct
                  (Seq.map mk (Seq.zip (delims, Seq.drop elems 1))))
           end
 
-      | Fn {fnn, elems, delims} =>
+      | Fn {optbar = SOME _, ...} => optBarFail ()
+
+      | Fn {fnn, elems, delims, optbar = NONE} =>
           let
             fun mk (delim, {pat, arrow, exp}) =
               space
