@@ -511,6 +511,8 @@ struct
             , elems: {vid: Token.t, arg: {off: Token.t, ty: Ty.t} option} Seq.t
             (** '|' delimiters between clauses *)
             , delims: Token.t Seq.t
+            (** SuccessorML: optional leading bar (not permitted in Standard ML). *)
+            , optbar: Token.t option
             } Seq.t
         (** 'and' delimiters between mutually recursive datatypes *)
         , delims: Token.t Seq.t

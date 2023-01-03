@@ -18,6 +18,13 @@ struct
   fun x \\ y =
     group (x $$ indent y)
 
+  fun optBarFail () =
+    raise Fail
+      "unsupported: SuccessorML optional bar syntax. Note: you are \
+      \using `-engine pretty`, which is headed towards \
+      \deprecation. Please use `-engine prettier` instead, \
+      \which supports optional bar syntax."
+
   fun seqWithSpaces elems f =
     if Seq.length elems = 0 then
       empty

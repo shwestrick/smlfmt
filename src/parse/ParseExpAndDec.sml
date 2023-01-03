@@ -134,27 +134,6 @@ struct
   (** ========================================================================
     *)
 
-  fun checkOptBar allowOptBar optbar msg =
-    case optbar of
-      NONE => ()
-    | SOME bar =>
-        if allowOptBar then
-          ()
-        else
-          ParserUtils.error
-            { pos = Token.getSource bar
-            , what = msg
-            , explain =
-                SOME
-                  "This is disallowed in Standard ML, but allowed in \
-                  \SuccessorML with \"optional bar\" syntax. To enable \
-                  \optional bar syntax, use the command-line argument \
-                  \'-allow-opt-bar true'."
-            }
-
-  (** ========================================================================
-    *)
-
 
   fun dec {forceExactlyOne, allowOptBar} toks (start, infdict) =
     let
@@ -263,7 +242,7 @@ struct
               val (i, eq) = parse_reserved Token.Equal i
               val (i, optbar) = parse_maybeReserved Token.Bar i
               val _ =
-                checkOptBar allowOptBar optbar
+                ParserUtils.checkOptBar allowOptBar optbar
                   "Unexpected bar on first branch of datatype declaration."
 
               val (i, {elems, delims}) =
@@ -491,7 +470,7 @@ struct
 
               val (i, optbar) = parse_maybeReserved Token.Bar i
               val _ =
-                checkOptBar allowOptBar optbar
+                ParserUtils.checkOptBar allowOptBar optbar
                   "Unexpected bar on first branch of 'fun'."
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
@@ -1058,7 +1037,7 @@ struct
           val (i, off) = parse_reserved Token.Of i
           val (i, optbar) = parse_maybeReserved Token.Bar i
           val _ =
-            checkOptBar allowOptBar optbar
+            ParserUtils.checkOptBar allowOptBar optbar
               "Unexpected bar on first branch of 'case'."
 
           val (i, {elems, delims}) =
@@ -1099,7 +1078,7 @@ struct
           val fnn = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
           val _ =
-            checkOptBar allowOptBar optbar
+            ParserUtils.checkOptBar allowOptBar optbar
               "Unexpected bar on first branch of anonymous function."
 
           val (i, {elems, delims}) =
@@ -1182,7 +1161,7 @@ struct
           val handlee = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
           val _ =
-            checkOptBar allowOptBar optbar
+            ParserUtils.checkOptBar allowOptBar optbar
               "Unexpected bar on first branch of 'handle'."
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved

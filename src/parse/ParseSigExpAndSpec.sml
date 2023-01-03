@@ -8,8 +8,14 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val spec: tokens -> InfixDict.t -> (int, Ast.Sig.spec) parser
-  val sigexp: tokens -> InfixDict.t -> (int, Ast.Sig.sigexp) parser
+  val spec: {allowOptBar: bool}
+            -> tokens
+            -> InfixDict.t
+            -> (int, Ast.Sig.spec) parser
+  val sigexp: {allowOptBar: bool}
+              -> tokens
+              -> InfixDict.t
+              -> (int, Ast.Sig.sigexp) parser
 end =
 struct
 
@@ -30,7 +36,7 @@ struct
     * sigexp
     *)
 
-  fun parse_sigexp toks infdict i =
+  fun parse_sigexp {allowOptBar} toks infdict i =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -104,7 +110,7 @@ struct
       and consume_sigExpSigEnd i =
         let
           val sigg = tok (i - 1)
-          val (i, spec) = parse_spec toks infdict i
+          val (i, spec) = parse_spec {allowOptBar = allowOptBar} toks infdict i
           val (i, endd) = parse_reserved Token.End i
         in
           (i, Ast.Sig.Spec {sigg = sigg, spec = spec, endd = endd})
@@ -135,7 +141,7 @@ struct
     *)
 
 
-  and parse_spec toks infdict i =
+  and parse_spec {allowOptBar} toks infdict i =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -146,6 +152,8 @@ struct
 
       fun parse_reserved rc i =
         PS.reserved toks rc i
+      fun parse_maybeReserved rc i =
+        PS.maybeReserved toks rc i
       fun parse_tyvars i = PS.tyvars toks i
       fun parse_vid i = PS.vid toks i
       fun parse_longvid i = PS.longvid toks i
@@ -189,6 +197,10 @@ struct
               val (i, tyvars) = parse_tyvars i
               val (i, tycon) = parse_vid i
               val (i, eq) = parse_reserved Token.Equal i
+              val (i, optbar) = parse_maybeReserved Token.Bar i
+              val _ =
+                ParserUtils.checkOptBar allowOptBar optbar
+                  "Unexpected bar on first branch of datatype specification."
 
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
@@ -200,6 +212,7 @@ struct
                 , eq = eq
                 , elems = elems
                 , delims = delims
+                , optbar = optbar
                 }
               )
             end
@@ -500,7 +513,8 @@ struct
             let
               val (i, id) = parse_vid i
               val (i, colon) = parse_reserved Token.Colon i
-              val (i, sigexp) = parse_sigexp toks infdict i
+              val (i, sigexp) =
+                parse_sigexp {allowOptBar = allowOptBar} toks infdict i
             in
               (i, {id = id, colon = colon, sigexp = sigexp})
             end
@@ -525,7 +539,8 @@ struct
       and consume_sigSpecInclude i =
         let
           val includee = tok (i - 1)
-          val (i, sigexp) = parse_sigexp toks infdict i
+          val (i, sigexp) =
+            parse_sigexp {allowOptBar = allowOptBar} toks infdict i
 
           fun makeInclude i =
             (i, Ast.Sig.Include {includee = includee, sigexp = sigexp})
@@ -614,10 +629,10 @@ struct
     * ========================================================================
     *)
 
-  fun spec toks infdict i =
-    parse_spec toks infdict i
-  fun sigexp toks infdict i =
-    parse_sigexp toks infdict i
+  fun spec {allowOptBar} toks infdict i =
+    parse_spec {allowOptBar = allowOptBar} toks infdict i
+  fun sigexp {allowOptBar} toks infdict i =
+    parse_sigexp {allowOptBar = allowOptBar} toks infdict i
 
 
 end

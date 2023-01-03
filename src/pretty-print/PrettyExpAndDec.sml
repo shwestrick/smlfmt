@@ -23,13 +23,6 @@ struct
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
 
-  fun optBarFail () =
-    raise Fail
-      "unsupported: SuccessorML optional bar syntax. Note: you are \
-      \using `-engine pretty`, which is headed towards \
-      \deprecation. Please use `-engine prettier` instead, \
-      \which supports optional bar syntax."
-
   fun showTypbind (front, typbind: Ast.Exp.typbind as {elems, delims}) =
     let
       fun showOne (starter, {tyvars, tycon, ty, eq}) =

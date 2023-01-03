@@ -85,9 +85,9 @@ struct
         PC.oneOrMoreWhile c p s
 
       fun consume_sigExp infdict i =
-        ParseSigExpAndSpec.sigexp toks infdict i
+        ParseSigExpAndSpec.sigexp {allowOptBar = allowOptBar} toks infdict i
       fun consume_sigSpec infdict i =
-        ParseSigExpAndSpec.spec toks infdict i
+        ParseSigExpAndSpec.spec {allowOptBar = allowOptBar} toks infdict i
 
 
       (** signature sigid = sigexp [and ...]
