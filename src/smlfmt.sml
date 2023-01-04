@@ -153,6 +153,7 @@ fun doSMLAst (fp, parserOutput) =
             { ribbonFrac = ribbonFrac
             , maxWidth = maxWidth
             , indentWidth = indentWidth
+            , tabWidth = tabWidth
             , debug = doDebug
             } (TabbedTokenDoc.justCommentsToStringDoc {tabWidth = tabWidth} cs)
 

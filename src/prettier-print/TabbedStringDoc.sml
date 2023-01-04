@@ -1,31 +1,118 @@
-structure TabbedStringDoc =
-  PrettyTabbedDoc
-    (struct
-       open TerminalColorString
+local
+  structure TCS = TerminalColorString
 
-       val compaction =
-         CommandLineArgs.parseReal "s-compact" 1.1 (* must be >= 1 *)
-       val maxSat = CommandLineArgs.parseReal "s-max" 0.6
+  structure CustomString =
+  struct
+    open TerminalColorString
 
-       val hues = Seq.fromList [0, 30, 55, 90, 140, 180, 210, 250, 290, 320]
+    val compaction =
+      CommandLineArgs.parseReal "s-compact" 1.1 (* must be >= 1 *)
+    val maxSat = CommandLineArgs.parseReal "s-max" 0.6
 
-       fun niceRed depth =
-         let
-           val s =
-             (compaction - 1.0
-              + (1.0 / (1.0 + (Real.fromInt depth / compaction)))) / compaction
-           val s = s * maxSat
+    val hues = Seq.fromList [0, 30, 55, 90, 140, 180, 210, 250, 290, 320]
 
-           (* val d = if depth mod 2 = 0 then 2*(depth div 2)+1 else 2*(depth div 2) *)
-           val d = 3 * (depth - 1)
-           val h = Real.fromInt (Seq.nth hues (d mod Seq.length hues))
-         in
-           TerminalColors.hsv {h = h, s = s, v = 0.9}
-         end
+    fun niceRed depth =
+      let
+        val s =
+          (compaction - 1.0 + (1.0 / (1.0 + (Real.fromInt depth / compaction))))
+          / compaction
+        val s = s * maxSat
 
-       fun emphasize depth s =
-         backgroundIfNone (niceRed depth) s
+        (* val d = if depth mod 2 = 0 then 2*(depth div 2)+1 else 2*(depth div 2) *)
+        val d = 3 * (depth - 1)
+        val h = Real.fromInt (Seq.nth hues (d mod Seq.length hues))
+      in
+        TerminalColors.hsv {h = h, s = s, v = 0.9}
+      end
 
-       fun toString t =
-         TerminalColorString.toString {colors = false} t
-     end)
+    fun emphasize depth s =
+      backgroundIfNone (niceRed depth) s
+
+    fun toString t =
+      TerminalColorString.toString {colors = false} t
+  end
+
+
+  structure Token =
+  struct
+    open Token
+
+    fun prevTokenNotWhitespace t =
+      case Token.prevToken t of
+        NONE => NONE
+      | SOME p =>
+          if Token.isWhitespace p then prevTokenNotWhitespace p else SOME p
+
+    fun desiredBlankLinesBefore tok =
+      case prevTokenNotWhitespace tok of
+        NONE => 0
+      | SOME prevTok =>
+          let
+            val diff = Token.lineDifference (prevTok, tok) - 1
+            val diff = Int.max (0, Int.min (2, diff))
+          in
+            diff
+          end
+  end
+
+  datatype pieces =
+    OnePiece of CustomString.t
+  | ManyPieces of CustomString.t Seq.t
+
+  fun tokenToPieces {tabWidth: int} tok =
+    if not (Token.isComment tok orelse Token.isStringConstant tok) then
+      OnePiece (SyntaxHighlighter.highlightToken tok)
+    else
+      let
+        val src = Token.getSource tok
+
+        (** effective offset of the beginning of this token within its line,
+          * counting tab-widths appropriately.
+          *)
+        val effectiveOffset =
+          let
+            val {col, line = lineNum} = Source.absoluteStart src
+            val len = col - 1
+            val charsBeforeOnSameLine =
+              Source.take (Source.wholeLine src lineNum) len
+            fun loop effOff i =
+              if i >= len then
+                effOff
+              else if #"\t" = Source.nth charsBeforeOnSameLine i then
+                (* advance up to next tabstop *)
+                loop (effOff + tabWidth - effOff mod tabWidth) (i + 1)
+              else
+                loop (effOff + 1) (i + 1)
+          in
+            loop 0 0
+          end
+
+        fun strip line =
+          let
+            val (_, ln) =
+              TCS.stripEffectiveWhitespace
+                {tabWidth = tabWidth, removeAtMost = effectiveOffset} line
+          in
+            ln
+          end
+
+        val t = SyntaxHighlighter.highlightToken tok
+
+        val pieces =
+          Seq.map (fn (i, j) => strip (TCS.substring (t, i, j - i)))
+            (Source.lineRanges src)
+
+        val numPieces = Seq.length pieces
+      in
+        if numPieces = 1 then OnePiece t else ManyPieces pieces
+      end
+
+in
+
+  structure TabbedStringDoc =
+    PrettyTabbedDoc
+      (structure CustomString = CustomString
+       structure Token = Token
+       datatype pieces = datatype pieces
+       val tokenToPieces = tokenToPieces)
+end

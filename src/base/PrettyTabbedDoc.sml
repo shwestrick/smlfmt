@@ -1,4 +1,4 @@
-(** Copyright (c) 2022 Sam Westrick
+(** Copyright (c) 2022-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -7,7 +7,7 @@
   * be a TerminalColorString, etc.
   *)
 functor PrettyTabbedDoc
-  (CustomString:
+  (structure CustomString:
    sig
      type t
      val substring: t * int * int -> t
@@ -23,7 +23,19 @@ functor PrettyTabbedDoc
      val toString: t -> string
      val size: t -> int
      val concat: t list -> t
-   end) :>
+   end
+
+   structure Token:
+   sig
+     type t
+     val desiredBlankLinesBefore: t -> int
+   end
+
+   datatype pieces =
+     OnePiece of CustomString.t
+   | ManyPieces of CustomString.t Seq.t
+
+   val tokenToPieces: {tabWidth: int} -> Token.t -> pieces) :>
 sig
   type doc
   type t = doc
@@ -35,6 +47,7 @@ sig
   val space: doc
   val newline: doc
   val text: CustomString.t -> doc
+  val token: Token.t -> doc
   val concat: doc * doc -> doc
 
   type tab = Tab.t
@@ -42,11 +55,15 @@ sig
   val at: tab -> doc -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
 
-  val pretty: {ribbonFrac: real, maxWidth: int, indentWidth: int, debug: bool}
-              -> doc
-              -> CustomString.t
-
-  val toString: doc -> CustomString.t
+  val pretty:
+    { ribbonFrac: real
+    , maxWidth: int
+    , indentWidth: int
+    , tabWidth: int
+    , debug: bool
+    }
+    -> doc
+    -> CustomString.t
 end =
 struct
 
@@ -77,6 +94,7 @@ struct
   | Newline
   | Concat of doc * doc
   | Text of CustomString.t
+  | Token of Token.t
   | At of tab * doc
   | NewTab of {tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
@@ -88,6 +106,7 @@ struct
   val nospace = NoSpace
   val space = Space
   val text = Text
+  val token = Token
   fun at t d = At (t, d)
 
   fun cond tab {inactive, active} =
@@ -542,7 +561,11 @@ struct
   exception DoPromote of tab
 
 
-  fun pretty {ribbonFrac, maxWidth, indentWidth, debug} doc =
+  fun addNewlines n d =
+    if n = 0 then d else addNewlines (n - 1) (Concat (Newline, d))
+
+
+  fun pretty {ribbonFrac, maxWidth, indentWidth, tabWidth, debug} doc =
     let
       val t0 = Time.now ()
       fun dbgprintln s =
@@ -878,6 +901,8 @@ struct
             let
               val LS (dbgState, ct, _, lnStart, col, sp, acc) = state
               val item = Item.Stuff s
+              (* TODO: bug here: this can insert a space immediately inside 'at',
+               * causing a token to become displaced *)
               val (col, acc) =
                 if sp then (col + Item.width item, item :: acc)
                 else (col + Item.width item + 1, item :: Item.Spaces 1 :: acc)
@@ -893,6 +918,8 @@ struct
                 , acc
                 ))
             end
+
+        | Token t => layoutToken state t
 
         | Newline =>
             let
@@ -1020,6 +1047,44 @@ struct
                 )
             end
 
+      and layoutToken state t =
+        let
+          val LS (dbgState, ct, cats, lnStart, col, sp, acc) = state
+          val doc =
+            case tokenToPieces {tabWidth = tabWidth} t of
+              OnePiece s => Text s
+            | ManyPieces pieces =>
+                let
+                  val numPieces = Seq.length pieces
+                  val tab = Tab.new
+                    { parent = ct
+                    , style =
+                        Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+                    }
+                  val doc =
+                    (* a bit of a hack here: we concatenate a space on the end of
+                     * each piece (except last), which guarantees that blank lines
+                     * within the comment are preserved.
+                     *)
+                    Seq.iterate concat empty
+                      (Seq.map (fn x => at tab (concat (Text x, space)))
+                         (Seq.take pieces (numPieces - 1)))
+                  val doc = concat (doc, at tab (Text
+                    (Seq.nth pieces (numPieces - 1))))
+                  val doc = newTab (tab, doc)
+                in
+                  doc
+                end
+        in
+          if TabSet.size cats = 0 then
+            layout state doc
+          else
+            let val numBlanks = Token.desiredBlankLinesBefore t
+            in layout state (addNewlines numBlanks doc)
+            end
+        end
+
+
       val t1 = Time.now ()
       val _ = dbgprintln ("pre-layout: " ^ Time.fmt 3 (Time.- (t1, t0)) ^ "s")
 
@@ -1051,9 +1116,5 @@ struct
     in
       result
     end
-
-
-  val toString = pretty
-    {ribbonFrac = 0.5, maxWidth = 80, indentWidth = 2, debug = false}
 
 end

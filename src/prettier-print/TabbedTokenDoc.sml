@@ -816,8 +816,8 @@ struct
       val _ = dbgprintln ("insertComments: " ^ Time.fmt 3 tm ^ "s")
       (* val (doc, tm) = Util.getTime (fn _ => ensureSpaces debug doc)
       val _ = dbgprintln ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s") *)
-      val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
-      val _ = dbgprintln ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s")
+      (* val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
+      val _ = dbgprintln ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s") *)
 
       fun loop currentTab vars doc =
         case doc of
@@ -828,21 +828,21 @@ struct
         | AnnConcat (d1, d2) =>
             D.concat (loop currentTab vars d1, loop currentTab vars d2)
         | AnnText {txt, ...} => D.text (TerminalColorString.fromString txt)
-        | AnnToken {at, tok} =>
-            let
-              val tab =
-                case
-                  at
-                of
-                  NONE => currentTab
-                | SOME tabs =>
-                    (* TODO: what to do when there are multiple possible
-                     * tabs here? *) List.hd (TabSet.listKeys tabs)
-
-              val doc = tokenToStringDoc tab tabWidth tok
-            in
-              doc
-            end
+        | AnnToken {at, tok} => D.token tok
+        (* let
+          val tab =
+            case
+              at
+            of
+              NONE => currentTab
+            | SOME tabs =>
+                (* TODO: what to do when there are multiple possible
+                 * tabs here? *) List.hd (TabSet.listKeys tabs)
+        
+          val doc = tokenToStringDoc tab tabWidth tok
+        in
+          doc
+        end *)
         | AnnAt {tab, doc, ...} => D.at tab (loop currentTab vars doc)
         | AnnCond {tab, inactive, active} =>
             D.cond tab

@@ -61,6 +61,7 @@ struct
         { ribbonFrac = ribbonFrac
         , maxWidth = maxWidth
         , indentWidth = indent
+        , tabWidth = tabWidth
         , debug = debug
         } (toStringDoc {tabWidth = tabWidth, debug = debug} doc)
     end
