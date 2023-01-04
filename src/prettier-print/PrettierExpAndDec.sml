@@ -379,9 +379,11 @@ struct
 
       | Case {casee, exp = expTop, off, elems, delims, optbar} =>
           let
+            val branchExpStyle =
+              Tab.Style.combine (indentedAtLeastBy 4, Tab.Style.allowComments)
             fun showBranch inner1 {pat, arrow, exp} =
               withNewChild showPat inner1 pat ++ token arrow
-              ++ withNewChildWithStyle (indentedAtLeastBy 4) showExp inner1 exp
+              ++ withNewChildWithStyle branchExpStyle showExp inner1 exp
             fun mk inner1 (delim, branch) =
               at inner1
                 ((case delim of
