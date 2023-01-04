@@ -771,9 +771,20 @@ struct
           fun goto i =
             if alreadyAtTab then
               dbgBreak tab (LS (dbgState, tab, cats, lnStart, i, sp, acc))
-            else if i = col andalso Tab.isInplace tab then
+            else if Tab.isInplace tab andalso col <= i then
+              dbgBreak tab (check (LS
+                ( dbgState
+                , tab
+                , if i = col then TabSet.insert cats tab
+                  else TabSet.singleton tab
+                , lnStart
+                , i
+                , if i = col then sp else true
+                , if i = col then acc else Item.Spaces (i - col) :: acc
+                )))
+            (* else if i = col andalso Tab.isInplace tab then
               dbgBreak tab (LS
-                (dbgState, tab, TabSet.insert cats tab, lnStart, i, sp, acc))
+                (dbgState, tab, TabSet.insert cats tab, lnStart, i, sp, acc)) *)
             else if i < col then
               dbgBreak tab (check (LS
                 ( dbgState
@@ -901,8 +912,10 @@ struct
             let
               val LS (dbgState, ct, _, lnStart, col, sp, acc) = state
               val item = Item.Stuff s
-              (* TODO: bug here: this can insert a space immediately inside 'at',
-               * causing a token to become displaced *)
+              (* TODO: bug here? this can insert a space immediately inside
+               * 'at', causing a token to become displaced. I'm not sure yet if
+               * this should be considered a bug. It seems to be fixable in the
+               * document structure by inserting tabs in the right place... *)
               val (col, acc) =
                 if sp then (col + Item.width item, item :: acc)
                 else (col + Item.width item + 1, item :: Item.Spaces 1 :: acc)
