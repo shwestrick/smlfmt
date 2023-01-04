@@ -810,10 +810,10 @@ struct
 
       val (doc, tm) = Util.getTime (fn _ => annotate doc)
       val _ = dbgprintln ("annotate: " ^ Time.fmt 3 tm ^ "s")
-      val (doc, tm) = Util.getTime (fn _ => flowAts debug doc)
+      (* val (doc, tm) = Util.getTime (fn _ => flowAts debug doc)
       val _ = dbgprintln ("flowAts: " ^ Time.fmt 3 tm ^ "s")
       val (doc, tm) = Util.getTime (fn _ => insertComments debug doc)
-      val _ = dbgprintln ("insertComments: " ^ Time.fmt 3 tm ^ "s")
+      val _ = dbgprintln ("insertComments: " ^ Time.fmt 3 tm ^ "s") *)
       (* val (doc, tm) = Util.getTime (fn _ => ensureSpaces debug doc)
       val _ = dbgprintln ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s") *)
       (* val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)

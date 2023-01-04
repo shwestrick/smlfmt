@@ -29,6 +29,8 @@ functor PrettyTabbedDoc
    sig
      type t
      val desiredBlankLinesBefore: t -> int
+     val splitCommentsBefore: t -> t Seq.t
+     val splitCommentsAfter: t -> t Seq.t
    end
 
    datatype pieces =
@@ -565,6 +567,10 @@ struct
     if n = 0 then d else addNewlines (n - 1) (Concat (Newline, d))
 
 
+  fun concatDocs ds =
+    Seq.iterate concat empty ds
+
+
   fun pretty {ribbonFrac, maxWidth, indentWidth, tabWidth, debug} doc =
     let
       val t0 = Time.now ()
@@ -881,6 +887,41 @@ struct
         end
 
 
+      fun tokenToDoc currentTab tok =
+        case tokenToPieces {tabWidth = tabWidth} tok of
+          OnePiece s => Text s
+        | ManyPieces pieces =>
+            let
+              val numPieces = Seq.length pieces
+              val tab = Tab.new
+                { parent = currentTab
+                , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+                }
+              val doc =
+                (* a bit of a hack here: we concatenate a space on the end of
+                 * each piece (except last), which guarantees that blank lines
+                 * within the comment are preserved.
+                 *)
+                Seq.iterate concat empty
+                  (Seq.map (fn x => at tab (concat (Text x, space)))
+                     (Seq.take pieces (numPieces - 1)))
+              val doc = concat (doc, at tab (Text
+                (Seq.nth pieces (numPieces - 1))))
+              val doc = newTab (tab, doc)
+            in
+              doc
+            end
+
+
+      fun tokenToDocWithBlankLines currentTab tok =
+        let
+          val doc = tokenToDoc currentTab tok
+          val numBlanks = Token.desiredBlankLinesBefore tok
+        in
+          addNewlines numBlanks doc
+        end
+
+
       (* This is a little tricky, but the idea is: try to lay out the doc,
        * and keep track of whether or not there exists an ancestor tab that
        * could be promoted (ap). If we ever violate either the width or
@@ -1070,37 +1111,38 @@ struct
       and layoutToken state t =
         let
           val LS (dbgState, ct, cats, lnStart, col, sp, acc) = state
-          val doc =
-            case tokenToPieces {tabWidth = tabWidth} t of
-              OnePiece s => Text s
-            | ManyPieces pieces =>
-                let
-                  val numPieces = Seq.length pieces
-                  val tab = Tab.new
-                    { parent = ct
-                    , style =
-                        Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
-                    }
-                  val doc =
-                    (* a bit of a hack here: we concatenate a space on the end of
-                     * each piece (except last), which guarantees that blank lines
-                     * within the comment are preserved.
-                     *)
-                    Seq.iterate concat empty
-                      (Seq.map (fn x => at tab (concat (Text x, space)))
-                         (Seq.take pieces (numPieces - 1)))
-                  val doc = concat (doc, at tab (Text
-                    (Seq.nth pieces (numPieces - 1))))
-                  val doc = newTab (tab, doc)
-                in
-                  doc
-                end
+
+          (* NOTE: Token.splitComments{Before,After} defined by the module
+           * argument Token, which is an extension of src/lex/Token.
+           * See e.g. src/prettier-print/TabbedStringDoc for an instantiation
+           * of PrettyTabbedDoc. It is important that splitComments{Before,After}
+           * together cover all comments between a pair of normal tokens. *)
+          val csBefore = Token.splitCommentsBefore t
+          val csAfter = Token.splitCommentsAfter t
         in
-          if TabSet.size cats = 0 then
-            layout state doc
+          if Seq.length csBefore + Seq.length csAfter = 0 then
+            if TabSet.size cats = 0 then layout state (tokenToDoc ct t)
+            else layout state (tokenToDocWithBlankLines ct t)
+          else if TabSet.size cats = 0 then
+            layout state (concatDocs (Seq.append3
+              ( Seq.map (tokenToDoc ct) csBefore
+              , Seq.singleton (tokenToDoc ct t)
+              , Seq.map (tokenToDoc ct) csAfter
+              )))
           else
-            let val numBlanks = Token.desiredBlankLinesBefore t
-            in layout state (addNewlines numBlanks doc)
+            let
+              val tab = Tab.new
+                { parent = ct
+                , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+                }
+              val doc = concatDocs (Seq.map (at tab) (Seq.append3
+                ( Seq.map (tokenToDocWithBlankLines tab) csBefore
+                , Seq.singleton (tokenToDocWithBlankLines tab t)
+                , Seq.map (tokenToDocWithBlankLines tab) csAfter
+                )))
+              val doc = newTab (tab, doc)
+            in
+              layout state doc
             end
         end
 

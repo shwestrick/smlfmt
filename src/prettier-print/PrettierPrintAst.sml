@@ -2,7 +2,6 @@
   *
   * See the file LICENSE for details.
   *)
-
 structure PrettierPrintAst:
 sig
   val pretty:

@@ -53,6 +53,46 @@ local
           in
             diff
           end
+
+    val allCommentsBefore = Token.commentsBefore
+    val allCommentsAfter = Token.commentsAfter
+
+    (* Find index i where the first i comments belong to tok1, and the
+     * rest belong to tok2.
+     * (tok1, comments, tok2) must be adjacent.
+     *)
+    fun findSplit (tok1, comments, tok2) =
+      let
+        val n = Seq.length comments
+        fun loop i =
+          if i >= n then n
+          else if Token.lineDifference (tok1, Seq.nth comments i) > 0 then i
+          else loop (i + 1)
+      in
+        loop 0
+      end
+
+    fun splitCommentsBefore tok =
+      case Token.prevTokenNotCommentOrWhitespace tok of
+        NONE => allCommentsBefore tok
+      | SOME ptok =>
+          let
+            val cs = allCommentsBefore tok
+            val cs = Seq.drop cs (findSplit (ptok, cs, tok))
+          in
+            cs
+          end
+
+    fun splitCommentsAfter tok =
+      case Token.nextTokenNotCommentOrWhitespace tok of
+        NONE => allCommentsAfter tok
+      | SOME ntok =>
+          let
+            val cs = allCommentsAfter tok
+            val cs = Seq.take cs (findSplit (tok, cs, ntok))
+          in
+            cs
+          end
   end
 
   datatype pieces =
