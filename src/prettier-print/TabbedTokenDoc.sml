@@ -327,28 +327,26 @@ struct
         | AnnSpace => (flowval, vars, doc)
         | AnnNoSpace => (flowval, vars, doc)
         | AnnToken {tok, ...} =>
-            let
-              val _ =
-                Option.app
-                  (fn ts =>
-                     dbgprintln
-                       ("token '" ^ Token.toString tok ^ "' at: "
-                        ^
-                        String.concatWith " "
-                          (List.map Tab.toString (TabSet.listKeys ts)))) flowval
+            let (* val _ =
+                  Option.app
+                    (fn ts =>
+                       dbgprintln
+                         ("token '" ^ Token.toString tok ^ "' at: "
+                          ^
+                          String.concatWith " "
+                            (List.map Tab.toString (TabSet.listKeys ts)))) flowval *)
             in
               (NONE, vars, AnnToken {tok = tok, at = flowval})
             end
         | AnnText {txt, ...} =>
-            let
-              val _ =
-                Option.app
-                  (fn ts =>
-                     dbgprintln
-                       ("text '" ^ txt ^ "' at: "
-                        ^
-                        String.concatWith " "
-                          (List.map Tab.toString (TabSet.listKeys ts)))) flowval
+            let (* val _ =
+                  Option.app
+                    (fn ts =>
+                       dbgprintln
+                         ("text '" ^ txt ^ "' at: "
+                          ^
+                          String.concatWith " "
+                            (List.map Tab.toString (TabSet.listKeys ts)))) flowval *)
             in
               (NONE, vars, AnnText {txt = txt, at = flowval})
             end
@@ -697,9 +695,9 @@ struct
                  let
                    val diff = Token.lineDifference (prevTok, tok) - 1
                    val diff = Int.max (0, Int.min (2, diff))
-                   val _ = dbgprintln
-                     ("line diff ('" ^ Token.toString prevTok ^ "','"
-                      ^ Token.toString tok ^ "'): " ^ Int.toString diff)
+                     (* val _ = dbgprintln
+                       ("line diff ('" ^ Token.toString prevTok ^ "','"
+                        ^ Token.toString tok ^ "'): " ^ Int.toString diff) *)
                  in
                    if diff = 0 then
                      doc
@@ -816,15 +814,15 @@ struct
       val _ = dbgprintln ("flowAts: " ^ Time.fmt 3 tm ^ "s")
       val (doc, tm) = Util.getTime (fn _ => insertComments debug doc)
       val _ = dbgprintln ("insertComments: " ^ Time.fmt 3 tm ^ "s")
-      val (doc, tm) = Util.getTime (fn _ => ensureSpaces debug doc)
-      val _ = dbgprintln ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s")
+      (* val (doc, tm) = Util.getTime (fn _ => ensureSpaces debug doc)
+      val _ = dbgprintln ("ensureSpaces: " ^ Time.fmt 3 tm ^ "s") *)
       val (doc, tm) = Util.getTime (fn _ => insertBlankLines debug doc)
       val _ = dbgprintln ("insertBlankLines: " ^ Time.fmt 3 tm ^ "s")
 
       fun loop currentTab vars doc =
         case doc of
           AnnEmpty => D.empty
-        | AnnNoSpace => D.empty
+        | AnnNoSpace => D.nospace
         | AnnNewline => D.newline
         | AnnSpace => D.space
         | AnnConcat (d1, d2) =>

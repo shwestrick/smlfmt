@@ -31,6 +31,7 @@ sig
   exception InvalidDoc
 
   val empty: doc
+  val nospace: doc
   val space: doc
   val newline: doc
   val text: CustomString.t -> doc
@@ -72,6 +73,7 @@ struct
   datatype doc =
     Empty
   | Space
+  | NoSpace
   | Newline
   | Concat of doc * doc
   | Text of CustomString.t
@@ -83,6 +85,7 @@ struct
 
   val empty = Empty
   val newline = Newline
+  val nospace = NoSpace
   val space = Space
   val text = Text
   fun at t d = At (t, d)
@@ -573,21 +576,21 @@ struct
       (* tab -> hit first break? *)
       type debug_state = bool TabDict.t
 
-      (* debug state, current tab, current 'at's, line start, current col, accumulator *)
+      (* debug state, current tab, current 'at's, line start, current col, lastItemIsSpacey, accumulator *)
       datatype layout_state =
-        LS of debug_state * tab * TabSet.t * int * int * (item list)
+        LS of debug_state * tab * TabSet.t * int * int * bool * (item list)
 
-      fun dbgInsert tab (LS (dbgState, ct, cats, s, c, a) : layout_state) :
+      fun dbgInsert tab (LS (dbgState, ct, cats, s, c, sp, a) : layout_state) :
         layout_state =
-        if not debug then LS (dbgState, ct, cats, s, c, a)
-        else LS (TabDict.insert dbgState (tab, false), ct, cats, s, c, a)
+        if not debug then LS (dbgState, ct, cats, s, c, sp, a)
+        else LS (TabDict.insert dbgState (tab, false), ct, cats, s, c, sp, a)
 
-      fun dbgBreak tab (LS (dbgState, ct, cats, s, c, a) : layout_state) :
+      fun dbgBreak tab (LS (dbgState, ct, cats, s, c, sp, a) : layout_state) :
         layout_state =
         if not debug then
-          LS (dbgState, ct, cats, s, c, a)
+          LS (dbgState, ct, cats, s, c, sp, a)
         else if TabDict.lookup dbgState tab then
-          LS (dbgState, ct, cats, s, c, a)
+          LS (dbgState, ct, cats, s, c, sp, a)
         else
           LS
             ( TabDict.insert dbgState (tab, true)
@@ -595,6 +598,7 @@ struct
             , cats
             , s
             , c
+            , sp
             , Item.StartDebug (StartTabHighlight {tab = tab, col = c}) :: a
             )
 
@@ -684,7 +688,7 @@ struct
        *
        * UPDATE: tab styles (newly added) allow for some control over this.
        *)
-      fun check (state as LS (dbgState, ct, cats, lnStart, col, acc)) =
+      fun check (state as LS (dbgState, ct, cats, lnStart, col, sp, acc)) =
         let
           val widthOkay = col <= maxWidth
           val ribbonOkay = (col - lnStart) <= ribbonWidth
@@ -727,21 +731,6 @@ struct
         end
 
 
-      fun putItemSameLine state item =
-        let
-          val LS (dbgState, ct, _, lnStart, col, acc) = state
-        in
-          check (LS
-            ( dbgState
-            , ct
-            (* an item has been placed, so now we are no longer at a tab *)
-            , TabSet.empty
-            , lnStart
-            , col + Item.width item
-            , item :: acc
-            ))
-        end
-
       fun parentTabCol tab =
         case Tab.parent tab of
           NONE => raise Fail "PrettyTabbedDoc.pretty.parentTabCol: no parent"
@@ -753,15 +742,15 @@ struct
 
       fun ensureAt tab state =
         let
-          val LS (dbgState, ct, cats, lnStart, col, acc) = state
+          val LS (dbgState, ct, cats, lnStart, col, sp, acc) = state
           val alreadyAtTab = TabSet.contains cats tab
 
           fun goto i =
             if alreadyAtTab then
-              dbgBreak tab (LS (dbgState, tab, cats, lnStart, i, acc))
+              dbgBreak tab (LS (dbgState, tab, cats, lnStart, i, sp, acc))
             else if i = col andalso Tab.isInplace tab then
               dbgBreak tab (LS
-                (dbgState, tab, TabSet.insert cats tab, lnStart, i, acc))
+                (dbgState, tab, TabSet.insert cats tab, lnStart, i, sp, acc))
             else if i < col then
               dbgBreak tab (check (LS
                 ( dbgState
@@ -769,6 +758,7 @@ struct
                 , TabSet.singleton tab
                 , i
                 , i
+                , true
                 , Item.Spaces i :: Item.Newline :: acc
                 )))
             else if isPromotable tab then
@@ -794,6 +784,7 @@ struct
                   else TabSet.singleton tab
                 , i
                 , i
+                , true
                 , Item.Spaces i :: Item.Newline :: acc
                 )))
             else
@@ -806,6 +797,7 @@ struct
                   else TabSet.singleton tab
                 , lnStart
                 , i
+                , if i = col then sp else true
                 , Item.Spaces (i - col) :: acc
                 )))
 
@@ -815,7 +807,7 @@ struct
                 if Tab.isRigid tab then
                   raise DoPromote (valOf (oldestPromotableParent tab))
                 else
-                  LS (dbgState, tab, cats, lnStart, col, acc)
+                  LS (dbgState, tab, cats, lnStart, col, sp, acc)
 
             | Usable (Activated (SOME i)) => goto i
 
@@ -860,13 +852,51 @@ struct
         case doc of
           Empty => state
 
-        | Space => putItemSameLine state (Item.Spaces 1)
+        | NoSpace =>
+            let val LS (dbgState, ct, cats, lnStart, col, _, acc) = state
+            in LS (dbgState, ct, cats, lnStart, col, true, acc)
+            end
 
-        | Text s => putItemSameLine state (Item.Stuff s)
+        | Space =>
+            let
+              val LS (dbgState, ct, _, lnStart, col, _, acc) = state
+              val item = Item.Spaces 1
+            in
+              check (LS
+                ( dbgState
+                , ct
+                (* an item has been placed, so now we are no longer at a tab *)
+                , TabSet.empty
+                , lnStart
+                , col + Item.width item
+                , true
+                , item :: acc
+                ))
+            end
+
+        | Text s =>
+            let
+              val LS (dbgState, ct, _, lnStart, col, sp, acc) = state
+              val item = Item.Stuff s
+              val (col, acc) =
+                if sp then (col + Item.width item, item :: acc)
+                else (col + Item.width item + 1, item :: Item.Spaces 1 :: acc)
+            in
+              check (LS
+                ( dbgState
+                , ct
+                (* an item has been placed, so now we are no longer at a tab *)
+                , TabSet.empty
+                , lnStart
+                , col
+                , false
+                , acc
+                ))
+            end
 
         | Newline =>
             let
-              val LS (dbgState, ct, cats, lnStart, col, acc) = state
+              val LS (dbgState, ct, cats, lnStart, col, _, acc) = state
             in
               check (LS
                 ( dbgState
@@ -874,6 +904,7 @@ struct
                 , cats
                 , col
                 , col
+                , true
                 , Item.Spaces col :: Item.Newline :: acc
                 ))
             end
@@ -882,11 +913,12 @@ struct
 
         | At (tab, doc) =>
             let
-              val LS (_, origCurrentTab, _, _, _, _) = state
+              val LS (_, origCurrentTab, _, _, _, _, _) = state
               val state' = ensureAt tab state
-              val LS (dbgState, _, cats, lnStart, col, acc) = layout state' doc
+              val LS (dbgState, _, cats, lnStart, col, sp, acc) =
+                layout state' doc
             in
-              LS (dbgState, origCurrentTab, cats, lnStart, col, acc)
+              LS (dbgState, origCurrentTab, cats, lnStart, col, sp, acc)
             end
 
         | Cond {tab, inactive, active} =>
@@ -954,7 +986,7 @@ struct
 
               val _ = setTabState tab (Usable Flattened)
 
-              val LS (dbgState, _, cats, lnStart, col, acc) : layout_state =
+              val LS (dbgState, _, cats, lnStart, col, sp, acc) : layout_state =
                 doit ()
 
               val acc =
@@ -983,6 +1015,7 @@ struct
                 , TabSet.remove cats tab
                 , lnStart
                 , col
+                , sp
                 , acc
                 )
             end
@@ -990,9 +1023,9 @@ struct
       val t1 = Time.now ()
       val _ = dbgprintln ("pre-layout: " ^ Time.fmt 3 (Time.- (t1, t0)) ^ "s")
 
-      val init = LS (TabDict.empty, root, TabSet.singleton root, 0, 0, [])
+      val init = LS (TabDict.empty, root, TabSet.singleton root, 0, 0, true, [])
       val init = dbgBreak Tab.root (dbgInsert Tab.root init)
-      val LS (_, _, _, _, _, items) = layout init doc
+      val LS (_, _, _, _, _, _, items) = layout init doc
       val items =
         if not debug then items
         else Item.EndDebug (EndTabHighlight {tab = Tab.root, col = 0}) :: items
