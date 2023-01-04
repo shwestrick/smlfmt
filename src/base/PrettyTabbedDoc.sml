@@ -853,7 +853,14 @@ struct
                     ; goto (parentTabCol tab)
                     )
                   else
-                    (setTabState tab (Usable (Activated (SOME col))); goto col)
+                    let
+                      (* never let a tab begin at a place that needs a space *)
+                      val desired = if sp then col else col + 1
+                    in
+                      ( setTabState tab (Usable (Activated (SOME desired)))
+                      ; goto desired
+                      )
+                    end
                 else
                   let
                     val i =
