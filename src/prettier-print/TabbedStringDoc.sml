@@ -93,6 +93,19 @@ local
           in
             cs
           end
+
+    fun splitCommentsAfterAndBeforeNext tok =
+      case Token.nextTokenNotCommentOrWhitespace tok of
+        NONE => (allCommentsAfter tok, Seq.empty ())
+      | SOME ntok =>
+          let
+            val cs = allCommentsAfter tok
+            val i = findSplit (tok, cs, ntok)
+            val cs1 = Seq.take cs i
+            val cs2 = Seq.drop cs i
+          in
+            (cs1, cs2)
+          end
   end
 
   datatype pieces =
