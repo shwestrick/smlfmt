@@ -49,19 +49,20 @@ sig
   val empty: doc
   val nospace: doc
   val space: doc
-  val newline: doc
   val text: CustomString.t -> doc
   val token: Token.t -> doc
   val concat: doc * doc -> doc
-  val letdoc: {doc: doc, var: DocVar.t, inn: doc} -> doc
+  val letdoc: doc -> (DocVar.t -> doc) -> doc
   val var: DocVar.t -> doc
 
   type style = Tab.Style.t
 
-  type tab = Tab.t
-  val newTab: tab * doc -> doc
-  val at: tab -> doc -> doc
+  type tab
+  val root: tab
+  val newTabWithStyle: tab -> style * (tab -> doc) -> doc
+  val newTab: tab -> (tab -> doc) -> doc
   val cond: tab -> {inactive: doc, active: doc} -> doc
+  val at: tab -> doc -> doc
 
   val pretty:
     { ribbonFrac: real
@@ -71,6 +72,16 @@ sig
     , debug: bool
     }
     -> doc
+    -> CustomString.t
+
+  val prettyJustComments:
+    { ribbonFrac: real
+    , maxWidth: int
+    , indentWidth: int
+    , tabWidth: int
+    , debug: bool
+    }
+    -> Token.t Seq.t
     -> CustomString.t
 end =
 struct
@@ -133,7 +144,23 @@ struct
     | (_, Empty) => d1
     | _ => Concat (d1, d2)
 
-  fun newTab (tab, doc) = NewTab {tab = tab, doc = doc}
+  fun letdoc d f =
+    let
+      val v = DocVar.new ()
+      val k = f v
+    in
+      LetDoc {var = v, doc = d, inn = k}
+    end
+
+  fun newTabWithStyle parent (style, genDocUsingTab: tab -> doc) =
+    let
+      val t = Tab.new {parent = parent, style = style}
+      val d = genDocUsingTab t
+    in
+      NewTab {tab = t, doc = d}
+    end
+
+  fun newTab parent f = newTabWithStyle parent (Tab.Style.inplace, f)
 
   (* ====================================================================== *)
 
@@ -604,6 +631,40 @@ struct
     Seq.iterate concat empty ds
 
 
+  fun tokenToDoc {tabWidth} currentTab tok =
+    case tokenToPieces {tabWidth = tabWidth} tok of
+      OnePiece s => Text s
+    | ManyPieces pieces =>
+        let
+          val numPieces = Seq.length pieces
+          val tab = Tab.new
+            { parent = currentTab
+            , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
+            }
+          val doc =
+            (* a bit of a hack here: we concatenate a space on the end of
+             * each piece (except last), which guarantees that blank lines
+             * within the comment are preserved.
+             *)
+            Seq.iterate concat empty
+              (Seq.map (fn x => at tab (concat (Text x, space)))
+                 (Seq.take pieces (numPieces - 1)))
+          val doc = concat (doc, at tab (Text (Seq.nth pieces (numPieces - 1))))
+          val doc = NewTab {tab = tab, doc = doc}
+        in
+          doc
+        end
+
+
+  fun tokenToDocWithBlankLines {tabWidth} currentTab tok =
+    let
+      val doc = tokenToDoc {tabWidth = tabWidth} currentTab tok
+      val numBlanks = Token.desiredBlankLinesBefore tok
+    in
+      addNewlines numBlanks doc
+    end
+
+
   fun pretty {ribbonFrac, maxWidth, indentWidth, tabWidth, debug} doc =
     let
       val t0 = Time.now ()
@@ -936,40 +997,10 @@ struct
           state'
         end
 
+      val tokenToDoc = tokenToDoc {tabWidth = tabWidth}
 
-      fun tokenToDoc currentTab tok =
-        case tokenToPieces {tabWidth = tabWidth} tok of
-          OnePiece s => Text s
-        | ManyPieces pieces =>
-            let
-              val numPieces = Seq.length pieces
-              val tab = Tab.new
-                { parent = currentTab
-                , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
-                }
-              val doc =
-                (* a bit of a hack here: we concatenate a space on the end of
-                 * each piece (except last), which guarantees that blank lines
-                 * within the comment are preserved.
-                 *)
-                Seq.iterate concat empty
-                  (Seq.map (fn x => at tab (concat (Text x, space)))
-                     (Seq.take pieces (numPieces - 1)))
-              val doc = concat (doc, at tab (Text
-                (Seq.nth pieces (numPieces - 1))))
-              val doc = newTab (tab, doc)
-            in
-              doc
-            end
-
-
-      fun tokenToDocWithBlankLines currentTab tok =
-        let
-          val doc = tokenToDoc currentTab tok
-          val numBlanks = Token.desiredBlankLinesBefore tok
-        in
-          addNewlines numBlanks doc
-        end
+      val tokenToDocWithBlankLines =
+        tokenToDocWithBlankLines {tabWidth = tabWidth}
 
 
       (* This is a little tricky, but the idea is: try to lay out the doc,
@@ -1242,7 +1273,7 @@ struct
                   , concatDocs (Seq.map (tokenToDoc tab) csAfter)
                   )
 
-              val doc = newTab (tab, doc)
+              val doc = NewTab {tab = tab, doc = doc}
             in
               layout vars state doc
             end
@@ -1294,6 +1325,16 @@ struct
       val _ = dbgprintln ("post-layout: " ^ Time.fmt 3 (Time.- (t3, t2)) ^ "s")
     in
       result
+    end
+
+
+  fun prettyJustComments (params as {tabWidth, debug, ...}) cs =
+    let
+      val doc = concatDocs
+        (Seq.map (at root o tokenToDocWithBlankLines {tabWidth = tabWidth} root)
+           cs)
+    in
+      pretty params doc
     end
 
 end

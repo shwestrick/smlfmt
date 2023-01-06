@@ -149,13 +149,13 @@ fun doSMLAst (fp, parserOutput) =
     val prettied =
       case parserOutput of
         Parser.JustComments cs =>
-          TabbedStringDoc.pretty
+          TabbedTokenDoc.prettyJustComments
             { ribbonFrac = ribbonFrac
             , maxWidth = maxWidth
             , indentWidth = indentWidth
             , tabWidth = tabWidth
             , debug = doDebug
-            } (TabbedTokenDoc.justCommentsToStringDoc {tabWidth = tabWidth} cs)
+            } cs
 
       | Parser.Ast ast =>
           prettyPrinter

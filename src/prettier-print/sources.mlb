@@ -2,7 +2,6 @@
 ../ast/sources.mlb
 ../syntax-highlighting/sources.mlb
 
-TabbedStringDoc.sml
 TabbedTokenDoc.sml
 
 PrettierUtil.sml
