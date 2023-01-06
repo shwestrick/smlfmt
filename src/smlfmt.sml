@@ -45,6 +45,10 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
   \\n\
+  \  [-allow-record-pun-exps B] Enable/disable SuccessorML record punning syntax.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
   \  [--help]                   print this message\n"
 
 

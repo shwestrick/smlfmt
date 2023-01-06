@@ -112,3 +112,6 @@ not top-level expressions (terminated by a semicolon) are allowed.
 
 `-allow-opt-bar [true|false]` (default `false`) controls whether or not
 SuccessorML optional bar syntax is allowed.
+
+`-allow-record-pun-exps [true|false]` (default `false`) controls whether or not
+SuccessorML record punning syntax is allowed.
