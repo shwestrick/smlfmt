@@ -49,6 +49,10 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
   \\n\
+  \  [-allow-or-pats B]         Enable/disable SuccessorML or-pattern syntax.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
   \  [--help]                   print this message\n"
 
 
@@ -68,6 +72,7 @@ val inputfiles = CommandLineArgs.positional ()
 val allowTopExp = CommandLineArgs.parseBool "allow-top-level-exps" true
 val allowOptBar = CommandLineArgs.parseBool "allow-opt-bar" false
 val allowRecordPun = CommandLineArgs.parseBool "allow-record-pun-exps" false
+val allowOrPat = CommandLineArgs.parseBool "allow-or-pats" false
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
@@ -75,9 +80,12 @@ val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
 val showPreview = preview orelse previewOnly
 
-val allows =
-  AstAllows.make
-    {topExp = allowTopExp, optBar = allowOptBar, recordPun = allowRecordPun}
+val allows = AstAllows.make
+  { topExp = allowTopExp
+  , optBar = allowOptBar
+  , recordPun = allowRecordPun
+  , orPat = allowOrPat
+  }
 
 val _ =
   if doHelp orelse List.null inputfiles then

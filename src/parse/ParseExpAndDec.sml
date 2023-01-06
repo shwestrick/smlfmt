@@ -167,7 +167,7 @@ struct
       fun parse_tycon i = PS.tycon toks i
       fun parse_ty i = PT.ty toks i
       fun parse_pat infdict restriction i =
-        PP.pat toks infdict restriction i
+        PP.pat allows toks infdict restriction i
 
 
       fun parse_zeroOrMoreDelimitedByReserved x i =
@@ -446,7 +446,7 @@ struct
               fun parseBranch (*vid*) i =
                 let
                   val (i, fname_args) =
-                    ParseFunNameArgs.fname_args toks infdict i
+                    ParseFunNameArgs.fname_args allows toks infdict i
 
                   val (i, ty) =
                     if not (isReserved Token.Colon at i) then
@@ -721,7 +721,7 @@ struct
       fun parse_recordLabel i = PS.recordLabel toks i
       fun parse_ty i = PT.ty toks i
       fun parse_pat infdict restriction i =
-        PP.pat toks infdict restriction i
+        PP.pat allows toks infdict restriction i
 
 
       fun parse_zeroOrMoreDelimitedByReserved x i =

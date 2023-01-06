@@ -29,6 +29,13 @@ struct
       \deprecation. Please use `-engine prettier` instead, \
       \which supports record punning."
 
+  fun orPatFail () =
+    raise Fail
+      "unsupported: SuccessorML or-pattern syntax. Note: you are \
+      \using `-engine pretty`, which is headed towards \
+      \deprecation. Please use `-engine prettier` instead, \
+      \which supports or-pattern."
+
   fun seqWithSpaces elems f =
     if Seq.length elems = 0 then
       empty

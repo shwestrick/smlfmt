@@ -137,6 +137,10 @@ struct
         , pat: pat
         }
 
+    (** SuccessorML "or patterns":
+      * pat | pat | ... | pat *)
+    | Or of {elems: pat Seq.t, delims: Token.t Seq.t (* `|` between pats *)}
+
     type t = pat
   end
 

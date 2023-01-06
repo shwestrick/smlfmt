@@ -73,6 +73,8 @@ struct
             ]
       | Infix {left, id, right} =>
           showPat left ++ space ++ token id ++ space ++ showPat right
+
+      | Or _ => recordPunFail ()
     end
 
 end

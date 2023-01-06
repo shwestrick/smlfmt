@@ -116,5 +116,16 @@ struct
 
       | Infix {left, id, right} =>
           showPat tab left ++ token id ++ withNewChild showPat tab right
+
+      | Or {elems, delims} =>
+          newTab tab (fn tab =>
+            let
+              fun f (d, p) =
+                at tab (token d) ++ withNewChild showPat tab p
+
+              val front = at tab (showPat tab (Seq.nth elems 0))
+            in
+              Seq.iterate op++ front (Seq.zipWith f (delims, Seq.drop elems 1))
+            end)
     end
 end
