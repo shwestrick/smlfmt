@@ -12,11 +12,14 @@ sig
     Ast of Ast.t
   | JustComments of Token.t Seq.t
 
-  val parse: {allowTopExp: bool, allowOptBar: bool} -> Source.t -> parser_output
-  val parseWithInfdict: {allowTopExp: bool, allowOptBar: bool}
-                        -> InfixDict.t
-                        -> Source.t
-                        -> (InfixDict.t * parser_output)
+  val parse: {allowTopExp: bool, allowOptBar: bool, allowRecordPun: bool}
+             -> Source.t
+             -> parser_output
+  val parseWithInfdict:
+    {allowTopExp: bool, allowOptBar: bool, allowRecordPun: bool}
+    -> InfixDict.t
+    -> Source.t
+    -> (InfixDict.t * parser_output)
 end =
 struct
 
@@ -32,7 +35,7 @@ struct
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
 
-  fun parseWithInfdict {allowTopExp, allowOptBar} infdict src =
+  fun parseWithInfdict {allowTopExp, allowOptBar, allowRecordPun} infdict src =
     let
       (** This might raise Lexer.Error *)
       val allTokens = Lexer.tokens src
@@ -345,8 +348,10 @@ struct
           let
             val ((i, infdict), dec) =
               ParseExpAndDec.dec
-                {forceExactlyOne = true, allowOptBar = allowOptBar} toks
-                (i, infdict)
+                { forceExactlyOne = true
+                , allowOptBar = allowOptBar
+                , allowRecordPun = allowRecordPun
+                } toks (i, infdict)
           in
             ((i, infdict), Ast.Str.DecCore dec)
           end
@@ -557,8 +562,9 @@ struct
         then
           let
             val (i, exp) =
-              ParseExpAndDec.exp {allowOptBar = allowOptBar} toks infdict
-                ExpPatRestriction.None i
+              ParseExpAndDec.exp
+                {allowOptBar = allowOptBar, allowRecordPun = allowRecordPun}
+                toks infdict ExpPatRestriction.None i
             val (i, semicolon) = ParseSimple.reserved toks Token.Semicolon i
           in
             ((i, infdict), Ast.TopExp {exp = exp, semicolon = semicolon})
@@ -609,7 +615,7 @@ struct
     end
 
 
-  fun parse (allows as {allowTopExp, allowOptBar}) src =
+  fun parse (allows as {allowTopExp, allowOptBar, allowRecordPun}) src =
     let val (_, result) = parseWithInfdict allows InfixDict.initialTopLevel src
     in result
     end

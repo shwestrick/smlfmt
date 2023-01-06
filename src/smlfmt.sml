@@ -45,6 +45,10 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
   \\n\
+  \  [-allow-record-pun-exps B] Enable/disable SuccessorML record punning syntax.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
   \  [--help]                   print this message\n"
 
 
@@ -63,6 +67,7 @@ val inputfiles = CommandLineArgs.positional ()
 
 val allowTopExp = CommandLineArgs.parseBool "allow-top-level-exps" true
 val allowOptBar = CommandLineArgs.parseBool "allow-opt-bar" false
+val allowRecordPun = CommandLineArgs.parseBool "allow-record-pun-exps" false
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
@@ -208,7 +213,11 @@ fun doSML filepath =
     val fp = FilePath.fromUnixPath filepath
     val source = Source.loadFromFile fp
     val result =
-      Parser.parse {allowTopExp = allowTopExp, allowOptBar = allowOptBar} source
+      Parser.parse
+        { allowTopExp = allowTopExp
+        , allowOptBar = allowOptBar
+        , allowRecordPun = allowRecordPun
+        } source
       handle exn => handleLexOrParseError exn
   in
     doSMLAst (fp, result)
@@ -224,6 +233,7 @@ fun doMLB filepath =
         , pathmap = pathmap
         , allowTopExp = allowTopExp
         , allowOptBar = allowOptBar
+        , allowRecordPun = allowRecordPun
         } fp
       handle exn => handleLexOrParseError exn
   in

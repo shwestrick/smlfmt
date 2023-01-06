@@ -232,6 +232,11 @@ struct
       }
 
 
+    datatype 'exp row_exp =
+      RecordRow of {lab: Token.t, eq: Token.t, exp: 'exp}
+    | RecordPun of {id: Token.t}
+
+
     datatype exp =
       Const of Token.t
 
@@ -241,7 +246,7 @@ struct
     (** { lab = pat, ..., lab = pat } *)
     | Record of
         { left: Token.t
-        , elems: {lab: Token.t, eq: Token.t, exp: exp} Seq.t
+        , elems: exp row_exp Seq.t
         , delims: Token.t Seq.t (** Gotta remember the commas too! *)
         , right: Token.t
         }
