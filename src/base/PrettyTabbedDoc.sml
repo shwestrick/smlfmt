@@ -1209,11 +1209,18 @@ struct
                 { parent = ct
                 , style = Tab.Style.combine (Tab.Style.inplace, Tab.Style.rigid)
                 }
-              val doc = concatDocs (Seq.map (at tab) (Seq.append3
-                ( Seq.map (tokenToDocWithBlankLines tab) csBefore
-                , Seq.singleton (tokenToDocWithBlankLines tab t)
-                , Seq.map (tokenToDocWithBlankLines tab) csAfter
-                )))
+
+              val doc =
+                concat
+                  ( concatDocs
+                      (Seq.map (at tab)
+                         (Seq.append
+                            ( Seq.map (tokenToDocWithBlankLines tab) csBefore
+                            , Seq.singleton (tokenToDocWithBlankLines tab t)
+                            )))
+                  , concatDocs (Seq.map (tokenToDoc tab) csAfter)
+                  )
+
               val doc = newTab (tab, doc)
             in
               layout state doc
