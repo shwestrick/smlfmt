@@ -273,8 +273,8 @@ struct
               (Seq.zipWith showCon (Seq.map dd delims, Seq.drop elems 1))
           end
       in
-        Seq.iterate op++ (showOne (front, Seq.nth elems 0))
-          (Seq.zipWith showOne (delims, Seq.drop elems 1))
+        Seq.iterate op++ (showOne (front, Seq.nth elems 0)) (Seq.zipWith showOne
+          (delims, Seq.drop elems 1))
       end)
 
   (* ====================================================================== *)

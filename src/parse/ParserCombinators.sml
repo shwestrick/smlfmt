@@ -10,11 +10,10 @@ sig
 
   val zeroOrMoreDelimitedByReserved:
     Token.t Seq.t
-    ->
-      { parseElem: (int, 'a) parser
-      , delim: Token.reserved
-      , shouldStop: int peeker
-      }
+    -> { parseElem: (int, 'a) parser
+       , delim: Token.reserved
+       , shouldStop: int peeker
+       }
     -> (int, {elems: 'a Seq.t, delims: Token.t Seq.t}) parser
 
   val oneOrMoreDelimitedByReserved:

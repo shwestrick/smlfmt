@@ -59,7 +59,8 @@ struct
 
       (** ====================================================================
         * STRING HANDLING
-        *) datatype newcursor = EndOfChar of int | EndOfFormatEscape of int
+        *)
+      datatype newcursor = EndOfChar of int | EndOfFormatEscape of int
 
       (** The follow functions implement a state machine to advance a cursor
         * within a string.

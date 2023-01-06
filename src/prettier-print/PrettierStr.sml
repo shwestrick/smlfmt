@@ -26,9 +26,7 @@ struct
     let
       open Ast.Str
     in
-      case
-        e
-      of
+      case e of
         Ident id => token (MaybeLongToken.getToken id)
 
       | Struct {structt, strdec, endd} =>

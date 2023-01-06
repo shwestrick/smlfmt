@@ -250,20 +250,17 @@ struct
   type token = {idx: int, context: pretoken Seq.t}
   type t = token
 
-  fun make src class =
-    WithSource.make {value = class, source = src}
+  fun make src class = WithSource.make {value = class, source = src}
 
   fun reserved src rclass =
     WithSource.make {value = Reserved rclass, source = src}
 
-  fun mltonReserved src =
-    WithSource.make {value = MLtonReserved, source = src}
+  fun mltonReserved src = WithSource.make {value = MLtonReserved, source = src}
 
   fun longIdentifier src =
     WithSource.make {value = LongIdentifier, source = src}
 
-  fun identifier src =
-    WithSource.make {value = Identifier, source = src}
+  fun identifier src = WithSource.make {value = Identifier, source = src}
 
   fun getClass ({idx, context}: token) =
     WithSource.valOf (Seq.nth context idx)

@@ -172,7 +172,6 @@ struct
         (mlbCache: mlb_cache, basis: basis, basdec: MLBAst.basdec) :
         (mlb_cache * basis * asts) =
         case basdec of
-
           DecPathMLB {path, token} =>
             doMLB ctx (mlbCache, basis, path, fileErrorHandler ctx path token)
 
@@ -234,7 +233,6 @@ struct
 
       and doBasexp ctx (mlbCache, basis, basexp) =
         case basexp of
-
           BasEnd {basdec, ...} => doBasdec ctx (mlbCache, basis, basdec)
 
         | LetInEnd {basdec, basexp, ...} =>

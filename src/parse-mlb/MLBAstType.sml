@@ -25,7 +25,6 @@ struct
 
 
   and basdec =
-
     DecEmpty
 
   (** basdec [;] basdec *)

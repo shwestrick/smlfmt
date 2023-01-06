@@ -3,4 +3,5 @@
   * See the file LICENSE for details.
   *)
 
-structure MLBAst = struct open MLBAstType end
+structure MLBAst =
+struct open MLBAstType end

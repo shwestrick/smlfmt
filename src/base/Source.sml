@@ -100,7 +100,8 @@ struct
           if lineNum = 0 then 0 else 1 + Seq.nth newlineIdxs (lineNum - 1)
         val charNum = absoluteStartOffset s - lineOffset
       in
-        (** Convert to 1-indexing *) {line = lineNum + 1, col = charNum + 1}
+        (** Convert to 1-indexing *)
+        {line = lineNum + 1, col = charNum + 1}
       end
 
   fun length ({data, ...}: source) = Seq.length data

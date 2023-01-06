@@ -829,14 +829,14 @@ struct
           val widthOkay = col <= maxWidth
           val ribbonOkay = (col - lnStart) <= ribbonWidth
           val okay = widthOkay andalso ribbonOkay
-            (* val _ =
-              if not debug orelse okay then ()
-              else if not widthOkay then
-                print ("PrettyTabbedDoc.debug: width violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
-              else if not ribbonOkay then
-                print ("PrettyTabbedDoc.debug: ribbon violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
-              else
-                print ("PrettyTabbedDoc.debug: unknown violation?? ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n") *)
+        (* val _ =
+          if not debug orelse okay then ()
+          else if not widthOkay then
+            print ("PrettyTabbedDoc.debug: width violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
+          else if not ribbonOkay then
+            print ("PrettyTabbedDoc.debug: ribbon violated: ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n")
+          else
+            print ("PrettyTabbedDoc.debug: unknown violation?? ct=" ^ Tab.infoString ct ^ " lnStart=" ^ Int.toString lnStart ^ " col=" ^ Int.toString col ^ "\n") *)
         in
           if okay then
             state

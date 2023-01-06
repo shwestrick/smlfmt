@@ -52,9 +52,9 @@ struct
 
   fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
     let
-      val doc =
-        showAst ast (* val doc = TokenDoc.insertComments doc
-                    val doc = TokenDoc.insertBlankLines doc *)
+      val doc = showAst ast
+    (* val doc = TokenDoc.insertComments doc
+    val doc = TokenDoc.insertBlankLines doc *)
     in
       TabbedTokenDoc.pretty
         { ribbonFrac = ribbonFrac

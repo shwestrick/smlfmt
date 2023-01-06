@@ -126,12 +126,12 @@ struct
            handle _ => loop acc (offset + 1))
 
       val result = loop [] startOffset
-        (*
-              val _ = print ("fuzzyTokens\n")
-              val _ = print (Source.toString originalSrc ^ "\n")
-              val _ =
-                print ("Tokens: " ^ Seq.toString Token.toString result ^ "\n")
-        *)
+    (*
+          val _ = print ("fuzzyTokens\n")
+          val _ = print (Source.toString originalSrc ^ "\n")
+          val _ =
+            print ("Tokens: " ^ Seq.toString Token.toString result ^ "\n")
+    *)
     in
       result
     end

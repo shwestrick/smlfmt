@@ -171,9 +171,9 @@ struct
                 ("", count, i)
 
             val (newfront, count, i) = strip 0 0
-              (* val _ =
-                print ( "  count " ^ Int.toString count ^ "\n"
-                      ^ "  idx " ^ Int.toString i ^ "\n") *)
+          (* val _ =
+            print ( "  count " ^ Int.toString count ^ "\n"
+                  ^ "  idx " ^ Int.toString i ^ "\n") *)
           in
             (count, String (newfront ^ String.extract (s, i, NONE)))
           end

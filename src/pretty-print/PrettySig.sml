@@ -23,9 +23,7 @@ struct
   fun showDec dec = PrettyExpAndDec.showDec dec
 
   fun showSpec spec =
-    case
-      spec
-    of
+    case spec of
       Ast.Sig.EmptySpec => empty
 
     | Ast.Sig.Val {vall, elems, delims} =>
@@ -34,8 +32,8 @@ struct
             token starter ++ space ++ token vid ++ space ++ token colon ++ space
             ++ showTy ty
         in
-          rigidVertically (showOne (vall, Seq.nth elems 0))
-            (Seq.zipWith showOne (delims, Seq.drop elems 1))
+          rigidVertically (showOne (vall, Seq.nth elems 0)) (Seq.zipWith showOne
+            (delims, Seq.drop elems 1))
         end
 
     | Ast.Sig.Type {typee, elems, delims} =>

@@ -23,8 +23,7 @@ sig
   val showSequence:
     ('a -> bool) (* elem starts with star? *)
     -> 'a shower
-    ->
-      {openn: Token.t, elems: 'a Seq.t, delims: Token.t Seq.t, close: Token.t} shower
+    -> {openn: Token.t, elems: 'a Seq.t, delims: Token.t Seq.t, close: Token.t} shower
 
   val showSyntaxSeq: 'a shower -> 'a Ast.SyntaxSeq.t shower
   val showTokenSyntaxSeq: Token.t Ast.SyntaxSeq.t shower
