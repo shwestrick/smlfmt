@@ -28,6 +28,7 @@ functor PrettyTabbedDoc
    structure Token:
    sig
      type t
+     val same: t * t -> bool
      val desiredBlankLinesBefore: t -> int
      val splitCommentsBefore: t -> t Seq.t
      val splitCommentsAfter: t -> t Seq.t
@@ -136,6 +137,30 @@ struct
         | _ => acc
     in
       loop [] d
+    end
+
+  (* ====================================================================== *)
+
+  fun firstToken doc =
+    let
+      fun error () =
+        raise Fail "PrettyTabbedDoc.firstToken: disagreement"
+    in
+      case doc of
+        Concat (d1, d2) =>
+          (case firstToken d1 of
+             NONE => firstToken d2
+           | t => t)
+      | Token t => SOME t
+      | At (_, d) => firstToken d
+      | NewTab {doc = d, ...} => firstToken d
+      | Cond {inactive, active, ...} =>
+          (case (firstToken inactive, firstToken active) of
+             (NONE, NONE) => NONE
+           | (SOME t, SOME t') =>
+               if Token.same (t, t') then SOME t else error ()
+           | _ => error ())
+      | _ => NONE
     end
 
   (* ====================================================================== *)
@@ -1199,6 +1224,12 @@ struct
         end
 
 
+      val initComments =
+        case firstToken doc of
+          NONE => Seq.empty ()
+        | SOME t => Token.splitCommentsBefore t
+
+
       val t1 = Time.now ()
       val _ = dbgprintln ("pre-layout: " ^ Time.fmt 3 (Time.- (t1, t0)) ^ "s")
 
@@ -1206,7 +1237,7 @@ struct
         ( TabDict.empty
         , root
         , TabSet.singleton root
-        , Seq.empty () (* TODO: get first comments *)
+        , initComments
         , 0
         , 0
         , true
