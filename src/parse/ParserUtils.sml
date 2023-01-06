@@ -12,7 +12,7 @@ sig
 
   val errorIfInfixNotOpped: InfixDict.t -> Token.t option -> Token.t -> unit
 
-  val checkOptBar: bool -> Token.t option -> string -> unit
+  val checkOptBar: AstAllows.t -> Token.t option -> string -> unit
 
   val nyi: Token.t Seq.t -> string -> int -> 'a
 end =
@@ -70,11 +70,11 @@ struct
       raise Fail ("Bug in parser " ^ fname ^ ": position out of bounds??")
 
 
-  fun checkOptBar allowOptBar optbar msg =
+  fun checkOptBar allows optbar msg =
     case optbar of
       NONE => ()
     | SOME bar =>
-        if allowOptBar then
+        if AstAllows.optBar allows then
           ()
         else
           error

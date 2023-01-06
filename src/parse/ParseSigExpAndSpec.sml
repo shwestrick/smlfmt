@@ -8,11 +8,8 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val spec: {allowOptBar: bool}
-            -> tokens
-            -> InfixDict.t
-            -> (int, Ast.Sig.spec) parser
-  val sigexp: {allowOptBar: bool}
+  val spec: AstAllows.t -> tokens -> InfixDict.t -> (int, Ast.Sig.spec) parser
+  val sigexp: AstAllows.t
               -> tokens
               -> InfixDict.t
               -> (int, Ast.Sig.sigexp) parser
@@ -36,7 +33,7 @@ struct
     * sigexp
     *)
 
-  fun parse_sigexp {allowOptBar} toks infdict i =
+  fun parse_sigexp allows toks infdict i =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -110,7 +107,7 @@ struct
       and consume_sigExpSigEnd i =
         let
           val sigg = tok (i - 1)
-          val (i, spec) = parse_spec {allowOptBar = allowOptBar} toks infdict i
+          val (i, spec) = parse_spec allows toks infdict i
           val (i, endd) = parse_reserved Token.End i
         in
           (i, Ast.Sig.Spec {sigg = sigg, spec = spec, endd = endd})
@@ -141,7 +138,7 @@ struct
     *)
 
 
-  and parse_spec {allowOptBar} toks infdict i =
+  and parse_spec allows toks infdict i =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -198,7 +195,7 @@ struct
               val (i, tycon) = parse_vid i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, optbar) = parse_maybeReserved Token.Bar i
-              val _ = ParserUtils.checkOptBar allowOptBar optbar
+              val _ = ParserUtils.checkOptBar allows optbar
                 "Unexpected bar on first branch of datatype specification."
 
               val (i, {elems, delims}) =
@@ -512,8 +509,7 @@ struct
             let
               val (i, id) = parse_vid i
               val (i, colon) = parse_reserved Token.Colon i
-              val (i, sigexp) =
-                parse_sigexp {allowOptBar = allowOptBar} toks infdict i
+              val (i, sigexp) = parse_sigexp allows toks infdict i
             in
               (i, {id = id, colon = colon, sigexp = sigexp})
             end
@@ -538,8 +534,7 @@ struct
       and consume_sigSpecInclude i =
         let
           val includee = tok (i - 1)
-          val (i, sigexp) =
-            parse_sigexp {allowOptBar = allowOptBar} toks infdict i
+          val (i, sigexp) = parse_sigexp allows toks infdict i
 
           fun makeInclude i =
             (i, Ast.Sig.Include {includee = includee, sigexp = sigexp})
@@ -628,10 +623,10 @@ struct
     * ========================================================================
     *)
 
-  fun spec {allowOptBar} toks infdict i =
-    parse_spec {allowOptBar = allowOptBar} toks infdict i
-  fun sigexp {allowOptBar} toks infdict i =
-    parse_sigexp {allowOptBar = allowOptBar} toks infdict i
+  fun spec allows toks infdict i =
+    parse_spec allows toks infdict i
+  fun sigexp allows toks infdict i =
+    parse_sigexp allows toks infdict i
 
 
 end

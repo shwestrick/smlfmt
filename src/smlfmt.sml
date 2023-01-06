@@ -75,6 +75,10 @@ val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
 val showPreview = preview orelse previewOnly
 
+val allows =
+  AstAllows.make
+    {topExp = allowTopExp, optBar = allowOptBar, recordPun = allowRecordPun}
+
 val _ =
   if doHelp orelse List.null inputfiles then
     (print (usage ()); OS.Process.exit OS.Process.success)
@@ -212,13 +216,8 @@ fun doSML filepath =
   let
     val fp = FilePath.fromUnixPath filepath
     val source = Source.loadFromFile fp
-    val result =
-      Parser.parse
-        { allowTopExp = allowTopExp
-        , allowOptBar = allowOptBar
-        , allowRecordPun = allowRecordPun
-        } source
-      handle exn => handleLexOrParseError exn
+    val result = Parser.parse allows source
+                 handle exn => handleLexOrParseError exn
   in
     doSMLAst (fp, result)
   end
@@ -229,12 +228,7 @@ fun doMLB filepath =
     val fp = FilePath.fromUnixPath filepath
     val asts =
       ParseAllSMLFromMLB.parse
-        { skipBasis = true
-        , pathmap = pathmap
-        , allowTopExp = allowTopExp
-        , allowOptBar = allowOptBar
-        , allowRecordPun = allowRecordPun
-        } fp
+        {skipBasis = true, pathmap = pathmap, allows = allows} fp
       handle exn => handleLexOrParseError exn
   in
     Util.for (0, Seq.length asts) (fn i => doSMLAst (Seq.nth asts i))

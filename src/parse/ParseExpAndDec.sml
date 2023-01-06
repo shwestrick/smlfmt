@@ -8,11 +8,11 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val dec: {forceExactlyOne: bool, allowOptBar: bool, allowRecordPun: bool}
+  val dec: {forceExactlyOne: bool, allows: AstAllows.t}
            -> tokens
            -> (int * InfixDict.t, Ast.Exp.dec) parser
 
-  val exp: {allowOptBar: bool, allowRecordPun: bool}
+  val exp: AstAllows.t
            -> tokens
            -> InfixDict.t
            -> ExpPatRestriction.t
@@ -132,7 +132,7 @@ struct
     *)
 
 
-  fun dec {forceExactlyOne, allowOptBar, allowRecordPun} toks (start, infdict) =
+  fun dec {forceExactlyOne, allows} toks (start, infdict) =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -180,8 +180,7 @@ struct
         PC.zeroOrMoreWhile c p s
 
       fun consume_exp infdict restriction i =
-        exp {allowOptBar = allowOptBar, allowRecordPun = allowRecordPun} toks
-          infdict restriction i
+        exp allows toks infdict restriction i
 
       fun consume_opvid infdict i =
         let
@@ -239,7 +238,7 @@ struct
               val (i, tycon) = parse_vid i
               val (i, eq) = parse_reserved Token.Equal i
               val (i, optbar) = parse_maybeReserved Token.Bar i
-              val _ = ParserUtils.checkOptBar allowOptBar optbar
+              val _ = ParserUtils.checkOptBar allows optbar
                 "Unexpected bar on first branch of datatype declaration."
 
               val (i, {elems, delims}) =
@@ -466,7 +465,7 @@ struct
                 end
 
               val (i, optbar) = parse_maybeReserved Token.Bar i
-              val _ = ParserUtils.checkOptBar allowOptBar optbar
+              val _ = ParserUtils.checkOptBar allows optbar
                 "Unexpected bar on first branch of 'fun'."
               val (i, {elems, delims}) =
                 parse_oneOrMoreDelimitedByReserved
@@ -693,7 +692,7 @@ struct
   (* ======================================================================= *)
 
 
-  and exp {allowOptBar, allowRecordPun} toks infdict restriction start =
+  and exp allows toks infdict restriction start =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -736,11 +735,7 @@ struct
 
 
       fun consume_dec xx =
-        dec
-          { forceExactlyOne = false
-          , allowOptBar = allowOptBar
-          , allowRecordPun = allowRecordPun
-          } toks xx
+        dec {forceExactlyOne = false, allows = allows} toks xx
 
 
       fun consume_exp infdict restriction i =
@@ -944,7 +939,7 @@ struct
                 isReserved Token.Comma at i
                 orelse isReserved Token.CloseCurlyBracket at i
               then
-                if allowRecordPun then
+                if AstAllows.recordPun allows then
                   (i, Ast.Exp.RecordPun {id = lab})
                 else
                   ParserUtils.error
@@ -1058,7 +1053,7 @@ struct
           val (i, exp) = consume_exp infdict Restriction.None i
           val (i, off) = parse_reserved Token.Of i
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ = ParserUtils.checkOptBar allowOptBar optbar
+          val _ = ParserUtils.checkOptBar allows optbar
             "Unexpected bar on first branch of 'case'."
 
           val (i, {elems, delims}) =
@@ -1098,7 +1093,7 @@ struct
         let
           val fnn = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ = ParserUtils.checkOptBar allowOptBar optbar
+          val _ = ParserUtils.checkOptBar allows optbar
             "Unexpected bar on first branch of anonymous function."
 
           val (i, {elems, delims}) =
@@ -1180,7 +1175,7 @@ struct
         let
           val handlee = tok (i - 1)
           val (i, optbar) = parse_maybeReserved Token.Bar i
-          val _ = ParserUtils.checkOptBar allowOptBar optbar
+          val _ = ParserUtils.checkOptBar allows optbar
             "Unexpected bar on first branch of 'handle'."
           val (i, {elems, delims}) =
             parse_oneOrMoreDelimitedByReserved
