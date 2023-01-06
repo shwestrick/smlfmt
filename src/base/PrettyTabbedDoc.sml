@@ -53,6 +53,10 @@ sig
   val text: CustomString.t -> doc
   val token: Token.t -> doc
   val concat: doc * doc -> doc
+  val letdoc: {doc: doc, var: DocVar.t, inn: doc} -> doc
+  val var: DocVar.t -> doc
+
+  type style = Tab.Style.t
 
   type tab = Tab.t
   val newTab: tab * doc -> doc
@@ -82,12 +86,14 @@ struct
 
   structure TabDict = Dict(Tab)
   structure TabSet = Set(Tab)
+  structure VarDict = Dict(DocVar)
 
   (* ====================================================================== *)
 
   exception InvalidDoc
 
   type tab = Tab.t
+  type style = Tab.Style.t
 
   val root = Tab.root
 
@@ -102,6 +108,8 @@ struct
   | At of tab * doc
   | NewTab of {tab: tab, doc: doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
+  | LetDoc of {var: DocVar.t, doc: doc, inn: doc}
+  | Var of DocVar.t
 
   type t = doc
 
@@ -112,6 +120,9 @@ struct
   val text = Text
   val token = Token
   fun at t d = At (t, d)
+
+  val letdoc = LetDoc
+  val var = Var
 
   fun cond tab {inactive, active} =
     Cond {tab = tab, inactive = inactive, active = active}
@@ -126,41 +137,37 @@ struct
 
   (* ====================================================================== *)
 
-  fun allTabsInDoc d =
-    let
-      fun loop acc d =
-        case d of
-          NewTab {tab, doc} => loop (tab :: acc) doc
-        | Concat (d1, d2) => loop (loop acc d1) d2
-        | Cond {inactive, active, ...} => loop (loop acc inactive) active
-        | At (_, doc) => loop acc doc
-        | _ => acc
-    in
-      loop [] d
-    end
-
-  (* ====================================================================== *)
-
   fun firstToken doc =
     let
       fun error () =
         raise Fail "PrettyTabbedDoc.firstToken: disagreement"
+
+      fun loop vars doc =
+        case doc of
+          Concat (d1, d2) =>
+            (case loop vars d1 of
+               NONE => loop vars d2
+             | t => t)
+        | Token t => SOME t
+        | At (_, d) => loop vars d
+        | NewTab {doc = d, ...} => loop vars d
+        | Cond {inactive, active, ...} =>
+            (case (loop vars inactive, loop vars active) of
+               (NONE, NONE) => NONE
+             | (SOME t, SOME t') =>
+                 if Token.same (t, t') then SOME t else error ()
+             | _ => error ())
+        | LetDoc {var, doc, inn} =>
+            let
+              val x = loop vars doc
+              val vars = VarDict.insert vars (var, x)
+            in
+              loop vars inn
+            end
+        | Var v => VarDict.lookup vars v
+        | _ => NONE
     in
-      case doc of
-        Concat (d1, d2) =>
-          (case firstToken d1 of
-             NONE => firstToken d2
-           | t => t)
-      | Token t => SOME t
-      | At (_, d) => firstToken d
-      | NewTab {doc = d, ...} => firstToken d
-      | Cond {inactive, active, ...} =>
-          (case (firstToken inactive, firstToken active) of
-             (NONE, NONE) => NONE
-           | (SOME t, SOME t') =>
-               if Token.same (t, t') then SOME t else error ()
-           | _ => error ())
-      | _ => NONE
+      loop VarDict.empty doc
     end
 
   (* ====================================================================== *)
@@ -973,7 +980,7 @@ struct
        * Promotion is implemented by throwing an exception (DoPromote), which
        * is caught by the oldest ancestor.
        *)
-      fun layout (state: layout_state) doc : layout_state =
+      fun layout vars (state: layout_state) doc : layout_state =
         case doc of
           Empty => state
 
@@ -1025,7 +1032,7 @@ struct
                 ))
             end
 
-        | Token t => layoutToken state t
+        | Token t => layoutToken vars state t
 
         | Newline =>
             let
@@ -1043,7 +1050,21 @@ struct
                 ))
             end
 
-        | Concat (doc1, doc2) => layout (layout state doc1) doc2
+        | Concat (doc1, doc2) => layout vars (layout vars state doc1) doc2
+
+        | LetDoc {var, doc, inn} =>
+            let
+              fun delayedLayout state =
+                layout vars state doc
+              val vars = VarDict.insert vars (var, delayedLayout)
+            in
+              layout vars state inn
+            end
+
+        | Var v =>
+            let val delayedLayout = VarDict.lookup vars v
+            in delayedLayout state
+            end
 
         | At (tab, doc') =>
             let
@@ -1074,7 +1095,7 @@ struct
                   end
 
               val LS (dbgState, _, cats, coms, lnStart, col, sp, acc) =
-                layout state doc
+                layout vars state doc
             in
               LS (dbgState, origCurrentTab, cats, coms, lnStart, col, sp, acc)
             end
@@ -1082,8 +1103,8 @@ struct
         | Cond {tab, inactive, active} =>
             let in
               case getTabState tab of
-                Usable (Activated _) => layout state active
-              | Usable Flattened => layout state inactive
+                Usable (Activated _) => layout vars state active
+              | Usable Flattened => layout vars state inactive
               | _ => raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
             end
 
@@ -1128,7 +1149,7 @@ struct
               fun doit () =
                 let in
                   ( ()
-                  ; (layout (dbgInsert tab state) doc
+                  ; (layout vars (dbgInsert tab state) doc
                      handle DoPromote p =>
                        if not (Tab.eq (p, tab)) then
                          raise DoPromote p
@@ -1180,7 +1201,7 @@ struct
                 )
             end
 
-      and layoutToken state t =
+      and layoutToken vars state t =
         let
           val LS (dbgState, ct, cats, coms, lnStart, col, sp, acc) = state
 
@@ -1195,10 +1216,10 @@ struct
           val state = LS (dbgState, ct, cats, nextComs, lnStart, col, sp, acc)
         in
           if Seq.length csBefore + Seq.length csAfter = 0 then
-            if TabSet.size cats = 0 then layout state (tokenToDoc ct t)
-            else layout state (tokenToDocWithBlankLines ct t)
+            if TabSet.size cats = 0 then layout vars state (tokenToDoc ct t)
+            else layout vars state (tokenToDocWithBlankLines ct t)
           else if TabSet.size cats = 0 then
-            layout state (concatDocs (Seq.append3
+            layout vars state (concatDocs (Seq.append3
               ( Seq.map (tokenToDoc ct) csBefore
               , Seq.singleton (tokenToDoc ct t)
               , Seq.map (tokenToDoc ct) csAfter
@@ -1223,7 +1244,7 @@ struct
 
               val doc = newTab (tab, doc)
             in
-              layout state doc
+              layout vars state doc
             end
         end
 
@@ -1248,7 +1269,7 @@ struct
         , []
         )
       val init = dbgBreak Tab.root (dbgInsert Tab.root init)
-      val LS (_, _, _, _, _, _, _, items) = layout init doc
+      val LS (_, _, _, _, _, _, _, items) = layout VarDict.empty init doc
       val items =
         if not debug then items
         else Item.EndDebug (EndTabHighlight {tab = Tab.root, col = 0}) :: items

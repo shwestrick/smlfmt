@@ -851,13 +851,18 @@ struct
               }
         | AnnNewTab {tab, doc} => D.newTab (tab, loop tab vars doc)
         | AnnLetDoc {var, doc, inn} =>
-            let
-              val doc' = loop currentTab vars doc
-              val vars = VarDict.insert vars (var, doc')
-            in
-              loop currentTab vars inn
-            end
-        | AnnVar v => VarDict.lookup vars v
+            D.letdoc
+              { var = var
+              , doc = loop currentTab vars doc
+              , inn = loop currentTab vars inn
+              }
+        (* let
+          val doc' = loop currentTab vars doc
+          val vars = VarDict.insert vars (var, doc')
+        in
+          loop currentTab vars inn
+        end *)
+        | AnnVar v => D.var v
 
       val (result, tm) = Util.getTime (fn _ => loop Tab.root VarDict.empty doc)
 
