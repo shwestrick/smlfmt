@@ -109,6 +109,7 @@ struct
           (case opp of
              SOME t => t
            | NONE => id)
+      | Or {elems, ...} => leftMostToken (Seq.nth elems 0)
   end
 
   structure Exp =

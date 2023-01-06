@@ -1,4 +1,4 @@
-(** Copyright (c) 2020-2021 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -8,7 +8,8 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val pat: tokens
+  val pat: AstAllows.t
+           -> tokens
            -> InfixDict.t
            -> ExpPatRestriction.t
            -> (int, Ast.Pat.pat) parser
@@ -59,7 +60,7 @@ struct
     end
 
 
-  fun pat toks infdict restriction start =
+  fun pat allows toks infdict restriction start =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -78,6 +79,21 @@ struct
       fun parse_ty i = PT.ty toks i
 
       fun consume_pat infdict restriction i =
+        if not (Restriction.anyOkay restriction andalso AstAllows.orPat allows) then
+          consume_onePat infdict restriction i
+        else
+          let
+            val (i, {elems, delims}) =
+              parse_oneOrMoreDelimitedByReserved
+                { parseElem = consume_onePat infdict restriction
+                , delim = Token.Bar
+                } i
+          in
+            if Seq.length elems = 1 then (i, Seq.nth elems 0)
+            else (i, Ast.Pat.Or {elems = elems, delims = delims})
+          end
+
+      and consume_onePat infdict restriction i =
         let
           val (i, pat) =
             if isReserved Token.Underscore i then
@@ -96,7 +112,11 @@ struct
               consume_patRecord infdict (tok i) (i + 1)
             else
               ParserUtils.tokError toks
-                {pos = i, what = "Parser bug!", explain = NONE}
+                { pos = i
+                , what =
+                    "Unexpected token. Expected to see beginning of pattern."
+                , explain = NONE
+                }
         in
           consume_afterPat infdict restriction pat i
         end
@@ -137,7 +157,6 @@ struct
               (true, consume_patCon infdict (Ast.Pat.unpackForConPat pat) i)
 
             else if
-
               isReserved Token.Colon i andalso Restriction.anyOkay restriction
             then
               (true, consume_patTyped infdict pat (tok i) (i + 1))
@@ -150,6 +169,21 @@ struct
               , consume_patAs infdict (Ast.Pat.unpackForAsPat pat) (tok i)
                   (i + 1)
               )
+
+            else if
+              isReserved Token.Bar i andalso Restriction.anyOkay restriction
+              andalso not (AstAllows.orPat allows)
+            then
+              ParserUtils.tokError toks
+                { pos = i
+                , what = "Unexpected '|' after pattern."
+                , explain = SOME
+                    "This might be the beginning of an \"or-pattern\", written \
+                    \`<pat1> | <pat2> | ...`, which matches any one of multiple \
+                    \patterns. Or-patterns are disallowed in Standard ML, but \
+                    \allowed in SuccessorML. To enable or-patterns, use the \
+                    \command-line argument '-allow-or-pats true'."
+                }
 
             else
               (false, (i, pat))
@@ -252,7 +286,7 @@ struct
         *)
       and consume_patAs infdict {opp, id, ty} ass i =
         let
-          val (i, pat) = consume_pat infdict Restriction.None i
+          val (i, pat) = consume_onePat infdict Restriction.None i
         in
           ( i
           , Ast.Pat.Layered {opp = opp, id = id, ty = ty, ass = ass, pat = pat}
@@ -264,7 +298,7 @@ struct
         *            ^
         *)
       and consume_patCon infdict {opp, id} i =
-        let val (i, atpat) = consume_pat infdict Restriction.At i
+        let val (i, atpat) = consume_onePat infdict Restriction.At i
         in (i, Ast.Pat.Con {opp = opp, id = id, atpat = atpat})
         end
 
@@ -282,7 +316,7 @@ struct
         *        ^
         *)
       and consume_patInfix infdict leftPat vid i =
-        let val (i, rightPat) = consume_pat infdict Restriction.Inf i
+        let val (i, rightPat) = consume_onePat infdict Restriction.Inf i
         in (i, makeInfixPat infdict (leftPat, vid, rightPat))
         end
 
