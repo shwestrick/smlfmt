@@ -8,11 +8,11 @@ sig
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = Token.t Seq.t
 
-  val dec: {forceExactlyOne: bool, allowOptBar: bool}
+  val dec: {forceExactlyOne: bool, allowOptBar: bool, allowRecordPun: bool}
            -> tokens
            -> (int * InfixDict.t, Ast.Exp.dec) parser
 
-  val exp: {allowOptBar: bool}
+  val exp: {allowOptBar: bool, allowRecordPun: bool}
            -> tokens
            -> InfixDict.t
            -> ExpPatRestriction.t
@@ -132,7 +132,7 @@ struct
     *)
 
 
-  fun dec {forceExactlyOne, allowOptBar} toks (start, infdict) =
+  fun dec {forceExactlyOne, allowOptBar, allowRecordPun} toks (start, infdict) =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -180,7 +180,8 @@ struct
         PC.zeroOrMoreWhile c p s
 
       fun consume_exp infdict restriction i =
-        exp {allowOptBar = allowOptBar} toks infdict restriction i
+        exp {allowOptBar = allowOptBar, allowRecordPun = allowRecordPun} toks
+          infdict restriction i
 
       fun consume_opvid infdict i =
         let
@@ -692,7 +693,7 @@ struct
   (* ======================================================================= *)
 
 
-  and exp {allowOptBar} toks infdict restriction start =
+  and exp {allowOptBar, allowRecordPun} toks infdict restriction start =
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -735,7 +736,11 @@ struct
 
 
       fun consume_dec xx =
-        dec {forceExactlyOne = false, allowOptBar = allowOptBar} toks xx
+        dec
+          { forceExactlyOne = false
+          , allowOptBar = allowOptBar
+          , allowRecordPun = allowRecordPun
+          } toks xx
 
 
       fun consume_exp infdict restriction i =
@@ -934,10 +939,32 @@ struct
           fun parseElem i =
             let
               val (i, lab) = parse_recordLabel i
-              val (i, eq) = parse_reserved Token.Equal i
-              val (i, exp) = consume_exp infdict Restriction.None i
             in
-              (i, {lab = lab, eq = eq, exp = exp})
+              if
+                isReserved Token.Comma at i
+                orelse isReserved Token.CloseCurlyBracket at i
+              then
+                if allowRecordPun then
+                  (i, Ast.Exp.RecordPun {id = lab})
+                else
+                  ParserUtils.error
+                    { pos = Token.getSource lab
+                    , what = "Incomplete row in record expression."
+                    , explain = SOME
+                        "In Standard ML, each element of a record expression must \
+                        \look like: `<label> = <expression>`. Note that SuccessorML \
+                        \allows for \"record punning\", where (for example) the syntax \
+                        \`{x, y, z = foo}` is shorthand for `{x = x, y = y, z = foo}`. \
+                        \To enable this feature, use the command-line argument \
+                        \'-allow-record-pun-exps true'."
+                    }
+              else
+                let
+                  val (i, eq) = parse_reserved Token.Equal i
+                  val (i, exp) = consume_exp infdict Restriction.None i
+                in
+                  (i, Ast.Exp.RecordRow {lab = lab, eq = eq, exp = exp})
+                end
             end
 
           val (i, {elems, delims}) =

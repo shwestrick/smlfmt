@@ -313,8 +313,11 @@ struct
           sequence left delims right (Seq.map showExp elems)
       | Record {left, elems, delims, right} =>
           let
-            fun showRow {lab, eq, exp} =
-              (token lab ++ space ++ token eq) \\ showExp exp
+            fun showRow row =
+              case row of
+                RecordPun _ => recordPunFail ()
+              | RecordRow {lab, eq, exp} =>
+                  (token lab ++ space ++ token eq) \\ showExp exp
           in
             sequence left delims right (Seq.map showRow elems)
           end

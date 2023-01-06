@@ -128,6 +128,11 @@ struct
         Source.length (Token.getSource t) >= singleTokBignessThreshold
         orelse Token.spansMultipleLines t
 
+      fun recordRowLabel row =
+        case row of
+          RecordPun {id} => id
+        | RecordRow {lab, ...} => lab
+
       fun looksBig depth exp =
         depth >= 3
         orelse
@@ -178,12 +183,12 @@ struct
             Seq.length elems >= 4
             orelse
             Util.exists (0, Seq.length elems) (fn i =>
-              let val {lab, eq, exp} = Seq.nth elems i
-              in looksBig (depth + 1) exp
-              end)
+              case Seq.nth elems i of
+                RecordPun {id} => tokIsBig id
+              | RecordRow {lab, eq, exp} => looksBig (depth + 1) exp)
             orelse
             SeqBasis.foldl op+ 0 (0, Seq.length elems) (fn i =>
-              Source.length (Token.getSource (#lab (Seq.nth elems i))))
+              Source.length (Token.getSource (recordRowLabel (Seq.nth elems i))))
             >= singleTokBignessThreshold
 
         | _ => true
@@ -308,7 +313,7 @@ struct
 
       | Record {left, elems, delims, right} =>
           let
-            fun showRow tab {lab, eq, exp} =
+            fun showRecordRow tab {lab, eq, exp} =
               if not (isSplittableExp exp) then
                 token lab ++ token eq ++ (withNewChild showExp tab) exp
               else
@@ -330,6 +335,11 @@ struct
                           , active = var ec
                           })
                     end))
+
+            fun showRow tab row =
+              case row of
+                RecordPun {id} => token id
+              | RecordRow xxx => showRecordRow tab xxx
           in
             showSequence (fn _ => false) (withNewChild showRow) tab
               {openn = left, elems = elems, delims = delims, close = right}

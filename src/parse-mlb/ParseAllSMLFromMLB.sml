@@ -13,6 +13,7 @@ sig
     , skipBasis: bool
     , allowTopExp: bool
     , allowOptBar: bool
+    , allowRecordPun: bool
     }
     -> FilePath.t
     -> (FilePath.t * Parser.parser_output) Seq.t
@@ -68,8 +69,8 @@ struct
   fun printErr m = TextIO.output (TextIO.stdErr, m)
 
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
-  fun parse {skipBasis, pathmap, allowTopExp, allowOptBar} mlbPath :
-    (FilePath.t * Parser.parser_output) Seq.t =
+  fun parse {skipBasis, pathmap, allowTopExp, allowOptBar, allowRecordPun}
+    mlbPath : (FilePath.t * Parser.parser_output) Seq.t =
     let
       open MLBAst
 
@@ -121,8 +122,10 @@ struct
 
               val (infdict, ast) =
                 Parser.parseWithInfdict
-                  {allowTopExp = allowTopExp, allowOptBar = allowOptBar}
-                  (#fixities basis) src
+                  { allowTopExp = allowTopExp
+                  , allowOptBar = allowOptBar
+                  , allowRecordPun = allowRecordPun
+                  } (#fixities basis) src
             in
               ({fixities = infdict}, [(path, ast)])
             end
