@@ -1045,33 +1045,30 @@ struct
 
         | Concat (doc1, doc2) => layout (layout state doc1) doc2
 
-        | At (tab, doc) =>
+        | At (tab, doc') =>
             let
-              val
-                LS (dbgState, origCurrentTab, cats, coms, lnStart, col, sp, acc) =
-                state
+              val origDoc = doc
+              val doc = doc'
+              val LS (_, origCurrentTab, _, _, _, _, _, _) = state
+
               val state = ensureAt tab state
+              val LS (dbgState, ct, cats, coms, lnStart, col, sp, acc) = state
+
               val (state, doc) =
-                if not (Tab.allowsComments tab andalso Seq.length coms > 0) then
+                if
+                  not
+                    (Tab.allowsComments tab andalso Seq.length coms > 0
+                     andalso TabSet.contains cats tab)
+                then
                   (state, doc)
                 else
                   let
-                    val doc = concat
-                      ( concatDocs
-                          (Seq.map (at tab o tokenToDocWithBlankLines tab) coms)
-                      , at tab doc
-                      )
+                    val comsDoc = concatDocs
+                      (Seq.map (at tab o tokenToDocWithBlankLines tab) coms)
+                    val doc = concat (comsDoc, origDoc)
 
                     val state = LS
-                      ( dbgState
-                      , origCurrentTab
-                      , cats
-                      , Seq.empty ()
-                      , lnStart
-                      , col
-                      , sp
-                      , acc
-                      )
+                      (dbgState, ct, cats, Seq.empty (), lnStart, col, sp, acc)
                   in
                     (state, doc)
                   end
