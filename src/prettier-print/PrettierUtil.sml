@@ -79,25 +79,28 @@ struct
       token openn ++ nospace ++ elemShower tab (Seq.nth elems 0) ++ nospace
       ++ token close
     else
-      newTabWithStyle tab (Tab.Style.allowComments, fn inner =>
-        let
-          val topspacer =
-            if
-              Token.isOpenParen openn
-              andalso elemStartsWithStar (Seq.nth elems 0)
-            then empty
-            else cond inner {inactive = nospace, active = space}
+      newTabWithStyle tab (Tab.Style.allowComments, fn leftAlign =>
+        newTab leftAlign (fn inner =>
+          let
+            val topspacer =
+              if
+                Token.isOpenParen openn
+                andalso elemStartsWithStar (Seq.nth elems 0)
+              then empty
+              else cond leftAlign {inactive = nospace, active = space}
 
-          val top =
-            token openn ++ topspacer ++ elemShower inner (Seq.nth elems 0)
+            val top =
+              token openn ++ topspacer
+              ++ at inner (elemShower inner (Seq.nth elems 0))
 
-          fun f (delim, x) =
-            nospace ++ at inner (token delim ++ elemShower inner x)
-        in
-          at inner
-            (Seq.iterate op++ top (Seq.map f (Seq.zip
-               (delims, Seq.drop elems 1))) ++ nospace ++ at inner (token close))
-        end)
+            fun f (delim, x) =
+              nospace ++ at leftAlign (token delim)
+              ++ at inner (elemShower inner x)
+          in
+            at leftAlign (Seq.iterate op++ top (Seq.zipWith f
+              (delims, Seq.drop elems 1))) ++ nospace
+            ++ at leftAlign (token close)
+          end))
 
 
   fun showSyntaxSeq elemShower tab s =

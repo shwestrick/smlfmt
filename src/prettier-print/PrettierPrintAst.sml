@@ -2,7 +2,6 @@
   *
   * See the file LICENSE for details.
   *)
-
 structure PrettierPrintAst:
 sig
   val pretty:
@@ -57,12 +56,13 @@ struct
         showAst ast (* val doc = TokenDoc.insertComments doc
                     val doc = TokenDoc.insertBlankLines doc *)
     in
-      TabbedStringDoc.pretty
+      TabbedTokenDoc.pretty
         { ribbonFrac = ribbonFrac
         , maxWidth = maxWidth
         , indentWidth = indent
+        , tabWidth = tabWidth
         , debug = debug
-        } (toStringDoc {tabWidth = tabWidth, debug = debug} doc)
+        } doc
     end
 
 end
