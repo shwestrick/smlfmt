@@ -117,7 +117,7 @@ struct
   | Text of CustomString.t
   | Token of Token.t
   | At of tab * doc
-  | NewTab of {tab: tab, doc: doc}
+  | NewTab of {tab: tab, gen: unit -> doc}
   | Cond of {tab: tab, inactive: doc, active: doc}
   | LetDoc of {var: DocVar.t, doc: doc, inn: doc}
   | Var of DocVar.t
@@ -155,9 +155,9 @@ struct
   fun newTabWithStyle parent (style, genDocUsingTab: tab -> doc) =
     let
       val t = Tab.new {parent = parent, style = style}
-      val d = genDocUsingTab t
+      fun gen () = genDocUsingTab t
     in
-      NewTab {tab = t, doc = d}
+      NewTab {tab = t, gen = gen}
     end
 
   fun newTab parent f = newTabWithStyle parent (Tab.Style.inplace, f)
@@ -177,7 +177,7 @@ struct
              | t => t)
         | Token t => SOME t
         | At (_, d) => loop vars d
-        | NewTab {doc = d, ...} => loop vars d
+        | NewTab {gen, ...} => loop vars (gen ())
         | Cond {inactive, active, ...} =>
             (case (loop vars inactive, loop vars active) of
                (NONE, NONE) => NONE
@@ -650,7 +650,7 @@ struct
               (Seq.map (fn x => at tab (concat (Text x, space)))
                  (Seq.take pieces (numPieces - 1)))
           val doc = concat (doc, at tab (Text (Seq.nth pieces (numPieces - 1))))
-          val doc = NewTab {tab = tab, doc = doc}
+          val doc = NewTab {tab = tab, gen = fn () => doc}
         in
           doc
         end
@@ -1139,8 +1139,10 @@ struct
               | _ => raise Fail "PrettyTabbedDoc.pretty.layout.Cond: bad tab"
             end
 
-        | NewTab {tab, doc} =>
+        | NewTab {tab, gen} =>
             let
+              val doc = gen ()
+
               fun tryPromote () =
                 (* try to activate first *)
                 if not (isActivated tab) then
@@ -1273,7 +1275,7 @@ struct
                   , concatDocs (Seq.map (tokenToDoc tab) csAfter)
                   )
 
-              val doc = NewTab {tab = tab, doc = doc}
+              val doc = NewTab {tab = tab, gen = fn () => doc}
             in
               layout vars state doc
             end
