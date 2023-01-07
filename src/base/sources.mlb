@@ -1,5 +1,8 @@
 ../lib/github.com/mpllang/mpllib/sources.mlton.mlb
 
+SimplePromise.sml
+MemoizedPromise.sml
+
 TerminalColors.sml
 
 TextFormat.sml

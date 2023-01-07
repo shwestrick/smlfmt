@@ -108,6 +108,13 @@ struct
 
   val root = Tab.root
 
+  (* SAM_NOTE: small time/space tradeoff here. In comparison to SimplePromise,
+   * the MemoizedPromise implementation seems to be 5-10% faster using
+   * 10-20% more space. IMO the time improvement is a win, since smlfmt
+   * needs to be fast. *)
+  structure Promise = MemoizedPromise
+  (* structure Promise = SimplePromise *)
+
   datatype doc =
     Empty
   | Space
@@ -117,7 +124,7 @@ struct
   | Text of CustomString.t
   | Token of Token.t
   | At of tab * doc
-  | NewTab of {tab: tab, gen: unit -> doc}
+  | NewTab of {tab: tab, gen: doc Promise.t}
   | Cond of {tab: tab, inactive: doc, active: doc}
   | LetDoc of {var: DocVar.t, doc: doc, inn: doc}
   | Var of DocVar.t
@@ -157,7 +164,7 @@ struct
       val t = Tab.new {parent = parent, style = style}
       fun gen () = genDocUsingTab t
     in
-      NewTab {tab = t, gen = gen}
+      NewTab {tab = t, gen = Promise.new gen}
     end
 
   fun newTab parent f = newTabWithStyle parent (Tab.Style.inplace, f)
@@ -177,7 +184,7 @@ struct
              | t => t)
         | Token t => SOME t
         | At (_, d) => loop vars d
-        | NewTab {gen, ...} => loop vars (gen ())
+        | NewTab {gen, ...} => loop vars (Promise.get gen)
         | Cond {inactive, active, ...} =>
             (case (loop vars inactive, loop vars active) of
                (NONE, NONE) => NONE
@@ -650,7 +657,7 @@ struct
               (Seq.map (fn x => at tab (concat (Text x, space)))
                  (Seq.take pieces (numPieces - 1)))
           val doc = concat (doc, at tab (Text (Seq.nth pieces (numPieces - 1))))
-          val doc = NewTab {tab = tab, gen = fn () => doc}
+          val doc = NewTab {tab = tab, gen = Promise.new (fn () => doc)}
         in
           doc
         end
@@ -1141,7 +1148,7 @@ struct
 
         | NewTab {tab, gen} =>
             let
-              val doc = gen ()
+              val doc = Promise.get gen
 
               fun tryPromote () =
                 (* try to activate first *)
@@ -1275,7 +1282,7 @@ struct
                   , concatDocs (Seq.map (tokenToDoc tab) csAfter)
                   )
 
-              val doc = NewTab {tab = tab, gen = fn () => doc}
+              val doc = NewTab {tab = tab, gen = Promise.new (fn () => doc)}
             in
               layout vars state doc
             end
