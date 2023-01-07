@@ -80,6 +80,9 @@ val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
 val showPreview = preview orelse previewOnly
 
+fun dbgprintln s =
+  if not doDebug then () else print (s ^ "\n")
+
 val allows = AstAllows.make
   { topExp = allowTopExp
   , optBar = allowOptBar
@@ -223,9 +226,12 @@ fun doSMLAst (fp, parserOutput) =
 fun doSML filepath =
   let
     val fp = FilePath.fromUnixPath filepath
-    val source = Source.loadFromFile fp
-    val result = Parser.parse allows source
-                 handle exn => handleLexOrParseError exn
+    val (source, tm) = Util.getTime (fn _ => Source.loadFromFile fp)
+    val _ = dbgprintln ("load source: " ^ Time.fmt 3 tm ^ "s")
+    val (result, tm) = Util.getTime (fn _ =>
+      Parser.parse allows source
+      handle exn => handleLexOrParseError exn)
+    val _ = dbgprintln ("parse: " ^ Time.fmt 3 tm ^ "s")
   in
     doSMLAst (fp, result)
   end

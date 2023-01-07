@@ -52,7 +52,10 @@ struct
 
   fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
     let
-      val doc = showAst ast
+      fun dbgprintln s =
+        if not debug then () else print (s ^ "\n")
+      val (doc, tm) = Util.getTime (fn _ => showAst ast)
+      val _ = dbgprintln ("to-doc: " ^ Time.fmt 3 tm ^ "s")
     (* val doc = TokenDoc.insertComments doc
     val doc = TokenDoc.insertBlankLines doc *)
     in
