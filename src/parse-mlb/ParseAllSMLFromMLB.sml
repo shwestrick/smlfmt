@@ -54,6 +54,7 @@ struct
   type context =
     { parents: FilePath.t list
     , dir: FilePath.t
+    , allows: AstAllows.t
     (*, mlbs: basis FilePathDict.t
     , bases: basis VarDict.t *)
     }
@@ -63,7 +64,7 @@ struct
   fun printErr m = TextIO.output (TextIO.stdErr, m)
 
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
-  fun parse {skipBasis, pathmap, allows} mlbPath :
+  fun parse {skipBasis, pathmap, allows = defaultAllows} mlbPath :
     (FilePath.t * Parser.parser_output) Seq.t =
     let
       open MLBAst
@@ -115,7 +116,7 @@ struct
                         handle OS.SysErr (msg, _) => errFun msg
 
               val (infdict, ast) =
-                Parser.parseWithInfdict allows (#fixities basis) src
+                Parser.parseWithInfdict (#allows ctx) (#fixities basis) src
             in
               ({fixities = infdict}, [(path, ast)])
             end
@@ -148,6 +149,7 @@ struct
                     val ctx' =
                       { parents = path :: #parents ctx
                       , dir = FilePath.dirname path
+                      , allows = defaultAllows
                       }
 
                     val (mlbCache, b, a) =
@@ -219,7 +221,17 @@ struct
               (mlbCache, mergeBases (basis, newBasis), asts2 @ asts1)
             end
 
-        | DecAnn {basdec, ...} => doBasdec ctx (mlbCache, basis, basdec)
+        | DecAnn {basdec, annotations, ...} =>
+            let
+              val ctx' =
+                { parents = #parents ctx
+                , dir = #dir ctx
+                , allows =
+                    ParseAnnotations.modifyAllows (#allows ctx) annotations
+                }
+            in
+              doBasdec ctx' (mlbCache, basis, basdec)
+            end
 
         | _ => (mlbCache, basis, [])
 
@@ -260,8 +272,11 @@ struct
       val initialBasis = if skipBasis then initialTopLevelBasis else emptyBasis
 
       val (_, _, asts) =
-        doMLB {parents = [], dir = FilePath.fromUnixPath "."}
-          (emptyCache, initialBasis, mlbPath, topLevelError)
+        doMLB
+          { parents = []
+          , dir = FilePath.fromUnixPath "."
+          , allows = defaultAllows
+          } (emptyCache, initialBasis, mlbPath, topLevelError)
     in
       Seq.fromRevList asts
     end

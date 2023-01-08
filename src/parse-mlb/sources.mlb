@@ -4,4 +4,5 @@
 MLBAstType.sml
 MLBAst.sml
 MLBParser.sml
+ParseAnnotations.sml
 ParseAllSMLFromMLB.sml
