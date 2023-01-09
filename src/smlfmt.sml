@@ -53,6 +53,13 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
   \\n\
+  \  [-allow-extended-text-consts B]\n\
+  \                             Enable/disable SuccessorML extended text\n\
+  \                             constants. Enable this to allow for UTF-8\n\
+  \                             characters within strings.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
   \  [--help]                   print this message\n"
 
 

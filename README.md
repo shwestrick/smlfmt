@@ -118,3 +118,7 @@ SuccessorML record punning syntax is allowed.
 
 `-allow-or-pats [true|false]` (default `false`) controls whether or not
 SuccessorML or-pattern syntax is allowed.
+
+`allow-extended-text-consts [true|false]` (default `false`) controls whether
+or not SuccessorML extended text constants are allowed. Enable this to allow
+for UTF-8 characters within strings.
