@@ -117,10 +117,9 @@ struct
             { pos = slice (s, s + 1)
             , what = "Invalid character."
             , explain = SOME
-                "This might be a Unicode (UTF-8) byte. In Standard ML, this \
-                \byte is invalid because strings may only contain printable \
-                \ASCII characters. However, SuccessorML allows \
-                \for UTF-8 bytes. To enable this feature, \
+                "There might be a Unicode (UTF-8) byte here. In Standard ML, \
+                \strings may only contain printable ASCII characters. However, \
+                \SuccessorML allows for UTF-8. To enable this feature, \
                 \use the command-line argument \
                 \'-allow-extended-text-consts true'"
             }
@@ -133,8 +132,10 @@ struct
             { pos = slice (s, s + 1)
             , what = "Invalid character."
             , explain = SOME
-                "This byte is invalid because it is not a printable ASCII \
-                \character (visible or whitespace), and also because it does \
+                "There is an invalid byte here which may or may not be \
+                \visible. The \
+                \byte is invalid because it is not a printable ASCII \
+                \character, and also because it does \
                 \not appear to be UTF-8. \
                 \(UTF-8 bytes are allowed here due to either the \
                 \command-line argument '-allow-extended-text-consts true' or \
@@ -148,8 +149,9 @@ struct
             { pos = slice (s, s + 1)
             , what = "Invalid character."
             , explain = SOME
-                "This byte is invalid because it is not a printable character \
-                \(visible or whitespace)."
+                "There is an invalid byte here which may or may not be \
+                \visible. This byte is invalid because it is not a printable \
+                \character (visible or whitespace)."
             }
 
         else
