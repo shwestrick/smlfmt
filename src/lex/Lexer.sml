@@ -1,4 +1,4 @@
-(** Copyright (c) 2020 Sam Westrick
+(** Copyright (c) 2020-2023 Sam Westrick
   *
   * See the file LICENSE for details.
   *)
@@ -8,12 +8,12 @@ sig
   (** Get the next token in the given source. If there isn't one, returns NONE.
     * raises Error if there's a problem.
     *)
-  val next: Source.t -> Token.Pretoken.t option
+  val next: AstAllows.t -> Source.t -> Token.Pretoken.t option
 
   (** Get all the tokens in the given source.
     * raises Error if there's a problem.
     *)
-  val tokens: Source.t -> Token.t Seq.t
+  val tokens: AstAllows.t -> Source.t -> Token.t Seq.t
 end =
 struct
 
@@ -28,7 +28,7 @@ struct
          {header = "SYNTAX ERROR", pos = pos, what = what, explain = explain})
 
 
-  fun next (src: Source.t) : Token.Pretoken.t option =
+  fun next allows (src: Source.t) : Token.Pretoken.t option =
     let
       val startOffset = Source.absoluteStartOffset src
       val src = Source.wholeFile src
@@ -57,6 +57,17 @@ struct
         check (fn c' => c = c')
 
 
+      fun isPrint c =
+        let val i = Char.ord c
+        in 32 <= i andalso i <= 126
+        end
+
+      fun isMaybeUnicode c =
+        let val i = Char.ord c
+        in (128 <= i andalso i <= 253) (* ?? *)
+        end
+
+
       (** ====================================================================
         * STRING HANDLING
         *)
@@ -80,24 +91,67 @@ struct
         *)
 
       fun advance_oneCharOrEscapeSequenceInString s (args as {stringStart}) =
-        if is backslash at s then
+        if
+          is backslash at s
+        then
           advance_inStringEscapeSequence (s + 1) args
-        else if is #"\"" at s then
+
+        else if
+          is #"\"" at s
+        then
           NONE
-        else if is #"\n" at s orelse isEndOfFileAt s then
+
+        else if
+          is #"\n" at s orelse isEndOfFileAt s
+        then
           error
             { pos = slice (stringStart, stringStart + 1)
             , what = "Unclosed string."
             , explain = NONE
             }
-        else if not (check Char.isPrint at s) then
+
+        else if
+          check isMaybeUnicode at s andalso not (AstAllows.extendedText allows)
+        then
           error
             { pos = slice (s, s + 1)
             , what = "Invalid character."
             , explain = SOME
-                "Strings can only contain printable (visible or \
-                \whitespace) ASCII characters."
+                "This might be a Unicode (UTF-8) byte. In Standard ML, this \
+                \byte is invalid because strings may only contain printable \
+                \ASCII characters. However, SuccessorML allows \
+                \for UTF-8 bytes. To enable this feature, \
+                \use the command-line argument \
+                \'-allow-extended-text-consts true'"
             }
+
+        else if
+          not (check isPrint at s) andalso not (check isMaybeUnicode at s)
+          andalso AstAllows.extendedText allows
+        then
+          error
+            { pos = slice (s, s + 1)
+            , what = "Invalid character."
+            , explain = SOME
+                "This byte is invalid because it is not a printable ASCII \
+                \character (visible or whitespace), and also because it does \
+                \not appear to be UTF-8. \
+                \(UTF-8 bytes are allowed here due to either the \
+                \command-line argument '-allow-extended-text-consts true' or \
+                \an MLB annotation \"allowExtendedTextConsts true\".) "
+            }
+
+        else if
+          not (AstAllows.extendedText allows) andalso not (check isPrint at s)
+        then
+          error
+            { pos = slice (s, s + 1)
+            , what = "Invalid character."
+            , explain = SOME
+                "This byte is invalid because it is not a printable character \
+                \(visible or whitespace)."
+            }
+
         else
           SOME (EndOfChar (s + 1))
 
@@ -597,7 +651,7 @@ struct
     end
 
 
-  fun tokens src =
+  fun tokens allows src =
     let
       val startOffset = Source.absoluteStartOffset src
       val endOffset = Source.absoluteEndOffset src
@@ -613,7 +667,7 @@ struct
         if offset >= endOffset then
           finish acc
         else
-          case next (Source.drop src offset) of
+          case next allows (Source.drop src offset) of
             NONE => finish acc
           | SOME tok => loop (tok :: acc) (tokEndOffset tok)
     in

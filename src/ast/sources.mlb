@@ -3,10 +3,8 @@ local
   MaybeLongToken.sml
   AstType.sml
   Ast.sml
-  AstAllows.sml
 in
   structure Token
   structure MaybeLongToken
   structure Ast
-  structure AstAllows
 end

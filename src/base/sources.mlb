@@ -33,3 +33,5 @@ Tab.sml
 
 PrettySimpleDoc.sml
 PrettyTabbedDoc.sml
+
+AstAllows.sml

@@ -73,6 +73,8 @@ val allowTopExp = CommandLineArgs.parseBool "allow-top-level-exps" true
 val allowOptBar = CommandLineArgs.parseBool "allow-opt-bar" false
 val allowRecordPun = CommandLineArgs.parseBool "allow-record-pun-exps" false
 val allowOrPat = CommandLineArgs.parseBool "allow-or-pats" false
+val allowExtendedText =
+  CommandLineArgs.parseBool "allow-extended-text-consts" false
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
@@ -88,6 +90,7 @@ val allows = AstAllows.make
   , optBar = allowOptBar
   , recordPun = allowRecordPun
   , orPat = allowOrPat
+  , extendedText = allowExtendedText
   }
 
 val _ =
