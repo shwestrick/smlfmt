@@ -26,14 +26,24 @@ struct
 
 
   fun expectSMLToken check src =
-    case Lexer.next src of
-      NONE => raise Fail "Lexer bug!"
-    | SOME ptok =>
-        (** TODO: some inefficiency here *)
-        if check (Token.fromPre ptok) then
-          success (MLBToken.Pretoken.fromSMLPretoken ptok)
-        else
-          raise Fail "Lexer bug!"
+    let
+      val smlLexerAllows = AstAllows.make
+        { topExp = false
+        , optBar = false
+        , recordPun = false
+        , orPat = false
+        , extendedText = false
+        }
+    in
+      case Lexer.next smlLexerAllows src of
+        NONE => raise Fail "Lexer bug!"
+      | SOME ptok =>
+          (** TODO: some inefficiency here *)
+          if check (Token.fromPre ptok) then
+            success (MLBToken.Pretoken.fromSMLPretoken ptok)
+          else
+            raise Fail "Lexer bug!"
+    end
 
 
   fun next (src: Source.t) : MLBToken.Pretoken.t option =

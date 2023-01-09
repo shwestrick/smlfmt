@@ -20,6 +20,7 @@ struct
       , topExp = AstAllows.topExp a
       , recordPun = AstAllows.recordPun a
       , orPat = AstAllows.orPat a
+      , extendedText = AstAllows.extendedText a
       }
 
 
@@ -29,6 +30,7 @@ struct
       , topExp = AstAllows.topExp a
       , recordPun = b
       , orPat = AstAllows.orPat a
+      , extendedText = AstAllows.extendedText a
       }
 
 
@@ -38,6 +40,17 @@ struct
       , topExp = AstAllows.topExp a
       , recordPun = AstAllows.recordPun a
       , orPat = b
+      , extendedText = AstAllows.extendedText a
+      }
+
+
+  fun allowExtendedTextConsts a b =
+    AstAllows.make
+      { optBar = AstAllows.optBar a
+      , topExp = AstAllows.topExp a
+      , recordPun = AstAllows.recordPun a
+      , orPat = AstAllows.orPat a
+      , extendedText = b
       }
 
 
@@ -59,6 +72,10 @@ struct
       | ["allowOrPats", "false"] => allowOrPats allows false
       | ["allowRecordPunExps", "true"] => allowRecordPunExps allows true
       | ["allowRecordPunExps", "false"] => allowRecordPunExps allows false
+      | ["allowExtendedTextConsts", "true"] =>
+          allowExtendedTextConsts allows true
+      | ["allowExtendedTextConsts", "false"] =>
+          allowExtendedTextConsts allows false
       | _ => allows
     end
 

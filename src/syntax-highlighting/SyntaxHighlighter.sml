@@ -10,7 +10,7 @@ sig
   (** Use just lexing info to color a sequence of tokens from a single source.
     * Tokens must be in order as they appear in the source.
     *)
-  val highlight: Source.t -> TerminalColorString.t
+  val highlight: AstAllows.t -> Source.t -> TerminalColorString.t
 
   (** Similar to above, but always succeeds by skipping over characters as
     * necessary.
@@ -92,9 +92,9 @@ struct
       end
 
 
-  fun highlight source =
+  fun highlight allows source =
     let
-      val toks = Lexer.tokens source
+      val toks = Lexer.tokens allows source
       val startOffset = Source.absoluteStartOffset source
       val endOffset = Source.absoluteEndOffset source
       val wholeSrc = Source.wholeFile source
@@ -105,6 +105,14 @@ struct
 
   fun fuzzyTokens src =
     let
+      val smlLexerAllows = AstAllows.make
+        { topExp = true
+        , optBar = true
+        , recordPun = true
+        , orPat = true
+        , extendedText = true
+        }
+
       val originalSrc = src
       val startOffset = Source.absoluteStartOffset src
       val endOffset = Source.absoluteEndOffset src
@@ -120,7 +128,7 @@ struct
         if offset >= endOffset then
           finish acc
         else
-          ((case Lexer.next (Source.drop src offset) of
+          ((case Lexer.next smlLexerAllows (Source.drop src offset) of
               NONE => finish acc
             | SOME tok => loop (tok :: acc) (tokEndOffset tok))
            handle _ => loop acc (offset + 1))
