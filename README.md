@@ -1,60 +1,47 @@
 # `smlfmt`
 
-A custom parser and code formatter for Standard ML, with
-helpful error messages.
+A custom parser and code formatter for Standard ML. `smlfmt` is fast,
+configurable, and usable for large projects.
 
-Supports SML source files
-(`.sml`, `.sig`, `.fun`, etc.) as well as
-[MLBasis](http://mlton.org/MLBasis) compilation files (`.mlb`) using
-[MLton](https://github.com/MLton/mlton) conventions,
-including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
+Most of the SML code in this repository (everything in
+`src`, except `src/lib`) has been formatted by `smlfmt`. Take a look!
 
-Most of the SML code in this repository (everything in `src`, except `src/lib`)
-has been formatted by `smlfmt`. Take a look!
+**(Jan 10, 2023)**: Released v1.0.0!
 
-**Note (Dec 29, 2022)**: changed repository name to `smlfmt` (used to be `parse-sml`).
+**(Dec 29, 2022)**: changed repository name to `smlfmt` (used to be `parse-sml`).
+
+## Features
+- Full support for Standard ML according to the formal definition.
+- Fast -- see performance results below.
+- Usable for large projects.
+    * Whole-project formatting via `.mlb` files using
+      [MLton](https://github.com/MLton/mlton) conventions,
+      including [MLBasis path maps](http://mlton.org/MLBasisPathMap).
+- Helpful error messages with visual code references and syntax highlighting.
+- Support for various SuccessorML syntax extensions.
+- Configurable indentation size and maximum width.
+
+## Performance
+`smlfmt` is fast enough for live reformatting on large individual files, and can reformat large projects in seconds.
+
+Here are measurements for `smlfmt --preview-only INPUT > out` on my MacBook Air (M2, 2022).
+Input | Size (LoC) | Time
+-|-|-
+[`src/prettier-print/PrettierExpAndDec.sml`](https://github.com/shwestrick/smlfmt/blob/main/src/prettier-print/PrettierExpAndDec.sml) | 1024 | 31 ms
+[`src/base/PrettyTabbedDoc.sml`](https://github.com/shwestrick/smlfmt/blob/main/src/base/PrettyTabbedDoc.sml) | 1349 | 29 ms
+[`src/parse/ParseExpAndDec.sml`](https://github.com/shwestrick/smlfmt/blob/main/src/parse/ParseExpAndDec.sml) | 1363 | 28 ms
+MLton [`elaborate-core.fun`](https://github.com/MLton/mlton/blob/master/mlton/elaborate/elaborate-core.fun) | 3942 | 104 ms
+MLton [`x86-allocate-registers.fun`](https://github.com/MLton/mlton/blob/master/mlton/codegen/x86-codegen/x86-allocate-registers.fun) | 11034 | 216 ms
+Entire `smlfmt` source code ([`smlfmt.mlb`](https://github.com/shwestrick/smlfmt/blob/main/src/smlfmt.mlb)) | 20000 (approx.) | 305 ms
+Entire MLton source code ([`mlton.mlb`](https://github.com/MLton/mlton/blob/master/mlton/mlton.mlb)) | 160000 (approx.) | 6.6s
+
+(Timings are averages reported by [`hyperfine`](https://github.com/sharkdp/hyperfine).)
 
 ## Examples: Error Messages
 
 ![Example 1](examples/ex1-small.png)
 
-![Example 2](examples/ex2-small.png)
-
-![Example 3](examples/ex3-small.png)
-
-## Examples: Code Formatting
-
-The formatter generally handles blank lines and multiline comments in a
-reasonable way:
-
-Input:
-```sml
-fun fib n = (* everyone loves
-             * fibonacci numbers *)
-    if n < 2 then n
- else fib (n-1)
-  + fib (n-2)
-
-val f5 = fib 5
-val f10 =
-  fib 10
-val f15 = fib 15
-```
-
-Output:
-```sml
-fun fib n =
-  (* everyone loves
-   * fibonacci numbers *)
-  if n < 2 then
-    n
-  else
-    fib (n - 1) + fib (n - 2)
-
-val f5 = fib 5
-val f10 = fib 10
-val f15 = fib 15
-```
+![Example 2](examples/ex3-small.png)
 
 ## Build and run
 
@@ -119,6 +106,6 @@ SuccessorML record punning syntax is allowed.
 `-allow-or-pats [true|false]` (default `false`) controls whether or not
 SuccessorML or-pattern syntax is allowed.
 
-`allow-extended-text-consts [true|false]` (default `false`) controls whether
+`-allow-extended-text-consts [true|false]` (default `false`) controls whether
 or not SuccessorML extended text constants are allowed. Enable this to allow
 for UTF-8 characters within strings.
