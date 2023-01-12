@@ -13,6 +13,7 @@ sig
   type t = source
 
   val loadFromFile: FilePath.t -> source
+  val loadFromStdin: unit -> source
 
   val fileName: source -> FilePath.t
   val absoluteStart: source -> {line: int, col: int}
@@ -54,10 +55,8 @@ struct
 
   type t = source
 
-
-  fun loadFromFile path =
+  fun loadFromCharSeq path contents =
     let
-      val contents = ReadFile.contentsSeq (FilePath.toHostPath path)
       val n = Seq.length contents
 
       (** Check that we can use the slice base as the actual base. *)
@@ -75,6 +74,21 @@ struct
           Seq.nth contents i = #"\n"))
     in
       {data = contents, fileName = path, newlineIdxs = newlineIdxs}
+    end
+
+  fun loadFromFile path =
+    let val contents = ReadFile.contentsSeq (FilePath.toHostPath path)
+    in loadFromCharSeq path contents
+    end
+
+  fun loadFromStdin () =
+    let
+      (* kind of faking it *)
+      val path = FilePath.fromFields ["<stdin>"]
+      val s = TextIO.inputAll TextIO.stdIn
+      val contents = Seq.fromList (String.explode s)
+    in
+      loadFromCharSeq path contents
     end
 
   fun fileName (s: source) = #fileName s
