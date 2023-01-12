@@ -86,7 +86,7 @@ struct
       (* kind of faking it *)
       val path = FilePath.fromFields ["<stdin>"]
       val s = TextIO.inputAll TextIO.stdIn
-      val contents = Seq.fromList (String.explode s)
+      val contents = Seq.tabulate (fn i => String.sub (s, i)) (String.size s)
     in
       loadFromCharSeq path contents
     end

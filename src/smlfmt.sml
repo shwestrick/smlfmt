@@ -330,10 +330,10 @@ val _ =
     let
       val source = Source.loadFromStdin ()
       val parserOutput = Parser.parse allows source
+                         handle exn => handleLexOrParseError exn
       val prettied = mkSMLPrettied parserOutput
-      val result = TCS.toString {colors = false} prettied
     in
-      print result;
+      TCS.print prettied;
       print "\n"
     end
     handle exn =>
