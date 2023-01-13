@@ -134,7 +134,7 @@ val _ =
     ()
 
 val _ =
-  if doDebug andalso not (previewOnly) then
+  if doDebug andalso not previewOnly then
     ( TCS.printErr (boldc Palette.red
         "ERROR: --debug-engine requires --preview-only\n")
     ; OS.Process.exit OS.Process.failure
@@ -241,7 +241,7 @@ fun doSMLAst (fp, parserOutput) =
       ; print "\n"
       ; TCS.print prettied
       ; print "\n"
-      ; TCS.print (boldc Palette.lightblue ("--------"))
+      ; TCS.print (boldc Palette.lightblue "--------")
       ; print "\n"
       );
 
@@ -296,7 +296,7 @@ fun fileinfo filepath =
   end
   handle exn => FileError exn
 
-fun okayFile (filepath, info) =
+fun okayFile (_, info) =
   case info of
     SMLFile => true
   | MLBFile => true

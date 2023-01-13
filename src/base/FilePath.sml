@@ -63,7 +63,7 @@ struct
     let
       fun addParent (".", fields) = fields
         | addParent ("..", fields) = ".." :: fields
-        | addParent (parent, ".." :: fields) = fields
+        | addParent (_, ".." :: fields) = fields
         | addParent (parent, fields) = parent :: fields
     in
       List.rev (List.foldl addParent (basename fields) (dirname fields))

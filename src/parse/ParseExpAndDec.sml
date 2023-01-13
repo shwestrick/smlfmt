@@ -137,10 +137,6 @@ struct
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
 
-      (** not yet implemented *)
-      fun nyi fname i =
-        ParserUtils.nyi toks fname i
-
       (** This silliness lets you write almost-English like this:
         *   if is Token.Identifier at i           then ...
         *   if isReserved Token.Val at i          then ...

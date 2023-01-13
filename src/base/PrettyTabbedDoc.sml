@@ -317,7 +317,7 @@ struct
 
   fun sentryInfo se =
     case se of
-      StartTabHighlight {tab, col} =>
+      StartTabHighlight {tab, ...} =>
         sentryEmphasizer se (CustomString.fromString ("^" ^ Tab.name tab))
     | StartMaxWidthHighlight _ =>
         sentryEmphasizer se (CustomString.fromString "^maxWidth")
@@ -682,7 +682,6 @@ struct
         (ribbonFrac * Real.fromInt maxWidth)))
 
       val newline = CustomString.fromString "\n"
-      val sp = CustomString.fromString " "
 
       datatype activation_state = Flattened | Activated of int option
       datatype state = Usable of activation_state | Completed
@@ -700,7 +699,7 @@ struct
       fun isActivated t =
         case getTabState t of
           Usable (Activated _) => true
-        | Usable (Flattened) => false
+        | Usable Flattened => false
         | _ => raise Fail "PrettyTabbedDoc.pretty.isActivated: bad tab"
 
       (* tab -> hit first break? *)
@@ -831,7 +830,7 @@ struct
        *
        * UPDATE: tab styles (newly added) allow for some control over this.
        *)
-      fun check (state as LS (dbgState, ct, cats, coms, lnStart, col, sp, acc)) =
+      fun check (state as LS (_, ct, _, _, lnStart, col, _, _)) =
         let
           val widthOkay = col <= maxWidth
           val ribbonOkay = (col - lnStart) <= ribbonWidth
@@ -885,7 +884,7 @@ struct
 
       fun ensureAt tab state =
         let
-          val LS (dbgState, ct, cats, coms, lnStart, col, sp, acc) = state
+          val LS (dbgState, _, cats, coms, lnStart, col, sp, acc) = state
           val alreadyAtTab = TabSet.contains cats tab
 
           fun goto i =
@@ -900,7 +899,7 @@ struct
                 , coms
                 , lnStart
                 , i
-                , if i = col then sp else true
+                , i <> col orelse sp
                 , if i = col then acc else Item.Spaces (i - col) :: acc
                 )))
             (* else if i = col andalso Tab.isInplace tab then
@@ -955,7 +954,7 @@ struct
                 , coms
                 , lnStart
                 , i
-                , if i = col then sp else true
+                , i <> col orelse sp
                 , Item.Spaces (i - col) :: acc
                 )))
 
@@ -1074,7 +1073,7 @@ struct
 
         | Newline =>
             let
-              val LS (dbgState, ct, cats, coms, lnStart, col, _, acc) = state
+              val LS (dbgState, ct, cats, coms, _, col, _, acc) = state
             in
               check (LS
                 ( dbgState
@@ -1337,7 +1336,7 @@ struct
     end
 
 
-  fun prettyJustComments (params as {tabWidth, debug, ...}) cs =
+  fun prettyJustComments (params as {tabWidth, ...}) cs =
     let
       val doc = concatDocs
         (Seq.map (at root o tokenToDocWithBlankLines {tabWidth = tabWidth} root)

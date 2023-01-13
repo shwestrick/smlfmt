@@ -65,7 +65,7 @@ struct
       end
 
 
-  fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
+  fun pretty {ribbonFrac, maxWidth, tabWidth, indent, debug} ast =
     let
       val doc = showAst ast
       val doc = TokenDoc.insertComments doc

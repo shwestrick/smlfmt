@@ -20,8 +20,8 @@ struct
   fun make x = x
   fun unpack x = x
 
-  fun valOf {value, source} = value
-  fun srcOf {value, source} = source
+  fun valOf {value, source = _} = value
+  fun srcOf {value = _, source} = source
 
   fun map f {value, source} =
     make {value = f value, source = source}

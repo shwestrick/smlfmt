@@ -73,7 +73,7 @@ struct
 
       | Val {vall, elems, delims} =>
           let
-            fun showOne first (starter, {vid, colon, ty}) =
+            fun showOne _ (starter, {vid, colon, ty}) =
               at tab
                 (token starter ++ token vid
                  ++
@@ -99,7 +99,7 @@ struct
 
       | TypeAbbreviation {typee, elems, delims} =>
           let
-            fun showOne first (starter, {tyvars, tycon, eq, ty}) =
+            fun showOne _ (starter, {tyvars, tycon, eq, ty}) =
               at tab
                 (token starter ++ showTokenSyntaxSeq tab tyvars ++ token tycon
                  ++ token eq ++ withNewChild showTy tab ty)
@@ -110,7 +110,7 @@ struct
 
       | Eqtype {eqtypee, elems, delims} =>
           let
-            fun showOne first (starter, {tyvars, tycon}) =
+            fun showOne _ (starter, {tyvars, tycon}) =
               at tab
                 (token starter ++ showTokenSyntaxSeq tab tyvars ++ token tycon)
           in
@@ -120,7 +120,7 @@ struct
 
       | Multiple {elems, delims} =>
           let
-            fun showOne first (elem: spec, delim: Token.t option) =
+            fun showOne _ (elem: spec, delim: Token.t option) =
               at tab
                 (showSpec tab elem
                  ++ showOption (fn d => nospace ++ token d) delim)
@@ -133,7 +133,7 @@ struct
 
       | Exception {exceptionn, elems, delims} =>
           let
-            fun showOne first (starter, {vid, arg}) =
+            fun showOne _ (starter, {vid, arg}) =
               at tab
                 (token starter ++ token vid
                  ++
@@ -146,7 +146,7 @@ struct
 
       | Structure {structuree, elems, delims} =>
           let
-            fun showOne first (starter, {id, colon, sigexp}) =
+            fun showOne _ (starter, {id, colon, sigexp}) =
               at tab
                 (token starter ++ token id
                  (* NOTE: nospace should be safe here, because structure
@@ -259,7 +259,7 @@ struct
 
   and showSigDec tab (Ast.Sig.Signature {signaturee, elems, delims}) =
     let
-      fun showOne first (starter, {ident, eq, sigexp}) =
+      fun showOne _ (starter, {ident, eq, sigexp}) =
         at tab (token starter ++ token ident ++ token eq)
         ++ showSigExpInDec tab sigexp
     in

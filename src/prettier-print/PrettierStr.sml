@@ -74,9 +74,9 @@ struct
           showThingSimilarToLetInEnd tab
             { lett = lett
             , isEmpty1 = strDecIsEmpty strdec
-            , doc1 = withNewChildWithStyle (indented) showStrDec tab strdec
+            , doc1 = withNewChildWithStyle indented showStrDec tab strdec
             , inn = inn
-            , doc2 = withNewChildWithStyle (indented) showStrExp tab strexp
+            , doc2 = withNewChildWithStyle indented showStrExp tab strexp
             , endd = endd
             }
     end
@@ -133,9 +133,9 @@ struct
           showThingSimilarToLetInEnd tab
             { lett = locall
             , isEmpty1 = strDecIsEmpty strdec1
-            , doc1 = withNewChildWithStyle (indented) showStrDec tab strdec1
+            , doc1 = withNewChildWithStyle indented showStrDec tab strdec1
             , inn = inn
-            , doc2 = withNewChildWithStyle (indented) showStrDec tab strdec2
+            , doc2 = withNewChildWithStyle indented showStrDec tab strdec2
             , endd = endd
             }
 

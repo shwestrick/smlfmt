@@ -18,4 +18,3 @@ local
 in
   structure Parser
 end
-

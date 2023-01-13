@@ -205,7 +205,6 @@ struct
       type layout_state = above_mode * int * int * (item list)
 
       val newline = CustomString.fromString "\n"
-      val sp = CustomString.fromString " "
 
       fun layout ((am, lnStart, col, acc): layout_state) doc : layout_state =
         case doc of

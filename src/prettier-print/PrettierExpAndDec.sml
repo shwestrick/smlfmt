@@ -185,7 +185,7 @@ struct
             Util.exists (0, Seq.length elems) (fn i =>
               case Seq.nth elems i of
                 RecordPun {id} => tokIsBig id
-              | RecordRow {lab, eq, exp} => looksBig (depth + 1) exp)
+              | RecordRow {exp, ...} => looksBig (depth + 1) exp)
             orelse
             SeqBasis.foldl op+ 0 (0, Seq.length elems) (fn i =>
               Source.length (Token.getSource (recordRowLabel (Seq.nth elems i))))
@@ -898,19 +898,17 @@ struct
           showThingSimilarToLetInEnd tab
             { lett = locall
             , isEmpty1 = decIsEmpty left_dec
-            , doc1 = withNewChildWithStyle (indented) showDec tab left_dec
+            , doc1 = withNewChildWithStyle indented showDec tab left_dec
             , inn = inn
-            , doc2 = withNewChildWithStyle (indented) showDec tab right_dec
+            , doc2 = withNewChildWithStyle indented showDec tab right_dec
             , endd = endd
             }
 
       | DecAbstype {abstypee, datbind, withtypee, withh, dec, endd} =>
           let
-            val datbinds = showDatbind tab (abstypee, datbind)
-
             val bottom =
               at tab
-                (token withh ++ withNewChildWithStyle (indented) showDec tab dec)
+                (token withh ++ withNewChildWithStyle indented showDec tab dec)
               ++ at tab (token endd)
           in
             showDatbind tab (abstypee, datbind)

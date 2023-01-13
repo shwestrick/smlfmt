@@ -144,7 +144,7 @@ struct
       {data = ArraySlice.full a, fileName = fileName, newlineIdxs = newlineIdxs}
     end
 
-  fun wholeLine (s as {data, fileName, newlineIdxs}: source) lineNum1 =
+  fun wholeLine (s as {newlineIdxs, ...}: source) lineNum1 =
     let
       val base = wholeFile s
 
