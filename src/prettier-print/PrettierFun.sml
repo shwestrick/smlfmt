@@ -39,7 +39,7 @@ struct
 
   fun showFunDec tab (Ast.Fun.DecFunctor {functorr, elems, delims}) =
     let
-      fun showFunctor first
+      fun showFunctor _
         (starter, {funid, lparen, funarg, rparen, constraint, eq, strexp}) =
         at tab
           (token starter ++ token funid

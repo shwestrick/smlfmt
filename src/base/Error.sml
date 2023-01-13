@@ -89,11 +89,7 @@ struct
             val lineNumStr = Int.toString lineNum
             val marginSize = 1 + String.size lineNumStr
 
-            val leftMargin = lineNumStr ^ " | "
-
             val colOffset = colStart - 1
-
-            val leftSpaces = spaces (String.size leftMargin + colOffset)
 
             val pathName = FilePath.toHostPath (Source.fileName pos)
 

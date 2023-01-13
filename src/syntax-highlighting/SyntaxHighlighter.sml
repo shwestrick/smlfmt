@@ -113,7 +113,6 @@ struct
         , extendedText = true
         }
 
-      val originalSrc = src
       val startOffset = Source.absoluteStartOffset src
       val endOffset = Source.absoluteEndOffset src
       val src = Source.wholeFile src

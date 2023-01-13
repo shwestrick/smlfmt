@@ -21,7 +21,7 @@ struct
   fun showTy ty = PrettyTy.showTy ty
   fun showPat pat = PrettyPat.showPat pat
 
-  fun showTypbind (front, typbind: Ast.Exp.typbind as {elems, delims}) =
+  fun showTypbind (front, {elems, delims}) =
     let
       fun showOne (starter, {tyvars, tycon, ty, eq}) =
         separateWithSpaces
@@ -412,7 +412,7 @@ struct
                    showExp e ++ (if i = numExps - 1 then empty else token (d i)))
                 exps
 
-            val topPart = token lett $$ indent (prettyDec) $$ token inn
+            val topPart = token lett $$ indent prettyDec $$ token inn
 
             val topPart =
               if Ast.Exp.isMultipleDecs dec then topPart else group topPart

@@ -187,7 +187,7 @@ struct
           case t of
             Empty => Empty
           | String s => String (String.substring (s, i, n))
-          | Attributes {size, attr, child} =>
+          | Attributes {size = _, attr, child} =>
               Attributes {size = n, attr = attr, child = cut (child, i, n)}
           | Append {left, right, ...} =>
               if i < size left andalso i + n <= size left then

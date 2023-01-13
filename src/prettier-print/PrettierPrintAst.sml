@@ -50,7 +50,7 @@ struct
       end
 
 
-  fun pretty (params as {ribbonFrac, maxWidth, tabWidth, indent, debug}) ast =
+  fun pretty {ribbonFrac, maxWidth, tabWidth, indent, debug} ast =
     let
       fun dbgprintln s =
         if not debug then () else print (s ^ "\n")

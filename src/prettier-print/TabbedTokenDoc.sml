@@ -61,7 +61,7 @@ local
      * rest belong to tok2.
      * (tok1, comments, tok2) must be adjacent.
      *)
-    fun findSplit (tok1, comments, tok2) =
+    fun findSplit (tok1, comments, _) =
       let
         val n = Seq.length comments
         fun loop i =

@@ -327,28 +327,28 @@ struct
         | AnnSpace => (flowval, vars, doc)
         | AnnNoSpace => (flowval, vars, doc)
         | AnnToken {tok, ...} =>
-            let (* val _ =
-                  Option.app
-                    (fn ts =>
-                       dbgprintln
-                         ("token '" ^ Token.toString tok ^ "' at: "
-                          ^
-                          String.concatWith " "
-                            (List.map Tab.toString (TabSet.listKeys ts)))) flowval *)
-            in
-              (NONE, vars, AnnToken {tok = tok, at = flowval})
+            let
+              (* val _ =
+                Option.app
+                  (fn ts =>
+                     dbgprintln
+                       ("token '" ^ Token.toString tok ^ "' at: "
+                        ^
+                        String.concatWith " "
+                          (List.map Tab.toString (TabSet.listKeys ts)))) flowval *)
+            in (NONE, vars, AnnToken {tok = tok, at = flowval})
             end
         | AnnText {txt, ...} =>
-            let (* val _ =
-                  Option.app
-                    (fn ts =>
-                       dbgprintln
-                         ("text '" ^ txt ^ "' at: "
-                          ^
-                          String.concatWith " "
-                            (List.map Tab.toString (TabSet.listKeys ts)))) flowval *)
-            in
-              (NONE, vars, AnnText {txt = txt, at = flowval})
+            let
+              (* val _ =
+                Option.app
+                  (fn ts =>
+                     dbgprintln
+                       ("text '" ^ txt ^ "' at: "
+                        ^
+                        String.concatWith " "
+                          (List.map Tab.toString (TabSet.listKeys ts)))) flowval *)
+            in (NONE, vars, AnnText {txt = txt, at = flowval})
             end
         | AnnAt {tab, doc} =>
             let
@@ -587,7 +587,8 @@ struct
               val doc = annConcat (doc, concatDocs ca)
             in
               if ctxAllowsComments then
-                (* (true, cb, doc, ca) *) (true, cb, doc, noComments)
+                (* (true, cb, doc, ca) *)
+                (true, cb, doc, noComments)
               else if numComments = 0 then
                 (true, noComments, doc, noComments)
               else
@@ -608,7 +609,8 @@ struct
                          * this token could be at? Here we just pick the first
                          * of these in the set, and usually it seems each token
                          * is only ever 'at' one possible tab...
-                         *) List.hd (TabSet.listKeys tabs)
+                         *)
+                        List.hd (TabSet.listKeys tabs)
 
                       fun withBreak d = AnnAt {tab = tab, doc = d}
 
@@ -617,8 +619,8 @@ struct
                     in
                       ( true
                       , noComments
-                      , Seq.iterate annConcat (Seq.nth all 0)
-                          (Seq.map withBreak (Seq.drop all 1))
+                      , Seq.iterate annConcat (Seq.nth all 0) (Seq.map withBreak
+                          (Seq.drop all 1))
                       , noComments
                       )
                     end
@@ -695,9 +697,9 @@ struct
                  let
                    val diff = Token.lineDifference (prevTok, tok) - 1
                    val diff = Int.max (0, Int.min (2, diff))
-                     (* val _ = dbgprintln
-                       ("line diff ('" ^ Token.toString prevTok ^ "','"
-                        ^ Token.toString tok ^ "'): " ^ Int.toString diff) *)
+                 (* val _ = dbgprintln
+                   ("line diff ('" ^ Token.toString prevTok ^ "','"
+                    ^ Token.toString tok ^ "'): " ^ Int.toString diff) *)
                  in
                    if diff = 0 then
                      doc
@@ -838,7 +840,7 @@ struct
             | SOME tabs =>
                 (* TODO: what to do when there are multiple possible
                  * tabs here? *) List.hd (TabSet.listKeys tabs)
-        
+
           val doc = tokenToStringDoc tab tabWidth tok
         in
           doc

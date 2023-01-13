@@ -31,8 +31,6 @@ struct
       fun parse_recordLabel i = PS.recordLabel toks i
       fun parse_reserved rc i =
         PS.reserved toks rc i
-      fun parse_oneOrMoreDelimitedByReserved x i =
-        PC.oneOrMoreDelimitedByReserved toks x i
       fun parse_zeroOrMoreDelimitedByReserved x i =
         PC.zeroOrMoreDelimitedByReserved toks x i
 
@@ -202,8 +200,8 @@ struct
           val rightParen = tok (i - 1)
         in
           case (tys, delims) of
-            ([ty], []) =>
-              (i, Ast.Ty.Parens {left = leftParen, ty = ty, right = rightParen})
+            ([t], []) =>
+              (i, Ast.Ty.Parens {left = leftParen, ty = t, right = rightParen})
 
           | _ =>
               if check Token.isMaybeLongTyCon i then

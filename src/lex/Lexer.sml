@@ -190,7 +190,7 @@ struct
       (** In a string, expecting to see \ddd
         * with s immediately after the backslash
         *)
-      and advance_inStringThreeDigitEscapeSequence s args =
+      and advance_inStringThreeDigitEscapeSequence s _ =
         if
           check LexUtils.isDecDigit at s
           andalso check LexUtils.isDecDigit at s + 1
@@ -210,7 +210,7 @@ struct
       (** In a string, expecting to see \uxxxx
         * with s immediately after the u
         *)
-      and advance_inStringFourDigitEscapeSequence s args =
+      and advance_inStringFourDigitEscapeSequence s _ =
         if
           check LexUtils.isHexDigit at s
           andalso check LexUtils.isHexDigit at s + 1
@@ -231,7 +231,7 @@ struct
       (** "...\^C
         *       ^
         *)
-      and advance_inStringControlEscapeSequence s (args as {stringStart}) =
+      and advance_inStringControlEscapeSequence s _ =
         if check LexUtils.isValidControlEscapeChar at s then
           SOME (EndOfChar (s + 1))
         else
@@ -248,7 +248,7 @@ struct
         * where each f is a format character (space, newline, tab, etc.)
         *)
       and advance_inStringFormatEscapeSequence s
-        (args as {stringStart, escapeStart}) =
+        (args as {stringStart = _, escapeStart}) =
         if is backslash at s then
           SOME (EndOfFormatEscape (s + 1))
         else if check LexUtils.isValidFormatEscapeChar at s then

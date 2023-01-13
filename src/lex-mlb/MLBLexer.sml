@@ -56,8 +56,6 @@ struct
         Source.slice src (i, j - i)
       fun sliceFrom i =
         slice (i, Source.length src)
-      fun mk x (i, j) =
-        MLBToken.Pretoken.make (slice (i, j)) x
       fun mkr x (i, j) =
         MLBToken.Pretoken.reserved (slice (i, j)) x
 

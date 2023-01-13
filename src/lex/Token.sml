@@ -352,7 +352,7 @@ struct
       | "structure" => r Structure
       | "where" => r Where
 
-      | other => NONE (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
+      | _ => NONE (* (print ("not reserved: " ^ other ^ "\n"); NONE) *)
     end
 
   fun reservedToString rc =
