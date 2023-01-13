@@ -17,6 +17,10 @@ val optionalArgDesc =
   \  [--preview-only]           show formatted output and skip file overwrite\n\
   \                             (incompatible with --force)\n\
   \\n\
+  \  [--stdio]                  reads SML input from stdin and writes to stdout\n\
+  \                             (incompatible with --force, --preview, --preview-only,\n\
+  \                             and positional arguments)\n\
+  \\n\
   \  [-max-width W]             try to use at most <W> columns in each line\n\
   \                             (default 80)\n\
   \\n\
@@ -87,6 +91,7 @@ val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
 val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
+val stdio = CommandLineArgs.parseFlag "stdio"
 val showPreview = preview orelse previewOnly
 
 fun dbgprintln s =
@@ -101,7 +106,7 @@ val allows = AstAllows.make
   }
 
 val _ =
-  if doHelp orelse List.null inputfiles then
+  if doHelp orelse (not stdio andalso List.null inputfiles) then
     (print (usage ()); OS.Process.exit OS.Process.success)
   else
     ()
@@ -110,6 +115,19 @@ val _ =
   if previewOnly andalso doForce then
     ( TCS.printErr (boldc Palette.red
         "ERROR: --force incompatible with --preview-only\n")
+    ; OS.Process.exit OS.Process.failure
+    )
+  else
+    ()
+
+val _ =
+  if
+    stdio
+    andalso
+    (doForce orelse preview orelse previewOnly orelse not (List.null inputfiles))
+  then
+    ( TCS.printErr (boldc Palette.red
+        "ERROR: --stdio incompatible with --force, --preview, --preview-only, and passing input files\n")
     ; OS.Process.exit OS.Process.failure
     )
   else
@@ -171,31 +189,30 @@ fun exnToString exn =
     header ^ stackTrace
   end
 
+fun mkSMLPrettied parserOutput =
+  case parserOutput of
+    Parser.JustComments cs =>
+      TabbedTokenDoc.prettyJustComments
+        { ribbonFrac = ribbonFrac
+        , maxWidth = maxWidth
+        , indentWidth = indentWidth
+        , tabWidth = tabWidth
+        , debug = doDebug
+        } cs
+
+  | Parser.Ast ast =>
+      prettyPrinter
+        { ribbonFrac = ribbonFrac
+        , maxWidth = maxWidth
+        , tabWidth = tabWidth
+        , indent = indentWidth
+        , debug = doDebug
+        } ast
 
 fun doSMLAst (fp, parserOutput) =
   let
     val hfp = FilePath.toHostPath fp
-
-    val prettied =
-      case parserOutput of
-        Parser.JustComments cs =>
-          TabbedTokenDoc.prettyJustComments
-            { ribbonFrac = ribbonFrac
-            , maxWidth = maxWidth
-            , indentWidth = indentWidth
-            , tabWidth = tabWidth
-            , debug = doDebug
-            } cs
-
-      | Parser.Ast ast =>
-          prettyPrinter
-            { ribbonFrac = ribbonFrac
-            , maxWidth = maxWidth
-            , tabWidth = tabWidth
-            , indent = indentWidth
-            , debug = doDebug
-            } ast
-
+    val prettied = mkSMLPrettied parserOutput
     val result = TCS.toString {colors = false} prettied
 
     fun writeOut () =
@@ -307,3 +324,21 @@ fun doFile (fp, info) =
 val _ = List.app skipFile filesToSkip
 
 val _ = List.app doFile filesToDo
+
+val _ =
+  if stdio then
+    let
+      val source = Source.loadFromStdin ()
+      val parserOutput = Parser.parse allows source
+                         handle exn => handleLexOrParseError exn
+      val prettied = mkSMLPrettied parserOutput
+    in
+      TCS.print prettied;
+      print "\n"
+    end
+    handle exn =>
+      ( TCS.printErr (boldc Palette.red (exnToString exn ^ "\n"))
+      ; OS.Process.exit OS.Process.failure
+      )
+  else
+    ()
