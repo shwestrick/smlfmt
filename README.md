@@ -47,10 +47,21 @@ Entire MLton source code ([`mlton.mlb`](https://github.com/MLton/mlton/blob/mast
 
 You need [`mlton`](http://mlton.org/) installed.
 
-Do `make` and then pass either a `.sml` file or a `.mlb` file, for example:
+Do `make` and then pass a `.sml` file, for example:
 ```bash
 $ make
 $ ./smlfmt --preview src/smlfmt.sml
+```
+
+You can pass a `.mlb` file to format all files in a project. Use `--force`
+to skip overwrite confirmations.
+```bash
+$ ./smlfmt --force src/smlfmt.mlb
+```
+
+To pass code through `stdin` and `stdout`, use the `--stdio` flag.
+```bash
+$ echo "val x = 5 val y = 6" | ./smlfmt --stdio
 ```
 
 ### Command-line options
@@ -62,6 +73,9 @@ with syntax highlighting (if shown on terminal supporting ANSI colors).
 
 `--preview-only` is the same as `--preview`, but also skips writing to file.
 (This is incompatible with `--force`.)
+
+`--stdio` reads SML input from `stdin`, and outputs the formatted SML
+to `stdout`. (This is incompatible with file inputs and the flags above.)
 
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
 [MLton's path maps](http://mlton.org/MLBasisPathMap).
