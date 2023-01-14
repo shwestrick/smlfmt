@@ -1,0 +1,6 @@
+local
+  ../parse/sources.mlb
+  CheckOutput.sml
+in
+  structure CheckOutput
+end

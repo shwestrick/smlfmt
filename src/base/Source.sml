@@ -15,6 +15,8 @@ sig
   val loadFromFile: FilePath.t -> source
   val loadFromStdin: unit -> source
 
+  val make: {fileName: FilePath.t, contents: char Seq.t} -> source
+
   val fileName: source -> FilePath.t
   val absoluteStart: source -> {line: int, col: int}
   val absoluteEnd: source -> {line: int, col: int}
@@ -90,6 +92,8 @@ struct
     in
       loadFromCharSeq path contents
     end
+
+  fun make {fileName, contents} = loadFromCharSeq fileName contents
 
   fun fileName (s: source) = #fileName s
 

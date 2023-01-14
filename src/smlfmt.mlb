@@ -2,4 +2,5 @@ parse-mlb/sources.mlb
 pretty-print/sources.mlb
 prettier-print/sources.mlb
 syntax-highlighting/sources.mlb
+check/sources.mlb
 smlfmt.sml

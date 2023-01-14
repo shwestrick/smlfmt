@@ -5,12 +5,21 @@
 
 structure ParseAllSMLFromMLB:
 sig
+
+  type fileResult =
+    { path: FilePath.t
+    , allows: AstAllows.t
+    , infdict: InfixDict.t
+    , lexerOutput: Token.t Seq.t
+    , parserOutput: Parser.parser_output
+    }
+
   (** Take an .mlb source and fully parse all SML by loading all filepaths
     * recursively specified by the .mlb and parsing them, etc.
     *)
   val parse: {pathmap: MLtonPathMap.t, skipBasis: bool, allows: AstAllows.t}
              -> FilePath.t
-             -> (FilePath.t * Parser.parser_output) Seq.t
+             -> fileResult Seq.t
 end =
 struct
 
@@ -63,13 +72,21 @@ struct
 
   fun printErr m = TextIO.output (TextIO.stdErr, m)
 
+  type fileResult =
+    { path: FilePath.t
+    , allows: AstAllows.t
+    , infdict: InfixDict.t
+    , lexerOutput: Token.t Seq.t
+    , parserOutput: Parser.parser_output
+    }
+
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
   fun parse {skipBasis, pathmap, allows = defaultAllows} mlbPath :
-    (FilePath.t * Parser.parser_output) Seq.t =
+    fileResult Seq.t =
     let
       open MLBAst
 
-      type asts = (FilePath.t * Parser.parser_output) list
+      type asts = fileResult list
 
       fun expandAndJoin relativeDir path =
         let
@@ -115,10 +132,20 @@ struct
               val src = Source.loadFromFile path
                         handle OS.SysErr (msg, _) => errFun msg
 
+              val allTokens = Lexer.tokens (#allows ctx) src
               val (infdict, ast) =
-                Parser.parseWithInfdict (#allows ctx) (#fixities basis) src
+                Parser.parseWithInfdict (#allows ctx) (#fixities basis)
+                  allTokens
+
+              val result =
+                { path = path
+                , allows = #allows ctx
+                , infdict = #fixities basis
+                , lexerOutput = allTokens
+                , parserOutput = ast
+                }
             in
-              ({fixities = infdict}, [(path, ast)])
+              ({fixities = infdict}, [result])
             end
         end
 
