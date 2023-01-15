@@ -15,6 +15,7 @@ Terminal.sml
 Source.sml
 WithSource.sml
 
+StripEffectiveWhitespace.sml
 Palette.sml
 TerminalColorString.sml
 Error.sml

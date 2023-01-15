@@ -5,7 +5,7 @@
 
 structure CompareAst:
 sig
-  val equal: Ast.t * Ast.t -> bool
+  val equal: {tabWidth: int} -> Ast.t * Ast.t -> bool
 end =
 struct
 
@@ -47,200 +47,208 @@ struct
   open Ast
 
 
-  fun equal_ty (t1, t2) = raise Fail "nyi"
+  fun equal {tabWidth: int} (Ast tops1, Ast tops2) =
+    let
+
+      fun equal_tok (t1, t2) =
+        Token.sameExceptForMultilineIndentation {tabWidth = tabWidth} (t1, t2)
 
 
-  fun equal_exp (e1, e2) = raise Fail "nyi"
+      fun equal_ty (t1, t2) = raise Fail "nyi"
 
 
-  and equal_dec (d1, d2) = raise Fail "nyi"
+      fun equal_exp (e1, e2) =
+        case (e1, e2) of
+          (Exp.Const c1, Exp.Const c2) => equal_tok (c1, c2)
+        | _ => raise Fail "nyi"
 
 
-  fun equal_sigdec (sd1, sd2) = raise Fail "nyi"
+      and equal_dec (d1, d2) = raise Fail "nyi"
 
 
-  fun equal_sigexp (se1, se2) = raise Fail "nyi"
+      fun equal_sigdec (sd1, sd2) = raise Fail "nyi"
 
 
-  fun equal_spec (s1, s2) = raise Fail "nyi"
+      fun equal_sigexp (se1, se2) = raise Fail "nyi"
 
 
-  fun equal_strdec (sd1, sd2) =
-    case (sd1, sd2) of
-      (Str.DecEmpty, Str.DecEmpty) => true
+      fun equal_spec (s1, s2) = raise Fail "nyi"
 
-    | (Str.DecCore d1, Str.DecCore d2) => equal_dec (d1, d2)
 
-    | (Str.DecStructure s1, Str.DecStructure s2) =>
-        let
-          fun elem_equal (e1, e2) =
+      fun equal_strdec (sd1, sd2) =
+        case (sd1, sd2) of
+          (Str.DecEmpty, Str.DecEmpty) => true
+
+        | (Str.DecCore d1, Str.DecCore d2) => equal_dec (d1, d2)
+
+        | (Str.DecStructure s1, Str.DecStructure s2) =>
             let
+              fun elem_equal (e1, e2) =
+                let
+                  val checker =
+                    at #strid equal_tok
+                    <&>
+                    at #constraint (equal_op
+                      (at #colon equal_tok <&> at #sigexp equal_sigexp))
+                    <&> at #eq equal_tok <&> at #strexp equal_strexp
+                in
+                  checker (e1, e2)
+                end
+
               val checker =
-                at #strid Token.same
-                <&>
-                at #constraint (equal_op
-                  (at #colon Token.same <&> at #sigexp equal_sigexp))
-                <&> at #eq Token.same <&> at #strexp equal_strexp
+                at #structuree equal_tok <&> at #elems (Seq.equal elem_equal)
+                <&> at #delims (Seq.equal equal_tok)
             in
-              checker (e1, e2)
+              checker (s1, s2)
             end
 
-          val checker =
-            at #structuree Token.same <&> at #elems (Seq.equal elem_equal)
-            <&> at #delims (Seq.equal Token.same)
-        in
-          checker (s1, s2)
-        end
-
-    | (Str.DecMultiple m1, Str.DecMultiple m2) =>
-        let
-          val checker =
-            at #elems (Seq.equal equal_strdec)
-            <&> at #delims (Seq.equal (equal_op Token.same))
-        in
-          checker (m1, m2)
-        end
-
-    | (Str.DecLocalInEnd lie1, Str.DecLocalInEnd lie2) =>
-        let
-          val checker =
-            at #locall Token.same <&> at #strdec1 equal_strdec
-            <&> at #inn Token.same <&> at #strdec2 equal_strdec
-            <&> at #endd Token.same
-        in
-          checker (lie1, lie2)
-        end
-
-    | (Str.MLtonOverload o1, Str.MLtonOverload o2) =>
-        let
-          val checker =
-            at #underscore Token.same <&> at #overload Token.same
-            <&> at #prec Token.same <&> at #name Token.same
-            <&> at #colon Token.same <&> at #colon Token.same
-            <&> at #ty equal_ty <&> at #ass Token.same
-            <&> at #elems (Seq.equal (at MaybeLongToken.getToken Token.same))
-            <&> at #delims (Seq.equal Token.same)
-        in
-          checker (o1, o2)
-        end
-
-    | _ => false
-
-
-  and equal_strexp (se1, se2) =
-    case (se1, se2) of
-      (Str.Ident i1, Str.Ident i2) =>
-        at MaybeLongToken.getToken Token.same (i1, i2)
-
-    | (Str.Struct s1, Str.Struct s2) =>
-        let
-          val checker =
-            at #structt Token.same <&> at #strdec equal_strdec
-            <&> at #endd Token.same
-        in
-          checker (s1, s2)
-        end
-
-    | (Str.Constraint c1, Str.Constraint c2) =>
-        let
-          val checker =
-            at #strexp equal_strexp <&> at #colon Token.same
-            <&> at #sigexp equal_sigexp
-        in
-          checker (c1, c2)
-        end
-
-    | (Str.FunAppExp e1, Str.FunAppExp e2) =>
-        let
-          val checker =
-            at #funid Token.same <&> at #lparen Token.same
-            <&> at #strexp equal_strexp <&> at #rparen Token.same
-        in
-          checker (e1, e2)
-        end
-
-    | (Str.FunAppDec d1, Str.FunAppDec d2) =>
-        let
-          val checker =
-            at #funid Token.same <&> at #lparen Token.same
-            <&> at #strdec equal_strdec <&> at #rparen Token.same
-        in
-          checker (d1, d2)
-        end
-
-    | (Str.LetInEnd lie1, Str.LetInEnd lie2) =>
-        let
-          val checker =
-            at #lett Token.same <&> at #strdec equal_strdec
-            <&> at #inn Token.same <&> at #strexp equal_strexp
-            <&> at #endd Token.same
-        in
-          checker (lie1, lie2)
-        end
-
-    | _ => false
-
-
-  fun equal_fundec (Fun.DecFunctor x, Fun.DecFunctor y) =
-    let
-      fun equal_funarg (fa1, fa2) =
-        case (fa1, fa2) of
-          (Fun.ArgSpec s1, Fun.ArgSpec s2) => equal_spec (s1, s2)
-
-        | (Fun.ArgIdent i1, Fun.ArgIdent i2) =>
+        | (Str.DecMultiple m1, Str.DecMultiple m2) =>
             let
               val checker =
-                at #strid Token.same <&> at #colon Token.same
-                <&> at #sigexp equal_sigexp
+                at #elems (Seq.equal equal_strdec)
+                <&> at #delims (Seq.equal (equal_op equal_tok))
             in
-              checker (i1, i2)
+              checker (m1, m2)
+            end
+
+        | (Str.DecLocalInEnd lie1, Str.DecLocalInEnd lie2) =>
+            let
+              val checker =
+                at #locall equal_tok <&> at #strdec1 equal_strdec
+                <&> at #inn equal_tok <&> at #strdec2 equal_strdec
+                <&> at #endd equal_tok
+            in
+              checker (lie1, lie2)
+            end
+
+        | (Str.MLtonOverload o1, Str.MLtonOverload o2) =>
+            let
+              val checker =
+                at #underscore equal_tok <&> at #overload equal_tok
+                <&> at #prec equal_tok <&> at #name equal_tok
+                <&> at #colon equal_tok <&> at #colon equal_tok
+                <&> at #ty equal_ty <&> at #ass equal_tok
+                <&> at #elems (Seq.equal (at MaybeLongToken.getToken equal_tok))
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (o1, o2)
             end
 
         | _ => false
 
-      fun equal_constraint (c1, c2) =
-        equal_op (at #colon Token.same <&> at #sigexp equal_sigexp) (c1, c2)
 
-      fun equal_elem (x, y) =
+      and equal_strexp (se1, se2) =
+        case (se1, se2) of
+          (Str.Ident i1, Str.Ident i2) =>
+            at MaybeLongToken.getToken equal_tok (i1, i2)
+
+        | (Str.Struct s1, Str.Struct s2) =>
+            let
+              val checker =
+                at #structt equal_tok <&> at #strdec equal_strdec
+                <&> at #endd equal_tok
+            in
+              checker (s1, s2)
+            end
+
+        | (Str.Constraint c1, Str.Constraint c2) =>
+            let
+              val checker =
+                at #strexp equal_strexp <&> at #colon equal_tok
+                <&> at #sigexp equal_sigexp
+            in
+              checker (c1, c2)
+            end
+
+        | (Str.FunAppExp e1, Str.FunAppExp e2) =>
+            let
+              val checker =
+                at #funid equal_tok <&> at #lparen equal_tok
+                <&> at #strexp equal_strexp <&> at #rparen equal_tok
+            in
+              checker (e1, e2)
+            end
+
+        | (Str.FunAppDec d1, Str.FunAppDec d2) =>
+            let
+              val checker =
+                at #funid equal_tok <&> at #lparen equal_tok
+                <&> at #strdec equal_strdec <&> at #rparen equal_tok
+            in
+              checker (d1, d2)
+            end
+
+        | (Str.LetInEnd lie1, Str.LetInEnd lie2) =>
+            let
+              val checker =
+                at #lett equal_tok <&> at #strdec equal_strdec
+                <&> at #inn equal_tok <&> at #strexp equal_strexp
+                <&> at #endd equal_tok
+            in
+              checker (lie1, lie2)
+            end
+
+        | _ => false
+
+
+      fun equal_fundec (Fun.DecFunctor x, Fun.DecFunctor y) =
         let
+          fun equal_funarg (fa1, fa2) =
+            case (fa1, fa2) of
+              (Fun.ArgSpec s1, Fun.ArgSpec s2) => equal_spec (s1, s2)
+
+            | (Fun.ArgIdent i1, Fun.ArgIdent i2) =>
+                let
+                  val checker =
+                    at #strid equal_tok <&> at #colon equal_tok
+                    <&> at #sigexp equal_sigexp
+                in
+                  checker (i1, i2)
+                end
+
+            | _ => false
+
+          fun equal_constraint (c1, c2) =
+            equal_op (at #colon equal_tok <&> at #sigexp equal_sigexp) (c1, c2)
+
+          fun equal_elem (x, y) =
+            let
+              val checker =
+                at #funid equal_tok <&> at #lparen equal_tok
+                <&> at #funarg equal_funarg <&> at #rparen equal_tok
+                <&> at #constraint equal_constraint <&> at #eq equal_tok
+                <&> at #strexp equal_strexp
+            in
+              checker (x, y)
+            end
+
           val checker =
-            at #funid Token.same <&> at #lparen Token.same
-            <&> at #funarg equal_funarg <&> at #rparen Token.same
-            <&> at #constraint equal_constraint <&> at #eq Token.same
-            <&> at #strexp equal_strexp
+            at #functorr equal_tok <&> at #elems (Seq.equal equal_elem)
+            <&> at #delims (Seq.equal equal_tok)
         in
           checker (x, y)
         end
 
-      val checker =
-        at #functorr Token.same <&> at #elems (Seq.equal equal_elem)
-        <&> at #delims (Seq.equal Token.same)
-    in
-      checker (x, y)
-    end
+
+      fun equal_topexp (te1, te2) =
+        let val checker = at #exp equal_exp <&> at #semicolon equal_tok
+        in checker (te1, te2)
+        end
 
 
-  fun equal_topexp (te1, te2) =
-    let val checker = at #exp equal_exp <&> at #semicolon Token.same
-    in checker (te1, te2)
-    end
+      fun equal_topdec (td1, td2) =
+        case (td1, td2) of
+          (SigDec sd1, SigDec sd2) => equal_sigdec (sd1, sd2)
+        | (StrDec sd1, StrDec sd2) => equal_strdec (sd1, sd2)
+        | (FunDec fd1, FunDec fd2) => equal_fundec (fd1, fd2)
+        | (TopExp te1, TopExp te2) => equal_topexp (te1, te2)
+        | _ => false
 
 
-  fun equal_topdec (td1, td2) =
-    case (td1, td2) of
-      (SigDec sd1, SigDec sd2) => equal_sigdec (sd1, sd2)
-    | (StrDec sd1, StrDec sd2) => equal_strdec (sd1, sd2)
-    | (FunDec fd1, FunDec fd2) => equal_fundec (fd1, fd2)
-    | (TopExp te1, TopExp te2) => equal_topexp (te1, te2)
-    | _ => false
-
-
-  fun equal (Ast tops1, Ast tops2) =
-    let
       fun equal_topelem (te1, te2) =
         let
           val checker =
-            at #topdec equal_topdec <&> at #semicolon (equal_op Token.same)
+            at #topdec equal_topdec <&> at #semicolon (equal_op equal_tok)
         in
           checker (te1, te2)
         end

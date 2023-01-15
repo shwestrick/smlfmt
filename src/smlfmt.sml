@@ -227,6 +227,7 @@ fun formatOneSML
         , formatter = TCS.toString {colors = false} o mkSMLPrettied
         , allows = allows
         , infdict = infdict
+        , tabWidth = tabWidth
         }
 
     fun writeOut () =
@@ -262,7 +263,7 @@ fun formatOneSML
     if not doCheck then
       ()
     else if check () then
-      ()
+      print ("check output for " ^ hfp ^ ": success\n")
     else
       failWithMessage
         "ERROR: --check failed! Bug! Please submit a bug report...";

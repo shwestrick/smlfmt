@@ -17,10 +17,10 @@ sig
     { origLexerOutput: Token.t Seq.t
     , origParserOutput: Parser.parser_output
     , origFormattedOutput: string
-
     , formatter: Parser.parser_output -> string
     , allows: AstAllows.t
     , infdict: InfixDict.t option
+    , tabWidth: int
     }
     -> bool
 end =
@@ -29,22 +29,17 @@ struct
   val removeWhitespaceTokens = Seq.filter (not o Token.isWhitespace)
 
 
-  fun checkTokenSeqs (ts1, ts2) =
-    let
-      fun checkTokens (t1, t2) =
-        raise Fail
-          "CheckOutput.checkTokenSeqs.checkTokens: not yet implemented..."
-    in
-      Seq.equal checkTokens
-        (removeWhitespaceTokens ts1, removeWhitespaceTokens ts2)
-    end
+  fun checkTokenSeqs {tabWidth: int} (ts1, ts2) =
+    Seq.equal (Token.sameExceptForMultilineIndentation {tabWidth = tabWidth})
+      (removeWhitespaceTokens ts1, removeWhitespaceTokens ts2)
 
 
-  fun checkParserOutputs (po1, po2) =
+  fun checkParserOutputs {tabWidth: int} (po1, po2) =
     case (po1, po2) of
       (Parser.JustComments cs1, Parser.JustComments cs2) =>
-        checkTokenSeqs (cs1, cs2)
-    | (Parser.Ast ast1, Parser.Ast ast2) => CompareAst.equal (ast1, ast2)
+        checkTokenSeqs {tabWidth = tabWidth} (cs1, cs2)
+    | (Parser.Ast ast1, Parser.Ast ast2) =>
+        CompareAst.equal {tabWidth = tabWidth} (ast1, ast2)
     | _ => false
 
 
@@ -55,6 +50,7 @@ struct
     , formatter
     , allows
     , infdict
+    , tabWidth
     } =
     let
       val mockedSource = Source.make
@@ -76,8 +72,10 @@ struct
 
       val newFormattedOutput = formatter newParserOutput
     in
-      checkTokenSeqs (origLexerOutput, newLexerOutput)
-      andalso checkParserOutputs (origParserOutput, newParserOutput)
+      checkTokenSeqs {tabWidth = tabWidth} (origLexerOutput, newLexerOutput)
+      andalso
+      checkParserOutputs {tabWidth = tabWidth}
+        (origParserOutput, newParserOutput)
       andalso origFormattedOutput = newFormattedOutput
     end
 
