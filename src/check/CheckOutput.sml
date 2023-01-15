@@ -44,10 +44,7 @@ struct
     case (po1, po2) of
       (Parser.JustComments cs1, Parser.JustComments cs2) =>
         checkTokenSeqs (cs1, cs2)
-    | (Parser.Ast ast1, Parser.Ast ast2) =>
-        (case CompareAst.compare (ast1, ast2) of
-           CompareAst.Identical => true
-         | CompareAst.Different _ => false)
+    | (Parser.Ast ast1, Parser.Ast ast2) => CompareAst.equal (ast1, ast2)
     | _ => false
 
 
