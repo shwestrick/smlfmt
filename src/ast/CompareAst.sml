@@ -54,6 +54,9 @@ struct
         Token.sameExceptForMultilineIndentation {tabWidth = tabWidth} (t1, t2)
 
 
+      fun equal_syntaxseq eq (s1, s2) = raise Fail "nyi"
+
+
       fun equal_ty (t1, t2) = raise Fail "nyi"
 
 
@@ -72,7 +75,159 @@ struct
       fun equal_sigexp (se1, se2) = raise Fail "nyi"
 
 
-      fun equal_spec (s1, s2) = raise Fail "nyi"
+      fun equal_spec (s1, s2) =
+        case (s1, s2) of
+          (Sig.EmptySpec, Sig.EmptySpec) => true
+
+        | (Sig.Val v1, Sig.Val v2) =>
+            let
+              val checker =
+                at #vall equal_tok
+                <&>
+                at #elems (Seq.equal
+                  (at #vid equal_tok <&> at #colon equal_tok <&> at #ty equal_ty))
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (v1, v2)
+            end
+
+        | (Sig.Type t1, Sig.Type t2) =>
+            let
+              val checker =
+                at #typee equal_tok
+                <&>
+                at #elems (Seq.equal
+                  (at #tyvars (equal_syntaxseq equal_tok)
+                   <&> at #tycon equal_tok))
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (t1, t2)
+            end
+
+        | (Sig.TypeAbbreviation a1, Sig.TypeAbbreviation a2) =>
+            let
+              val checker =
+                at #typee equal_tok
+                <&>
+                at #elems (Seq.equal
+                  (at #tyvars (equal_syntaxseq equal_tok)
+                   <&> at #tycon equal_tok <&> at #eq equal_tok
+                   <&> at #ty equal_ty)) <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (a1, a2)
+            end
+
+        | (Sig.Eqtype e1, Sig.Eqtype e2) =>
+            let
+              val checker =
+                at #eqtypee equal_tok
+                <&>
+                at #elems (Seq.equal
+                  (at #tyvars (equal_syntaxseq equal_tok)
+                   <&> at #tycon equal_tok))
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (e1, e2)
+            end
+
+        | (Sig.Datatype d1, Sig.Datatype d2) =>
+            let
+              val checker =
+                at #datatypee equal_tok <&> at #delims (Seq.equal equal_tok)
+                <&>
+                at #elems (Seq.equal
+                  (at #tyvars (equal_syntaxseq equal_tok)
+                   <&> at #tycon equal_tok <&> at #eq equal_tok
+                   <&> at #optbar (equal_op equal_tok)
+                   <&> at #delims (Seq.equal equal_tok)
+                   <&>
+                   at #elems (Seq.equal
+                     (at #vid equal_tok
+                      <&>
+                      at #arg (equal_op (at #off equal_tok <&> at #ty equal_ty))))))
+            in
+              checker (d1, d2)
+            end
+
+        | (Sig.ReplicateDatatype r1, Sig.ReplicateDatatype r2) =>
+            let
+              val checker =
+                at #left_datatypee equal_tok <&> at #left_id equal_tok
+                <&> at #eq equal_tok <&> at #right_datatypee equal_tok
+                <&> at #right_id (at MaybeLongToken.getToken equal_tok)
+            in
+              checker (r1, r2)
+            end
+
+        | (Sig.Exception e1, Sig.Exception e2) =>
+            let
+              val checker =
+                at #exceptionn equal_tok <&> at #delims (Seq.equal equal_tok)
+                <&>
+                at #elems (Seq.equal
+                  (at #vid equal_tok
+                   <&>
+                   at #arg (equal_op (at #off equal_tok <&> at #ty equal_ty))))
+            in
+              checker (e1, e2)
+            end
+
+        | (Sig.Structure s1, Sig.Structure s2) =>
+            let
+              val checker =
+                at #structuree equal_tok <&> at #delims (Seq.equal equal_tok)
+                <&>
+                at #elems (Seq.equal
+                  (at #id equal_tok <&> at #colon equal_tok
+                   <&> at #sigexp equal_sigexp))
+            in
+              checker (s1, s2)
+            end
+
+        | (Sig.Include i1, Sig.Include i2) =>
+            let val checker = at #includee equal_tok <&> at #sigexp equal_sigexp
+            in checker (i1, i2)
+            end
+
+        | (Sig.IncludeIds i1, Sig.IncludeIds i2) =>
+            let
+              val checker =
+                at #includee equal_tok <&> at #sigids (Seq.equal equal_tok)
+            in
+              checker (i1, i2)
+            end
+
+        | (Sig.SharingType s1, Sig.SharingType s2) =>
+            let
+              val checker =
+                at #spec equal_spec <&> at #sharingg equal_tok
+                <&> at #typee equal_tok
+                <&> at #elems (Seq.equal (at MaybeLongToken.getToken equal_tok))
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (s1, s2)
+            end
+
+        | (Sig.Sharing s1, Sig.Sharing s2) =>
+            let
+              val checker =
+                at #spec equal_spec <&> at #sharingg equal_tok
+                <&> at #elems (Seq.equal (at MaybeLongToken.getToken equal_tok))
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (s1, s2)
+            end
+
+        | (Sig.Multiple m1, Sig.Multiple m2) =>
+            let
+              val checker =
+                at #elems (Seq.equal equal_spec)
+                <&> at #delims (Seq.equal (equal_op equal_tok))
+            in
+              checker (m1, m2)
+            end
+
+        | _ => false
 
 
       fun equal_strdec (sd1, sd2) =
