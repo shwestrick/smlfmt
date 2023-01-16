@@ -69,13 +69,50 @@ struct
       and equal_dec (d1, d2) = raise Fail "nyi"
 
 
-      fun equal_sigdec (sd1, sd2) = raise Fail "nyi"
+      fun equal_sigdec (Sig.Signature s1, Sig.Signature s2) =
+        let
+          val checker =
+            at #signaturee equal_tok <&> at #delims (Seq.equal equal_tok)
+            <&>
+            at #elems (Seq.equal
+              (at #ident equal_tok <&> at #eq equal_tok
+               <&> at #sigexp equal_sigexp))
+        in
+          checker (s1, s2)
+        end
 
 
-      fun equal_sigexp (se1, se2) = raise Fail "nyi"
+      and equal_sigexp (se1, se2) =
+        case (se1, se2) of
+          (Sig.Ident i1, Sig.Ident i2) => equal_tok (i1, i2)
+
+        | (Sig.Spec s1, Sig.Spec s2) =>
+            let
+              val checker =
+                at #sigg equal_tok <&> at #spec equal_spec
+                <&> at #endd equal_tok
+            in
+              checker (s1, s2)
+            end
+
+        | (Sig.WhereType w1, Sig.WhereType w2) =>
+            let
+              val checker =
+                at #sigexp equal_sigexp
+                <&>
+                at #elems (Seq.equal
+                  (at #wheree equal_tok <&> at #typee equal_tok
+                   <&> at #tyvars (equal_syntaxseq equal_tok)
+                   <&> at #tycon (at MaybeLongToken.getToken equal_tok)
+                   <&> at #eq equal_tok <&> at #ty equal_ty))
+            in
+              checker (w1, w2)
+            end
+
+        | _ => false
 
 
-      fun equal_spec (s1, s2) =
+      and equal_spec (s1, s2) =
         case (s1, s2) of
           (Sig.EmptySpec, Sig.EmptySpec) => true
 
