@@ -54,7 +54,19 @@ struct
         Token.sameExceptForMultilineIndentation {tabWidth = tabWidth} (t1, t2)
 
 
-      fun equal_syntaxseq eq (s1, s2) = raise Fail "nyi"
+      fun equal_syntaxseq eq (s1, s2) =
+        case (s1, s2) of
+          (SyntaxSeq.Empty, SyntaxSeq.Empty) => true
+        | (SyntaxSeq.One x, SyntaxSeq.One y) => eq (x, y)
+        | (SyntaxSeq.Many x, SyntaxSeq.Many y) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal eq)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (x, y)
+            end
+        | _ => false
 
 
       fun equal_ty (t1, t2) = raise Fail "nyi"
