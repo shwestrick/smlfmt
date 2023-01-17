@@ -444,13 +444,85 @@ struct
         | _ => false
 
 
-      and equal_fvalbind (fv1, fv2) = raise Fail "nyi"
+      and equal_fnameargs (fna1, fna2) =
+        case (fna1, fna2) of
+          (Exp.PrefixedFun pf1, Exp.PrefixedFun pf2) =>
+            let
+              val checker =
+                at #opp (equal_op equal_tok) <&> at #id equal_tok
+                <&> at #args (Seq.equal equal_pat)
+            in
+              checker (pf1, pf2)
+            end
+
+        | (Exp.InfixedFun if1, Exp.InfixedFun if2) =>
+            let
+              val checker =
+                at #larg equal_pat <&> at #id equal_tok <&> at #rarg equal_pat
+            in
+              checker (if1, if2)
+            end
+
+        | (Exp.CurriedInfixedFun cif1, Exp.CurriedInfixedFun cif2) =>
+            let
+              val checker =
+                at #lparen equal_tok <&> at #larg equal_pat <&> at #id equal_tok
+                <&> at #rarg equal_pat <&> at #rparen equal_tok
+                <&> at #args (Seq.equal equal_pat)
+            in
+              checker (cif1, cif2)
+            end
+
+        | _ => false
 
 
-      and equal_typbind (tb1, tb2) = raise Fail "nyi"
+      and equal_fvalbind (fv1, fv2) =
+        let
+          val checker =
+            at #delims (Seq.equal equal_tok)
+            <&>
+            at #elems (Seq.equal
+              (at #delims (Seq.equal equal_tok)
+               <&> at #optbar (equal_op equal_tok)
+               <&>
+               at #elems (Seq.equal
+                 (at #fname_args equal_fnameargs
+                  <&>
+                  at #ty (equal_op (at #colon equal_tok <&> at #ty equal_ty))
+                  <&> at #eq equal_tok <&> at #exp equal_exp))))
+        in
+          checker (fv1, fv2)
+        end
 
 
-      and equal_datbind (db1, db2) = raise Fail "nyi"
+      and equal_typbind (tb1, tb2) =
+        let
+          val checker =
+            at #elems (Seq.equal
+              (at #tyvars (equal_syntaxseq equal_tok) <&> at #tycon equal_tok
+               <&> at #eq equal_tok <&> at #ty equal_ty))
+            <&> at #delims (Seq.equal equal_tok)
+        in
+          checker (tb1, tb2)
+        end
+
+
+      and equal_datbind (db1, db2) =
+        let
+          val checker =
+            at #delims (Seq.equal equal_tok)
+            <&>
+            at #elems (Seq.equal
+              (at #tyvars (equal_syntaxseq equal_tok) <&> at #tycon equal_tok
+               <&> at #eq equal_tok <&> at #optbar (equal_op equal_tok)
+               <&> at #delims (Seq.equal equal_tok)
+               <&>
+               at #elems (Seq.equal
+                 (at #opp (equal_op equal_tok) <&> at #id equal_tok
+                  <&> at #arg (equal_op (at #off equal_tok <&> at #ty equal_ty))))))
+        in
+          checker (db1, db2)
+        end
 
 
       and equal_dec (d1, d2) =
