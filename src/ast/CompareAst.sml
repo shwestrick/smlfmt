@@ -444,7 +444,168 @@ struct
         | _ => false
 
 
-      and equal_dec (d1, d2) = raise Fail "nyi"
+      and equal_fvalbind (fv1, fv2) = raise Fail "nyi"
+
+
+      and equal_typbind (tb1, tb2) = raise Fail "nyi"
+
+
+      and equal_datbind (db1, db2) = raise Fail "nyi"
+
+
+      and equal_dec (d1, d2) =
+        case (d1, d2) of
+          (Exp.DecEmpty, Exp.DecEmpty) => true
+
+        | (Exp.DecVal v1, Exp.DecVal v2) =>
+            let
+              val checker =
+                at #vall equal_tok <&> at #tyvars (equal_syntaxseq equal_tok)
+                <&>
+                at #elems (Seq.equal
+                  (at #recc (equal_op equal_tok) <&> at #pat equal_pat
+                   <&> at #eq equal_tok <&> at #exp equal_exp))
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (v1, v2)
+            end
+
+        | (Exp.DecFun f1, Exp.DecFun f2) =>
+            let
+              val checker =
+                at #funn equal_tok <&> at #tyvars (equal_syntaxseq equal_tok)
+                <&> at #fvalbind equal_fvalbind
+            in
+              checker (f1, f2)
+            end
+
+        | (Exp.DecType t1, Exp.DecType t2) =>
+            let val checker = at #typee equal_tok <&> at #typbind equal_typbind
+            in checker (t1, t2)
+            end
+
+        | (Exp.DecDatatype d1, Exp.DecDatatype d2) =>
+            let
+              val checker =
+                at #datatypee equal_tok <&> at #datbind equal_datbind
+                <&>
+                at #withtypee (equal_op
+                  (at #withtypee equal_tok <&> at #typbind equal_typbind))
+            in
+              checker (d1, d2)
+            end
+
+        | (Exp.DecReplicateDatatype rd1, Exp.DecReplicateDatatype rd2) =>
+            let
+              val checker =
+                at #left_datatypee equal_tok <&> at #left_id equal_tok
+                <&> at #eq equal_tok <&> at #right_datatypee equal_tok
+                <&> at #right_id (at MaybeLongToken.getToken equal_tok)
+            in
+              checker (rd1, rd2)
+            end
+
+        | (Exp.DecAbstype a1, Exp.DecAbstype a2) =>
+            let
+              val checker =
+                at #abstypee equal_tok <&> at #datbind equal_datbind
+                <&>
+                at #withtypee (equal_op
+                  (at #withtypee equal_tok <&> at #typbind equal_typbind))
+                <&> at #withh equal_tok <&> at #dec equal_dec
+                <&> at #endd equal_tok
+            in
+              checker (a1, a2)
+            end
+
+        | (Exp.DecException e1, Exp.DecException e2) =>
+            let
+              val checker =
+                at #exceptionn equal_tok <&> at #elems (Seq.equal equal_exbind)
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (e1, e2)
+            end
+
+        | (Exp.DecLocal l1, Exp.DecLocal l2) =>
+            let
+              val checker =
+                at #locall equal_tok <&> at #left_dec equal_dec
+                <&> at #inn equal_tok <&> at #right_dec equal_dec
+                <&> at #endd equal_tok
+            in
+              checker (l1, l2)
+            end
+
+        | (Exp.DecOpen o1, Exp.DecOpen o2) =>
+            let
+              val checker =
+                at #openn equal_tok
+                <&> at #elems (Seq.equal (at MaybeLongToken.getToken equal_tok))
+            in
+              checker (o1, o2)
+            end
+
+        | (Exp.DecMultiple m1, Exp.DecMultiple m2) =>
+            let
+              val checker =
+                at #elems (Seq.equal equal_dec)
+                <&> at #delims (Seq.equal (equal_op equal_tok))
+            in
+              checker (m1, m2)
+            end
+
+        | (Exp.DecInfix i1, Exp.DecInfix i2) =>
+            let
+              val checker =
+                at #infixx equal_tok <&> at #precedence (equal_op equal_tok)
+                <&> at #elems (Seq.equal equal_tok)
+            in
+              checker (i1, i2)
+            end
+
+        | (Exp.DecInfixr i1, Exp.DecInfixr i2) =>
+            let
+              val checker =
+                at #infixrr equal_tok <&> at #precedence (equal_op equal_tok)
+                <&> at #elems (Seq.equal equal_tok)
+            in
+              checker (i1, i2)
+            end
+
+        | (Exp.DecNonfix n1, Exp.DecNonfix n2) =>
+            let
+              val checker =
+                at #nonfixx equal_tok <&> at #elems (Seq.equal equal_tok)
+            in
+              checker (n1, n2)
+            end
+
+        | _ => false
+
+
+      and equal_exbind (b1, b2) =
+        case (b1, b2) of
+          (Exp.ExnNew n1, Exp.ExnNew n2) =>
+            let
+              val checker =
+                at #opp (equal_op equal_tok) <&> at #id equal_tok
+                <&> at #arg (equal_op (at #off equal_tok <&> at #ty equal_ty))
+            in
+              checker (n1, n2)
+            end
+
+        | (Exp.ExnReplicate r1, Exp.ExnReplicate r2) =>
+            let
+              val checker =
+                at #opp (equal_op equal_tok) <&> at #left_id equal_tok
+                <&> at #eq equal_tok
+                <&> at #right_id (at MaybeLongToken.getToken equal_tok)
+            in
+              checker (r1, r2)
+            end
+
+        | _ => false
 
 
       fun equal_sigdec (Sig.Signature s1, Sig.Signature s2) =
