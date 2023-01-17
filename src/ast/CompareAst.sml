@@ -122,6 +122,133 @@ struct
         | _ => false
 
 
+      fun equal_patrow (r1, r2) =
+        case (r1, r2) of
+          (Pat.DotDotDot d1, Pat.DotDotDot d2) => equal_tok (d1, d2)
+
+        | (Pat.LabEqPat lep1, Pat.LabEqPat lep2) =>
+            let
+              val checker =
+                at #lab equal_tok <&> at #eq equal_tok <&> at #pat equal_pat
+            in
+              checker (lep1, lep2)
+            end
+
+        | (Pat.LabAsPat lap1, Pat.LabAsPat lap2) =>
+            let
+              val checker =
+                at #id equal_tok
+                <&> at #ty (equal_op (at #colon equal_tok <&> at #ty equal_ty))
+                <&>
+                at #aspat (equal_op (at #ass equal_tok <&> at #pat equal_pat))
+            in
+              checker (lap1, lap2)
+            end
+
+        | _ => false
+
+
+      and equal_pat (p1, p2) =
+        case (p1, p2) of
+          (Pat.Wild w1, Pat.Wild w2) => equal_tok (w1, w2)
+
+        | (Pat.Const c1, Pat.Const c2) => equal_tok (c1, c2)
+
+        | (Pat.Unit u1, Pat.Unit u2) =>
+            (at #left equal_tok <&> at #right equal_tok) (u1, u2)
+
+        | (Pat.Ident i1, Pat.Ident i2) =>
+            let
+              val checker =
+                at #opp (equal_op equal_tok)
+                <&> at #id (at MaybeLongToken.getToken equal_tok)
+            in
+              checker (i1, i2)
+            end
+
+        | (Pat.List l1, Pat.List l2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal equal_pat)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (l1, l2)
+            end
+
+        | (Pat.Tuple t1, Pat.Tuple t2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal equal_pat)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (t1, t2)
+            end
+
+        | (Pat.Record r1, Pat.Record r2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal equal_patrow)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (r1, r2)
+            end
+
+        | (Pat.Parens p1, Pat.Parens p2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #pat equal_pat <&> at #right equal_tok
+            in
+              checker (p1, p2)
+            end
+
+        | (Pat.Con c1, Pat.Con c2) =>
+            let
+              val checker =
+                at #opp (equal_op equal_tok)
+                <&> at #id (at MaybeLongToken.getToken equal_tok)
+                <&> at #atpat equal_pat
+            in
+              checker (c1, c2)
+            end
+
+        | (Pat.Infix i1, Pat.Infix i2) =>
+            let
+              val checker =
+                at #left equal_pat <&> at #id equal_tok <&> at #right equal_pat
+            in
+              checker (i1, i2)
+            end
+
+        | (Pat.Typed t1, Pat.Typed t2) =>
+            let
+              val checker =
+                at #pat equal_pat <&> at #colon equal_tok <&> at #ty equal_ty
+            in
+              checker (t1, t2)
+            end
+
+        | (Pat.Layered l1, Pat.Layered l2) =>
+            let
+              val checker =
+                at #opp (equal_op equal_tok) <&> at #id equal_tok
+                <&> at #ty (equal_op (at #colon equal_tok <&> at #ty equal_ty))
+                <&> at #ass equal_tok <&> at #pat equal_pat
+            in
+              checker (l1, l2)
+            end
+
+        | (Pat.Or o1, Pat.Or o2) =>
+            let
+              val checker =
+                at #elems (Seq.equal equal_pat)
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (o1, o2)
+            end
+
+        | _ => false
+
+
       fun equal_exp (e1, e2) =
         case (e1, e2) of
           (Exp.Const c1, Exp.Const c2) => equal_tok (c1, c2)
