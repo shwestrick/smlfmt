@@ -69,7 +69,57 @@ struct
         | _ => false
 
 
-      fun equal_ty (t1, t2) = raise Fail "nyi"
+      fun equal_ty (t1, t2) =
+        case (t1, t2) of
+          (Ty.Var v1, Ty.Var v2) => equal_tok (v1, v2)
+
+        | (Ty.Record r1, Ty.Record r2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #right equal_tok
+                <&> at #delims (Seq.equal equal_tok)
+                <&>
+                at #elems (Seq.equal
+                  (at #lab equal_tok <&> at #colon equal_tok <&> at #ty equal_ty))
+            in
+              checker (r1, r2)
+            end
+
+        | (Ty.Tuple t1, Ty.Tuple t2) =>
+            let
+              val checker =
+                at #elems (Seq.equal equal_ty)
+                <&> at #delims (Seq.equal equal_tok)
+            in
+              checker (t1, t2)
+            end
+
+        | (Ty.Con c1, Ty.Con c2) =>
+            let
+              val checker =
+                at #args (equal_syntaxseq equal_ty)
+                <&> at #id (at MaybeLongToken.getToken equal_tok)
+            in
+              checker (c1, c2)
+            end
+
+        | (Ty.Arrow a1, Ty.Arrow a2) =>
+            let
+              val checker =
+                at #from equal_ty <&> at #arrow equal_tok <&> at #to equal_ty
+            in
+              checker (a1, a2)
+            end
+
+        | (Ty.Parens p1, Ty.Parens p2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #ty equal_ty <&> at #right equal_tok
+            in
+              checker (p1, p2)
+            end
+
+        | _ => false
 
 
       fun equal_exp (e1, e2) =
