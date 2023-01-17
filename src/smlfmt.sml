@@ -266,7 +266,8 @@ fun formatOneSML
       print ("check output for " ^ hfp ^ ": success\n")
     else
       failWithMessage
-        "ERROR: --check failed! Bug! Please submit a bug report...";
+        ("ERROR: " ^ hfp
+         ^ ": --check failed! Bug! Please submit a bug report...");
 
     if previewOnly then () else if doForce then writeOut () else confirm ()
   end
