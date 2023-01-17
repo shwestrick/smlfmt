@@ -249,10 +249,199 @@ struct
         | _ => false
 
 
-      fun equal_exp (e1, e2) =
+      fun equal_rowexp (re1, re2) =
+        case (re1, re2) of
+          (Exp.RecordRow r1, Exp.RecordRow r2) =>
+            let
+              val checker =
+                at #lab equal_tok <&> at #eq equal_tok <&> at #exp equal_exp
+            in
+              checker (r1, r2)
+            end
+
+        | (Exp.RecordPun p1, Exp.RecordPun p2) => at #id equal_tok (p1, p2)
+
+        | _ => false
+
+
+      and equal_exp (e1, e2) =
         case (e1, e2) of
           (Exp.Const c1, Exp.Const c2) => equal_tok (c1, c2)
-        | _ => raise Fail "nyi"
+
+        | (Exp.Ident i1, Exp.Ident i2) =>
+            let
+              val checker =
+                at #opp (equal_op equal_tok)
+                <&> at #id (at MaybeLongToken.getToken equal_tok)
+            in
+              checker (i1, i2)
+            end
+
+        | (Exp.Record r1, Exp.Record r2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal equal_rowexp)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (r1, r2)
+            end
+
+        | (Exp.Select s1, Exp.Select s2) =>
+            (at #hash equal_tok <&> at #label equal_tok) (s1, s2)
+
+        | (Exp.Unit u1, Exp.Unit u2) =>
+            (at #left equal_tok <&> at #right equal_tok) (u1, u2)
+
+        | (Exp.Tuple t1, Exp.Tuple t2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal equal_exp)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (t1, t2)
+            end
+
+        | (Exp.List l1, Exp.List l2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal equal_exp)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (l1, l2)
+            end
+
+        | (Exp.Sequence s1, Exp.Sequence s2) =>
+            let
+              val checker =
+                at #left equal_tok <&> at #elems (Seq.equal equal_exp)
+                <&> at #delims (Seq.equal equal_tok) <&> at #right equal_tok
+            in
+              checker (s1, s2)
+            end
+
+        | (Exp.LetInEnd lie1, Exp.LetInEnd lie2) =>
+            let
+              val checker =
+                at #lett equal_tok <&> at #dec equal_dec <&> at #inn equal_tok
+                <&> at #exps (Seq.equal equal_exp)
+                <&> at #delims (Seq.equal equal_tok) <&> at #endd equal_tok
+            in
+              checker (lie1, lie2)
+            end
+
+        | (Exp.Parens p1, Exp.Parens p2) =>
+            (at #left equal_tok <&> at #exp equal_exp <&> at #right equal_tok)
+              (p1, p2)
+
+        | (Exp.App a1, Exp.App a2) =>
+            (at #left equal_exp <&> at #right equal_exp) (a1, a2)
+
+        | (Exp.Infix i1, Exp.Infix i2) =>
+            let
+              val checker =
+                at #left equal_exp <&> at #id equal_tok <&> at #right equal_exp
+            in
+              checker (i1, i2)
+            end
+
+        | (Exp.Typed t1, Exp.Typed t2) =>
+            let
+              val checker =
+                at #exp equal_exp <&> at #colon equal_tok <&> at #ty equal_ty
+            in
+              checker (t1, t2)
+            end
+
+        | (Exp.Andalso a1, Exp.Andalso a2) =>
+            let
+              val checker =
+                at #left equal_exp <&> at #andalsoo equal_tok
+                <&> at #right equal_exp
+            in
+              checker (a1, a2)
+            end
+
+        | (Exp.Orelse o1, Exp.Orelse o2) =>
+            let
+              val checker =
+                at #left equal_exp <&> at #orelsee equal_tok
+                <&> at #right equal_exp
+            in
+              checker (o1, o2)
+            end
+
+        | (Exp.Handle h1, Exp.Handle h2) =>
+            let
+              val checker =
+                at #exp equal_exp <&> at #handlee equal_tok
+                <&>
+                at #elems (Seq.equal
+                  (at #pat equal_pat <&> at #arrow equal_tok
+                   <&> at #exp equal_exp)) <&> at #delims (Seq.equal equal_tok)
+                <&> at #optbar (equal_op equal_tok)
+            in
+              checker (h1, h2)
+            end
+
+        | (Exp.Raise r1, Exp.Raise r2) =>
+            (at #raisee equal_tok <&> at #exp equal_exp) (r1, r2)
+
+        | (Exp.IfThenElse ite1, Exp.IfThenElse ite2) =>
+            let
+              val checker =
+                at #iff equal_tok <&> at #exp1 equal_exp <&> at #thenn equal_tok
+                <&> at #exp2 equal_exp <&> at #elsee equal_tok
+                <&> at #exp3 equal_exp
+            in
+              checker (ite1, ite2)
+            end
+
+        | (Exp.While w1, Exp.While w2) =>
+            let
+              val checker =
+                at #whilee equal_tok <&> at #exp1 equal_exp
+                <&> at #doo equal_tok <&> at #exp2 equal_exp
+            in
+              checker (w1, w2)
+            end
+
+        | (Exp.Case c1, Exp.Case c2) =>
+            let
+              val checker =
+                at #casee equal_tok <&> at #exp equal_exp <&> at #off equal_tok
+                <&>
+                at #elems (Seq.equal
+                  (at #pat equal_pat <&> at #arrow equal_tok
+                   <&> at #exp equal_exp)) <&> at #delims (Seq.equal equal_tok)
+                <&> at #optbar (equal_op equal_tok)
+            in
+              checker (c1, c2)
+            end
+
+        | (Exp.Fn f1, Exp.Fn f2) =>
+            let
+              val checker =
+                at #fnn equal_tok
+                <&>
+                at #elems (Seq.equal
+                  (at #pat equal_pat <&> at #arrow equal_tok
+                   <&> at #exp equal_exp)) <&> at #delims (Seq.equal equal_tok)
+                <&> at #optbar (equal_op equal_tok)
+            in
+              checker (f1, f2)
+            end
+
+        | (Exp.MLtonSpecific m1, Exp.MLtonSpecific m2) =>
+            let
+              val checker =
+                at #underscore equal_tok <&> at #directive equal_tok
+                <&> at #contents (Seq.equal equal_tok)
+                <&> at #semicolon equal_tok
+            in
+              checker (m1, m2)
+            end
+
+        | _ => false
 
 
       and equal_dec (d1, d2) = raise Fail "nyi"
