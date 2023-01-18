@@ -86,9 +86,11 @@ val allowRecordPun = CommandLineArgs.parseBool "allow-record-pun-exps" false
 val allowOrPat = CommandLineArgs.parseBool "allow-or-pats" false
 val allowExtendedText =
   CommandLineArgs.parseBool "allow-extended-text-consts" false
+
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doHelp = CommandLineArgs.parseFlag "help"
+val doCheck = CommandLineArgs.parseFlag "check"
 val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
 val stdio = CommandLineArgs.parseFlag "stdio"
@@ -111,12 +113,17 @@ val _ =
   else
     ()
 
+fun warnWithMessage msg =
+  TCS.printErr (boldc Palette.yellow (msg ^ "\n"))
+
+fun failWithMessage msg =
+  ( TCS.printErr (boldc Palette.red (msg ^ "\n"))
+  ; OS.Process.exit OS.Process.failure
+  )
+
 val _ =
   if previewOnly andalso doForce then
-    ( TCS.printErr (boldc Palette.red
-        "ERROR: --force incompatible with --preview-only\n")
-    ; OS.Process.exit OS.Process.failure
-    )
+    failWithMessage "ERROR: --force incompatible with --preview-only"
   else
     ()
 
@@ -126,19 +133,15 @@ val _ =
     andalso
     (doForce orelse preview orelse previewOnly orelse not (List.null inputfiles))
   then
-    ( TCS.printErr (boldc Palette.red
-        "ERROR: --stdio incompatible with --force, --preview, --preview-only, and passing input files\n")
-    ; OS.Process.exit OS.Process.failure
-    )
+    failWithMessage
+      "ERROR: --stdio incompatible with --force, --preview, --preview-only, \
+      \and passing input files"
   else
     ()
 
 val _ =
   if doDebug andalso not previewOnly then
-    ( TCS.printErr (boldc Palette.red
-        "ERROR: --debug-engine requires --preview-only\n")
-    ; OS.Process.exit OS.Process.failure
-    )
+    failWithMessage "ERROR: --debug-engine requires --preview-only"
   else
     ()
 
@@ -147,11 +150,9 @@ val prettyPrinter =
     "prettier" => PrettierPrintAst.pretty
   | "pretty" => PrettyPrintAst.pretty
   | other =>
-      ( TCS.printErr (boldc Palette.red
-          ("ERROR: unknown engine '" ^ other
-           ^ "'; valid options are: prettier, pretty\n"))
-      ; OS.Process.exit OS.Process.failure
-      )
+      failWithMessage
+        ("ERROR: unknown engine '" ^ other
+         ^ "'; valid options are: prettier, pretty\n")
 
 
 val pathmap = MLtonPathMap.getPathMap ()
@@ -209,11 +210,50 @@ fun mkSMLPrettied parserOutput =
         , debug = doDebug
         } ast
 
-fun doSMLAst (fp, parserOutput) =
+fun formatOneSML
+  { path = fp: FilePath.t
+  , allows: AstAllows.t
+  , infdict: InfixDict.t option
+  , lexerOutput: Token.t Seq.t
+  , parserOutput: Parser.parser_output
+  } =
   let
     val hfp = FilePath.toHostPath fp
     val prettied = mkSMLPrettied parserOutput
     val result = TCS.toString {colors = false} prettied
+
+    fun check () =
+      let
+        val result = CheckOutput.check
+          { origLexerOutput = lexerOutput
+          , origParserOutput = parserOutput
+          , origFormattedOutput = result
+          , formatter = TCS.toString {colors = false} o mkSMLPrettied
+          , allows = allows
+          , infdict = infdict
+          , tabWidth = tabWidth
+          }
+      in
+        case result of
+          CheckOutput.AllGood => print ("check " ^ hfp ^ ": success\n")
+
+        | CheckOutput.NonIdempotentFormatting =>
+            warnWithMessage
+              ("WARNING: " ^ hfp
+               ^
+               ": non-idempotent formatting detected. Don't worry! The output \
+               \is still correct; this is only an aesthetic issue. To help \
+               \improve `smlfmt`, please consider submitting a bug report: \
+               \https://github.com/shwestrick/smlfmt/issues")
+
+        | CheckOutput.Error {description} =>
+            failWithMessage
+              ("ERROR: " ^ hfp ^ ": --check failed: " ^ description ^ ". "
+               ^
+               "Output aborted. This is a bug! Please consider submitting \
+               \a bug report: \
+               \https://github.com/shwestrick/smlfmt/issues")
+      end
 
     fun writeOut () =
       let
@@ -245,6 +285,8 @@ fun doSMLAst (fp, parserOutput) =
       ; print "\n"
       );
 
+    if not doCheck then () else check ();
+
     if previewOnly then () else if doForce then writeOut () else confirm ()
   end
   handle exn => TCS.printErr (boldc Palette.red (exnToString exn ^ "\n"))
@@ -253,26 +295,51 @@ fun doSMLAst (fp, parserOutput) =
 fun doSML filepath =
   let
     val fp = FilePath.fromUnixPath filepath
+
     val (source, tm) = Util.getTime (fn _ => Source.loadFromFile fp)
     val _ = dbgprintln ("load source: " ^ Time.fmt 3 tm ^ "s")
+
+    val (allTokens, tm) = Util.getTime (fn _ =>
+      Lexer.tokens allows source
+      handle exn => handleLexOrParseError exn)
+    val _ = dbgprintln ("lex: " ^ Time.fmt 3 tm ^ "s")
+
     val (result, tm) = Util.getTime (fn _ =>
-      Parser.parse allows source
+      Parser.parse allows allTokens
       handle exn => handleLexOrParseError exn)
     val _ = dbgprintln ("parse: " ^ Time.fmt 3 tm ^ "s")
   in
-    doSMLAst (fp, result)
+    formatOneSML
+      { path = fp
+      , allows = allows
+      , infdict = NONE
+      , lexerOutput = allTokens
+      , parserOutput = result
+      }
   end
 
 
 fun doMLB filepath =
   let
     val fp = FilePath.fromUnixPath filepath
-    val asts =
+    val results =
       ParseAllSMLFromMLB.parse
         {skipBasis = true, pathmap = pathmap, allows = allows} fp
       handle exn => handleLexOrParseError exn
   in
-    Util.for (0, Seq.length asts) (fn i => doSMLAst (Seq.nth asts i))
+    Util.for (0, Seq.length results) (fn i =>
+      let
+        val {path, allows, infdict, lexerOutput, parserOutput} =
+          Seq.nth results i
+      in
+        formatOneSML
+          { path = path
+          , allows = allows
+          , infdict = SOME infdict
+          , lexerOutput = lexerOutput
+          , parserOutput = parserOutput
+          }
+      end)
   end
 
 
@@ -329,7 +396,9 @@ val _ =
   if stdio then
     let
       val source = Source.loadFromStdin ()
-      val parserOutput = Parser.parse allows source
+      val allTokens = Lexer.tokens allows source
+                      handle exn => handleLexOrParseError exn
+      val parserOutput = Parser.parse allows allTokens
                          handle exn => handleLexOrParseError exn
       val prettied = mkSMLPrettied parserOutput
     in

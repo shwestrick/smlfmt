@@ -85,6 +85,9 @@ sig
   type t = token
 
   val same: token * token -> bool
+  val sameExceptForMultilineIndentation: {tabWidth: int}
+                                         -> token * token
+                                         -> bool
 
   val getClass: token -> class
   val getSource: token -> Source.t
@@ -108,7 +111,7 @@ sig
     * raises Fail if not from the same file.
     *)
   val lineDifference: token * token -> int
-
+  val effectiveOffset: {tabWidth: int} -> token -> int
   val spansMultipleLines: token -> bool
 
   val isReserved: token -> bool
@@ -651,6 +654,28 @@ struct
     | Whitespace => "whitespace"
 
 
+  (** effective offset of the beginning of this token within its line,
+    * counting tab-widths appropriately.
+    *)
+  fun effectiveOffset {tabWidth: int} tok =
+    let
+      val src = getSource tok
+      val {col, line = lineNum} = Source.absoluteStart src
+      val len = col - 1
+      val charsBeforeOnSameLine = Source.take (Source.wholeLine src lineNum) len
+      fun loop effOff i =
+        if i >= len then
+          effOff
+        else if #"\t" = Source.nth charsBeforeOnSameLine i then
+          (* advance up to next tabstop *)
+          loop (effOff + tabWidth - effOff mod tabWidth) (i + 1)
+        else
+          loop (effOff + 1) (i + 1)
+    in
+      loop 0 0
+    end
+
+
   (** Check that the text of t1 exactly matches the text of t2. Useful for
     * comparing identifier names, e.g. for infix lookup.
     *)
@@ -659,12 +684,54 @@ struct
       val s1 = getSource t1
       val s2 = getSource t2
       val n = Source.length s1
+
+      fun loop i =
+        if i >= n then true
+        else (Source.nth s1 i = Source.nth s2 i) andalso loop (i + 1)
     in
-      n = Source.length s2
-      andalso
-      Util.loop (0, n) true (fn (b, i) =>
-        b andalso Source.nth s1 i = Source.nth s2 i)
+      n = Source.length s2 andalso loop 0
     end
+
+
+  fun piecesAsStrings {tabWidth} tok =
+    let
+      val effectiveOffset = effectiveOffset {tabWidth = tabWidth} tok
+
+      fun strip line =
+        let
+          val {result, ...} =
+            StripEffectiveWhitespace.strip
+              {tabWidth = tabWidth, removeAtMost = effectiveOffset} line
+        in
+          result
+        end
+
+      val src = getSource tok
+      val asString = CharVector.tabulate (Source.length src, Source.nth src)
+    in
+      Seq.map (fn (i, j) => strip (String.substring (asString, i, j - i)))
+        (Source.lineRanges src)
+    end
+
+
+  (** Check that t1 and t2 have exactly the same text, similar to function
+    * `same` above, except that this function also handles the possibility of a
+    * multiline token (i.e. a multiline comment or string constant) whose
+    * indentation might be different between t1 and t2 but otherwise is
+    * identical.
+    *)
+  fun sameExceptForMultilineIndentation {tabWidth: int} (t1, t2) =
+    if
+      not
+        (isComment t1 orelse isStringConstant t1 orelse isComment t2
+         orelse isStringConstant t2)
+    then
+      same (t1, t2)
+    else
+      Seq.equal op=
+        ( piecesAsStrings {tabWidth = tabWidth} t1
+        , piecesAsStrings {tabWidth = tabWidth} t2
+        )
 
 
   fun isAtPatStartToken tok =

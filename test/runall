@@ -33,7 +33,7 @@ info('built parser successfully')
 MAIN = os.path.join(ROOT, 'smlfmt')
 
 def run_test(path, expect_success=True):
-  cmd = [MAIN, '--no-skip-basis', '--preview-only', path]
+  cmd = [MAIN, '--preview-only', '--check', path]
   process = \
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out, err = process.communicate()

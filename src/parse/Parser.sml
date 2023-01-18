@@ -12,10 +12,10 @@ sig
     Ast of Ast.t
   | JustComments of Token.t Seq.t
 
-  val parse: AstAllows.t -> Source.t -> parser_output
+  val parse: AstAllows.t -> Token.t Seq.t -> parser_output
   val parseWithInfdict: AstAllows.t
                         -> InfixDict.t
-                        -> Source.t
+                        -> Token.t Seq.t
                         -> (InfixDict.t * parser_output)
 end =
 struct
@@ -32,10 +32,8 @@ struct
   type ('state, 'result) parser = 'state -> ('state * 'result)
   type 'state peeker = 'state -> bool
 
-  fun parseWithInfdict allows infdict src =
+  fun parseWithInfdict allows infdict allTokens =
     let
-      (** This might raise Lexer.Error *)
-      val allTokens = Lexer.tokens allows src
       val toks = Seq.filter (not o Token.isCommentOrWhitespace) allTokens
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
@@ -607,9 +605,12 @@ struct
     end
 
 
-  fun parse allows src =
-    let val (_, result) = parseWithInfdict allows InfixDict.initialTopLevel src
-    in result
+  fun parse allows allTokens =
+    let
+      val (_, result) =
+        parseWithInfdict allows InfixDict.initialTopLevel allTokens
+    in
+      result
     end
 
 
