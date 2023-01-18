@@ -13,6 +13,11 @@
  *)
 structure CheckOutput:
 sig
+  datatype result =
+    AllGood
+  | NonIdempotentFormatting
+  | Error of {description: string}
+
   val check:
     { origLexerOutput: Token.t Seq.t
     , origParserOutput: Parser.parser_output
@@ -22,9 +27,15 @@ sig
     , infdict: InfixDict.t option
     , tabWidth: int
     }
-    -> bool
+    -> result
 end =
 struct
+
+  datatype result =
+    AllGood
+  | NonIdempotentFormatting
+  | Error of {description: string}
+
 
   val removeWhitespaceTokens = Seq.filter (not o Token.isWhitespace)
 
@@ -71,12 +82,24 @@ struct
             end
 
       val newFormattedOutput = formatter newParserOutput
+
+      val tokensOkay =
+        checkTokenSeqs {tabWidth = tabWidth} (origLexerOutput, newLexerOutput)
+
+      val reparseOkay =
+        checkParserOutputs {tabWidth = tabWidth}
+          (origParserOutput, newParserOutput)
+
+      val reformatOkay = origFormattedOutput = newFormattedOutput
     in
-      checkTokenSeqs {tabWidth = tabWidth} (origLexerOutput, newLexerOutput)
-      andalso
-      checkParserOutputs {tabWidth = tabWidth}
-        (origParserOutput, newParserOutput)
-      andalso origFormattedOutput = newFormattedOutput
+      if not tokensOkay then
+        Error {description = "tokens mangled"}
+      else if not reparseOkay then
+        Error {description = "unexpected parse failure"}
+      else if not reformatOkay then
+        NonIdempotentFormatting
+      else
+        AllGood
     end
 
 end

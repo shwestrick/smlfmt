@@ -113,6 +113,9 @@ val _ =
   else
     ()
 
+fun warnWithMessage msg =
+  TCS.printErr (boldc Palette.yellow (msg ^ "\n"))
+
 fun failWithMessage msg =
   ( TCS.printErr (boldc Palette.red (msg ^ "\n"))
   ; OS.Process.exit OS.Process.failure
@@ -220,15 +223,37 @@ fun formatOneSML
     val result = TCS.toString {colors = false} prettied
 
     fun check () =
-      CheckOutput.check
-        { origLexerOutput = lexerOutput
-        , origParserOutput = parserOutput
-        , origFormattedOutput = result
-        , formatter = TCS.toString {colors = false} o mkSMLPrettied
-        , allows = allows
-        , infdict = infdict
-        , tabWidth = tabWidth
-        }
+      let
+        val result = CheckOutput.check
+          { origLexerOutput = lexerOutput
+          , origParserOutput = parserOutput
+          , origFormattedOutput = result
+          , formatter = TCS.toString {colors = false} o mkSMLPrettied
+          , allows = allows
+          , infdict = infdict
+          , tabWidth = tabWidth
+          }
+      in
+        case result of
+          CheckOutput.AllGood => print ("check " ^ hfp ^ ": success\n")
+
+        | CheckOutput.NonIdempotentFormatting =>
+            warnWithMessage
+              ("WARNING: " ^ hfp
+               ^
+               ": non-idempotent formatting detected. Don't worry! The output \
+               \is still correct; this is only an aesthetic issue. To help \
+               \improve `smlfmt`, please consider submitting a bug report at \
+               \https://github.com/shwestrick/smlfmt/issues.")
+
+        | CheckOutput.Error {description} =>
+            failWithMessage
+              ("ERROR: " ^ hfp ^ ": --check failed: " ^ description ^ ". "
+               ^
+               "Output aborted. This is a bug! Please consider submitting \
+               \a bug report at \
+               \https://github.com/shwestrick/smlfmt/issues.")
+      end
 
     fun writeOut () =
       let
@@ -260,14 +285,7 @@ fun formatOneSML
       ; print "\n"
       );
 
-    if not doCheck then
-      ()
-    else if check () then
-      print ("check output for " ^ hfp ^ ": success\n")
-    else
-      failWithMessage
-        ("ERROR: " ^ hfp
-         ^ ": --check failed! Bug! Please submit a bug report...");
+    if not doCheck then () else check ();
 
     if previewOnly then () else if doForce then writeOut () else confirm ()
   end
