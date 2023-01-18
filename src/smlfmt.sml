@@ -243,16 +243,16 @@ fun formatOneSML
                ^
                ": non-idempotent formatting detected. Don't worry! The output \
                \is still correct; this is only an aesthetic issue. To help \
-               \improve `smlfmt`, please consider submitting a bug report at \
-               \https://github.com/shwestrick/smlfmt/issues.")
+               \improve `smlfmt`, please consider submitting a bug report: \
+               \https://github.com/shwestrick/smlfmt/issues")
 
         | CheckOutput.Error {description} =>
             failWithMessage
               ("ERROR: " ^ hfp ^ ": --check failed: " ^ description ^ ". "
                ^
                "Output aborted. This is a bug! Please consider submitting \
-               \a bug report at \
-               \https://github.com/shwestrick/smlfmt/issues.")
+               \a bug report: \
+               \https://github.com/shwestrick/smlfmt/issues")
       end
 
     fun writeOut () =

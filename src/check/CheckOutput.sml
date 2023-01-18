@@ -71,26 +71,45 @@ struct
               (String.size origFormattedOutput)
         }
 
-      val newLexerOutput = Lexer.tokens allows mockedSource
+      val newLexerOutput = SOME (Lexer.tokens allows mockedSource)
+                           handle _ => NONE
 
       val newParserOutput =
-        case infdict of
-          NONE => Parser.parse allows newLexerOutput
-        | SOME d =>
-            let val (_, po) = Parser.parseWithInfdict allows d newLexerOutput
-            in po
+        case newLexerOutput of
+          NONE => NONE
+        | SOME lexOut =>
+            let
+              val ast =
+                case infdict of
+                  NONE => Parser.parse allows lexOut
+                | SOME d =>
+                    let val (_, po) = Parser.parseWithInfdict allows d lexOut
+                    in po
+                    end
+            in
+              SOME ast
             end
+            handle _ => NONE
 
-      val newFormattedOutput = formatter newParserOutput
+      val newFormattedOutput = Option.map formatter newParserOutput
+
+      (* ================================================================= *)
 
       val tokensOkay =
-        checkTokenSeqs {tabWidth = tabWidth} (origLexerOutput, newLexerOutput)
+        case newLexerOutput of
+          NONE => false
+        | SOME x => checkTokenSeqs {tabWidth = tabWidth} (origLexerOutput, x)
 
       val reparseOkay =
-        checkParserOutputs {tabWidth = tabWidth}
-          (origParserOutput, newParserOutput)
+        case newParserOutput of
+          NONE => false
+        | SOME x =>
+            checkParserOutputs {tabWidth = tabWidth} (origParserOutput, x)
 
-      val reformatOkay = origFormattedOutput = newFormattedOutput
+      val reformatOkay =
+        case newFormattedOutput of
+          NONE => false
+        | SOME x => origFormattedOutput = x
     in
       if not tokensOkay then
         Error {description = "tokens mangled"}
@@ -101,5 +120,7 @@ struct
       else
         AllGood
     end
+    handle exn =>
+      Error {description = "unexpected exception: " ^ exnMessage exn}
 
 end
