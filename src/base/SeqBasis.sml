@@ -1,49 +1,42 @@
+(** Copyright (c) 2023 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure SeqBasis:
 sig
-  type grain = int
+  val foldl: ('b * 'a -> 'b) -> 'b -> (int * int) -> (int -> 'a) -> 'b
 
-  val tabulate: grain -> (int * int) -> (int -> 'a) -> 'a array
+  val foldr: ('b * 'a -> 'b) -> 'b -> (int * int) -> (int -> 'a) -> 'b
 
-  val foldl: ('b * 'a -> 'b)
-          -> 'b
-          -> (int * int)
-          -> (int -> 'a)
-          -> 'b
-
-  val foldr: ('b * 'a -> 'b)
-          -> 'b
-          -> (int * int)
-          -> (int -> 'a)
-          -> 'b
-
-  val reduce: grain
+  (*
+    val reduce: grain
+             -> ('a * 'a -> 'a)
+             -> 'a
+             -> (int * int)
+             -> (int -> 'a)
+             -> 'a
+  
+    val scan: grain
            -> ('a * 'a -> 'a)
            -> 'a
            -> (int * int)
            -> (int -> 'a)
-           -> 'a
+           -> 'a array  (* length N+1, for both inclusive and exclusive scan *)
+  *)
 
-  val scan: grain
-         -> ('a * 'a -> 'a)
-         -> 'a
-         -> (int * int)
-         -> (int -> 'a)
-         -> 'a array  (* length N+1, for both inclusive and exclusive scan *)
+  val filter: (int * int) -> (int -> 'a) -> (int -> bool) -> 'a array
 
-  val filter: grain
-           -> (int * int)
-           -> (int -> 'a)
-           -> (int -> bool)
-           -> 'a array
-
+(*
   val tabFilter: grain
               -> (int * int)
               -> (int -> 'a option)
               -> 'a array
+              *)
 end =
 struct
 
-  type grain = int
+  (* type grain = int *)
 
   structure A = Array
   structure AS = ArraySlice
@@ -53,43 +46,61 @@ struct
   fun nth a i   = Unsafe.Array.sub (a, i)
   *)
 
-  fun upd a i x = A.update (a, i, x)
-  fun nth a i   = A.sub (a, i)
-
-  val parfor = ForkJoin.parfor
-  val par = ForkJoin.par
-  val allocate = ForkJoin.alloc
-
-  fun tabulate grain (lo, hi) f =
-    let
-      val n = hi-lo
-      val result = allocate n
-    in
-      if lo = 0 then
-        parfor grain (0, n) (fn i => upd result i (f i))
-      else
-        parfor grain (0, n) (fn i => upd result i (f (lo+i)));
-
-      result
-    end
+  (*
+    fun upd a i x = A.update (a, i, x)
+    fun nth a i   = A.sub (a, i)
+  
+    val parfor = ForkJoin.parfor
+    val par = ForkJoin.par
+    val allocate = ForkJoin.alloc
+  
+    fun tabulate grain (lo, hi) f =
+      let
+        val n = hi-lo
+        val result = allocate n
+      in
+        if lo = 0 then
+          parfor grain (0, n) (fn i => upd result i (f i))
+        else
+          parfor grain (0, n) (fn i => upd result i (f (lo+i)));
+  
+        result
+      end
+  *)
 
   fun foldl g b (lo, hi) f =
-    if lo >= hi then b else
-    let
-      val b' = g (b, f lo)
-    in
-      foldl g b' (lo+1, hi) f
-    end
+    if lo >= hi then b
+    else let val b' = g (b, f lo) in foldl g b' (lo + 1, hi) f end
 
   fun foldr g b (lo, hi) f =
-    if lo >= hi then b else
-    let
-      val hi' = hi-1
-      val b' = g (b, f hi')
-    in
-      foldr g b' (lo, hi') f
-    end
+    if lo >= hi then
+      b
+    else
+      let
+        val hi' = hi - 1
+        val b' = g (b, f hi')
+      in
+        foldr g b' (lo, hi') f
+      end
 
+  fun filter (lo, hi) f pred =
+    if hi - lo <= 0 then
+      Array.fromList []
+    else
+      let
+        val count = foldl op+ 0 (lo, hi) (fn i => if pred i then 1 else 0)
+        val output = Array.array (count, f lo)
+      in
+        (* 0 <= j < count: output index
+         * lo <= i < hi: input index
+         *)
+        Util.loop (lo, hi) 0 (fn (j, i) =>
+          if pred i then (Array.update (output, j, f i); (j + 1)) else j);
+
+        output
+      end
+
+(*
   fun reduce grain g b (lo, hi) f =
     if hi - lo <= grain then
       foldl g b (lo, hi) f
@@ -210,5 +221,5 @@ struct
         end);
       result
     end
-
+*)
 end

@@ -1,4 +1,12 @@
-../lib/github.com/mpllang/mpllib/sources.mlton.mlb
+$(SML_LIB)/basis/basis.mlb
+$(SML_LIB)/basis/mlton.mlb
+(* ../lib/github.com/mpllang/mpllib/sources.mlton.mlb *)
+Util.sml
+SeqBasis.sml
+ReadFile.sml
+BinarySearch.sml
+CommandLineArgs.sml
+Seq.sml
 
 SimplePromise.sml
 MemoizedPromise.sml
@@ -25,6 +33,7 @@ local
   Dict.sml
 in
   functor Dict
+  structure ListMergeSort
 end
 
 Set.sml

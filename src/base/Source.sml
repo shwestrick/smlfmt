@@ -72,7 +72,7 @@ struct
             \ReadFile.contentsSeq to return slice at offset 0"
 
       val newlineIdxs =
-        ArraySlice.full (SeqBasis.filter 2000 (0, n) (fn i => i) (fn i =>
+        ArraySlice.full (SeqBasis.filter (0, n) (fn i => i) (fn i =>
           Seq.nth contents i = #"\n"))
     in
       {data = contents, fileName = path, newlineIdxs = newlineIdxs}
