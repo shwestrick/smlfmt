@@ -3,12 +3,12 @@
 A custom parser and code formatter for Standard ML. `smlfmt` is fast,
 configurable, and usable for large projects.
 
-Most of the SML code in this repository (everything in
-`src`, except `src/lib`) has been formatted by `smlfmt`. Take a look!
+All of the SML code in this repository (everything in
+`src`) has been formatted by `smlfmt`. Take a look!
 
-**(Jan 10, 2023)**: Released v1.0.0!
+**(Jan 10, 2023)** Released v1.0.0!
 
-**(Dec 29, 2022)**: changed repository name to `smlfmt` (used to be `parse-sml`).
+**(Dec 29, 2022)** changed repository name to `smlfmt` (used to be `parse-sml`).
 
 ## Features
 - Full support for Standard ML according to the formal definition.
