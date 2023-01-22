@@ -391,7 +391,9 @@ struct
       fun highlightActive accCurrLine acc startDebugs =
         let
           val orderedHighlightCols =
-            Mergesort.sort sentryCmp (Seq.fromList startDebugs)
+            (* Mergesort.sort sentryCmp (Seq.fromList startDebugs) *)
+            Seq.fromList
+              (ListMergeSort.sort (Util.gtOfCmp sentryCmp) startDebugs)
 
           fun processItem (item, (currCol, hi, acc)) =
             let
@@ -468,8 +470,13 @@ struct
         else
           let
             val orderedStarts =
-              Mergesort.sort sentryCmp (Seq.fromList startDebugs)
-            val orderedEnds = Mergesort.sort eentryCmp (Seq.fromList endDebugs)
+              (* Mergesort.sort sentryCmp (Seq.fromList startDebugs) *)
+              Seq.fromList
+                (ListMergeSort.sort (Util.gtOfCmp sentryCmp) startDebugs)
+            val orderedEnds =
+              (* Mergesort.sort eentryCmp (Seq.fromList endDebugs) *)
+              Seq.fromList
+                (ListMergeSort.sort (Util.gtOfCmp eentryCmp) endDebugs)
 
             val _ = print
               ("newLineWithEndDebugs:\n" ^ "  starts: "

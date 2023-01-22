@@ -1,4 +1,9 @@
-structure CommandLineArgs :
+(** Copyright (c) 2023 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
+structure CommandLineArgs:
 sig
   (* each takes a key K and a default value D, looks for -K V in the
    * command-line arguments, and returns V if it finds it, or D otherwise. *)
@@ -33,14 +38,12 @@ struct
       fun loop found rest =
         case rest of
           [] => List.rev found
-        | [x] => List.rev (if not (String.isPrefix "-" x) then x::found else found)
-        | x::y::rest' =>
-            if not (String.isPrefix "-" x) then
-              loop (x::found) (y::rest')
-            else if String.isPrefix "--" x then
-              loop found (y::rest')
-            else
-              loop found rest'
+        | [x] =>
+            List.rev (if not (String.isPrefix "-" x) then x :: found else found)
+        | x :: y :: rest' =>
+            if not (String.isPrefix "-" x) then loop (x :: found) (y :: rest')
+            else if String.isPrefix "--" x then loop found (y :: rest')
+            else loop found rest'
     in
       loop [] (CommandLine.arguments ())
     end
@@ -48,10 +51,7 @@ struct
   fun search key args =
     case args of
       [] => NONE
-    | x :: args' =>
-        if key = x
-        then SOME args'
-        else search key args'
+    | x :: args' => if key = x then SOME args' else search key args'
 
   fun parseString key default =
     case search ("-" ^ key) (CommandLine.arguments ()) of
