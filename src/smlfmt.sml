@@ -165,7 +165,7 @@ fun handleLexOrParseError exn =
       case exn of
         Error.Error e => e
       | other => raise other
-    val hist = MLton.Exn.history exn
+    val hist = ExnHistory.history exn
   in
     TCS.print
       (Error.show {highlighter = SOME SyntaxHighlighter.fuzzyHighlight} e);
@@ -179,13 +179,13 @@ fun exnToString exn =
   let
     val header = "UNHANDLED EXCEPTION: " ^ exnMessage exn
     val stackTrace =
-      if List.null (MLton.Exn.history exn) then
+      if List.null (ExnHistory.history exn) then
         ""
       else
         "\nSTACK TRACE:\n"
         ^
         List.foldl op^ ""
-          (List.map (fn s => "  " ^ s ^ "\n") (MLton.Exn.history exn))
+          (List.map (fn s => "  " ^ s ^ "\n") (ExnHistory.history exn))
   in
     header ^ stackTrace
   end
