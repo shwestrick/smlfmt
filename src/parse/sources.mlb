@@ -1,11 +1,11 @@
-../lex/sources.mlb
-../ast/sources.mlb
-
-InfixDict.sml
-ParserCombinators.sml
-ParserUtils.sml
-
 local
+  $(SML_LIB)/basis/basis.mlb
+  ../base/sources.mlb
+  ../lex/sources.mlb
+  ../ast/sources.mlb
+  InfixDict.sml
+  ParserCombinators.sml
+  ParserUtils.sml
   ExpPatRestriction.sml
   FixExpPrecedence.sml
   ParseSimple.sml
@@ -16,5 +16,8 @@ local
   ParseSigExpAndSpec.sml
   Parser.sml
 in
+  structure ParserUtils
+  structure ParserCombinators
+  structure InfixDict
   structure Parser
 end

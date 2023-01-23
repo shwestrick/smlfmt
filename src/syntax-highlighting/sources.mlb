@@ -1,3 +1,8 @@
-../base/sources.mlb
-../lex/sources.mlb
-SyntaxHighlighter.sml
+local
+  $(SML_LIB)/basis/basis.mlb
+  ../base/sources.mlb
+  ../lex/sources.mlb
+  SyntaxHighlighter.sml
+in
+  structure SyntaxHighlighter
+end
