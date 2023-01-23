@@ -17,6 +17,7 @@ TextFormat.sml
 FilePath.sml
 
 FindInPath.sml
+RunProcess.mlton.sml
 MLtonPathMap.sml
 Terminal.sml
 

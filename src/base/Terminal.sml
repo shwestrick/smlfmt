@@ -6,8 +6,6 @@
 structure Terminal =
 struct
 
-  open MLton.Process
-
   val defaultCols = 60
 
   val tputPath =
@@ -17,16 +15,10 @@ struct
 
   fun currentCols () =
     let
-      val p = create
-        { path = tputPath
-        , env = NONE
-        , args = ["cols"]
-        , stderr = Param.self
-        , stdin = Param.null
-        , stdout = Param.pipe
-        }
+      val output =
+        RunProcess.captureOutput {cmdPath = tputPath, args = ["cols"]}
     in
-      valOf (Int.fromString (TextIO.inputAll (Child.textIn (getStdout p))))
+      valOf (Int.fromString output)
     end
     handle _ => defaultCols
 

@@ -1,0 +1,43 @@
+Group is
+  $/basis.cm
+  $/smlnj-lib.cm
+
+  Util.sml
+  SeqBasis.sml
+  ReadFile.sml
+  BinarySearch.sml
+  CommandLineArgs.sml
+  Seq.sml
+
+  SimplePromise.sml
+  MemoizedPromise.sml
+
+  TerminalColors.sml
+
+  TextFormat.sml
+  FilePath.sml
+
+  FindInPath.sml
+  RunProcess.smlnj.sml
+  MLtonPathMap.sml
+  Terminal.sml
+
+  Source.sml
+  WithSource.sml
+
+  StripEffectiveWhitespace.sml
+  Palette.sml
+  TerminalColorString.sml
+  Error.sml
+
+  Dict.sml
+
+  Set.sml
+
+  DocVar.sml
+  Tab.sml
+
+  PrettySimpleDoc.sml
+  PrettyTabbedDoc.sml
+
+  AstAllows.sml

@@ -41,8 +41,6 @@ struct
 
   fun getPathMap () =
     let
-      open MLton.Process
-
       val mltonPath =
         case FindInPath.find "mlton" of
           SOME path => FilePath.toHostPath path
@@ -52,16 +50,9 @@ struct
             ; "mlton"
             )
 
-      val p = create
-        { path = mltonPath
-        , env = NONE
-        , args = ["-show", "path-map"]
-        , stderr = Param.self
-        , stdin = Param.null
-        , stdout = Param.pipe
-        }
-
-      val output = TextIO.inputAll (Child.textIn (getStdout p))
+      val output =
+        RunProcess.captureOutput
+          {cmdPath = mltonPath, args = ["-show", "path-map"]}
     in
       fromString output
     end
