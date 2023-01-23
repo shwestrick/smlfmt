@@ -1,4 +1,34 @@
-Group is
+Library
+  structure Util
+  structure SeqBasis
+  structure ReadFile
+  structure BinarySearch
+  structure CommandLineArgs
+  structure Seq
+  structure ExnHistory
+  structure SimplePromise
+  structure MemoizedPromise
+  structure TerminalColors
+  structure TextFormat
+  structure FilePath
+  structure FindInPath
+  structure RunProcess
+  structure MLtonPathMap
+  structure Terminal
+  structure Source
+  structure WithSource
+  structure StripEffectiveWhitespace
+  structure Palette
+  structure TerminalColorString
+  structure Error
+  functor Dict
+  functor Set
+  structure DocVar
+  structure Tab
+  functor PrettySimpleDoc
+  functor PrettyTabbedDoc
+  structure AstAllows
+is
   $/basis.cm
   $/smlnj-lib.cm
 
@@ -8,6 +38,8 @@ Group is
   BinarySearch.sml
   CommandLineArgs.sml
   Seq.sml
+
+  ExnHistory.smlnj.sml
 
   SimplePromise.sml
   MemoizedPromise.sml

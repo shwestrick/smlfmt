@@ -9,6 +9,8 @@ local
   CommandLineArgs.sml
   Seq.sml
 
+  ExnHistory.mlton.sml
+
   SimplePromise.sml
   MemoizedPromise.sml
 
@@ -54,6 +56,7 @@ in
   structure BinarySearch
   structure CommandLineArgs
   structure Seq
+  structure ExnHistory
   structure SimplePromise
   structure MemoizedPromise
   structure TerminalColors
