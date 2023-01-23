@@ -40,11 +40,11 @@ struct
         \\
         separateWithSpaces
           [ SOME (token lparen ++ showFunArg funarg ++ token rparen)
-          , Option.map (fn {colon, ...} => token colon) constraint
+          , Option.map (fn {colon, sigexp} => token colon) constraint
           ]
         \\
         separateWithSpaces
-          [ Option.map (fn {sigexp, ...} => showSigExp sigexp) constraint
+          [ Option.map (fn {colon, sigexp} => showSigExp sigexp) constraint
           , SOME (token eq)
           ] \\ showStrExp strexp
     in

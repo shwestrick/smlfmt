@@ -1,5 +1,11 @@
-../base/sources.mlb
-
-LexUtils.sml
-Token.sml
-Lexer.sml
+local
+  $(SML_LIB)/basis/basis.mlb
+  ../base/sources.mlb
+  LexUtils.sml
+  Token.sml
+  Lexer.sml
+in
+  structure LexUtils
+  structure Token
+  structure Lexer
+end

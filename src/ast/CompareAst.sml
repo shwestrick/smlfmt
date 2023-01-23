@@ -886,21 +886,15 @@ struct
 
         | (Str.DecStructure s1, Str.DecStructure s2) =>
             let
-              fun elem_equal (e1, e2) =
-                let
-                  val checker =
-                    at #strid equal_tok
-                    <&>
-                    at #constraint (equal_op
-                      (at #colon equal_tok <&> at #sigexp equal_sigexp))
-                    <&> at #eq equal_tok <&> at #strexp equal_strexp
-                in
-                  checker (e1, e2)
-                end
-
               val checker =
-                at #structuree equal_tok <&> at #elems (Seq.equal elem_equal)
-                <&> at #delims (Seq.equal equal_tok)
+                at #structuree equal_tok <&> at #delims (Seq.equal equal_tok)
+                <&>
+                at #elems (Seq.equal
+                  (at #strid equal_tok
+                   <&>
+                   at #constraint (equal_op
+                     (at #colon equal_tok <&> at #sigexp equal_sigexp))
+                   <&> at #eq equal_tok <&> at #strexp equal_strexp))
             in
               checker (s1, s2)
             end
@@ -1011,31 +1005,18 @@ struct
 
             | _ => false
 
-          fun equal_constraint (c1, c2) =
-            equal_op (at #colon equal_tok <&> at #sigexp equal_sigexp) (c1, c2)
-
-          fun equal_elem (x, y) =
-            let
-              val checker =
-                at #funid equal_tok <&> at #lparen equal_tok
-                <&> at #funarg equal_funarg <&> at #rparen equal_tok
-                <&> at #constraint equal_constraint <&> at #eq equal_tok
-                <&> at #strexp equal_strexp
-            in
-              checker (x, y)
-            end
-
           val checker =
-            at #functorr equal_tok <&> at #elems (Seq.equal equal_elem)
-            <&> at #delims (Seq.equal equal_tok)
+            at #functorr equal_tok <&> at #delims (Seq.equal equal_tok)
+            <&>
+            at #elems (Seq.equal
+              (at #funid equal_tok <&> at #lparen equal_tok
+               <&> at #funarg equal_funarg <&> at #rparen equal_tok
+               <&>
+               at #constraint (equal_op
+                 (at #colon equal_tok <&> at #sigexp equal_sigexp))
+               <&> at #eq equal_tok <&> at #strexp equal_strexp))
         in
           checker (x, y)
-        end
-
-
-      fun equal_topexp (te1, te2) =
-        let val checker = at #exp equal_exp <&> at #semicolon equal_tok
-        in checker (te1, te2)
         end
 
 
@@ -1044,19 +1025,15 @@ struct
           (SigDec sd1, SigDec sd2) => equal_sigdec (sd1, sd2)
         | (StrDec sd1, StrDec sd2) => equal_strdec (sd1, sd2)
         | (FunDec fd1, FunDec fd2) => equal_fundec (fd1, fd2)
-        | (TopExp te1, TopExp te2) => equal_topexp (te1, te2)
+        | (TopExp te1, TopExp te2) =>
+            let val checker = at #exp equal_exp <&> at #semicolon equal_tok
+            in checker (te1, te2)
+            end
         | _ => false
 
-
-      fun equal_topelem (te1, te2) =
-        let
-          val checker =
-            at #topdec equal_topdec <&> at #semicolon (equal_op equal_tok)
-        in
-          checker (te1, te2)
-        end
     in
-      Seq.equal equal_topelem (tops1, tops2)
+      Seq.equal (at #topdec equal_topdec <&> at #semicolon (equal_op equal_tok))
+        (tops1, tops2)
     end
 
 end

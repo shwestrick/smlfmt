@@ -153,13 +153,13 @@ struct
     fun checkValidFValBind (fvalbind: exp fvalbind)
       (error: {what: string, pos: Source.t, explain: string option} -> unit) =
       let
-        fun getName {fname_args, ...} =
+        fun getName {fname_args, ty, eq, exp} =
           case fname_args of
             PrefixedFun {id, ...} => id
           | InfixedFun {id, ...} => id
           | CurriedInfixedFun {id, ...} => id
 
-        fun checkFunc {elems, ...} =
+        fun checkFunc {elems, delims, optbar} =
           let
             val fname = getName (Seq.nth elems 0)
             fun checkName clause =

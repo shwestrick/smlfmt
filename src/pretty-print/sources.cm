@@ -1,8 +1,10 @@
-local
-  $(SML_LIB)/basis/basis.mlb
-  ../base/sources.mlb
-  ../ast/sources.mlb
-  ../syntax-highlighting/sources.mlb
+Library
+  structure PrettyPrintAst
+is
+  $/basis.cm
+  ../base/sources.cm
+  ../ast/sources.cm
+  ../syntax-highlighting/sources.cm
   StringDoc.sml
   TokenDoc.sml
   PrettyUtil.sml
@@ -13,6 +15,3 @@ local
   PrettyStr.sml
   PrettyFun.sml
   PrettyPrintAst.sml
-in
-  structure PrettyPrintAst
-end

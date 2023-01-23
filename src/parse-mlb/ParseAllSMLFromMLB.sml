@@ -100,7 +100,7 @@ struct
         end
 
 
-      fun fileErrorHandler ctx path token errorMessage =
+      fun fileErrorHandler (ctx: context) path token errorMessage =
         let
           val {result = path, ...} = expandAndJoin (#dir ctx) path
           val backtrace =
@@ -220,7 +220,7 @@ struct
 
         | DecBasis {elems, ...} =>
             let
-              fun doElem ((mlbCache, basis, asts), {basexp, ...}) =
+              fun doElem ((mlbCache, basis, asts), {basid, eq, basexp}) =
                 let
                   val (mlbCache, basis', asts') =
                     doBasexp ctx (mlbCache, basis, basexp)
