@@ -143,6 +143,7 @@ sig
   val isRecordLabel: token -> bool
   val isDecStartToken: token -> bool
   val isStrDecStartToken: token -> bool
+  val isFunDecStartToken: token -> bool
   val isSigDecStartToken: token -> bool
   val isSigSpecStartToken: token -> bool
   val isAtPatStartToken: token -> bool
@@ -629,6 +630,11 @@ struct
       Reserved rc => List.exists (fn rc' => rc = rc') strDecStartTokens
     | _ => false
 
+  fun isFunDecStartToken tok =
+    case getClass tok of
+      Reserved Functor => true
+    | _ => false
+
   fun isSigDecStartToken tok =
     case getClass tok of
       Reserved rc => List.exists (fn rc' => rc = rc') sigDecStartTokens
@@ -748,7 +754,7 @@ struct
     *)
   fun endsCurrentExp tok =
     isDecStartToken tok orelse isStrDecStartToken tok
-    orelse isSigDecStartToken tok
+    orelse isSigDecStartToken tok orelse isFunDecStartToken tok
     orelse
     case getClass tok of
       Reserved rc =>
