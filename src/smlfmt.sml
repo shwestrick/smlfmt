@@ -94,6 +94,15 @@ val doCheck = CommandLineArgs.parseFlag "check"
 val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
 val stdio = CommandLineArgs.parseFlag "stdio"
+val stdio =
+  stdio
+  orelse
+  (* if stdin is not a terminal and an incompabible flag is not set, take input from stdin *)
+  (not (Posix.ProcEnv.isatty Posix.FileSys.stdin)
+   andalso
+   not
+     (doForce orelse preview orelse previewOnly
+      orelse not (List.null inputfiles)))
 val showPreview = preview orelse previewOnly
 
 fun dbgprintln s =
