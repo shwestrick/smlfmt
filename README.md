@@ -59,10 +59,11 @@ to skip overwrite confirmations.
 $ ./smlfmt --force src/smlfmt.mlb
 ```
 
-To pass code through `stdin` and `stdout`, use the `--stdio` flag.
+Additionally, code can be passed directly through `stdin` and `stdout`.
 ```bash
-$ echo "val x = 5 val y = 6" | ./smlfmt --stdio
+$ echo "val x = 5 val y = 6" | ./smlfmt
 ```
+To force this behaviour, `--stdio` can be used.
 
 ### Command-line options
 
@@ -76,6 +77,8 @@ with syntax highlighting (if shown on terminal supporting ANSI colors).
 
 `--stdio` reads SML input from `stdin`, and outputs the formatted SML
 to `stdout`. (This is incompatible with file inputs and the flags above.)
+If no incompatible flag is set and `stdin` is not a terminal, this is
+the default.
 
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
 [MLton's path maps](http://mlton.org/MLBasisPathMap).
