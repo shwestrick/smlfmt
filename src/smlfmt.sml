@@ -17,10 +17,6 @@ val optionalArgDesc =
   \  [--preview-only]           show formatted output and skip file overwrite\n\
   \                             (incompatible with --force)\n\
   \\n\
-  \  [--stdio]                  reads SML input from stdin and writes to stdout\n\
-  \                             (incompatible with --force, --preview, --preview-only,\n\
-  \                             and positional arguments)\n\
-  \\n\
   \  [-max-width W]             try to use at most <W> columns in each line\n\
   \                             (default 80)\n\
   \\n\
@@ -68,7 +64,7 @@ val optionalArgDesc =
 
 
 fun usage () =
-  "usage: smlfmt [ARGS] FILE ... FILE\n" ^ "Optional arguments:\n"
+  "usage: smlfmt [ARGS] [FILE ...]\n" ^ "Optional arguments:\n"
   ^ optionalArgDesc
 
 
@@ -93,16 +89,6 @@ val doHelp = CommandLineArgs.parseFlag "help"
 val doCheck = CommandLineArgs.parseFlag "check"
 val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
-val stdio = CommandLineArgs.parseFlag "stdio"
-val stdio =
-  stdio
-  orelse
-  (* if stdin is not a terminal and an incompabible flag is not set, take input from stdin *)
-  (not (Posix.ProcEnv.isatty Posix.FileSys.stdin)
-   andalso
-   not
-     (doForce orelse preview orelse previewOnly
-      orelse not (List.null inputfiles)))
 val showPreview = preview orelse previewOnly
 
 fun dbgprintln s =
@@ -117,10 +103,12 @@ val allows = AstAllows.make
   }
 
 val _ =
-  if doHelp orelse (not stdio andalso List.null inputfiles) then
-    (print (usage ()); OS.Process.exit OS.Process.success)
-  else
-    ()
+  if
+    doHelp
+    orelse
+    (List.null inputfiles andalso Posix.ProcEnv.isatty Posix.FileSys.stdin)
+  then (print (usage ()); OS.Process.exit OS.Process.success)
+  else ()
 
 fun warnWithMessage msg =
   TCS.printErr (boldc Palette.yellow (msg ^ "\n"))
@@ -137,14 +125,10 @@ val _ =
     ()
 
 val _ =
-  if
-    stdio
-    andalso
-    (doForce orelse preview orelse previewOnly orelse not (List.null inputfiles))
-  then
+  if List.null inputfiles andalso (doForce orelse preview orelse previewOnly) then
     failWithMessage
-      "ERROR: --stdio incompatible with --force, --preview, --preview-only, \
-      \and passing input files"
+      "ERROR: --force, --preview, and --preview-only incompatible with \
+      \standard input"
   else
     ()
 
@@ -402,7 +386,7 @@ val _ = List.app skipFile filesToSkip
 val _ = List.app doFile filesToDo
 
 val _ =
-  if stdio then
+  if List.null inputfiles then
     let
       val source = Source.loadFromStdin ()
       val allTokens = Lexer.tokens allows source

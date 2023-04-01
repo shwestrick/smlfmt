@@ -63,7 +63,6 @@ Additionally, code can be passed directly through `stdin` and `stdout`.
 ```bash
 $ echo "val x = 5 val y = 6" | ./smlfmt
 ```
-To force this behaviour, `--stdio` can be used.
 
 ### Command-line options
 
@@ -74,11 +73,6 @@ with syntax highlighting (if shown on terminal supporting ANSI colors).
 
 `--preview-only` is the same as `--preview`, but also skips writing to file.
 (This is incompatible with `--force`.)
-
-`--stdio` reads SML input from `stdin`, and outputs the formatted SML
-to `stdout`. (This is incompatible with file inputs and the flags above.)
-If no incompatible flag is set and `stdin` is not a terminal, this is
-the default.
 
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to
 [MLton's path maps](http://mlton.org/MLBasisPathMap).
