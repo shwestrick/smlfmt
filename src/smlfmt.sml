@@ -11,12 +11,12 @@ fun printErr m = TextIO.output (TextIO.stdErr, m)
 
 val optionalArgDesc =
   "  [--force]                  overwrite files without interactive confirmation\n\
-  \  [--unforce]                just parse files, without interactive confirmation\n\
   \\n\
   \  [--preview]                show formatted before writing to file\n\
   \\n\
   \  [--preview-only]           show formatted output and skip file overwrite\n\
   \                             (incompatible with --force)\n\
+  \  [--read-only]              just parse files, without interactive confirmation\n\
   \\n\
   \  [-max-width W]             try to use at most <W> columns in each line\n\
   \                             (default 80)\n\
@@ -86,7 +86,7 @@ val allowExtendedText =
 
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
-val doUnforce = CommandLineArgs.parseFlag "unforce"
+val doReadOnly = CommandLineArgs.parseFlag "read-only"
 val doHelp = CommandLineArgs.parseFlag "help"
 val doCheck = CommandLineArgs.parseFlag "check"
 val preview = CommandLineArgs.parseFlag "preview"
@@ -261,7 +261,7 @@ fun formatOneSML
       end
 
     fun confirm () =
-      if doUnforce then
+      if doReadOnly then
         ()
       else
         ( print ("overwrite " ^ hfp ^ " [y/N]? ")
