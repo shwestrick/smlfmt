@@ -11,6 +11,7 @@ fun printErr m = TextIO.output (TextIO.stdErr, m)
 
 val optionalArgDesc =
   "  [--force]                  overwrite files without interactive confirmation\n\
+  \  [--unforce]                just parse files, without interactive confirmation\n\
   \\n\
   \  [--preview]                show formatted before writing to file\n\
   \\n\
@@ -85,6 +86,7 @@ val allowExtendedText =
 
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
+val doUnforce = CommandLineArgs.parseFlag "unforce"
 val doHelp = CommandLineArgs.parseFlag "help"
 val doCheck = CommandLineArgs.parseFlag "check"
 val preview = CommandLineArgs.parseFlag "preview"
@@ -259,13 +261,16 @@ fun formatOneSML
       end
 
     fun confirm () =
-      ( print ("overwrite " ^ hfp ^ " [y/N]? ")
-      ; case TextIO.inputLine TextIO.stdIn of
-          NONE => printErr ("skipping " ^ hfp ^ "\n")
-        | SOME line =>
-            if line = "y\n" orelse line = "Y\n" then writeOut ()
-            else printErr ("skipping " ^ hfp ^ "\n")
-      )
+      if doUnforce then
+        ()
+      else
+        ( print ("overwrite " ^ hfp ^ " [y/N]? ")
+        ; case TextIO.inputLine TextIO.stdIn of
+            NONE => printErr ("skipping " ^ hfp ^ "\n")
+          | SOME line =>
+              if line = "y\n" orelse line = "Y\n" then writeOut ()
+              else printErr ("skipping " ^ hfp ^ "\n")
+        )
   in
     if not showPreview then
       ()
