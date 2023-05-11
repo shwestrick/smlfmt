@@ -16,6 +16,7 @@ val optionalArgDesc =
   \\n\
   \  [--preview-only]           show formatted output and skip file overwrite\n\
   \                             (incompatible with --force)\n\
+  \  [--read-only]              just parse files, without interactive confirmation\n\
   \\n\
   \  [-max-width W]             try to use at most <W> columns in each line\n\
   \                             (default 80)\n\
@@ -85,6 +86,7 @@ val allowExtendedText =
 
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
+val doReadOnly = CommandLineArgs.parseFlag "read-only"
 val doHelp = CommandLineArgs.parseFlag "help"
 val doCheck = CommandLineArgs.parseFlag "check"
 val preview = CommandLineArgs.parseFlag "preview"
@@ -259,13 +261,16 @@ fun formatOneSML
       end
 
     fun confirm () =
-      ( print ("overwrite " ^ hfp ^ " [y/N]? ")
-      ; case TextIO.inputLine TextIO.stdIn of
-          NONE => printErr ("skipping " ^ hfp ^ "\n")
-        | SOME line =>
-            if line = "y\n" orelse line = "Y\n" then writeOut ()
-            else printErr ("skipping " ^ hfp ^ "\n")
-      )
+      if doReadOnly then
+        ()
+      else
+        ( print ("overwrite " ^ hfp ^ " [y/N]? ")
+        ; case TextIO.inputLine TextIO.stdIn of
+            NONE => printErr ("skipping " ^ hfp ^ "\n")
+          | SOME line =>
+              if line = "y\n" orelse line = "Y\n" then writeOut ()
+              else printErr ("skipping " ^ hfp ^ "\n")
+        )
   in
     if not showPreview then
       ()
