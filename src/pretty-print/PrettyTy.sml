@@ -37,8 +37,7 @@ struct
       | Tuple {elems, delims} =>
           let
             val begin = showTy (Seq.nth elems 0)
-            fun f (delim, x) =
-              space ++ token delim ++ space ++ showTy x
+            fun f (delim, x) = space ++ token delim ++ space ++ showTy x
           in
             Seq.iterate op++ begin (Seq.map f (Seq.zip
               (delims, Seq.drop elems 1)))

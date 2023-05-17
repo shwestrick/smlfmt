@@ -40,8 +40,7 @@ struct
 
 
       (** not yet implemented *)
-      fun nyi fname i =
-        ParserUtils.nyi toks fname i
+      fun nyi fname i = ParserUtils.nyi toks fname i
 
 
       (** This silliness lets you write almost-English like this:
@@ -51,16 +50,12 @@ struct
         *)
       infix 5 at
       fun f at i = f i
-      fun check f i =
-        i < numToks andalso f (tok i)
-      fun is c =
-        check (fn t => c = Token.getClass t)
-      fun isReserved rc =
-        check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i = i < numToks andalso f (tok i)
+      fun is c = check (fn t => c = Token.getClass t)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
 
-      fun parse_reserved rc i =
-        PS.reserved toks rc i
+      fun parse_reserved rc i = PS.reserved toks rc i
       fun parse_tyvars i = PS.tyvars toks i
       fun parse_sigid i = PS.sigid toks i
       fun parse_strid i = PS.strid toks i
@@ -75,12 +70,9 @@ struct
 
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
-      fun parse_two (p1, p2) state =
-        PC.two (p1, p2) state
-      fun parse_zeroOrMoreWhile c p s =
-        PC.zeroOrMoreWhile c p s
-      fun parse_oneOrMoreWhile c p s =
-        PC.oneOrMoreWhile c p s
+      fun parse_two (p1, p2) state = PC.two (p1, p2) state
+      fun parse_zeroOrMoreWhile c p s = PC.zeroOrMoreWhile c p s
+      fun parse_oneOrMoreWhile c p s = PC.oneOrMoreWhile c p s
 
       fun consume_sigExp infdict i =
         ParseSigExpAndSpec.sigexp allows toks infdict i

@@ -69,8 +69,7 @@ struct
       List.rev (List.foldl addParent (basename fields) (dirname fields))
     end
 
-  fun sameFile (fp1, fp2) =
-    Util.equalLists op= (normalize fp1, normalize fp2)
+  fun sameFile (fp1, fp2) = Util.equalLists op= (normalize fp1, normalize fp2)
 
   fun join (fields1, fields2) = fields2 @ fields1
 
@@ -78,14 +77,12 @@ struct
     if String.size s = 0 then raise InvalidPathString s
     else List.rev (String.fields (fn c => c = #"/") s)
 
-  fun toUnixPath s =
-    String.concatWith "/" (List.rev s)
+  fun toUnixPath s = String.concatWith "/" (List.rev s)
 
   (** The first field of an (absolute) Unix path is always the empty string.
     * So look at the last, because we represent path fields in reverse order.
     *)
   fun isAbsolute path = List.last path = ""
 
-  fun toHostPath path =
-    OS.Path.fromUnixPath (toUnixPath path)
+  fun toHostPath path = OS.Path.fromUnixPath (toUnixPath path)
 end

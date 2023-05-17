@@ -52,21 +52,16 @@ struct
       val src = Source.wholeFile src
 
       (** Some helpers for making source slices and tokens. *)
-      fun slice (i, j) =
-        Source.slice src (i, j - i)
-      fun sliceFrom i =
-        slice (i, Source.length src)
-      fun mkr x (i, j) =
-        MLBToken.Pretoken.reserved (slice (i, j)) x
+      fun slice (i, j) = Source.slice src (i, j - i)
+      fun sliceFrom i = slice (i, Source.length src)
+      fun mkr x (i, j) = MLBToken.Pretoken.reserved (slice (i, j)) x
 
       fun get i = Source.nth src i
 
       fun isEndOfFileAt i = i >= Source.length src
 
-      fun check f i =
-        i < Source.length src andalso f (get i)
-      fun is c =
-        check (fn c' => c = c')
+      fun check f i = i < Source.length src andalso f (get i)
+      fun is c = check (fn c' => c = c')
 
       fun isString str i =
         Source.length src - i >= String.size str
@@ -174,8 +169,7 @@ struct
       fun tokEndOffset tok =
         Source.absoluteEndOffset (MLBToken.Pretoken.getSource tok)
 
-      fun finish acc =
-        MLBToken.makeGroup (Seq.fromRevList acc)
+      fun finish acc = MLBToken.makeGroup (Seq.fromRevList acc)
 
       fun loop acc offset =
         if offset >= endOffset then

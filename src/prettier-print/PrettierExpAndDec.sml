@@ -96,8 +96,7 @@ struct
     end
 
 
-  fun appWantsSpace left right =
-    not (appWantsToTouch left right)
+  fun appWantsSpace left right = not (appWantsToTouch left right)
 
 
   fun tryViewAsSimpleApp exp =
@@ -493,8 +492,7 @@ struct
 
         | Tuple {left, elems, delims, right} =>
             let
-              fun make (e, d) =
-                withNewChild showExp tab e ++ nospace ++ token d
+              fun make (e, d) = withNewChild showExp tab e ++ nospace ++ token d
             in
               token left
               ++
@@ -744,8 +742,7 @@ struct
             open Ast.Exp
             val (chain, last) = ifThenElseChain [] exp
 
-            fun breakShowAt tab e =
-              at tab (showExp tab e)
+            fun breakShowAt tab e = at tab (showExp tab e)
 
             fun f i =
               let

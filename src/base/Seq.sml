@@ -55,18 +55,15 @@ struct
 
   fun nth s i = AS.sub (s, i)
 
-  fun empty () =
-    AS.full (A.fromList [])
-  fun singleton x =
-    AS.full (A.array (1, x))
+  fun empty () = AS.full (A.fromList [])
+  fun singleton x = AS.full (A.array (1, x))
   val $ = singleton
   fun toString f s =
     "<" ^ String.concatWith "," (List.tabulate (length s, f o nth s)) ^ ">"
 
   fun fromArray a = AS.full a
 
-  fun fromList l =
-    AS.full (A.fromList l)
+  fun fromList l = AS.full (A.fromList l)
   val % = fromList
   fun toList s =
     SeqBasis.foldl (fn (list, x) => x :: list) [] (0, length s) (fn i =>
@@ -90,23 +87,18 @@ struct
         end
 
 
-  fun empty () =
-    AS.full (Array.fromList [])
+  fun empty () = AS.full (Array.fromList [])
 
-  fun tabulate f n =
-    AS.full (Array.tabulate (n, f))
+  fun tabulate f n = AS.full (Array.tabulate (n, f))
 
-  fun map f s =
-    tabulate (f o nth s) (length s)
+  fun map f s = tabulate (f o nth s) (length s)
 
-  fun mapIdx f s =
-    tabulate (fn i => f (i, nth s i)) (length s)
+  fun mapIdx f s = tabulate (fn i => f (i, nth s i)) (length s)
 
   fun zipWith f (s, t) =
     tabulate (fn i => f (nth s i, nth t i)) (Int.min (length s, length t))
 
-  fun iterate f b s =
-    SeqBasis.foldl f b (0, length s) (nth s)
+  fun iterate f b s = SeqBasis.foldl f b (0, length s) (nth s)
 
   fun equal eq (s, t) =
     length s = length t
@@ -117,8 +109,7 @@ struct
   fun append (s, t) =
     let
       val (ns, nt) = (length s, length t)
-      fun ith i =
-        if i < ns then nth s i else nth t (i - ns)
+      fun ith i = if i < ns then nth s i else nth t (i - ns)
     in
       tabulate ith (ns + nt)
     end
@@ -134,25 +125,18 @@ struct
       tabulate ith (na + nb + nc)
     end
 
-  fun zip (s, t) =
-    zipWith (fn xx => xx) (s, t)
+  fun zip (s, t) = zipWith (fn xx => xx) (s, t)
 
-  fun rev s =
-    tabulate (fn i => nth s (length s - 1 - i)) (length s)
+  fun rev s = tabulate (fn i => nth s (length s - 1 - i)) (length s)
 
-  fun filter p s =
-    AS.full (SeqBasis.filter (0, length s) (nth s) (p o nth s))
+  fun filter p s = AS.full (SeqBasis.filter (0, length s) (nth s) (p o nth s))
 
-  fun applyIdx s f =
-    Util.for (0, length s) (fn i => f (i, nth s i))
+  fun applyIdx s f = Util.for (0, length s) (fn i => f (i, nth s i))
 
-  fun subseq s (i, k) =
-    AS.subslice (s, i, SOME k)
+  fun subseq s (i, k) = AS.subslice (s, i, SOME k)
   fun take s n = subseq s (0, n)
-  fun drop s n =
-    subseq s (n, length s - n)
+  fun drop s n = subseq s (n, length s - n)
   fun first s = nth s 0
-  fun last s =
-    nth s (length s - 1)
+  fun last s = nth s (length s - 1)
 
 end

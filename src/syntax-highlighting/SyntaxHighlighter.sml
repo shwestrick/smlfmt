@@ -120,8 +120,7 @@ struct
       fun tokEndOffset tok =
         Source.absoluteEndOffset (Token.Pretoken.getSource tok)
 
-      fun finish acc =
-        Token.makeGroup (Seq.fromRevList acc)
+      fun finish acc = Token.makeGroup (Seq.fromRevList acc)
 
       fun loop acc offset =
         if offset >= endOffset then

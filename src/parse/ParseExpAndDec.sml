@@ -144,19 +144,14 @@ struct
         *)
       infix 5 at
       fun f at i = f i
-      fun check f i =
-        i < numToks andalso f (tok i)
-      fun is c =
-        check (fn t => c = Token.getClass t)
-      fun isReserved rc =
-        check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i = i < numToks andalso f (tok i)
+      fun is c = check (fn t => c = Token.getClass t)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
 
-      fun parse_reserved rc i =
-        PS.reserved toks rc i
+      fun parse_reserved rc i = PS.reserved toks rc i
       fun parse_tyvars i = PS.tyvars toks i
-      fun parse_maybeReserved rc i =
-        PS.maybeReserved toks rc i
+      fun parse_maybeReserved rc i = PS.maybeReserved toks rc i
       fun parse_vid i = PS.vid toks i
       fun parse_longvid i = PS.longvid toks i
       fun parse_recordLabel i = PS.recordLabel toks i
@@ -170,10 +165,8 @@ struct
         PC.zeroOrMoreDelimitedByReserved toks x i
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
-      fun parse_two (p1, p2) state =
-        PC.two (p1, p2) state
-      fun parse_zeroOrMoreWhile c p s =
-        PC.zeroOrMoreWhile c p s
+      fun parse_two (p1, p2) state = PC.two (p1, p2) state
+      fun parse_zeroOrMoreWhile c p s = PC.zeroOrMoreWhile c p s
 
       fun consume_exp infdict restriction i =
         exp allows toks infdict restriction i
@@ -700,18 +693,13 @@ struct
         *)
       infix 5 at
       fun f at i = f i
-      fun check f i =
-        i < numToks andalso f (tok i)
-      fun is c =
-        check (fn t => c = Token.getClass t)
-      fun isReserved rc =
-        check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i = i < numToks andalso f (tok i)
+      fun is c = check (fn t => c = Token.getClass t)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
 
-      fun parse_reserved rc i =
-        PS.reserved toks rc i
-      fun parse_maybeReserved rc i =
-        PS.maybeReserved toks rc i
+      fun parse_reserved rc i = PS.reserved toks rc i
+      fun parse_maybeReserved rc i = PS.maybeReserved toks rc i
       fun parse_vid i = PS.vid toks i
       fun parse_longvid i = PS.longvid toks i
       fun parse_recordLabel i = PS.recordLabel toks i
@@ -724,10 +712,8 @@ struct
         PC.zeroOrMoreDelimitedByReserved toks x i
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
-      fun parse_two (p1, p2) state =
-        PC.two (p1, p2) state
-      fun parse_zeroOrMoreWhile c p s =
-        PC.zeroOrMoreWhile c p s
+      fun parse_two (p1, p2) state = PC.two (p1, p2) state
+      fun parse_zeroOrMoreWhile c p s = PC.zeroOrMoreWhile c p s
 
 
       fun consume_dec xx =

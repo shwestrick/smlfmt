@@ -23,14 +23,12 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        i < numToks andalso f (tok i)
+      fun check f i = i < numToks andalso f (tok i)
       fun isReserved rc i =
         check (fn t => Token.Reserved rc = Token.getClass t) i
 
       fun parse_recordLabel i = PS.recordLabel toks i
-      fun parse_reserved rc i =
-        PS.reserved toks rc i
+      fun parse_reserved rc i = PS.reserved toks rc i
       fun parse_zeroOrMoreDelimitedByReserved x i =
         PC.zeroOrMoreDelimitedByReserved toks x i
 

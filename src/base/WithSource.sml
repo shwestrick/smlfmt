@@ -23,6 +23,5 @@ struct
   fun valOf {value, source = _} = value
   fun srcOf {value = _, source} = source
 
-  fun map f {value, source} =
-    make {value = f value, source = source}
+  fun map f {value, source} = make {value = f value, source = source}
 end

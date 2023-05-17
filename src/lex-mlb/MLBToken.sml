@@ -71,11 +71,9 @@ struct
   fun fromSMLPretoken ptok =
     make (Token.Pretoken.getSource ptok) (SML (Token.Pretoken.getClass ptok))
 
-  fun getClass ({idx, context}: token) =
-    WithSource.valOf (Seq.nth context idx)
+  fun getClass ({idx, context}: token) = WithSource.valOf (Seq.nth context idx)
 
-  fun getSource ({idx, context}: token) =
-    WithSource.srcOf (Seq.nth context idx)
+  fun getSource ({idx, context}: token) = WithSource.srcOf (Seq.nth context idx)
 
   fun isComment tok =
     case getClass tok of
@@ -163,8 +161,7 @@ struct
   fun makeGroup (s: pretoken Seq.t) : token Seq.t =
     Seq.tabulate (fn i => {idx = i, context = s}) (Seq.length s)
 
-  fun fromPre (t: pretoken) =
-    Seq.nth (makeGroup (Seq.singleton t)) 0
+  fun fromPre (t: pretoken) = Seq.nth (makeGroup (Seq.singleton t)) 0
 
 
   structure Pretoken =

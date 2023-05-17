@@ -109,10 +109,8 @@ struct
       fun blankLinesAbove d n =
         if n <= 0 then d else blankLinesAbove (Above (false, space, d)) (n - 1)
 
-      fun preferRight (a, b) =
-        if Option.isSome b then b else a
-      fun preferLeft (a, b) =
-        if Option.isSome a then a else b
+      fun preferRight (a, b) = if Option.isSome b then b else a
+      fun preferLeft (a, b) = if Option.isSome a then a else b
 
       fun doDoc doc =
         case doc of

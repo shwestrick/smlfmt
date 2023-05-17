@@ -37,10 +37,8 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        i < numToks andalso f (tok i)
-      fun isReserved rc =
-        check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i = i < numToks andalso f (tok i)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
       fun loop elems delims i =
         if shouldStop i then
@@ -64,10 +62,8 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        i < numToks andalso f (tok i)
-      fun isReserved rc =
-        check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i = i < numToks andalso f (tok i)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
       fun loop elems delims i =
         let
