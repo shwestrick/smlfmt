@@ -129,7 +129,7 @@ struct
 
           | CheckOutput.Error {description} =>
               failWithMessage
-                ("ERROR: " ^ hfp ^ ": --check failed: " ^ description ^ ". "
+                ("ERROR: " ^ hfp ^ ": --safety-check failed: " ^ description ^ ". "
                  ^
                  "Output aborted. This is a bug! Please consider submitting \
                  \a bug report: \
