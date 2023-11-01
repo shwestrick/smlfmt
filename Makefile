@@ -1,3 +1,5 @@
+PREFIX ?= /usr/local
+
 SOURCES = $(wildcard src/*.sml) $(wildcard src/*.mlb) $(wildcard src/**/*.sml) $(wildcard src/**/*.mlb)
 
 smlfmt: $(SOURCES)
@@ -11,6 +13,11 @@ demo: $(SOURCES)
 
 demo.dbg: $(SOURCES)
 	mlton -const 'Exn.keepHistory true' -output demo.dbg src/demo.mlb
+
+.PHONY: install
+install: smlfmt
+	install -d $(PREFIX)/bin/
+	install -m 755 smlfmt ${PREFIX}/bin/
 
 .PHONY: clean
 clean:
