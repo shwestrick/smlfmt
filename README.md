@@ -6,6 +6,8 @@ configurable, and usable for large projects.
 All of the SML code in this repository (everything in
 `src`) has been formatted by `smlfmt`. Take a look!
 
+**(Nov 2, 2023)** Released v1.1.0!
+
 **(Jan 10, 2023)** Released v1.0.0!
 
 **(Dec 29, 2022)** changed repository name to `smlfmt` (used to be `parse-sml`).
