@@ -61,6 +61,10 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
   \\n\
+  \  [-check]                   Verify if the files are formatted correctly.\n\
+  \                             Exits with 0 if formatted correctly. Exits with\n\
+  \                             nonzero and prints the file requiring formatting.\n\
+  \\n\
   \  [--help]                   print this message\n"
 
 
@@ -88,9 +92,10 @@ val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
 val doReadOnly = CommandLineArgs.parseFlag "read-only"
 val doHelp = CommandLineArgs.parseFlag "help"
-val doCheck = CommandLineArgs.parseFlag "check"
+val doSafetyCheck = CommandLineArgs.parseFlag "safety-check"
 val preview = CommandLineArgs.parseFlag "preview"
 val previewOnly = CommandLineArgs.parseFlag "preview-only"
+val doCheck = CommandLineArgs.parseFlag "check"
 val showPreview = preview orelse previewOnly
 
 fun dbgprintln s =
@@ -243,7 +248,7 @@ fun formatOneSML
 
         | CheckOutput.Error {description} =>
             failWithMessage
-              ("ERROR: " ^ hfp ^ ": --check failed: " ^ description ^ ". "
+              ("ERROR: " ^ hfp ^ ": --safety-check failed: " ^ description ^ ". "
                ^
                "Output aborted. This is a bug! Please consider submitting \
                \a bug report: \
@@ -271,7 +276,24 @@ fun formatOneSML
               if line = "y\n" orelse line = "Y\n" then writeOut ()
               else printErr ("skipping " ^ hfp ^ "\n")
         )
+
+    fun checkIfFormatted () =
+      let
+        val original = ReadFile.contents hfp
+        val isFormatted = String.compare (original, result ^ "\n")
+      in
+        case isFormatted of
+          EQUAL =>
+            ( TCS.print (boldc Palette.green "PASS ")
+            ; print (hfp ^ "\n"))
+        | _ =>
+            failWithMessage ("ERROR: Unformatted file '" ^ hfp ^ "'"); ()
+      end
   in
+    if doCheck then
+      checkIfFormatted ()
+    else ();
+
     if not showPreview then
       ()
     else
@@ -283,9 +305,9 @@ fun formatOneSML
       ; print "\n"
       );
 
-    if not doCheck then () else check ();
+    if not doSafetyCheck then () else check ();
 
-    if previewOnly then () else if doForce then writeOut () else confirm ()
+    if previewOnly orelse doCheck then () else if doForce then writeOut () else confirm ()
   end
   handle exn => TCS.printErr (boldc Palette.red (exnToString exn ^ "\n"))
 
