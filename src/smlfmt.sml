@@ -18,6 +18,11 @@ val optionalArgDesc =
   \                             (incompatible with --force)\n\
   \  [--read-only]              just parse files, without interactive confirmation\n\
   \\n\
+  \  [--check]                  Verify if files are formatted correctly.\n\
+  \                             Exits with returncode 0 on success, and\n\
+  \                             otherwise fails with a nonzero returncode and\n\
+  \                             reports the unformatted file.\n\
+  \\n\
   \  [-max-width W]             try to use at most <W> columns in each line\n\
   \                             (default 80)\n\
   \\n\
@@ -60,10 +65,6 @@ val optionalArgDesc =
   \                             characters within strings.\n\
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
-  \\n\
-  \  [-check]                   Verify if the files are formatted correctly.\n\
-  \                             Exits with 0 if formatted correctly. Exits with\n\
-  \                             nonzero and prints the file requiring formatting.\n\
   \\n\
   \  [--help]                   print this message\n"
 
@@ -248,7 +249,8 @@ fun formatOneSML
 
         | CheckOutput.Error {description} =>
             failWithMessage
-              ("ERROR: " ^ hfp ^ ": --safety-check failed: " ^ description ^ ". "
+              ("ERROR: " ^ hfp ^ ": --safety-check failed: " ^ description
+               ^ ". "
                ^
                "Output aborted. This is a bug! Please consider submitting \
                \a bug report: \
@@ -283,16 +285,12 @@ fun formatOneSML
         val isFormatted = String.compare (original, result ^ "\n")
       in
         case isFormatted of
-          EQUAL =>
-            ( TCS.print (boldc Palette.green "PASS ")
-            ; print (hfp ^ "\n"))
-        | _ =>
-            failWithMessage ("ERROR: Unformatted file '" ^ hfp ^ "'"); ()
+          EQUAL => (TCS.print (boldc Palette.green "PASS "); print (hfp ^ "\n"))
+        | _ => failWithMessage ("ERROR: Unformatted file '" ^ hfp ^ "'");
+        ()
       end
   in
-    if doCheck then
-      checkIfFormatted ()
-    else ();
+    if doCheck then checkIfFormatted () else ();
 
     if not showPreview then
       ()
@@ -307,7 +305,9 @@ fun formatOneSML
 
     if not doSafetyCheck then () else check ();
 
-    if previewOnly orelse doCheck then () else if doForce then writeOut () else confirm ()
+    if previewOnly orelse doCheck then ()
+    else if doForce then writeOut ()
+    else confirm ()
   end
   handle exn => TCS.printErr (boldc Palette.red (exnToString exn ^ "\n"))
 

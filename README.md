@@ -20,6 +20,7 @@ All of the SML code in this repository (everything in
 - Helpful error messages with visual code references and syntax highlighting.
 - Support for various SuccessorML syntax extensions.
 - Configurable indentation size and maximum width.
+- Emacs integration (see [smlfmt.el](https://github.com/diku-dk/smlfmt.el))
 
 ## Performance
 `smlfmt` is fast enough for live reformatting on large individual files, and can reformat large projects in seconds.
