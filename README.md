@@ -67,12 +67,20 @@ $ echo "val x = 5 val y = 6" | ./smlfmt
 
 ### Command-line options
 
-`--force` skips overwrite confirmations.
+`--force` skips interactive overwrite confirmations.
 
 `--preview` also prints any formatted code to stdout,
 with syntax highlighting (if shown on terminal supporting ANSI colors).
 
 `--preview-only` is the same as `--preview`, but also skips writing to file.
+(This is incompatible with `--force`.)
+
+`--read-only` will only parse files (and report syntax errors). No interactive
+confirmation, and no files will be modified.
+(This is incompatible with `--force`.)
+
+`--check` will verify that files are already formatted (for example, for CI).
+No interactive confirmation, and no files will be modified.
 (This is incompatible with `--force`.)
 
 `-mlb-path-var '<key> <value>'` for handling path variables, similar to

@@ -12,16 +12,20 @@ fun printErr m = TextIO.output (TextIO.stdErr, m)
 val optionalArgDesc =
   "  [--force]                  overwrite files without interactive confirmation\n\
   \\n\
-  \  [--preview]                show formatted before writing to file\n\
+  \  [--preview]                show formatted output before writing to file\n\
   \\n\
   \  [--preview-only]           show formatted output and skip file overwrite\n\
   \                             (incompatible with --force)\n\
-  \  [--read-only]              just parse files, without interactive confirmation\n\
+  \\n\
+  \  [--read-only]              just parse files, without interactive confirmation,\n\
+  \                             and with no overwrite.\n\
+  \                             (incompatible with --force)\n\
   \\n\
   \  [--check]                  Verify if files are formatted correctly.\n\
   \                             Exits with returncode 0 on success, and\n\
   \                             otherwise fails with a nonzero returncode and\n\
   \                             reports the unformatted file.\n\
+  \                             (incompatible with --force)\n\
   \\n\
   \  [-max-width W]             try to use at most <W> columns in each line\n\
   \                             (default 80)\n\
@@ -143,6 +147,18 @@ val _ =
 val _ =
   if doDebug andalso not previewOnly then
     failWithMessage "ERROR: --debug-engine requires --preview-only"
+  else
+    ()
+
+val _ =
+  if doCheck andalso doForce then
+    failWithMessage "ERROR: --check incompatible with --force"
+  else
+    ()
+
+val _ =
+  if doReadOnly andalso doForce then
+    failWithMessage "ERROR: --read-only incompatible with --force"
   else
     ()
 
