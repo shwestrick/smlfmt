@@ -50,21 +50,25 @@ Entire MLton source code ([`mlton.mlb`](https://github.com/MLton/mlton/blob/mast
 
 You need [`mlton`](http://mlton.org/) installed.
 
-Do `make` and then pass a `.sml` file, for example:
+Do `make` and then pass a `.sml` file to format it in-place, for example:
 ```bash
 $ make
-$ ./smlfmt --preview src/smlfmt.sml
+$ ./smlfmt --preview src/smlfmt.sml       # modifies src/smlfmt.sml
 ```
 
-You can pass a `.mlb` file to format all files in a project. Use `--force`
+You can also pass code through `stdin` and `stdout`.
+```bash
+$ echo "val x = 5 val y = 6" | ./smlfmt   # formatted output written to terminal
+
+$ cat foo.sml | ./smlfmt > bar.sml        # take foo.sml as input and write output to bar.sml
+
+$ ./smlfmt < foo.sml > bar.sml            # same as above
+```
+
+To format many files all at once, pass a `.mlb` file. Use `--force`
 to skip overwrite confirmations.
 ```bash
 $ ./smlfmt --force src/smlfmt.mlb
-```
-
-Additionally, code can be passed directly through `stdin` and `stdout`.
-```bash
-$ echo "val x = 5 val y = 6" | ./smlfmt
 ```
 
 ### Command-line options
