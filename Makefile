@@ -16,8 +16,8 @@ demo.dbg: $(SOURCES)
 
 .PHONY: install
 install: smlfmt
-	install -d $(PREFIX)/bin/
-	install -m 755 smlfmt ${PREFIX}/bin/
+	install -d $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 smlfmt $(DESTDIR)$(PREFIX)/bin/
 
 .PHONY: clean
 clean:
