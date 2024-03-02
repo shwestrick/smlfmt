@@ -266,11 +266,9 @@ struct
 
   fun identifier src = WithSource.make {value = Identifier, source = src}
 
-  fun getClass ({idx, context}: token) =
-    WithSource.valOf (Seq.nth context idx)
+  fun getClass ({idx, context}: token) = WithSource.valOf (Seq.nth context idx)
 
-  fun getSource ({idx, context}: token) =
-    WithSource.srcOf (Seq.nth context idx)
+  fun getSource ({idx, context}: token) = WithSource.srcOf (Seq.nth context idx)
 
   fun lineDifference (tok1, tok2) =
     let
@@ -293,10 +291,9 @@ struct
       lnEnd <> lnStart
     end
 
-  fun toString tok =
-    let val src = getSource tok
-    in CharVector.tabulate (Source.length src, Source.nth src)
-    end
+  fun toString tok = let val src = getSource tok
+                     in CharVector.tabulate (Source.length src, Source.nth src)
+                     end
 
   fun tryReserved src =
     let
@@ -466,10 +463,9 @@ struct
       Reserved Orelse => true
     | _ => false
 
-  fun isStar tok =
-    let val src = getSource tok
-    in Source.length src = 1 andalso Source.nth src 0 = #"*"
-    end
+  fun isStar tok = let val src = getSource tok
+                   in Source.length src = 1 andalso Source.nth src 0 = #"*"
+                   end
 
   fun isOpenParen tok =
     case getClass tok of
@@ -779,8 +775,7 @@ struct
   fun makeGroup (s: pretoken Seq.t) : token Seq.t =
     Seq.tabulate (fn i => {idx = i, context = s}) (Seq.length s)
 
-  fun fromPre (t: pretoken) =
-    Seq.nth (makeGroup (Seq.singleton t)) 0
+  fun fromPre (t: pretoken) = Seq.nth (makeGroup (Seq.singleton t)) 0
 
   fun nextToken ({idx = i, context}: token) =
     if i + 1 < Seq.length context then SOME {idx = i + 1, context = context}

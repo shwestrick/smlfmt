@@ -173,8 +173,7 @@ struct
 
   fun firstToken doc =
     let
-      fun error () =
-        raise Fail "PrettyTabbedDoc.firstToken: disagreement"
+      fun error () = raise Fail "PrettyTabbedDoc.firstToken: disagreement"
 
       fun loop vars doc =
         case doc of
@@ -641,8 +640,7 @@ struct
     if n = 0 then d else addNewlines (n - 1) (Concat (Newline, d))
 
 
-  fun concatDocs ds =
-    Seq.iterate concat empty ds
+  fun concatDocs ds = Seq.iterate concat empty ds
 
 
   fun tokenToDoc {tabWidth} currentTab tok =
@@ -682,8 +680,7 @@ struct
   fun pretty {ribbonFrac, maxWidth, indentWidth, tabWidth, debug} doc =
     let
       val t0 = Time.now ()
-      fun dbgprintln s =
-        if not debug then () else print (s ^ "\n")
+      fun dbgprintln s = if not debug then () else print (s ^ "\n")
 
       val ribbonWidth = Int.max (0, Int.min (maxWidth, Real.round
         (ribbonFrac * Real.fromInt maxWidth)))
@@ -695,11 +692,9 @@ struct
 
       val tabstate = ref TabDict.empty
 
-      fun getTabState t =
-        TabDict.lookup (!tabstate) t
+      fun getTabState t = TabDict.lookup (!tabstate) t
 
-      fun setTabState t x =
-        tabstate := TabDict.insert (!tabstate) (t, x)
+      fun setTabState t x = tabstate := TabDict.insert (!tabstate) (t, x)
 
       val _ = setTabState Tab.root (Usable (Activated (SOME 0)))
 
@@ -1098,8 +1093,7 @@ struct
 
         | LetDoc {var, doc, inn} =>
             let
-              fun delayedLayout state =
-                layout vars state doc
+              fun delayedLayout state = layout vars state doc
               val vars = VarDict.insert vars (var, delayedLayout)
             in
               layout vars state inn

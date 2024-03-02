@@ -115,12 +115,9 @@ struct
   fun find d k = M.find (d, k)
   fun contains d k = M.inDomain (d, k)
 
-  fun remove d k =
-    #1 (M.remove (d, k))
-    handle NotFound => d
+  fun remove d k = #1 (M.remove (d, k)) handle NotFound => d
 
-  fun fromList kvs =
-    List.foldl (fn ((k, v), d) => insert d (k, v)) empty kvs
+  fun fromList kvs = List.foldl (fn ((k, v), d) => insert d (k, v)) empty kvs
 
   val listKeys = M.listKeys
 

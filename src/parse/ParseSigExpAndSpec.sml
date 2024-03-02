@@ -37,13 +37,10 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        i < numToks andalso f (tok i)
-      fun isReserved rc =
-        check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i = i < numToks andalso f (tok i)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
-      fun parse_reserved rc i =
-        PS.reserved toks rc i
+      fun parse_reserved rc i = PS.reserved toks rc i
       fun parse_tyvars i = PS.tyvars toks i
       fun parse_sigid i = PS.sigid toks i
       fun parse_strid i = PS.strid toks i
@@ -58,12 +55,9 @@ struct
 
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
-      fun parse_two (p1, p2) state =
-        PC.two (p1, p2) state
-      fun parse_zeroOrMoreWhile c p s =
-        PC.zeroOrMoreWhile c p s
-      fun parse_oneOrMoreWhile c p s =
-        PC.oneOrMoreWhile c p s
+      fun parse_two (p1, p2) state = PC.two (p1, p2) state
+      fun parse_zeroOrMoreWhile c p s = PC.zeroOrMoreWhile c p s
+      fun parse_oneOrMoreWhile c p s = PC.oneOrMoreWhile c p s
 
 
       (** sigexp where type tyvarseq tycon = ty [and/where type ...]
@@ -142,15 +136,11 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        i < numToks andalso f (tok i)
-      fun isReserved rc =
-        check (fn t => Token.Reserved rc = Token.getClass t)
+      fun check f i = i < numToks andalso f (tok i)
+      fun isReserved rc = check (fn t => Token.Reserved rc = Token.getClass t)
 
-      fun parse_reserved rc i =
-        PS.reserved toks rc i
-      fun parse_maybeReserved rc i =
-        PS.maybeReserved toks rc i
+      fun parse_reserved rc i = PS.reserved toks rc i
+      fun parse_maybeReserved rc i = PS.maybeReserved toks rc i
       fun parse_tyvars i = PS.tyvars toks i
       fun parse_vid i = PS.vid toks i
       fun parse_longvid i = PS.longvid toks i
@@ -162,12 +152,9 @@ struct
 
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
-      fun parse_two (p1, p2) state =
-        PC.two (p1, p2) state
-      fun parse_zeroOrMoreWhile c p s =
-        PC.zeroOrMoreWhile c p s
-      fun parse_oneOrMoreWhile c p s =
-        PC.oneOrMoreWhile c p s
+      fun parse_two (p1, p2) state = PC.two (p1, p2) state
+      fun parse_zeroOrMoreWhile c p s = PC.zeroOrMoreWhile c p s
+      fun parse_oneOrMoreWhile c p s = PC.oneOrMoreWhile c p s
 
 
       fun parse_datdesc i =
@@ -623,10 +610,8 @@ struct
     * ========================================================================
     *)
 
-  fun spec allows toks infdict i =
-    parse_spec allows toks infdict i
-  fun sigexp allows toks infdict i =
-    parse_sigexp allows toks infdict i
+  fun spec allows toks infdict i = parse_spec allows toks infdict i
+  fun sigexp allows toks infdict i = parse_sigexp allows toks infdict i
 
 
 end

@@ -96,8 +96,7 @@ struct
     end
 
 
-  fun appWantsSpace left right =
-    not (appWantsToTouch left right)
+  fun appWantsSpace left right = not (appWantsToTouch left right)
 
 
   fun tryViewAsSimpleApp exp =
@@ -493,8 +492,7 @@ struct
 
         | Tuple {left, elems, delims, right} =>
             let
-              fun make (e, d) =
-                withNewChild showExp tab e ++ nospace ++ token d
+              fun make (e, d) = withNewChild showExp tab e ++ nospace ++ token d
             in
               token left
               ++
@@ -744,8 +742,7 @@ struct
             open Ast.Exp
             val (chain, last) = ifThenElseChain [] exp
 
-            fun breakShowAt tab e =
-              at tab (showExp tab e)
+            fun breakShowAt tab e = at tab (showExp tab e)
 
             fun f i =
               let
@@ -947,30 +944,10 @@ struct
       fun showColonTy tab {ty: Ast.Ty.t, colon: Token.t} =
         token colon ++ withNewChild showTy tab ty
 
-      fun showClause mainTab clauseTab clauseChildStyleFirst
-        clauseChildStyleRest isFirst (front, {fname_args, ty, eq, exp}) =
-        let
-          fun afterFront tab clauseChildStyle =
-            let
-              val expChildStyle =
-                if isBiggishExp exp then
-                  Tab.Style.combine
-                    ( Tab.Style.combine (Tab.Style.indented, Tab.Style.rigid)
-                    , clauseChildStyle
-                    )
-                else
-                  clauseChildStyle
-            in
-              showFNameArgs tab clauseChildStyle fname_args
-              ++ showOption (showColonTy tab) ty ++ token eq
-              ++ withNewChildWithStyle expChildStyle showExp tab exp
-            end
-        in
-          if isFirst then
-            at mainTab (front ++ afterFront mainTab clauseChildStyleFirst)
-          else
-            at clauseTab (front ++ afterFront clauseTab clauseChildStyleRest)
-        end
+      fun showClause tab clauseChildStyle (front, {fname_args, ty, eq, exp}) =
+        at tab front ++ showFNameArgs tab clauseChildStyle fname_args
+        ++ showOption (showColonTy tab) ty ++ token eq
+        ++ withNewChildWithStyle clauseChildStyle showExp tab exp
 
       fun mkFunction (starter, {elems = innerElems, delims, optbar}) =
         let
@@ -993,9 +970,14 @@ struct
           at tab (newTabWithStyle tab (mainStyle, fn mainTab =>
             newTabWithStyle mainTab (clauseStyle, fn clauseTab =>
               let
-                val showClause' =
-                  showClause mainTab clauseTab clauseChildStyleFirst
-                    clauseChildStyleRest
+                fun showClause' isFirst =
+                  let
+                    val (tab, clauseChildStyle) =
+                      if isFirst then (mainTab, clauseChildStyleFirst)
+                      else (clauseTab, clauseChildStyleRest)
+                  in
+                    showClause tab clauseChildStyle
+                  end
               in
                 case optbar of
                   NONE =>

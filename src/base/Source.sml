@@ -132,14 +132,11 @@ struct
     }
 
   fun take s k = slice s (0, k)
-  fun drop s k =
-    slice s (k, length s - k)
+  fun drop s k = slice s (k, length s - k)
 
-  fun absoluteEnd s =
-    absoluteStart (drop s (length s))
+  fun absoluteEnd s = absoluteStart (drop s (length s))
 
-  fun toString s =
-    CharVector.tabulate (length s, nth s)
+  fun toString s = CharVector.tabulate (length s, nth s)
 
   fun wholeFile ({data, fileName, newlineIdxs}: source) =
     let

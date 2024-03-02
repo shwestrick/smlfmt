@@ -64,14 +64,12 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        i < numToks andalso f (tok i)
+      fun check f i = i < numToks andalso f (tok i)
       fun isReserved rc i =
         check (fn t => Token.Reserved rc = Token.getClass t) i
 
       fun parse_longvid i = PS.longvid toks i
-      fun parse_reserved rc i =
-        PS.reserved toks rc i
+      fun parse_reserved rc i = PS.reserved toks rc i
       fun parse_oneOrMoreDelimitedByReserved x i =
         PC.oneOrMoreDelimitedByReserved toks x i
       fun parse_zeroOrMoreDelimitedByReserved x i =

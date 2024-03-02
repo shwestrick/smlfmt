@@ -43,10 +43,8 @@ struct
 
   type t = fixity D.t list
 
-  fun L (str, p) =
-    (str, Infix (p, AssocLeft))
-  fun R (str, p) =
-    (str, Infix (p, AssocRight))
+  fun L (str, p) = (str, Infix (p, AssocLeft))
+  fun R (str, p) = (str, Infix (p, AssocRight))
 
   val initialTopLevel: t =
     [fromList
@@ -78,8 +76,7 @@ struct
 
   fun popScope [_] = raise TopScope
     | popScope (x :: d) = {old = d, popped = [x]}
-    | popScope [] =
-        raise Fail "Impossible! Bug in InfixDict"
+    | popScope [] = raise Fail "Impossible! Bug in InfixDict"
 
   fun find d tok =
     let
@@ -118,11 +115,9 @@ struct
       SOME (Infix (_, a)) => a
     | _ => raise NotFound
 
-  fun associatesLeft d tok =
-    AssocLeft = lookupAssoc d tok
+  fun associatesLeft d tok = AssocLeft = lookupAssoc d tok
 
-  fun associatesRight d tok =
-    AssocRight = lookupAssoc d tok
+  fun associatesRight d tok = AssocRight = lookupAssoc d tok
 
   fun higherPrecedence d (tok1, tok2) =
     lookupPrecedence d tok1 > lookupPrecedence d tok2

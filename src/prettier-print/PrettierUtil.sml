@@ -66,8 +66,7 @@ struct
     newTabWithStyle tab (style, fn inner => at inner (shower inner x))
 
 
-  fun spaces n =
-    List.foldl op++ empty (List.tabulate (n, fn _ => space))
+  fun spaces n = List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
   fun showSequence elemStartsWithStar (elemShower: 'a shower) tab

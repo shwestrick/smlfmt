@@ -38,22 +38,19 @@ struct
 
   fun all (lo, hi) f =
     let
-      fun allFrom i =
-        (i >= hi) orelse (f i andalso allFrom (i + 1))
+      fun allFrom i = (i >= hi) orelse (f i andalso allFrom (i + 1))
     in
       allFrom lo
     end
 
   fun exists (lo, hi) f =
     let
-      fun existsFrom i =
-        i < hi andalso (f i orelse existsFrom (i + 1))
+      fun existsFrom i = i < hi andalso (f i orelse existsFrom (i + 1))
     in
       existsFrom lo
     end
 
-  fun for (lo, hi) f =
-    if lo >= hi then () else (f lo; for (lo + 1, hi) f)
+  fun for (lo, hi) f = if lo >= hi then () else (f lo; for (lo + 1, hi) f)
 
   fun gtOfCmp cmp (x, y) =
     case cmp (x, y) of

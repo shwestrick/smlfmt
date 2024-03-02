@@ -62,8 +62,7 @@ struct
       {red = R1 + m, green = G1 + m, blue = B1 + m}
     end
 
-  fun to256 channel =
-    Real.ceil (channel * 255.0)
+  fun to256 channel = Real.ceil (channel * 255.0)
 
   val esc = "\027["
 

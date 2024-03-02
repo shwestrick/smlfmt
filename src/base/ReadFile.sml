@@ -49,11 +49,9 @@ struct
       ArraySlice.full result
     end
 
-  fun contentsSeq path =
-    contentsSeq' (Char.chr 0, Char.chr o Word8.toInt) path
+  fun contentsSeq path = contentsSeq' (Char.chr 0, Char.chr o Word8.toInt) path
 
-  fun contentsBinSeq path =
-    contentsSeq' (0w0, fn w => w) path
+  fun contentsBinSeq path = contentsSeq' (0w0, fn w => w) path
 
   fun contents filename =
     let

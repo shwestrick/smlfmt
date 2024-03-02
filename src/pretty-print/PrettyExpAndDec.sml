@@ -353,8 +353,7 @@ struct
           let
             fun showBranch {pat, arrow, exp} =
               showPat pat ++ space ++ token arrow \\ showExp exp
-            fun mk (delim, branch) =
-              token delim ++ space ++ showBranch branch
+            fun mk (delim, branch) = token delim ++ space ++ showBranch branch
           in
             showExp expLeft
             \\
@@ -370,8 +369,7 @@ struct
           let
             fun showBranch {pat, arrow, exp} =
               showPat pat ++ space ++ token arrow \\ showExp exp
-            fun mk (delim, branch) =
-              token delim ++ space ++ showBranch branch
+            fun mk (delim, branch) = token delim ++ space ++ showBranch branch
           in
             rigid
               (token casee ++ space ++ showExp expTop ++ space ++ token off
@@ -453,8 +451,7 @@ struct
               SOME (group
                 (group (showExp l $$ token t) +$+ showInfixedExp (rl, rt, rr)))
 
-      fun normal () =
-        group (group (showExp l $$ token t) +$+ showExp r)
+      fun normal () = group (group (showExp l $$ token t) +$+ showExp r)
     in
       case tryLeft () of
         SOME x => x

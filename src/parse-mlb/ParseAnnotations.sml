@@ -80,7 +80,6 @@ struct
     end
 
 
-  fun modifyAllows allows anns =
-    Seq.iterate modifyOne allows anns
+  fun modifyAllows allows anns = Seq.iterate modifyOne allows anns
 
 end

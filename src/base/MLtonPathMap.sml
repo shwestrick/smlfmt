@@ -69,8 +69,7 @@ struct
     let
       val n = String.size field
       fun c i = String.sub (field, i)
-      fun slice (i, j) =
-        String.substring (field, i, j - i)
+      fun slice (i, j) = String.substring (field, i, j - i)
 
 
       fun findNextKeyStart (i: int) =
@@ -88,8 +87,7 @@ struct
         else findNextKeyEnd (i + 1)
 
 
-      fun finishLoop (usedKeys, acc) =
-        (usedKeys, String.concat (List.rev acc))
+      fun finishLoop (usedKeys, acc) = (usedKeys, String.concat (List.rev acc))
 
       (** Example:
         *   abc$(foo)def$(bar)...

@@ -10,8 +10,7 @@ struct
 
   val isValidSingleEscapeChar = Char.contains "abtnvfr\\\""
 
-  fun isValidControlEscapeChar c =
-    64 <= Char.ord c andalso Char.ord c <= 95
+  fun isValidControlEscapeChar c = 64 <= Char.ord c andalso Char.ord c <= 95
 
   val isSymbolic = Char.contains "!%&$#+-/:<=>?@\\~`^|*"
 

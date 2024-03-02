@@ -18,8 +18,7 @@ struct
   type ('a, 'b) parser = ('a, 'b) ParserCombinators.parser
   type tokens = MLBToken.t Seq.t
 
-  fun check_ toks f i =
-    i < Seq.length toks andalso f (Seq.nth toks i)
+  fun check_ toks f i = i < Seq.length toks andalso f (Seq.nth toks i)
 
   fun isReserved_ toks rc i =
     check_ toks
@@ -169,12 +168,9 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        check_ toks f i
-      fun isReserved rc i =
-        isReserved_ toks rc i
-      fun isSMLReserved rc i =
-        isSMLReserved_ toks rc i
+      fun check f i = check_ toks f i
+      fun isReserved rc i = isReserved_ toks rc i
+      fun isSMLReserved rc i = isSMLReserved_ toks rc i
 
 
       (** bas basdec end
@@ -234,17 +230,13 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
-      fun check f i =
-        check_ toks f i
-      fun isReserved rc i =
-        isReserved_ toks rc i
-      fun isSMLReserved rc i =
-        isSMLReserved_ toks rc i
+      fun check f i = check_ toks f i
+      fun isReserved rc i = isReserved_ toks rc i
+      fun isSMLReserved rc i = isSMLReserved_ toks rc i
 
 
       (** not yet implemented *)
-      fun nyi fname i =
-        nyi_ toks fname i
+      fun nyi fname i = nyi_ toks fname i
 
 
       fun makeSMLPath pathtok pathstr =
@@ -279,10 +271,8 @@ struct
 
           val pathstr = Source.toString (Source.slice thisSrc (1, n - 2))
 
-          fun mlbCase () =
-            (i + 1, makeMLBPath thisTok pathstr)
-          fun smlCase () =
-            (i + 1, makeSMLPath thisTok pathstr)
+          fun mlbCase () = (i + 1, makeMLBPath thisTok pathstr)
+          fun smlCase () = (i + 1, makeSMLPath thisTok pathstr)
         in
           case OS.Path.ext pathstr of
             SOME "mlb" => mlbCase ()

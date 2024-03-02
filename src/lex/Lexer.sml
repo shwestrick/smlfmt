@@ -34,12 +34,9 @@ struct
       val src = Source.wholeFile src
 
       (** Some helpers for making source slices and tokens. *)
-      fun slice (i, j) =
-        Source.slice src (i, j - i)
-      fun mk x (i, j) =
-        Token.Pretoken.make (slice (i, j)) x
-      fun mkr x (i, j) =
-        Token.Pretoken.reserved (slice (i, j)) x
+      fun slice (i, j) = Source.slice src (i, j - i)
+      fun mk x (i, j) = Token.Pretoken.make (slice (i, j)) x
+      fun mkr x (i, j) = Token.Pretoken.reserved (slice (i, j)) x
 
       fun get i = Source.nth src i
 
@@ -51,21 +48,15 @@ struct
         *)
       infix 5 at
       fun f at i = f i
-      fun check f i =
-        i < Source.length src andalso f (get i)
-      fun is c =
-        check (fn c' => c = c')
+      fun check f i = i < Source.length src andalso f (get i)
+      fun is c = check (fn c' => c = c')
 
 
-      fun isPrint c =
-        let val i = Char.ord c
-        in 32 <= i andalso i <= 126
-        end
+      fun isPrint c = let val i = Char.ord c in 32 <= i andalso i <= 126 end
 
-      fun isMaybeUnicode c =
-        let val i = Char.ord c
-        in (128 <= i andalso i <= 253) (* ?? *)
-        end
+      fun isMaybeUnicode c = let val i = Char.ord c
+                             in (128 <= i andalso i <= 253) (* ?? *)
+                             end
 
 
       (** ====================================================================
@@ -662,8 +653,7 @@ struct
       fun tokEndOffset tok =
         Source.absoluteEndOffset (Token.Pretoken.getSource tok)
 
-      fun finish acc =
-        Token.makeGroup (Seq.rev (Seq.fromList acc))
+      fun finish acc = Token.makeGroup (Seq.rev (Seq.fromList acc))
 
       fun loop acc offset =
         if offset >= endOffset then

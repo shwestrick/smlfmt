@@ -12,8 +12,7 @@ struct
   fun x ++ y = beside (x, y)
   fun x $$ y = aboveOrSpace (x, y)
   fun x // y = aboveOrBeside (x, y)
-  fun x \\ y =
-    group (x $$ indent y)
+  fun x \\ y = group (x $$ indent y)
 
   fun optBarFail () =
     raise Fail
@@ -44,8 +43,7 @@ struct
         (f (Seq.nth elems 0)) (Seq.drop elems 1)
 
 
-  fun spaces n =
-    List.foldl op++ empty (List.tabulate (n, fn _ => space))
+  fun spaces n = List.foldl op++ empty (List.tabulate (n, fn _ => space))
 
 
   fun sequence openn delims close (xs: doc Seq.t) =
@@ -54,8 +52,7 @@ struct
     else
       let
         val top = token openn ++ softspace ++ Seq.nth xs 0
-        fun f (delim, x) =
-          token delim ++ space ++ x
+        fun f (delim, x) = token delim ++ space ++ x
       in
         group
           (Seq.iterate op// top (Seq.map f (Seq.zip (delims, Seq.drop xs 1)))

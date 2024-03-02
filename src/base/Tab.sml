@@ -175,8 +175,7 @@ struct
       Root => "root"
     | Tab {id = c, ...} => Int.toString c
 
-  fun toString t =
-    "[" ^ name t ^ "]"
+  fun toString t = "[" ^ name t ^ "]"
 
   fun compare (t1: tab, t2: tab) : order =
     case (t1, t2) of
@@ -185,23 +184,17 @@ struct
     | (Tab _, Root) => GREATER
     | (Root, Tab _) => LESS
 
-  fun eq (t1, t2) =
-    compare (t1, t2) = EQUAL
+  fun eq (t1, t2) = compare (t1, t2) = EQUAL
 
   fun depth t =
     case t of
       Root => 0
     | Tab {parent = p, ...} => 1 + depth p
 
-  fun isRigid t =
-    Style.isRigid (style t)
-  fun isInplace t =
-    Style.isInplace (style t)
-  fun minIndent t =
-    Style.minIndent (style t)
-  fun maxIndent t =
-    Style.maxIndent (style t)
-  fun allowsComments t =
-    Style.allowsComments (style t)
+  fun isRigid t = Style.isRigid (style t)
+  fun isInplace t = Style.isInplace (style t)
+  fun minIndent t = Style.minIndent (style t)
+  fun maxIndent t = Style.maxIndent (style t)
+  fun allowsComments t = Style.allowsComments (style t)
 
 end

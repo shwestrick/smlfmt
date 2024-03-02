@@ -25,11 +25,9 @@ local
         TerminalColors.hsv {h = h, s = s, v = 0.9}
       end
 
-    fun emphasize depth s =
-      backgroundIfNone (niceRed depth) s
+    fun emphasize depth s = backgroundIfNone (niceRed depth) s
 
-    fun toString t =
-      TerminalColorString.toString {colors = false} t
+    fun toString t = TerminalColorString.toString {colors = false} t
   end
 
 

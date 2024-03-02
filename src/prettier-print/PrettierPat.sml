@@ -120,8 +120,7 @@ struct
       | Or {elems, delims} =>
           newTab tab (fn tab =>
             let
-              fun f (d, p) =
-                at tab (token d) ++ withNewChild showPat tab p
+              fun f (d, p) = at tab (token d) ++ withNewChild showPat tab p
 
               val front = at tab (showPat tab (Seq.nth elems 0))
             in

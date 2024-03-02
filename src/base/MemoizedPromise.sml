@@ -15,8 +15,7 @@ struct
 
   type 'a t = 'a contents ref
 
-  fun new f =
-    ref (Delayed f)
+  fun new f = ref (Delayed f)
 
   fun get m =
     case !m of

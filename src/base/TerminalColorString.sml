@@ -72,8 +72,7 @@ struct
 
   val empty = Empty
 
-  fun fromChar c =
-    String (String.str c)
+  fun fromChar c = String (String.str c)
   fun fromString s = String s
 
   fun append (t1, t2) =
@@ -82,8 +81,7 @@ struct
     | (_, Empty) => t1
     | _ => Append {size = size t1 + size t2, left = t1, right = t2}
 
-  fun concat ts =
-    List.foldl (fn (next, prev) => append (prev, next)) Empty ts
+  fun concat ts = List.foldl (fn (next, prev) => append (prev, next)) Empty ts
 
   fun concatWith t ts =
     case ts of
@@ -247,15 +245,13 @@ struct
   fun backgroundIfNone color t =
     if hasNoBackground t then background color t else t
 
-  fun bold t =
-    let val (a, t) = splitAttributes t
-    in Attributes {size = size t, attr = setBold a, child = t}
-    end
+  fun bold t = let val (a, t) = splitAttributes t
+               in Attributes {size = size t, attr = setBold a, child = t}
+               end
 
-  fun italic t =
-    let val (a, t) = splitAttributes t
-    in Attributes {size = size t, attr = setItalic a, child = t}
-    end
+  fun italic t = let val (a, t) = splitAttributes t
+                 in Attributes {size = size t, attr = setItalic a, child = t}
+                 end
 
   fun underline t =
     let val (a, t) = splitAttributes t

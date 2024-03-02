@@ -5,8 +5,7 @@
 
 structure TCS = TerminalColorString
 structure TC = TerminalColors
-fun boldc c x =
-  TCS.bold (TCS.foreground c (TCS.fromString x))
+fun boldc c x = TCS.bold (TCS.foreground c (TCS.fromString x))
 fun printErr m = TextIO.output (TextIO.stdErr, m)
 
 val optionalArgDesc =
@@ -103,8 +102,7 @@ val previewOnly = CommandLineArgs.parseFlag "preview-only"
 val doCheck = CommandLineArgs.parseFlag "check"
 val showPreview = preview orelse previewOnly
 
-fun dbgprintln s =
-  if not doDebug then () else print (s ^ "\n")
+fun dbgprintln s = if not doDebug then () else print (s ^ "\n")
 
 val allows = AstAllows.make
   { topExp = allowTopExp
@@ -122,8 +120,7 @@ val _ =
   then (print (usage ()); OS.Process.exit OS.Process.success)
   else ()
 
-fun warnWithMessage msg =
-  TCS.printErr (boldc Palette.yellow (msg ^ "\n"))
+fun warnWithMessage msg = TCS.printErr (boldc Palette.yellow (msg ^ "\n"))
 
 fun failWithMessage msg =
   ( TCS.printErr (boldc Palette.red (msg ^ "\n"))

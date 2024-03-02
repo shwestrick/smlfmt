@@ -21,8 +21,7 @@ struct
 
   type width = int
 
-  fun repeatChar n c =
-    CharVector.tabulate (n, fn _ => c)
+  fun repeatChar n c = CharVector.tabulate (n, fn _ => c)
 
   fun leftPadWith char desiredWidth str =
     if String.size str >= desiredWidth then str
@@ -54,8 +53,7 @@ struct
 
   fun textWrap desiredWidth str =
     let
-      fun finishLine ln =
-        String.concatWith " " (List.rev ln)
+      fun finishLine ln = String.concatWith " " (List.rev ln)
       fun loop lines (currLine, currLen) toks =
         case toks of
           tok :: remaining =>
