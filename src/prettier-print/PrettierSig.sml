@@ -21,10 +21,23 @@ struct
 
   (* ======================================================================= *)
 
+  (* This function is duplicated in PrettierExpAndDec. *)
+  fun showTypbind tab (front, {elems, delims}) =
+    let
+      fun showOne _ (starter, {tyvars, tycon, ty, eq}) =
+        at tab
+          (token starter ++ showTokenSyntaxSeq tab tyvars ++ token tycon
+           ++ token eq ++ withNewChild showTy tab ty)
+    in
+      Seq.iterate op++ (showOne true (front, Seq.nth elems 0))
+        (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
+    end
+
+
   (* NOTE: very similar to PrettierExpAndDec.showDatbind. The
    * only difference: there is no possible 'op' in the condesc, ugh.
    *)
-  fun showDatspec tab {datatypee, elems, delims} =
+  fun showDatspec tab (datatypee, elems, delims) =
     newTabWithStyle tab (Tab.Style.allowComments, fn tab =>
       let
         fun showCon (starter, {vid, arg}) =
@@ -97,16 +110,7 @@ struct
               (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
           end
 
-      | TypeAbbreviation {typee, elems, delims} =>
-          let
-            fun showOne _ (starter, {tyvars, tycon, eq, ty}) =
-              at tab
-                (token starter ++ showTokenSyntaxSeq tab tyvars ++ token tycon
-                 ++ token eq ++ withNewChild showTy tab ty)
-          in
-            Seq.iterate op++ (showOne true (typee, Seq.nth elems 0))
-              (Seq.zipWith (showOne false) (delims, Seq.drop elems 1))
-          end
+      | TypeAbbreviation {typee, typbind} => showTypbind tab (typee, typbind)
 
       | Eqtype {eqtypee, elems, delims} =>
           let
@@ -208,7 +212,12 @@ struct
             at inner
               (token right_datatypee ++ token (MaybeLongToken.getToken right_id)))
 
-      | Datatype xxx => showDatspec tab xxx
+      | Datatype {datatypee, elems, delims, withtypee} =>
+          showDatspec tab (datatypee, elems, delims)
+          ++
+          showOption
+            (fn {withtypee, typbind} =>
+               at tab (showTypbind tab (withtypee, typbind))) withtypee
     end
 
 

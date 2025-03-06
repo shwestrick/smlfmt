@@ -70,6 +70,11 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
   \\n\
+  \  [-allow-sig-withtype B]    Enable/disable SuccessorML withtype in signatures\n\
+  \                             syntax.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
   \  [--help]                   print this message\n"
 
 
@@ -92,6 +97,7 @@ val allowRecordPun = CommandLineArgs.parseBool "allow-record-pun-exps" false
 val allowOrPat = CommandLineArgs.parseBool "allow-or-pats" false
 val allowExtendedText =
   CommandLineArgs.parseBool "allow-extended-text-consts" false
+val allowSigWithtype = CommandLineArgs.parseBool "allow-sig-withtype" false
 
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
@@ -112,6 +118,7 @@ val allows = AstAllows.make
   , recordPun = allowRecordPun
   , orPat = allowOrPat
   , extendedText = allowExtendedText
+  , sigWithtype = allowSigWithtype
   }
 
 val _ =

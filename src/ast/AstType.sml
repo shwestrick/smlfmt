@@ -475,6 +475,16 @@ struct
   structure Sig =
   struct
 
+    (** tyvarseq tycon = ty [and tyvarseq tycon = ty ...] *)
+    (* This is the same as Exp.typbind *)
+    type typbind =
+      { elems:
+          {tyvars: Token.t SyntaxSeq.t, tycon: Token.t, eq: Token.t, ty: Ty.t} Seq.t
+      (** the `and` delimiters between bindings *)
+      , delims: Token.t Seq.t
+      }
+
+
     datatype spec =
       EmptySpec
 
@@ -494,13 +504,7 @@ struct
         , delims: Token.t Seq.t
         }
 
-    | TypeAbbreviation of
-        { typee: Token.t
-        , elems:
-            {tyvars: Token.t SyntaxSeq.t, tycon: Token.t, eq: Token.t, ty: Ty.t} Seq.t
-        (** 'and' delimiters between mutually recursive types *)
-        , delims: Token.t Seq.t
-        }
+    | TypeAbbreviation of {typee: Token.t, typbind: typbind}
 
     (** eqtype tyvarseq tycon [and tyvarseq tycon ...] *)
     | Eqtype of
@@ -525,6 +529,8 @@ struct
             } Seq.t
         (** 'and' delimiters between mutually recursive datatypes *)
         , delims: Token.t Seq.t
+        (** SuccessorML: withtype in signatures *)
+        , withtypee: {withtypee: Token.t, typbind: typbind} option
         }
 
     (** datatype tycon = datatype longtycon *)

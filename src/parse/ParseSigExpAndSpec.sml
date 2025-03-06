@@ -142,6 +142,9 @@ struct
     let
       val numToks = Seq.length toks
       fun tok i = Seq.nth toks i
+
+      infix 5 at
+      fun f at i = f i
       fun check f i =
         i < numToks andalso f (tok i)
       fun isReserved rc =
@@ -168,6 +171,27 @@ struct
         PC.zeroOrMoreWhile c p s
       fun parse_oneOrMoreWhile c p s =
         PC.oneOrMoreWhile c p s
+
+
+      (* This function is duplicated in ParseExpAndDec. *)
+      fun parse_typbind i =
+        let
+          fun parseElem i =
+            let
+              val (i, tyvars) = parse_tyvars i
+              val (i, tycon) = parse_tycon i
+              val (i, eq) = parse_reserved Token.Equal i
+              val (i, ty) = parse_ty i
+            in
+              (i, {tyvars = tyvars, tycon = tycon, eq = eq, ty = ty})
+            end
+
+          val (i, typbind) =
+            parse_oneOrMoreDelimitedByReserved
+              {parseElem = parseElem, delim = Token.And} i
+        in
+          (i, typbind)
+        end
 
 
       fun parse_datdesc i =
@@ -252,33 +276,22 @@ struct
           ( i
           , Ast.Sig.TypeAbbreviation
               { typee = typee
-              , elems = Seq.singleton firstElem
-              , delims = Seq.empty ()
+              , typbind =
+                  {elems = Seq.singleton firstElem, delims = Seq.empty ()}
               }
           )
         else
           let
             val (i, firstDelim) = (i + 1, tok i)
-
-            fun parseOne i =
-              let
-                val (i, tyvars) = parse_tyvars i
-                val (i, tycon) = parse_tycon i
-                val (i, eq) = parse_reserved Token.Equal i
-                val (i, ty) = parse_ty i
-              in
-                (i, {tyvars = tyvars, tycon = tycon, eq = eq, ty = ty})
-              end
-
-            val (i, {elems, delims}) =
-              parse_oneOrMoreDelimitedByReserved
-                {parseElem = parseOne, delim = Token.And} i
+            val (i, {elems, delims}) = parse_typbind i
           in
             ( i
             , Ast.Sig.TypeAbbreviation
                 { typee = typee
-                , elems = Seq.append (Seq.singleton firstElem, elems)
-                , delims = Seq.append (Seq.singleton firstDelim, delims)
+                , typbind =
+                    { elems = Seq.append (Seq.singleton firstElem, elems)
+                    , delims = Seq.append (Seq.singleton firstDelim, delims)
+                    }
                 }
             )
           end
@@ -365,7 +378,7 @@ struct
         end
 
 
-      (** datatype datdesc
+      (** datatype datdesc <withtype typbind>
         *         ^
         * OR
         * datatype tycon = datatype longtycon
@@ -384,10 +397,33 @@ struct
           let
             val datatypee = tok (i - 1)
             val (i, {elems, delims}) = parse_datdesc i
+            val (i, withtypee) =
+              if not (isReserved Token.Withtype at i) then
+                (i, NONE)
+              else if not (AstAllows.sigWithtype allows) then
+                ParserUtils.tokError toks
+                  { pos = i
+                  , what = "Unexpected 'withtype' in signature."
+                  , explain = SOME
+                      "withtype in signatures is a disallowed SuccessorML \
+                      \feature. To enable it, use the command-line argument \
+                      \'-allow-sig-withtype true'."
+                  }
+              else
+                let
+                  val withtypee = tok i
+                  val (i, typbind) = parse_typbind (i + 1)
+                in
+                  (i, SOME {withtypee = withtypee, typbind = typbind})
+                end
           in
             ( i
             , Ast.Sig.Datatype
-                {datatypee = datatypee, elems = elems, delims = delims}
+                { datatypee = datatypee
+                , elems = elems
+                , delims = delims
+                , withtypee = withtypee
+                }
             )
           end
         else

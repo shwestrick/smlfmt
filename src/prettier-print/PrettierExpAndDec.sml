@@ -233,6 +233,7 @@ struct
 
   (* ====================================================================== *)
 
+  (* This function is duplicated in PrettierSig. *)
   fun showTypbind tab (front, typbind: Ast.Exp.typbind as {elems, delims}) =
     let
       fun showOne first (starter, {tyvars, tycon, ty, eq}) =

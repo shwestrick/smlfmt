@@ -33,6 +33,7 @@ struct
         , recordPun = false
         , orPat = false
         , extendedText = false
+        , sigWithtype = false
         }
     in
       case Lexer.next smlLexerAllows src of

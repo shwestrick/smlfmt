@@ -49,7 +49,7 @@ struct
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.TypeAbbreviation {typee, elems, delims} =>
+    | Ast.Sig.TypeAbbreviation {typee, typbind = {elems, delims}} =>
         let
           fun showOne (starter, {tyvars, tycon, eq, ty}) =
             separateWithSpaces
@@ -77,11 +77,13 @@ struct
             (Seq.zipWith showOne (delims, Seq.drop elems 1))
         end
 
-    | Ast.Sig.Datatype {datatypee, elems, delims} =>
+    | Ast.Sig.Datatype {datatypee, elems, delims, withtypee} =>
         (** This is *really* similar to a datbind (see showDatbind above), but
           * only one difference: there is no possible 'op' in the condesc, ugh.
           *)
         let
+          val _ = if Option.isSome withtypee then sigWithtypeFail () else ()
+
           fun showCon (starter, {vid, arg}) =
             starter ++ space
             ++

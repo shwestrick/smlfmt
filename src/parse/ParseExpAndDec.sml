@@ -188,6 +188,7 @@ struct
         end
 
 
+      (* This function is duplicated in ParseSigExpAndSpec. *)
       fun parse_typbind i =
         let
           fun parseElem i =
