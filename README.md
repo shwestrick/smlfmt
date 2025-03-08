@@ -123,6 +123,9 @@ that the `--preview-only` flag is also enabled.
 `-allow-top-level-exps [true|false]` (default `true`) controls whether or
 not top-level expressions (terminated by a semicolon) are allowed.
 
+`-allow-successor-ml [true|false]` (default `false`) controls whether or not
+SuccessorML features are allowed.
+
 `-allow-opt-bar [true|false]` (default `false`) controls whether or not
 SuccessorML optional bar syntax is allowed.
 

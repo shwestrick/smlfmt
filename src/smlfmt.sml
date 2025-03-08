@@ -51,6 +51,10 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'true')\n\
   \\n\
+  \  [-allow-successor-ml B]    Enable/disable all SuccessorML features.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
   \  [-allow-opt-bar B]         Enable/disable SuccessorML optional bar syntax.\n\
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
@@ -92,12 +96,15 @@ val engine = CommandLineArgs.parseString "engine" "prettier"
 val inputfiles = CommandLineArgs.positional ()
 
 val allowTopExp = CommandLineArgs.parseBool "allow-top-level-exps" true
-val allowOptBar = CommandLineArgs.parseBool "allow-opt-bar" false
-val allowRecordPun = CommandLineArgs.parseBool "allow-record-pun-exps" false
-val allowOrPat = CommandLineArgs.parseBool "allow-or-pats" false
+val allowSuccessorML = CommandLineArgs.parseBool "allow-successor-ml" false
+val allowOptBar = CommandLineArgs.parseBool "allow-opt-bar" allowSuccessorML
+val allowRecordPun =
+  CommandLineArgs.parseBool "allow-record-pun-exps" allowSuccessorML
+val allowOrPat = CommandLineArgs.parseBool "allow-or-pats" allowSuccessorML
 val allowExtendedText =
-  CommandLineArgs.parseBool "allow-extended-text-consts" false
-val allowSigWithtype = CommandLineArgs.parseBool "allow-sig-withtype" false
+  CommandLineArgs.parseBool "allow-extended-text-consts" allowSuccessorML
+val allowSigWithtype =
+  CommandLineArgs.parseBool "allow-sig-withtype" allowSuccessorML
 
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
