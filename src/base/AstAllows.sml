@@ -13,6 +13,7 @@ sig
     , recordPun: bool
     , orPat: bool
     , extendedText: bool
+    , sigWithtype: bool
     }
     -> t
 
@@ -21,6 +22,7 @@ sig
   val recordPun: t -> bool
   val orPat: t -> bool
   val extendedText: t -> bool
+  val sigWithtype: t -> bool
 end =
 struct
   datatype t =
@@ -30,6 +32,7 @@ struct
       , recordPun: bool
       , orPat: bool
       , extendedText: bool
+      , sigWithtype: bool
       }
 
   fun make x = T x
@@ -38,4 +41,5 @@ struct
   fun recordPun (T x) = #recordPun x
   fun orPat (T x) = #orPat x
   fun extendedText (T x) = #extendedText x
+  fun sigWithtype (T x) = #sigWithtype x
 end

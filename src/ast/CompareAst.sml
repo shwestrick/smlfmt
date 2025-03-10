@@ -753,16 +753,8 @@ struct
             end
 
         | (Sig.TypeAbbreviation a1, Sig.TypeAbbreviation a2) =>
-            let
-              val checker =
-                at #typee equal_tok
-                <&>
-                at #elems (Seq.equal
-                  (at #tyvars (equal_syntaxseq equal_tok)
-                   <&> at #tycon equal_tok <&> at #eq equal_tok
-                   <&> at #ty equal_ty)) <&> at #delims (Seq.equal equal_tok)
-            in
-              checker (a1, a2)
+            let val checker = at #typee equal_tok <&> at #typbind equal_typbind
+            in checker (a1, a2)
             end
 
         | (Sig.Eqtype e1, Sig.Eqtype e2) =>

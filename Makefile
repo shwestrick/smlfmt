@@ -19,6 +19,10 @@ install: smlfmt
 	install -d $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 smlfmt $(DESTDIR)$(PREFIX)/bin/
 
+.PHONY: test
+test: smlfmt
+	test/runall
+
 .PHONY: clean
 clean:
 	rm -f demo smlfmt

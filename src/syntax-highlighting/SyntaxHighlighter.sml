@@ -111,6 +111,7 @@ struct
         , recordPun = true
         , orPat = true
         , extendedText = true
+        , sigWithtype = true
         }
 
       val startOffset = Source.absoluteStartOffset src

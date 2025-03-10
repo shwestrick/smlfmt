@@ -123,6 +123,9 @@ that the `--preview-only` flag is also enabled.
 `-allow-top-level-exps [true|false]` (default `true`) controls whether or
 not top-level expressions (terminated by a semicolon) are allowed.
 
+`-allow-successor-ml [true|false]` (default `false`) controls whether or not
+SuccessorML features are allowed.
+
 `-allow-opt-bar [true|false]` (default `false`) controls whether or not
 SuccessorML optional bar syntax is allowed.
 
@@ -135,3 +138,6 @@ SuccessorML or-pattern syntax is allowed.
 `-allow-extended-text-consts [true|false]` (default `false`) controls whether
 or not SuccessorML extended text constants are allowed. Enable this to allow
 for UTF-8 characters within strings.
+
+`-allow-sig-withtype [true|false]` (default `false`) controls whether or not
+SuccessorML `withtype` in signatures syntax is allowed.
