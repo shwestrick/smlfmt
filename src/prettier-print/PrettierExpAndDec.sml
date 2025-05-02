@@ -643,69 +643,107 @@ struct
 
 
   and showInfixedExpAt tab (l, t, r) =
-    newTab tab (fn tab =>
-      let
-        open Ast.Exp
-
-        fun infixChainLeft () =
+    let
+      open Ast.Exp
+      fun def () =
+        newTab tab (fn tab =>
           let
-            fun loop acc exp =
-              case tryViewAsInfix exp of
-                NONE => (exp, acc)
-              | SOME (left, id, right) =>
-                  if Token.same (t, id) then
-                    loop ({id = id, right = right} :: acc) left
-                  else
-                    (exp, acc)
-            val (exp, elems) = loop [{id = t, right = r}] l
+            fun infixChainLeft () =
+              let
+                fun loop acc exp =
+                  case tryViewAsInfix exp of
+                    NONE => (exp, acc)
+                  | SOME (left, id, right) =>
+                      if Token.same (t, id) then
+                        loop ({id = id, right = right} :: acc) left
+                      else
+                        (exp, acc)
+                val (exp, elems) = loop [{id = t, right = r}] l
+              in
+                (exp, Seq.fromList elems)
+              end
+
+            fun infixChainRight () =
+              let
+                fun loop acc (prevId, exp) =
+                  case tryViewAsInfix exp of
+                    NONE => {id = prevId, right = exp} :: acc
+                  | SOME (left, id, right) =>
+                      if not (Token.same (t, id)) then
+                        {id = prevId, right = exp} :: acc
+                      else
+                        loop ({id = prevId, right = left} :: acc) (id, right)
+
+                val elems = loop [] (t, r)
+              in
+                (l, Seq.fromRevList elems)
+              end
+
+            val (leftmostExp1, rightElems1) = infixChainLeft ()
+            val (leftmostExp2, rightElems2) = infixChainRight ()
+
+            fun showRightElem {id, right} =
+              newTab tab (fn ghost =>
+                cond ghost
+                  { inactive = at ghost (token id ++ showExp ghost right)
+                  , active = at tab
+                      (token id
+                       ++
+                       newTab tab (fn ghostChild =>
+                         cond ghostChild
+                           { inactive = at ghostChild (showExp ghostChild right)
+                           , active = at tab (showExp tab right)
+                           }))
+                  })
+            (* at tab (token id) ++ withNewChild showExp tab right *)
+
+            val (leftmostExp, rightElems) =
+              if Seq.length rightElems1 >= Seq.length rightElems2 then
+                (leftmostExp1, rightElems1)
+              else
+                (leftmostExp2, rightElems2)
           in
-            (exp, Seq.fromList elems)
-          end
+            at tab (withNewChild showExp tab leftmostExp)
+            ++ Seq.iterate op++ empty (Seq.map showRightElem rightElems)
+          end)
+      val nonIndented =
+        Tab.Style.combine (Tab.Style.indentedExactlyBy 0, Tab.Style.rigid)
 
-        fun infixChainRight () =
-          let
-            fun loop acc (prevId, exp) =
-              case tryViewAsInfix exp of
-                NONE => {id = prevId, right = exp} :: acc
-              | SOME (left, id, right) =>
-                  if not (Token.same (t, id)) then
-                    {id = prevId, right = exp} :: acc
-                  else
-                    loop ({id = prevId, right = left} :: acc) (id, right)
+      (* Return "( fn <pat> => <exp> )" where <pat> is a pattern and <exp> is an expression
+         with the rest being tokens. *)
+      fun tryViewAsParenSingleFn
+            (Parens {left, exp = Fn {fnn, elems, ...}, right}) =
+            (case Seq.toList elems of
+               [{pat, arrow, exp}] => SOME (left, fnn, pat, arrow, exp, right)
+             | _ => NONE)
+        | tryViewAsParenSingleFn _ = NONE
 
-            val elems = loop [] (t, r)
-          in
-            (l, Seq.fromRevList elems)
-          end
-
-        val (leftmostExp1, rightElems1) = infixChainLeft ()
-        val (leftmostExp2, rightElems2) = infixChainRight ()
-
-        fun showRightElem {id, right} =
-          newTab tab (fn ghost =>
-            cond ghost
-              { inactive = at ghost (token id ++ showExp ghost right)
-              , active = at tab
-                  (token id
-                   ++
-                   newTab tab (fn ghostChild =>
-                     cond ghostChild
-                       { inactive = at ghostChild (showExp ghostChild right)
-                       , active = at tab (showExp tab right)
-                       }))
-              })
-        (* at tab (token id) ++ withNewChild showExp tab right *)
-
-        val (leftmostExp, rightElems) =
-          if Seq.length rightElems1 >= Seq.length rightElems2 then
-            (leftmostExp1, rightElems1)
-          else
-            (leftmostExp2, rightElems2)
-      in
-        at tab (withNewChild showExp tab leftmostExp)
-        ++ Seq.iterate op++ empty (Seq.map showRightElem rightElems)
-      end)
-
+      (* As long as the expression is an infix with a continuation on the right side,
+         put the body on the next line with no indentation. *)
+      fun showCPS tab (l, t, r) =
+        case tryViewAsParenSingleFn r of
+          SOME (left, fnn, pat, arrow, exp, right) =>
+            newTab tab (fn tab =>
+              at tab (withNewChild showExp tab l) ++ token t ++ token left
+              ++ nospace ++ token fnn ++ showPat tab pat ++ token arrow
+              ++
+              newTabWithStyle tab (nonIndented, fn inner =>
+                at inner
+                  (case tryViewAsInfix exp of
+                     SOME t => showCPS inner t
+                   | NONE => showExp inner exp) ++ nospace ++ token right))
+        | NONE => showInfixedExpAt tab (l, t, r)
+    in
+      case tryViewAsParenSingleFn r of
+        SOME (_, _, _, _, exp, _) =>
+          (case tryViewAsInfix exp of
+             SOME (_, _, r') =>
+               (case tryViewAsParenSingleFn r' of
+                  SOME _ => showCPS tab (l, t, r)
+                | NONE => def ())
+           | NONE => def ())
+      | NONE => def ()
+    end
 
   and showLetInEndAt outerTab {lett, dec, inn, exps, delims, endd} =
     let
