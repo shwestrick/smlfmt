@@ -57,16 +57,15 @@ local
     val allCommentsBefore = Token.commentsBefore
     val allCommentsAfter = Token.commentsAfter
 
-    (* Find index i where the first i comments belong to tok1, and the
-     * rest belong to tok2.
-     * (tok1, comments, tok2) must be adjacent.
+    (* Find index i where the first i comments should belong to tok, and the
+     * rest belong to the next token. (tok, comments) must be adjacent.
      *)
-    fun findSplit (tok1, comments, _) =
+    fun findSplit (tok, comments) =
       let
         val n = Seq.length comments
         fun loop i =
           if i >= n then n
-          else if Token.lineDifference (tok1, Seq.nth comments i) > 0 then i
+          else if Token.lineDifference (tok, Seq.nth comments i) > 0 then i
           else loop (i + 1)
       in
         loop 0
@@ -78,34 +77,25 @@ local
       | SOME ptok =>
           let
             val cs = allCommentsBefore tok
-            val cs = Seq.drop cs (findSplit (ptok, cs, tok))
-          in
-            cs
-          end
-
-    fun splitCommentsAfter tok =
-      case Token.nextTokenNotCommentOrWhitespace tok of
-        NONE => allCommentsAfter tok
-      | SOME ntok =>
-          let
-            val cs = allCommentsAfter tok
-            val cs = Seq.take cs (findSplit (tok, cs, ntok))
+            val cs = Seq.drop cs (findSplit (ptok, cs))
           in
             cs
           end
 
     fun splitCommentsAfterAndBeforeNext tok =
-      case Token.nextTokenNotCommentOrWhitespace tok of
-        NONE => (allCommentsAfter tok, Seq.empty ())
-      | SOME ntok =>
-          let
-            val cs = allCommentsAfter tok
-            val i = findSplit (tok, cs, ntok)
-            val cs1 = Seq.take cs i
-            val cs2 = Seq.drop cs i
-          in
-            (cs1, cs2)
-          end
+      let
+        val cs = allCommentsAfter tok
+        val i = findSplit (tok, cs)
+        val cs1 = Seq.take cs i
+        val cs2 = Seq.drop cs i
+      in
+        (cs1, cs2)
+      end
+
+    fun splitCommentsAfter tok =
+      let val (cs, _) = splitCommentsAfterAndBeforeNext tok
+      in cs
+      end
   end
 
   datatype pieces =
