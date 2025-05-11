@@ -1295,6 +1295,22 @@ struct
         end
 
 
+      (* Only intended to be called at the end, to flush any outstanding
+       * comments from the layout state.
+       *)
+      fun flushComments state =
+        let
+          val LS (dbgState, ct, cats, coms, lnStart, col, sp, acc) = state
+          val state = LS
+            (dbgState, ct, cats, Seq.empty (), lnStart, col, sp, acc)
+
+          val comsDoc = concatDocs
+            (Seq.map (at Tab.root o tokenToDocWithBlankLines Tab.root) coms)
+        in
+          layout VarDict.empty state comsDoc
+        end
+
+
       val initComments =
         case firstToken doc of
           NONE => Seq.empty ()
@@ -1315,7 +1331,8 @@ struct
         , []
         )
       val init = dbgBreak Tab.root (dbgInsert Tab.root init)
-      val LS (_, _, _, _, _, _, _, items) = layout VarDict.empty init doc
+      val LS (_, _, _, _, _, _, _, items) = flushComments
+        (layout VarDict.empty init doc)
       val items =
         if not debug then items
         else Item.EndDebug (EndTabHighlight {tab = Tab.root, col = 0}) :: items
