@@ -154,9 +154,12 @@ struct
   val tabCounter = ref 0
 
   fun new {parent, style} =
-    let val c = !tabCounter
-    in tabCounter := c + 1; Tab {id = c, style = style, parent = parent}
+    let val c = MLton.Parallel.fetchAndAdd tabCounter 1
+    in Tab {id = c, style = style, parent = parent}
     end
+  (* let val c = !tabCounter
+  in tabCounter := c + 1;
+  end *)
 
   val root = Root
 

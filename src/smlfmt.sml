@@ -377,7 +377,7 @@ fun doMLB filepath =
         {skipBasis = true, pathmap = pathmap, allows = allows} fp
       handle exn => handleLexOrParseError exn
   in
-    Util.for (0, Seq.length results) (fn i =>
+    ForkJoin.parform (0, Seq.length results) (fn i =>
       let
         val {path, allows, infdict, lexerOutput, parserOutput} =
           Seq.nth results i

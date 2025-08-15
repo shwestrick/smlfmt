@@ -2,17 +2,20 @@ PREFIX ?= /usr/local
 
 SOURCES = $(wildcard src/*.sml) $(wildcard src/*.mlb) $(wildcard src/**/*.sml) $(wildcard src/**/*.mlb)
 
+# MLCOMP = mlton
+MLCOMP = mpl
+
 smlfmt: $(SOURCES)
-	mlton -output smlfmt src/smlfmt.mlb
+	$(MLCOMP) -output smlfmt src/smlfmt.mlb
 
 smlfmt.dbg: $(SOURCES)
-	mlton -const 'Exn.keepHistory true' -output smlfmt.dbg src/smlfmt.mlb
+	$(MLCOMP) -const 'Exn.keepHistory true' -output smlfmt.dbg src/smlfmt.mlb
 
 demo: $(SOURCES)
-	mlton -output demo src/demo.mlb
+	$(MLCOMP) -output demo src/demo.mlb
 
 demo.dbg: $(SOURCES)
-	mlton -const 'Exn.keepHistory true' -output demo.dbg src/demo.mlb
+	$(MLCOMP) -const 'Exn.keepHistory true' -output demo.dbg src/demo.mlb
 
 .PHONY: install
 install: smlfmt
