@@ -143,3 +143,6 @@ for UTF-8 characters within strings.
 
 `-allow-sig-withtype [true|false]` (default `false`) controls whether or not
 SuccessorML `withtype` in signatures syntax is allowed.
+
+`-allow-line-comments [true|false]` (default `false`) controls whether or not
+SuccessorML line comments syntax is allowed.
