@@ -620,7 +620,7 @@ struct
         *)
       and loop_afterOpenParen s =
         if is #"*" at s then
-          loop_inComment (s + 1) {commentStart = s - 1, nesting = 1, lastCommentStart = s - 1}
+          loop_inComment (s + 1) {commentStart = s - 1, nesting = 1}
         else
           success (mkr Token.OpenParen (s - 1, s))
 
@@ -628,18 +628,24 @@ struct
       (** Inside a comment that started at `commentStart`
         * `nesting` is always >= 0 and indicates how many open-comments we've seen.
         *)
-      and loop_inComment s {commentStart, nesting, lastCommentStart} =
+      and loop_inComment s {commentStart, nesting} =
         if nesting = 0 then
           success (mk Token.Comment (commentStart, s))
         else if is #"(" at s andalso is #"*" at s + 1 then
-          loop_inComment (s + 2)
-            {commentStart = commentStart, nesting = nesting + 1, lastCommentStart = s}
+          if (AstAllows.lineComment allows) andalso is #")" at s + 2 then
+            (* Nested line comment *)
+            loop_inLineComment (s + 3)
+              {commentStart = commentStart, nesting = nesting + 1}
+          else
+            loop_inComment (s + 2)
+              {commentStart = commentStart, nesting = nesting + 1}
         else if is #"*" at s andalso is #")" at s + 1 then
           loop_inComment (s + 2)
-            {commentStart = commentStart, nesting = nesting - 1, lastCommentStart = lastCommentStart}
-        else if (AstAllows.lineComment allows) andalso s = lastCommentStart + 2 andalso is #")" at s then
+            {commentStart = commentStart, nesting = nesting - 1}
+        else if (AstAllows.lineComment allows) andalso is #")" at commentStart + 2 then
+          (* Top-level line comment *)
           loop_inLineComment (s + 1)
-            {commentStart = commentStart, nesting = nesting, lastCommentStart = s}
+            {commentStart = commentStart, nesting = nesting}
         else if isEndOfFileAt s then
           error
             { pos = slice (commentStart, commentStart + 2)
@@ -648,15 +654,15 @@ struct
             }
         else
           loop_inComment (s + 1)
-            {commentStart = commentStart, nesting = nesting, lastCommentStart = lastCommentStart}
+            {commentStart = commentStart, nesting = nesting}
 
-      and loop_inLineComment s {commentStart, nesting, lastCommentStart} =
+      and loop_inLineComment s {commentStart, nesting} =
         if is #"\n" at s then
           loop_inComment (s + 1)
-            {commentStart = commentStart, nesting = nesting - 1, lastCommentStart = lastCommentStart}
+            {commentStart = commentStart, nesting = nesting - 1}
         else
           loop_inLineComment (s + 1)
-            {commentStart = commentStart, nesting = nesting, lastCommentStart = lastCommentStart}
+            {commentStart = commentStart, nesting = nesting}
 
     in
       loop_topLevel startOffset
