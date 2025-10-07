@@ -658,7 +658,7 @@ struct
 
       and loop_inLineComment s {commentStart, nesting} =
         if is #"\n" at s then
-          loop_inComment (s + 1)
+          loop_inComment (s)
             {commentStart = commentStart, nesting = nesting - 1}
         else
           loop_inLineComment (s + 1)

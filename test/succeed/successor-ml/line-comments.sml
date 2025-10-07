@@ -1,7 +1,7 @@
 val x =
   (*) whole line
-   case foobar of (*) end of line
-                  
+  case foobar of (*) end of line
+
   (*
   (*) nested
    *)
