@@ -44,6 +44,10 @@ val optionalArgDesc =
   \\n\
   \  [-mlb-path-var 'K V']      MLton-style path variable\n\
   \\n\
+  \  [-skip PATH]               skip a file or directory\n\
+  \                             (can do -skip PATH1 -skip PATH2, etc.,\n\
+  \                             to skip multiple paths)\n\
+  \\n\
   \  [-engine E]                Select a pretty printing engine.\n\
   \                             Valid options are: prettier, pretty\n\
   \                             (default 'prettier')\n\
@@ -92,6 +96,7 @@ fun usage () =
 
 val mlbPathMaps = CommandLineArgs.parseStrings "mlb-path-map"
 val mlbPathVars = CommandLineArgs.parseStrings "mlb-path-var"
+val skipPathsArgs = CommandLineArgs.parseStrings "skip"
 val ribbonFrac = CommandLineArgs.parseReal "ribbon-frac" 1.0
 val maxWidth = CommandLineArgs.parseInt "max-width" 80
 val tabWidth = CommandLineArgs.parseInt "tab-width" 4
@@ -194,6 +199,8 @@ val pathmap = MLtonPathMap.getPathMap ()
 val pathmap = List.concat (List.map MLtonPathMap.fromFile mlbPathMaps) @ pathmap
 val pathmap =
   List.concat (List.map MLtonPathMap.fromString mlbPathVars) @ pathmap
+
+val skipPaths = Seq.fromList (List.map FilePath.fromUnixPath skipPathsArgs)
 
 fun handleLexOrParseError exn =
   let
@@ -380,7 +387,7 @@ fun doMLB filepath =
     val results =
       ParseAllSMLFromMLB.parse
         { skipBasis = true
-        , additionalSkipPaths = Seq.empty ()
+        , additionalSkipPaths = skipPaths
         , pathmap = pathmap
         , allows = allows
         } fp
