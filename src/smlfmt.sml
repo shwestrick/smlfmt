@@ -379,7 +379,11 @@ fun doMLB filepath =
     val fp = FilePath.fromUnixPath filepath
     val results =
       ParseAllSMLFromMLB.parse
-        {skipBasis = true, additionalSkipPaths = Seq.empty (), pathmap = pathmap, allows = allows} fp
+        { skipBasis = true
+        , additionalSkipPaths = Seq.empty ()
+        , pathmap = pathmap
+        , allows = allows
+        } fp
       handle exn => handleLexOrParseError exn
   in
     Util.for (0, Seq.length results) (fn i =>

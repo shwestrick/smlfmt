@@ -17,13 +17,14 @@ sig
   (** Take an .mlb source and fully parse all SML by loading all filepaths
     * recursively specified by the .mlb and parsing them, etc.
     *)
-  val parse: { pathmap: MLtonPathMap.t
-             , skipBasis: bool
-             , additionalSkipPaths: FilePath.t Seq.t
-             , allows: AstAllows.t
-             }
-             -> FilePath.t
-             -> fileResult Seq.t
+  val parse:
+    { pathmap: MLtonPathMap.t
+    , skipBasis: bool
+    , additionalSkipPaths: FilePath.t Seq.t
+    , allows: AstAllows.t
+    }
+    -> FilePath.t
+    -> fileResult Seq.t
 end =
 struct
 
@@ -85,8 +86,8 @@ struct
     }
 
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
-  fun parse {skipBasis, additionalSkipPaths, pathmap, allows = defaultAllows} mlbPath :
-    fileResult Seq.t =
+  fun parse {skipBasis, additionalSkipPaths, pathmap, allows = defaultAllows}
+    mlbPath : fileResult Seq.t =
     let
       open MLBAst
 

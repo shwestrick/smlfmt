@@ -81,7 +81,8 @@ struct
     let
       fun loop ([], _) = true
         | loop (_, []) = false
-        | loop (x :: xs, y :: ys) = x = y andalso loop (xs, ys)
+        | loop (x :: xs, y :: ys) =
+            x = y andalso loop (xs, ys)
     in
       loop (List.rev a, List.rev b)
     end
