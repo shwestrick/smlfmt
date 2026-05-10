@@ -37,6 +37,7 @@ sig
   val mapIdx: (int * 'a -> 'b) -> 'a seq -> 'b seq
   val zipWith: ('a * 'b -> 'c) -> 'a seq * 'b seq -> 'c seq
   val zip: 'a seq * 'b seq -> ('a * 'b) seq
+  val exists: ('a -> bool) -> 'a seq -> bool
   val filter: ('a -> bool) -> 'a seq -> 'a seq
 
   val iterate: ('b * 'a -> 'b) -> 'b -> 'a seq -> 'b
@@ -139,6 +140,15 @@ struct
 
   fun rev s =
     tabulate (fn i => nth s (length s - 1 - i)) (length s)
+
+  fun exists p s =
+    let
+      val n = length s
+      fun loop i =
+        i < n andalso (p (nth s i) orelse loop (i + 1))
+    in
+      loop 0
+    end
 
   fun filter p s =
     AS.full (SeqBasis.filter (0, length s) (nth s) (p o nth s))

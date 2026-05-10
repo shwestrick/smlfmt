@@ -32,6 +32,11 @@ sig
   val isAbsolute: filepath -> bool
 
   val sameFile: filepath * filepath -> bool
+
+  (** isPrefix (a, b): true iff a equals b, or b is inside the directory a.
+    * Both paths should be normalized before calling.
+    *)
+  val isPrefix: filepath * filepath -> bool
 end =
 struct
 
@@ -71,6 +76,15 @@ struct
 
   fun sameFile (fp1, fp2) =
     Util.equalLists op= (normalize fp1, normalize fp2)
+
+  fun isPrefix (a, b) =
+    let
+      fun loop ([], _) = true
+        | loop (_, []) = false
+        | loop (x :: xs, y :: ys) = x = y andalso loop (xs, ys)
+    in
+      loop (List.rev a, List.rev b)
+    end
 
   fun join (fields1, fields2) = fields2 @ fields1
 
