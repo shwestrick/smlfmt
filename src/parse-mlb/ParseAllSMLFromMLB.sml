@@ -17,7 +17,11 @@ sig
   (** Take an .mlb source and fully parse all SML by loading all filepaths
     * recursively specified by the .mlb and parsing them, etc.
     *)
-  val parse: {pathmap: MLtonPathMap.t, skipBasis: bool, allows: AstAllows.t}
+  val parse: { pathmap: MLtonPathMap.t
+             , skipBasis: bool
+             , additionalSkipPaths: FilePath.t Seq.t
+             , allows: AstAllows.t
+             }
              -> FilePath.t
              -> fileResult Seq.t
 end =
@@ -81,10 +85,15 @@ struct
     }
 
   (** when skipBasis = true, we ignore paths containing $(SML_LIB) *)
-  fun parse {skipBasis, pathmap, allows = defaultAllows} mlbPath :
+  fun parse {skipBasis, additionalSkipPaths, pathmap, allows = defaultAllows} mlbPath :
     fileResult Seq.t =
     let
       open MLBAst
+
+      val skipNorm = Seq.map FilePath.normalize additionalSkipPaths
+
+      fun shouldSkip path =
+        Seq.exists (fn skipPath => FilePath.isPrefix (skipPath, path)) skipNorm
 
       type asts = fileResult list
 
@@ -126,6 +135,11 @@ struct
             ; printErr ("(basis files are skipped)\n")
             ; (basis, [])
             )
+          else if shouldSkip path then
+            ( printErr ("skipping " ^ FilePath.toUnixPath path ^ "\n")
+            ; printErr ("(within a requested skipped path)\n")
+            ; (basis, [])
+            )
           else
             let
               val _ = printErr ("loading  " ^ FilePath.toUnixPath path ^ "\n")
@@ -158,6 +172,11 @@ struct
             ( printErr ("skipping " ^ FilePath.toUnixPath path ^ "\n")
             ; printErr ("(basis files are skipped)\n")
             ; (mlbCache, mergeBases (basis, initialTopLevelBasis), [])
+            )
+          else if shouldSkip path then
+            ( printErr ("skipping " ^ FilePath.toUnixPath path ^ "\n")
+            ; printErr ("(within a requested skipped path)\n")
+            ; (mlbCache, basis, [])
             )
           else
             let
