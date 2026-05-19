@@ -34,6 +34,7 @@ struct
         , orPat = false
         , extendedText = false
         , sigWithtype = false
+        , lineComment = false
         }
     in
       case Lexer.next smlLexerAllows src of

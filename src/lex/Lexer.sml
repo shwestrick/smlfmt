@@ -632,11 +632,20 @@ struct
         if nesting = 0 then
           success (mk Token.Comment (commentStart, s))
         else if is #"(" at s andalso is #"*" at s + 1 then
-          loop_inComment (s + 2)
-            {commentStart = commentStart, nesting = nesting + 1}
+          if (AstAllows.lineComment allows) andalso is #")" at s + 2 then
+            (* Nested line comment *)
+            loop_inLineComment (s + 3)
+              {commentStart = commentStart, nesting = nesting + 1}
+          else
+            loop_inComment (s + 2)
+              {commentStart = commentStart, nesting = nesting + 1}
         else if is #"*" at s andalso is #")" at s + 1 then
           loop_inComment (s + 2)
             {commentStart = commentStart, nesting = nesting - 1}
+        else if (AstAllows.lineComment allows) andalso is #")" at commentStart + 2 then
+          (* Top-level line comment *)
+          loop_inLineComment (s + 1)
+            {commentStart = commentStart, nesting = nesting}
         else if isEndOfFileAt s then
           error
             { pos = slice (commentStart, commentStart + 2)
@@ -647,6 +656,13 @@ struct
           loop_inComment (s + 1)
             {commentStart = commentStart, nesting = nesting}
 
+      and loop_inLineComment s {commentStart, nesting} =
+        if is #"\n" at s then
+          loop_inComment (s)
+            {commentStart = commentStart, nesting = nesting - 1}
+        else
+          loop_inLineComment (s + 1)
+            {commentStart = commentStart, nesting = nesting}
 
     in
       loop_topLevel startOffset

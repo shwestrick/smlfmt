@@ -66,6 +66,7 @@ struct
     , recordPun = false
     , orPat = false
     , extendedText = false
+    , lineComment = false
     }
 
 

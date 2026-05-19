@@ -86,6 +86,11 @@ val optionalArgDesc =
   \                             Valid options are: true, false\n\
   \                             (default 'false')\n\
   \\n\
+  \  [-allow-line-comments B]   Enable/disable SuccessorML line comments\n\
+  \                             syntax.\n\
+  \                             Valid options are: true, false\n\
+  \                             (default 'false')\n\
+  \\n\
   \  [--help]                   print this message\n"
 
 
@@ -114,6 +119,8 @@ val allowExtendedText =
   CommandLineArgs.parseBool "allow-extended-text-consts" allowSuccessorML
 val allowSigWithtype =
   CommandLineArgs.parseBool "allow-sig-withtype" allowSuccessorML
+val allowLineComments =
+  CommandLineArgs.parseBool "allow-line-comments" allowSuccessorML
 
 val doDebug = CommandLineArgs.parseFlag "debug-engine"
 val doForce = CommandLineArgs.parseFlag "force"
@@ -135,6 +142,7 @@ val allows = AstAllows.make
   , orPat = allowOrPat
   , extendedText = allowExtendedText
   , sigWithtype = allowSigWithtype
+  , lineComment = allowLineComments
   }
 
 val _ =

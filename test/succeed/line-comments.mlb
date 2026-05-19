@@ -1,0 +1,5 @@
+$(SML_LIB)/basis/basis.mlb
+ann "allowLineComments true" in
+  successor-ml/line-comments.sml
+  star-close-paren-but-not-comment.sml
+end

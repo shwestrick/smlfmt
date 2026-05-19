@@ -22,6 +22,7 @@ struct
       , orPat = b
       , extendedText = b
       , sigWithtype = b
+      , lineComment = b
       }
 
 
@@ -33,6 +34,7 @@ struct
       , orPat = AstAllows.orPat a
       , extendedText = AstAllows.extendedText a
       , sigWithtype = AstAllows.sigWithtype a
+      , lineComment = AstAllows.lineComment a
       }
 
 
@@ -44,6 +46,7 @@ struct
       , orPat = AstAllows.orPat a
       , extendedText = AstAllows.extendedText a
       , sigWithtype = AstAllows.sigWithtype a
+      , lineComment = AstAllows.lineComment a
       }
 
 
@@ -55,6 +58,7 @@ struct
       , orPat = b
       , extendedText = AstAllows.extendedText a
       , sigWithtype = AstAllows.sigWithtype a
+      , lineComment = AstAllows.lineComment a
       }
 
 
@@ -66,6 +70,7 @@ struct
       , orPat = AstAllows.orPat a
       , extendedText = b
       , sigWithtype = AstAllows.sigWithtype a
+      , lineComment = AstAllows.lineComment a
       }
 
   fun allowSigWithtype a b =
@@ -76,6 +81,18 @@ struct
       , orPat = AstAllows.orPat a
       , extendedText = AstAllows.extendedText a
       , sigWithtype = b
+      , lineComment = AstAllows.lineComment a
+      }
+
+  fun allowLineComments a b =
+    AstAllows.make
+      { optBar = AstAllows.optBar a
+      , topExp = AstAllows.topExp a
+      , recordPun = AstAllows.recordPun a
+      , orPat = AstAllows.orPat a
+      , extendedText = AstAllows.extendedText a
+      , sigWithtype = AstAllows.sigWithtype a
+      , lineComment = b
       }
 
 
@@ -111,6 +128,8 @@ struct
         allowExtendedTextConsts allows false
     | ["allowSigWithtype", "true"] => allowSigWithtype allows true
     | ["allowSigWithtype", "false"] => allowSigWithtype allows false
+    | ["allowLineComments", "true"] => allowLineComments allows true
+    | ["allowLineComments", "false"] => allowLineComments allows false
     | _ => allows
 
 
